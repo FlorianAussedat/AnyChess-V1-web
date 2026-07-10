@@ -10,6 +10,7 @@ import type { Move, Square } from 'chess.js';
 import * as Speech from 'expo-speech';
 import {
   gameStateAnnouncement,
+  normalize,
   parseSpoken,
   pickOpponentMove,
   verbalMove,
@@ -87,6 +88,35 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const repeatLast = useCallback(() => {
     speak(lastSpokenRef.current || 'Aucun coup à répéter.');
   }, [speak]);
+
+  // ── summarizeGameHistory ──────────────────────────────────────────────────
+  // Speaks every move in the game history separated by 2-second pauses.
+
+  const summarizeGameHistory = useCallback(() => {
+    try { Speech.stop(); } catch { /* ignore */ }
+    const moves = gameRef.current.history();
+    if (!moves.length) {
+      Speech.speak('Aucun coup joué pour le moment.', { language: 'fr-FR', rate: 0.9 });
+      return;
+    }
+
+    const speakAt = (i: number) => {
+      if (i >= moves.length) return;
+      // Pair number every 2 moves (0-indexed)
+      const pairNum = Math.floor(i / 2) + 1;
+      const isWhite = i % 2 === 0;
+      // Prefix with move number on White's move for clarity
+      const text = isWhite ? `${pairNum}. ${moves[i]}` : moves[i];
+      Speech.speak(text, {
+        language: 'fr-FR',
+        rate: 0.9,
+        onDone: () => {
+          setTimeout(() => speakAt(i + 1), 2000);
+        },
+      });
+    };
+    speakAt(0);
+  }, []);
 
   // ── opponentMove ─────────────────────────────────────────────────────────
   // Kept in a ref so applyUserMove / movePieceBySquare avoid circular deps.
@@ -175,6 +205,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const applyUserMove = useCallback(
     (raw: string) => {
+      const input = normalize(raw);
+
+      // ── Special commands — work regardless of turn ──────────────────────
+      if (/\brepete\b/.test(input)) {
+        repeatLast();
+        return;
+      }
+      if (input.includes('resum')) {
+        summarizeGameHistory();
+        return;
+      }
+      // ───────────────────────────────────────────────────────────────────
+
       const game = gameRef.current;
       if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
 
@@ -207,7 +250,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         speak(msg);
       }
     },
-    [waitingForUser, isOpponentThinking, speak, finishPlayerMove],
+    [waitingForUser, isOpponentThinking, speak, finishPlayerMove, repeatLast, summarizeGameHistory],
   );
 
   // ── movePieceBySquare (touch input) ───────────────────────────────────────

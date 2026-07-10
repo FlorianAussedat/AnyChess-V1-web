@@ -82,10 +82,9 @@ export function ChessBoard({
           {cols.map((boardCol, displayC) => {
             const piece = board[boardRow]?.[boardCol] ?? null;
 
-            // Algebraic square name
-            const sqName = isFlipped
-              ? FILES[7 - boardCol] + (boardRow + 1)
-              : FILES[boardCol] + (8 - boardRow);
+            // Algebraic square name — same formula regardless of flip.
+            // board[row][col] always encodes: rank = 8-row, file = col.
+            const sqName = FILES[boardCol] + (8 - boardRow);
 
             const isLight    = (displayR + displayC) % 2 === 0;
             const isLastMove = !!lastMove && (sqName === lastMove.from || sqName === lastMove.to);
@@ -109,8 +108,8 @@ export function ChessBoard({
             const showFile  = displayR === 7;
             // Left-column rank label
             const showRank  = displayC === 0;
-            const fileLabel = isFlipped ? FILES[7 - boardCol] : FILES[boardCol];
-            const rankLabel = isFlipped ? String(boardRow + 1) : String(8 - boardRow);
+            const fileLabel = FILES[boardCol];
+            const rankLabel = String(8 - boardRow);
 
             const cell = (
               <View
