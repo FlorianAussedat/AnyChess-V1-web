@@ -26,6 +26,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
 import { useGame } from '@/contexts/GameContext';
+import type { PlayerColor } from '@/contexts/GameContext';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,18 +48,45 @@ export default function GameScreen() {
     isGameOver,
     waitingForUser,
     isOpponentThinking,
+    playerColor,
     applyUserMove,
+    movePieceBySquare,
+    getLegalDestinations,
     newGame,
+    changeColor,
     repeatLast,
   } = useGame();
 
-  // Stable ref so event handlers never hold stale closures
+  // Stable ref so STT event handlers never hold stale closure
   const applyRef = useRef(applyUserMove);
   useEffect(() => { applyRef.current = applyUserMove; }, [applyUserMove]);
 
-  const [manualText, setManualText] = useState('');
+  const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
+
+  // ── STT state ─────────────────────────────────────────────────────────────
+
+  const [micActive, setMicActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const micActiveRef = useRef(false);
+  useEffect(() => { micActiveRef.current = micActive; }, [micActive]);
+
+  // ── Manual input ──────────────────────────────────────────────────────────
+
+  const [manualText, setManualText] = useState('');
+
+  // ── Touch move state ──────────────────────────────────────────────────────
+
+  const [touchSelected, setTouchSelected] = useState<string | null>(null);
+  const [legalDests, setLegalDests] = useState<string[]>([]);
+
+  // Clear touch selection when it's no longer the player's turn
+  useEffect(() => {
+    if (!canAct) {
+      setTouchSelected(null);
+      setLegalDests([]);
+    }
+  }, [canAct]);
 
   // ── Speech recognition events ──────────────────────────────────────────
 
@@ -73,7 +101,65 @@ export default function GameScreen() {
   });
   useSpeechRecognitionEvent('error', () => setIsListening(false));
 
-  // ── Pulse animation ────────────────────────────────────────────────────
+  // ── Mic helpers ────────────────────────────────────────────────────────────
+
+  const startListening = useCallback(async () => {
+    try {
+      const { granted } =
+        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      setHasPermission(granted);
+      if (!granted) return;
+      ExpoSpeechRecognitionModule.start({
+        lang: 'fr-FR',
+        interimResults: false,
+        maxAlternatives: 4,
+      });
+    } catch {
+      setIsListening(false);
+    }
+  }, []);
+
+  const stopListening = useCallback(() => {
+    try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
+  }, []);
+
+  // ── Auto-restart mic when toggle is on and it's the player's turn ─────────
+
+  useEffect(() => {
+    // Only restart when all three conditions are simultaneously true
+    if (!micActive || !canAct || isListening) return;
+
+    const t = setTimeout(() => {
+      if (micActiveRef.current) startListening();
+    }, 600); // brief pause before re-opening the mic
+
+    return () => clearTimeout(t);
+  }, [micActive, canAct, isListening, startListening]);
+
+  // Turn off mic toggle when game is over
+  useEffect(() => {
+    if (isGameOver && micActive) {
+      setMicActive(false);
+      stopListening();
+    }
+  }, [isGameOver, micActive, stopListening]);
+
+  // ── Mic button toggle ─────────────────────────────────────────────────────
+
+  const onMicPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (micActive) {
+      // Turn mic OFF
+      setMicActive(false);
+      stopListening();
+    } else {
+      // Turn mic ON
+      setMicActive(true);
+      if (canAct) startListening(); // start immediately if it's our turn
+    }
+  }, [micActive, canAct, startListening, stopListening]);
+
+  // ── Pulse animation ────────────────────────────────────────────────────────
 
   const scale = useSharedValue(1);
 
@@ -96,35 +182,7 @@ export default function GameScreen() {
     transform: [{ scale: scale.value }],
   }));
 
-  // ── Mic handlers ───────────────────────────────────────────────────────
-
-  const startListening = useCallback(async () => {
-    try {
-      const { granted } =
-        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      setHasPermission(granted);
-      if (!granted) return;
-      ExpoSpeechRecognitionModule.start({
-        lang: 'fr-FR',
-        interimResults: false,
-        maxAlternatives: 4,
-      });
-    } catch {
-      setIsListening(false);
-    }
-  }, []);
-
-  const stopListening = useCallback(() => {
-    try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
-  }, []);
-
-  const onMicPress = useCallback(() => {
-    if (!waitingForUser || isOpponentThinking || isGameOver) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (isListening) { stopListening(); } else { startListening(); }
-  }, [waitingForUser, isOpponentThinking, isGameOver, isListening, startListening, stopListening]);
-
-  // ── Manual input ───────────────────────────────────────────────────────
+  // ── Manual input submit ────────────────────────────────────────────────────
 
   const onPlayManual = useCallback(() => {
     const text = manualText.trim();
@@ -133,7 +191,58 @@ export default function GameScreen() {
     setManualText('');
   }, [manualText]);
 
-  // ── Move history data ──────────────────────────────────────────────────
+  // ── Touch move handler ────────────────────────────────────────────────────
+
+  const onSquarePress = useCallback(
+    (square: string) => {
+      if (!canAct) return;
+
+      if (touchSelected === null) {
+        // Try to select a piece
+        const dests = getLegalDestinations(square);
+        if (dests.length > 0) {
+          setTouchSelected(square);
+          setLegalDests(dests);
+        }
+      } else if (square === touchSelected) {
+        // Tap the selected piece again → deselect
+        setTouchSelected(null);
+        setLegalDests([]);
+      } else if (legalDests.includes(square)) {
+        // Execute the move
+        movePieceBySquare(touchSelected, square);
+        setTouchSelected(null);
+        setLegalDests([]);
+      } else {
+        // Try re-selecting another friendly piece
+        const dests = getLegalDestinations(square);
+        if (dests.length > 0) {
+          setTouchSelected(square);
+          setLegalDests(dests);
+        } else {
+          // Deselect
+          setTouchSelected(null);
+          setLegalDests([]);
+        }
+      }
+    },
+    [canAct, touchSelected, legalDests, getLegalDestinations, movePieceBySquare],
+  );
+
+  // ── Color picker handler ───────────────────────────────────────────────────
+
+  const onPickColor = useCallback(
+    (color: PlayerColor) => {
+      if (color === playerColor) {
+        newGame(); // same color → just restart
+      } else {
+        changeColor(color);
+      }
+    },
+    [playerColor, newGame, changeColor],
+  );
+
+  // ── Move history rows ──────────────────────────────────────────────────────
 
   const moveRows: MoveRow[] = [];
   for (let i = 0; i < history.length; i += 2) {
@@ -145,11 +254,24 @@ export default function GameScreen() {
     });
   }
 
-  // ── Layout ─────────────────────────────────────────────────────────────
+  // ── Layout ────────────────────────────────────────────────────────────────
 
-  const topPad = isWeb ? 67 : insets.top;
+  const topPad    = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : insets.bottom;
-  const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
+
+  const micBg = micActive
+    ? isListening ? '#c0392b' : '#992520'
+    : colors.primary;
+
+  const micIcon = micActive
+    ? isListening ? 'mic' : 'mic-outline'
+    : 'mic-off-outline';
+
+  const micLabel = isListening
+    ? 'Écoute…'
+    : micActive
+    ? 'Micro actif'
+    : 'Micro éteint';
 
   return (
     <View
@@ -169,7 +291,7 @@ export default function GameScreen() {
             Échecs à l'oral
           </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Tu joues les Blancs
+            {playerColor === 'w' ? 'Tu joues les Blancs' : 'Tu joues les Noirs'}
           </Text>
         </View>
         <View style={styles.headerBtns}>
@@ -196,9 +318,62 @@ export default function GameScreen() {
         </View>
       </View>
 
+      {/* ── Color picker ────────────────────────────────────────────── */}
+      <View style={styles.colorRow}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.colorPill,
+            {
+              backgroundColor:
+                playerColor === 'w' ? colors.primary : colors.card,
+              borderColor:
+                playerColor === 'w' ? colors.primary : colors.border,
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+          onPress={() => onPickColor('w')}
+          testID="color-white"
+        >
+          <Text style={[
+            styles.colorPillText,
+            { color: playerColor === 'w' ? '#fff' : colors.mutedForeground },
+          ]}>
+            ♔ Blancs
+          </Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.colorPill,
+            {
+              backgroundColor:
+                playerColor === 'b' ? colors.primary : colors.card,
+              borderColor:
+                playerColor === 'b' ? colors.primary : colors.border,
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+          onPress={() => onPickColor('b')}
+          testID="color-black"
+        >
+          <Text style={[
+            styles.colorPillText,
+            { color: playerColor === 'b' ? '#fff' : colors.mutedForeground },
+          ]}>
+            ♚ Noirs
+          </Text>
+        </Pressable>
+      </View>
+
       {/* ── Board ──────────────────────────────────────────────────── */}
       <View style={styles.boardRow}>
-        <ChessBoard board={board} lastMove={lastMove} />
+        <ChessBoard
+          board={board}
+          lastMove={lastMove}
+          isFlipped={playerColor === 'b'}
+          selectedSquare={touchSelected}
+          legalDots={legalDests}
+          onSquarePress={onSquarePress}
+        />
       </View>
 
       {/* ── Status ─────────────────────────────────────────────────── */}
@@ -224,41 +399,30 @@ export default function GameScreen() {
           {isOpponentThinking ? "L'adversaire réfléchit…" : status}
         </Text>
         {!!heardText && (
-          <Text
-            numberOfLines={1}
-            style={[styles.heardText, { color: '#a9d6ff' }]}
-          >
+          <Text numberOfLines={1} style={[styles.heardText, { color: '#a9d6ff' }]}>
             Entendu : {heardText}
           </Text>
         )}
       </View>
 
-      {/* ── Mic button ─────────────────────────────────────────────── */}
+      {/* ── Mic toggle button ───────────────────────────────────────── */}
       <View style={styles.micRow}>
         <Animated.View style={animStyle}>
           <Pressable
             onPress={onMicPress}
-            disabled={!canAct}
             testID="mic-btn"
             style={({ pressed }) => [
               styles.micBtn,
               {
-                backgroundColor: isListening ? '#c0392b' : colors.primary,
-                opacity: !canAct ? 0.38 : pressed ? 0.82 : 1,
+                backgroundColor: micBg,
+                opacity: pressed ? 0.80 : 1,
               },
             ]}
           >
-            <Ionicons
-              name={isListening ? 'mic' : 'mic-outline'}
-              size={24}
-              color="#fff"
-            />
-            <Text style={styles.micLabel}>
-              {isListening ? 'Écoute…' : 'Parler'}
-            </Text>
+            <Ionicons name={micIcon as any} size={22} color="#fff" />
+            <Text style={styles.micLabel}>{micLabel}</Text>
           </Pressable>
         </Animated.View>
-
         {hasPermission === false && (
           <Text style={[styles.permWarn, { color: '#ffcf70' }]}>
             Permission microphone refusée
@@ -302,11 +466,7 @@ export default function GameScreen() {
       <View
         style={[
           styles.historyCard,
-          {
-            flex: 1,
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
+          { flex: 1, backgroundColor: colors.card, borderColor: colors.border },
         ]}
       >
         <Text style={[styles.historyTitle, { color: colors.foreground }]}>
@@ -324,10 +484,7 @@ export default function GameScreen() {
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <View
-                style={[
-                  styles.moveRow,
-                  { borderBottomColor: colors.border },
-                ]}
+                style={[styles.moveRow, { borderBottomColor: colors.border }]}
               >
                 <Text style={[styles.moveNum, { color: colors.mutedForeground }]}>
                   {item.num}.
@@ -347,7 +504,7 @@ export default function GameScreen() {
   );
 }
 
-// ── Styles ──────────────────────────────────────────────────────────────────
+// ── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: {
@@ -380,6 +537,23 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // Color picker
+  colorRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  colorPill: {
+    flex: 1,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorPillText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
   },
   // Board
   boardRow: {
@@ -414,7 +588,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingVertical: 11,
-    paddingHorizontal: 30,
+    paddingHorizontal: 28,
     borderRadius: 999,
   },
   micLabel: {

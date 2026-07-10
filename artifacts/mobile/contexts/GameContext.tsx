@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { Chess } from 'chess.js';
-import type { Move } from 'chess.js';
+import type { Move, Square } from 'chess.js';
 import * as Speech from 'expo-speech';
 import {
   gameStateAnnouncement,
@@ -16,6 +16,8 @@ import {
 } from '@/lib/chessParser';
 
 // ── Types ──────────────────────────────────────────────────────────────────
+
+export type PlayerColor = 'w' | 'b';
 
 export type BoardPiece = {
   square: string;
@@ -34,8 +36,12 @@ interface GameContextValue {
   isGameOver: boolean;
   waitingForUser: boolean;
   isOpponentThinking: boolean;
+  playerColor: PlayerColor;
   applyUserMove: (raw: string) => void;
+  movePieceBySquare: (from: string, to: string) => boolean;
+  getLegalDestinations: (square: string) => string[];
   newGame: () => void;
+  changeColor: (color: PlayerColor) => void;
   repeatLast: () => void;
 }
 
@@ -48,7 +54,9 @@ const GameContext = createContext<GameContextValue | null>(null);
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const gameRef = useRef(new Chess());
   const lastSpokenRef = useRef('');
+  const playerColorRef = useRef<PlayerColor>('w');
 
+  const [playerColor, setPlayerColor] = useState<PlayerColor>('w');
   const [board, setBoard] = useState<(BoardPiece | null)[][]>(
     () => gameRef.current.board() as (BoardPiece | null)[][],
   );
@@ -80,7 +88,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     speak(lastSpokenRef.current || 'Aucun coup à répéter.');
   }, [speak]);
 
-  // ── opponentMove kept in a ref so applyUserMove avoids circular deps ─────
+  // ── opponentMove ─────────────────────────────────────────────────────────
+  // Kept in a ref so applyUserMove / movePieceBySquare avoid circular deps.
 
   const opponentMoveRef = useRef<() => void>(() => {});
   const opponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,7 +100,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     setIsOpponentThinking(true);
 
-    // Cancel any already-pending AI move before scheduling a new one
     if (opponentTimeoutRef.current != null) {
       clearTimeout(opponentTimeoutRef.current);
     }
@@ -132,17 +140,42 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setIsOpponentThinking(false);
         setWaitingForUser(true);
       }
-    }, 650);
+    }, 2000); // 2-second thinking delay
   }, [syncState, speak]);
 
   opponentMoveRef.current = opponentMove;
 
-  // ── applyUserMove ─────────────────────────────────────────────────────────
+  // ── Shared post-move logic ────────────────────────────────────────────────
+
+  const finishPlayerMove = useCallback(
+    (played: Move) => {
+      setLastMove({ from: played.from, to: played.to });
+      setHeardText('');
+      syncState();
+
+      const game = gameRef.current;
+      const checkNote = game.isCheck() ? ' Échec.' : '';
+      setStatus('Coup joué : ' + verbalMove(played) + checkNote);
+      if (game.isCheck()) speak('Échec.');
+
+      if (game.isGameOver()) {
+        const endMsg = gameStateAnnouncement(game);
+        setWaitingForUser(false);
+        setStatus(endMsg);
+        speak(endMsg);
+      } else {
+        setWaitingForUser(false);
+        opponentMoveRef.current();
+      }
+    },
+    [syncState, speak],
+  );
+
+  // ── applyUserMove (voice / text input) ────────────────────────────────────
 
   const applyUserMove = useCallback(
     (raw: string) => {
       const game = gameRef.current;
-      // Strict turn guard — reject if it's not the player's turn
       if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
 
       setHeardText(raw ? `« ${raw} »` : '');
@@ -162,56 +195,104 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const chosen = parsed.move;
         const played = game.move({
-          from: chosen.from,
-          to: chosen.to,
+          from: parsed.move.from,
+          to: parsed.move.to,
           promotion: 'q',
         }) as Move;
-
-        setLastMove({ from: played.from, to: played.to });
-        syncState();
-
-        const checkNote = game.isCheck() ? ' Échec.' : '';
-        setStatus('Coup joué : ' + verbalMove(played) + checkNote);
-        if (game.isCheck()) speak('Échec.');
-
-        if (game.isGameOver()) {
-          const endMsg = gameStateAnnouncement(game);
-          setWaitingForUser(false);
-          setStatus(endMsg);
-          speak(endMsg);
-        } else {
-          setWaitingForUser(false);
-          opponentMoveRef.current();
-        }
+        finishPlayerMove(played);
       } catch {
         const msg = 'Ce coup est illégal. Répète.';
         setStatus(msg);
         speak(msg);
       }
     },
-    [waitingForUser, isOpponentThinking, syncState, speak],
+    [waitingForUser, isOpponentThinking, speak, finishPlayerMove],
   );
 
-  // ── newGame ───────────────────────────────────────────────────────────────
+  // ── movePieceBySquare (touch input) ───────────────────────────────────────
+
+  const movePieceBySquare = useCallback(
+    (from: string, to: string): boolean => {
+      const game = gameRef.current;
+      if (!waitingForUser || isOpponentThinking || game.isGameOver()) return false;
+      try {
+        const played = game.move({ from, to, promotion: 'q' }) as Move;
+        finishPlayerMove(played);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [waitingForUser, isOpponentThinking, finishPlayerMove],
+  );
+
+  // ── getLegalDestinations ──────────────────────────────────────────────────
+
+  const getLegalDestinations = useCallback(
+    (square: string): string[] => {
+      const game = gameRef.current;
+      if (!waitingForUser || game.isGameOver()) return [];
+      const piece = game.get(square as Square);
+      if (!piece || piece.color !== playerColorRef.current) return [];
+      try {
+        const moves = game.moves({
+          verbose: true,
+          square: square as Square,
+        }) as Move[];
+        return [...new Set(moves.map(m => m.to))];
+      } catch {
+        return [];
+      }
+    },
+    [waitingForUser],
+  );
+
+  // ── Reset / new game ──────────────────────────────────────────────────────
+
+  const resetForColor = useCallback(
+    (color: PlayerColor) => {
+      if (opponentTimeoutRef.current != null) {
+        clearTimeout(opponentTimeoutRef.current);
+        opponentTimeoutRef.current = null;
+      }
+      try { Speech.stop(); } catch { /* ignore */ }
+      gameRef.current.reset();
+      lastSpokenRef.current = '';
+      setLastMove(null);
+      setHeardText('');
+      setIsGameOver(false);
+      setIsOpponentThinking(false);
+      syncState();
+
+      if (color === 'b') {
+        // User plays Black — AI goes first as White
+        setWaitingForUser(false);
+        setStatus("L'adversaire prépare son coup…");
+        opponentTimeoutRef.current = setTimeout(() => {
+          opponentTimeoutRef.current = null;
+          opponentMoveRef.current();
+        }, 2000);
+      } else {
+        setWaitingForUser(true);
+        setStatus('À toi de jouer.');
+      }
+    },
+    [syncState],
+  );
 
   const newGame = useCallback(() => {
-    // Cancel any in-flight AI timeout so it cannot mutate the reset board
-    if (opponentTimeoutRef.current != null) {
-      clearTimeout(opponentTimeoutRef.current);
-      opponentTimeoutRef.current = null;
-    }
-    try { Speech.stop(); } catch { /* ignore */ }
-    gameRef.current.reset();
-    lastSpokenRef.current = '';
-    setLastMove(null);
-    setHeardText('');
-    setStatus('À toi de jouer.');
-    setWaitingForUser(true);
-    setIsOpponentThinking(false);
-    syncState();
-  }, [syncState]);
+    resetForColor(playerColorRef.current);
+  }, [resetForColor]);
+
+  const changeColor = useCallback(
+    (color: PlayerColor) => {
+      playerColorRef.current = color;
+      setPlayerColor(color);
+      resetForColor(color);
+    },
+    [resetForColor],
+  );
 
   return (
     <GameContext.Provider
@@ -224,8 +305,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         isGameOver,
         waitingForUser,
         isOpponentThinking,
+        playerColor,
         applyUserMove,
+        movePieceBySquare,
+        getLegalDestinations,
         newGame,
+        changeColor,
         repeatLast,
       }}
     >
