@@ -1,0 +1,1 @@
+- [Chess app architecture](chess-app-arch.md) — voice chess game: expo-speech-recognition + chess.js v1, French parsing in lib/chessParser.ts

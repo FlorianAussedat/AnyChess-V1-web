@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17202a">
+  <title>Échecs à l'oral — prototype</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background:#111820; color:#f3f6f8; min-height:100vh; }
+    header { padding:18px 16px 8px; max-width:900px; margin:auto; }
+    h1 { margin:0 0 5px; font-size:1.45rem; }
+    .sub { color:#b7c2cc; font-size:.92rem; }
+    main { max-width:900px; margin:auto; padding:12px 14px 32px; display:grid; gap:14px; }
+    .card { background:#19232d; border:1px solid #2c3b48; border-radius:16px; padding:14px; }
+    #board { width:min(94vw,560px); aspect-ratio:1; margin:auto; display:grid; grid-template-columns:repeat(8,1fr); border-radius:8px; overflow:hidden; border:2px solid #8795a1; }
+    .sq { display:flex; align-items:center; justify-content:center; position:relative; font-size:clamp(28px,8vw,58px); user-select:none; }
+    .light { background:#e8d9b5; }
+    .dark { background:#8a6650; }
+    .last { box-shadow: inset 0 0 0 5px rgba(255,235,59,.58); }
+    .coord { position:absolute; font-size:10px; font-weight:700; opacity:.75; }
+    .file { bottom:2px; right:3px; }
+    .rank { top:2px; left:3px; }
+    .panel { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    @media(max-width:680px){ .panel { grid-template-columns:1fr; } }
+    .status { font-size:1.06rem; min-height:1.5em; }
+    .heard { color:#a9d6ff; min-height:1.35em; margin-top:6px; }
+    .controls { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
+    button { border:0; border-radius:999px; padding:12px 16px; font-size:1rem; font-weight:700; cursor:pointer; }
+    #mic { background:#e74c3c; color:white; min-width:150px; }
+    #mic.listening { animation:pulse 1s infinite; }
+    .secondary { background:#34495e; color:white; }
+    .danger { background:#7d2635; color:white; }
+    @keyframes pulse { 50% { transform:scale(1.04); filter:brightness(1.15); } }
+    input { width:100%; padding:12px; border-radius:10px; border:1px solid #4a5c6b; background:#101820; color:white; font-size:1rem; }
+    .manual { display:flex; gap:8px; }
+    .manual button { border-radius:10px; background:#2d8a59; color:white; }
+    #moves { max-height:220px; overflow:auto; line-height:1.75; font-variant-numeric:tabular-nums; }
+    .move-row { display:grid; grid-template-columns:38px 1fr 1fr; gap:8px; border-bottom:1px solid #2b3945; padding:3px 0; }
+    .help { font-size:.92rem; color:#c5ced6; line-height:1.55; }
+    code { background:#101820; padding:2px 5px; border-radius:5px; }
+    .warning { color:#ffcf70; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Échecs à l’oral</h1>
+  <div class="sub">Prototype web V0, tu joues les Blancs.</div>
+</header>
+<main>
+  <section class="card"><div id="board" aria-label="Échiquier"></div></section>
+
+  <section class="panel">
+    <div class="card">
+      <div id="status" class="status">À toi de jouer.</div>
+      <div id="heard" class="heard"></div>
+      <div class="controls">
+        <button id="mic">🎙️ Parler</button>
+        <button id="repeat" class="secondary">🔊 Répète</button>
+        <button id="new" class="secondary">Nouvelle partie</button>
+      </div>
+      <p class="warning" id="voiceWarning"></p>
+      <div class="manual">
+        <input id="manualInput" placeholder="Ex. Fou b5, Tour prend f8, petit roque">
+        <button id="playManual">Jouer</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <strong>Coups joués</strong>
+      <div id="moves"></div>
+    </div>
+  </section>
+
+  <section class="card help">
+    <strong>Formulations reconnues</strong><br>
+    <code>e4</code>, <code>Fou b5</code>, <code>Cavalier f3</code>,
+    <code>Tour prend f8</code>, <code>Dame prend h7</code>,
+    <code>petit roque</code>, <code>grand roque</code>.<br>
+    Les promotions sont automatiquement faites en dame. En cas de doute, l’application demande de répéter.
+    <br><br>
+    <strong>Limite de cette V0 :</strong> l’adversaire choisit des coups légaux avec une petite préférence pour les prises et les échecs. Ce n’est pas encore un vrai niveau 1800.
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script>
+(() => {
+  const game = new Chess();
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const heardEl = document.getElementById('heard');
+  const movesEl = document.getElementById('moves');
+  const micBtn = document.getElementById('mic');
+  const repeatBtn = document.getElementById('repeat');
+  const newBtn = document.getElementById('new');
+  const manualInput = document.getElementById('manualInput');
+  const playManual = document.getElementById('playManual');
+  const warning = document.getElementById('voiceWarning');
+
+  const pieceChars = {
+    wp:'♙', wn:'♘', wb:'♗', wr:'♖', wq:'♕', wk:'♔',
+    bp:'♟', bn:'♞', bb:'♝', br:'♜', bq:'♛', bk:'♚'
+  };
+  const frenchPiece = { p:'Pion', n:'Cavalier', b:'Fou', r:'Tour', q:'Dame', k:'Roi' };
+  let lastMove = null;
+  let lastSpoken = '';
+  let waitingForUser = true;
+
+  function speak(text) {
+    lastSpoken = text;
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR';
+    u.rate = 0.95;
+    speechSynthesis.speak(u);
+  }
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    const pos = game.board();
+    for (let r=0; r<8; r++) {
+      for (let f=0; f<8; f++) {
+        const sqName = 'abcdefgh'[f] + (8-r);
+        const cell = document.createElement('div');
+        cell.className = 'sq ' + ((r+f)%2===0 ? 'light':'dark');
+        if (lastMove && (sqName===lastMove.from || sqName===lastMove.to)) cell.classList.add('last');
+        const p = pos[r][f];
+        if (p) cell.textContent = pieceChars[p.color+p.type];
+        if (r===7) {
+          const c=document.createElement('span'); c.className='coord file'; c.textContent='abcdefgh'[f]; cell.appendChild(c);
+        }
+        if (f===0) {
+          const c=document.createElement('span'); c.className='coord rank'; c.textContent=8-r; cell.appendChild(c);
+        }
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function renderMoves() {
+    const hist = game.history();
+    movesEl.innerHTML = '';
+    for (let i=0; i<hist.length; i+=2) {
+      const row=document.createElement('div'); row.className='move-row';
+      row.innerHTML = `<span>${i/2+1}.</span><span>${hist[i]||''}</span><span>${hist[i+1]||''}</span>`;
+      movesEl.appendChild(row);
+    }
+    movesEl.scrollTop = movesEl.scrollHeight;
+  }
+
+  function gameStateAnnouncement(prefix='') {
+    if (game.in_checkmate()) return prefix + ' Échec et mat. Partie terminée.';
+    if (game.in_stalemate()) return prefix + ' Pat. Partie nulle.';
+    if (game.in_threefold_repetition()) return prefix + ' Partie nulle par répétition.';
+    if (game.insufficient_material()) return prefix + ' Partie nulle, matériel insuffisant.';
+    if (game.in_draw()) return prefix + ' Partie nulle.';
+    if (game.in_check()) return prefix + ' Échec.';
+    return prefix;
+  }
+
+  function verbalMove(m) {
+    if (m.flags.includes('k')) return 'Petit roque';
+    if (m.flags.includes('q')) return 'Grand roque';
+    let txt = frenchPiece[m.piece] + ' ';
+    if (m.captured) txt += 'prend ';
+    txt += m.to;
+    if (m.promotion) txt += ', promotion en dame';
+    return txt;
+  }
+
+  function normalize(s) {
+    return s.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[.,;:!?]/g,' ')
+      .replace(/\s+/g,' ').trim()
+      .replace(/\bfois\b/g,'prend')
+      .replace(/\bx\b/g,'prend')
+      .replace(/\bquatre\b/g,'4').replace(/\bcinq\b/g,'5')
+      .replace(/\bsix\b/g,'6').replace(/\bsept\b/g,'7').replace(/\bhuit\b/g,'8')
+      .replace(/\bdeux\b/g,'2').replace(/\btrois\b/g,'3').replace(/\bun\b/g,'1');
+  }
+
+  function spokenCandidates(move) {
+    const names = {p:['pion',''], n:['cavalier'], b:['fou'], r:['tour'], q:['dame'], k:['roi']};
+    if (move.flags.includes('k')) return ['petit roque','roque cote roi'];
+    if (move.flags.includes('q')) return ['grand roque','roque cote dame'];
+    const out=[];
+    for (const name of names[move.piece]) {
+      const cap = move.captured ? [' prend ',' capture '] : [' ',' en '];
+      for (const middle of cap) {
+        out.push(normalize((name ? name+middle : '') + move.to));
+        if (move.piece==='p') out.push(normalize(move.to));
+      }
+    }
+    return [...new Set(out)];
+  }
+
+  function similarity(a,b) {
+    if (a===b) return 1;
+    const aa=a.split(' '), bb=b.split(' ');
+    let common=aa.filter(x=>bb.includes(x)).length;
+    let score=common/Math.max(aa.length,bb.length);
+    const sqA=(a.match(/[a-h][1-8]/)||[])[0], sqB=(b.match(/[a-h][1-8]/)||[])[0];
+    if (sqA && sqB) score += sqA===sqB ? .45 : -.25;
+    return score;
+  }
+
+  function parseSpoken(raw) {
+    const input=normalize(raw);
+    const legal=game.moves({verbose:true});
+    let ranked=[];
+    for (const m of legal) {
+      for (const c of spokenCandidates(m)) ranked.push({m,c,score:similarity(input,c)});
+    }
+    ranked.sort((a,b)=>b.score-a.score);
+    if (!ranked.length || ranked[0].score < .72) return {kind:'unknown'};
+    const top=ranked[0], second=ranked.find(x=>x.m.from!==top.m.from || x.m.to!==top.m.to);
+    if (second && top.score-second.score < .12 && top.score<1) return {kind:'ambiguous', guess:top.m};
+    return {kind:'move', move:top.m};
+  }
+
+  function updateAll() { renderBoard(); renderMoves(); }
+
+  function finishOrOpponent() {
+    const end=gameStateAnnouncement();
+    if (end) {
+      statusEl.textContent=end.trim();
+      speak(end.trim());
+      waitingForUser=false;
+      return;
+    }
+    waitingForUser=false;
+    statusEl.textContent="L’adversaire réfléchit…";
+    setTimeout(opponentMove, 500);
+  }
+
+  function applyUserSpeech(raw) {
+    if (!waitingForUser || game.game_over()) return;
+    heardEl.textContent='Entendu : « '+raw+' »';
+    const parsed=parseSpoken(raw);
+    if (parsed.kind==='unknown') {
+      statusEl.textContent="Je n’ai pas compris le coup. Répète.";
+      speak("Je n’ai pas compris le coup. Répète.");
+      return;
+    }
+    if (parsed.kind==='ambiguous') {
+      statusEl.textContent="Je ne suis pas sûre d’avoir compris. Répète le coup.";
+      speak("Je ne suis pas sûre d’avoir compris. Répète le coup.");
+      return;
+    }
+    const chosen=parsed.move;
+    const played=game.move({from:chosen.from,to:chosen.to,promotion:'q'});
+    if (!played) {
+      statusEl.textContent="Ce coup est illégal. Répète.";
+      speak("Ce coup est illégal. Répète.");
+      return;
+    }
+    lastMove=played;
+    updateAll();
+    const checkText=game.in_check() ? ' Échec.' : '';
+    statusEl.textContent='Coup joué : '+verbalMove(played)+checkText;
+    if (game.in_check()) speak('Échec.');
+    finishOrOpponent();
+  }
+
+  function opponentMove() {
+    if (game.game_over()) return;
+    const moves=game.moves({verbose:true});
+    const scored=moves.map(m => {
+      let s=Math.random()*3;
+      if (m.captured) s += ({p:1,n:3,b:3,r:5,q:9}[m.captured]||0)*2;
+      const clone=new Chess(game.fen());
+      clone.move({from:m.from,to:m.to,promotion:'q'});
+      if (clone.in_check()) s += 4;
+      return {m,s};
+    }).sort((a,b)=>b.s-a.s);
+    const pool=scored.slice(0, Math.min(5,scored.length));
+    const selected=pool[Math.floor(Math.random()*pool.length)].m;
+    const played=game.move({from:selected.from,to:selected.to,promotion:'q'});
+    lastMove=played;
+    updateAll();
+    let announcement=verbalMove(played);
+    announcement=gameStateAnnouncement(announcement);
+    statusEl.textContent=announcement;
+    speak(announcement);
+    waitingForUser=!game.game_over();
+    if (waitingForUser) statusEl.textContent += ' À toi.';
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition=null;
+  if (SpeechRecognition) {
+    recognition=new SpeechRecognition();
+    recognition.lang='fr-FR';
+    recognition.interimResults=false;
+    recognition.maxAlternatives=4;
+    recognition.onstart=()=>{ micBtn.classList.add('listening'); micBtn.textContent='🎙️ J’écoute…'; };
+    recognition.onend=()=>{ micBtn.classList.remove('listening'); micBtn.textContent='🎙️ Parler'; };
+    recognition.onerror=()=>{ statusEl.textContent="Je n’ai pas compris. Répète."; speak("Je n’ai pas compris. Répète."); };
+    recognition.onresult=(e)=>{
+      const alternatives=[...e.results[0]].map(x=>x.transcript);
+      let best=alternatives[0], bestScore=-1;
+      for (const alt of alternatives) {
+        const p=parseSpoken(alt);
+        const score=p.kind==='move'?2:p.kind==='ambiguous'?1:0;
+        if (score>bestScore){bestScore=score;best=alt;}
+      }
+      applyUserSpeech(best);
+    };
+  } else {
+    warning.textContent="La reconnaissance vocale n’est pas disponible dans ce navigateur. Utilise Chrome Android ou le champ texte.";
+    micBtn.disabled=true;
+  }
+
+  micBtn.onclick=()=>{
+    if (!waitingForUser) return;
+    if (!recognition) return;
+    try { recognition.start(); } catch(e) {}
+  };
+  repeatBtn.onclick=()=> lastSpoken ? speak(lastSpoken) : speak("Aucun coup à répéter.");
+  newBtn.onclick=()=>{
+    speechSynthesis.cancel();
+    game.reset(); lastMove=null; lastSpoken=''; waitingForUser=true;
+    heardEl.textContent=''; statusEl.textContent='À toi de jouer.'; updateAll();
+  };
+  playManual.onclick=()=>{ const v=manualInput.value.trim(); if(v){applyUserSpeech(v); manualInput.value='';} };
+  manualInput.addEventListener('keydown',e=>{if(e.key==='Enter')playManual.click();});
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  updateAll();
+})();
+</script>
+</body>
+</html>
