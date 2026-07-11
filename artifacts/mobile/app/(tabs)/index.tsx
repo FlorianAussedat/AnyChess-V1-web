@@ -28,6 +28,7 @@ import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
+import { CHESS_CONTEXT_STRINGS } from '@/lib/chessParser';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,7 @@ export default function GameScreen() {
     newGame,
     changeColor,
     repeatLast,
+    summarizeGame,
   } = useGame();
 
   // Stable ref so STT handlers never hold stale closures
@@ -134,8 +136,9 @@ export default function GameScreen() {
         lang: 'fr-FR',
         interimResults: false,
         maxAlternatives: 4,
-        continuous: true,   // stay open between moves — eliminates repeated start/stop beeps
+        continuous: true,          // keep mic open between moves
         requiresOnDeviceRecognition: false,
+        contextualStrings: CHESS_CONTEXT_STRINGS, // bias STT toward chess vocab
       });
     } catch {
       setIsListening(false);
@@ -154,7 +157,7 @@ export default function GameScreen() {
     if (!micActive || isListening) return;
     const t = setTimeout(() => {
       if (micActiveRef.current && !isListening) startListening();
-    }, 2000); // generous delay so TTS has time to finish first
+    }, 100); // near-instant restart so gaps are imperceptible
     return () => clearTimeout(t);
   }, [micActive, isListening, startListening]);
 
@@ -302,25 +305,34 @@ export default function GameScreen() {
           </View>
         </View>
 
-        {/* Répéter + Reprendre buttons */}
-        <View style={styles.headerBtns}>
-          <Pressable
-            style={({ pressed }) => [styles.iconBtn, { backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 }]}
-            onPress={repeatLast}
-            accessibilityLabel="Répéter le dernier coup"
-            testID="repeat-btn"
-          >
-            <Ionicons name="volume-medium-outline" size={20} color={colors.foreground} />
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.iconBtn, { backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 }]}
-            onPress={newGame}
-            accessibilityLabel="Reprendre la partie depuis le début"
-            testID="new-game-btn"
-          >
-            <Ionicons name="refresh-outline" size={20} color={colors.foreground} />
-          </Pressable>
-        </View>
+      </View>
+
+      {/* ── Action row: Répéter · Résumé · Reprendre ─────────────────── */}
+      <View style={styles.actionRow}>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
+          onPress={repeatLast}
+          testID="repeat-btn"
+        >
+          <Ionicons name="volume-medium-outline" size={14} color={colors.foreground} />
+          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Répéter</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
+          onPress={summarizeGame}
+          testID="summary-btn"
+        >
+          <Ionicons name="list-outline" size={14} color={colors.foreground} />
+          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Résumé</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
+          onPress={newGame}
+          testID="new-game-btn"
+        >
+          <Ionicons name="refresh-outline" size={14} color={colors.foreground} />
+          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Reprendre</Text>
+        </Pressable>
       </View>
 
       {/* ── Color picker — locked when game has started ──────────────── */}
@@ -489,16 +501,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     marginTop: 1,
   },
-  headerBtns: {
+  actionRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 7,
   },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  actionBtnLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
   },
   // Color picker
   colorRow: {

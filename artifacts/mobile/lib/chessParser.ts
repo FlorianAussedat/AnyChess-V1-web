@@ -34,20 +34,36 @@ export function normalize(s: string): string {
     .replace(/[.,;:!?]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    // English piece names → French for unified matching
+    // ── STT corruption fixes (must run before piece-name mapping) ───────────
+    // "damage", "dam", "dom" → dame  (frequent STT corruption of "dame")
+    .replace(/\bdamage\b/g, 'dame')
+    .replace(/\bdam\b/g, 'dame')
+    .replace(/\bdoms?\b/g, 'dame')
+    .replace(/\bdames\b/g, 'dame')
+    // "cavalerie", "cavaliers" → cavalier
+    .replace(/\bcavalerie\b/g, 'cavalier')
+    .replace(/\bcavaliers\b/g, 'cavalier')
+    // "fous", "foul" → fou
+    .replace(/\bfous\b/g, 'fou')
+    .replace(/\bfoul\b/g, 'fou')
+    // "tours" → tour
+    .replace(/\btours\b/g, 'tour')
+    // "pions" → pion
+    .replace(/\bpions\b/g, 'pion')
+    // ── English piece names → French ─────────────────────────────────────────
     .replace(/\bknight\b/g, 'cavalier')
     .replace(/\bbishop\b/g, 'fou')
     .replace(/\brook\b/g, 'tour')
     .replace(/\bqueen\b/g, 'dame')
     .replace(/\bking\b/g, 'roi')
     .replace(/\bpawn\b/g, 'pion')
-    // English actions
+    // ── English actions ───────────────────────────────────────────────────────
     .replace(/\btakes\b/g, 'prend')
     .replace(/\bcaptures\b/g, 'prend')
-    // French synonyms
+    // ── French synonyms ───────────────────────────────────────────────────────
     .replace(/\bfois\b/g, 'prend')
     .replace(/\bx\b/g, 'prend')
-    // Numbers spoken aloud
+    // ── Numbers spoken aloud ──────────────────────────────────────────────────
     .replace(/\bquatre\b/g, '4')
     .replace(/\bcinq\b/g, '5')
     .replace(/\bsix\b/g, '6')
@@ -57,6 +73,26 @@ export function normalize(s: string): string {
     .replace(/\btrois\b/g, '3')
     .replace(/\bun\b/g, '1');
 }
+
+/**
+ * Full chess vocabulary list for STT contextual hints.
+ * Pass this to `contextualStrings` when starting recognition to bias
+ * the engine toward chess terms and square names.
+ */
+export const CHESS_CONTEXT_STRINGS: string[] = [
+  // Pieces (French)
+  'dame', 'cavalier', 'fou', 'tour', 'roi', 'pion',
+  // Pieces (English)
+  'queen', 'knight', 'bishop', 'rook', 'king', 'pawn',
+  // Special moves
+  'petit roque', 'grand roque', 'roque', 'promotion',
+  // Actions
+  'prend', 'en passant', 'échec', 'mat', 'échec et mat',
+  // All 64 squares
+  ...['a','b','c','d','e','f','g','h'].flatMap(f =>
+    ['1','2','3','4','5','6','7','8'].map(r => f + r)
+  ),
+];
 
 /** Convert a move to a French verbal description. */
 export function verbalMove(m: Move): string {

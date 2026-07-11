@@ -48,6 +48,7 @@ interface GameContextValue {
   newGame: () => void;
   changeColor: (color: PlayerColor) => void;
   repeatLast: () => void;
+  summarizeGame: () => void;
 }
 
 // ── Context ────────────────────────────────────────────────────────────────
@@ -368,6 +369,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         newGame,
         changeColor,
         repeatLast,
+        summarizeGame: summarizeGameHistory,
       }}
     >
       {children}
