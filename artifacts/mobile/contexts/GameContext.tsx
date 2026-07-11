@@ -47,6 +47,7 @@ interface GameContextValue {
   getLegalDestinations: (square: string) => string[];
   newGame: () => void;
   changeColor: (color: PlayerColor) => void;
+  isSpeaking: boolean;
   repeatLast: () => void;
   summarizeGame: () => void;
 }
@@ -85,6 +86,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [waitingForUser, setWaitingForUser] = useState(true);
   const [isOpponentThinking, setIsOpponentThinking] = useState(false);
   const [moveEvent, setMoveEvent] = useState<MoveEvent | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -98,8 +100,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const speak = useCallback((text: string) => {
     lastSpokenRef.current = text;
     try {
-      Speech.speak(text, { language: 'fr-FR', rate: 0.95 });
-    } catch { /* silently ignore TTS failures */ }
+      Speech.stop();
+      setIsSpeaking(true);
+      Speech.speak(text, {
+        language: 'fr-FR',
+        rate: 0.95,
+        onDone:    () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError:   () => setIsSpeaking(false),
+      });
+    } catch { setIsSpeaking(false); }
   }, []);
 
   const emitEvent = useCallback((kind: 'success' | 'error') => {
@@ -116,18 +126,28 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     try { Speech.stop(); } catch { /* ignore */ }
     const moves = gameRef.current.history();
     if (!moves.length) {
-      Speech.speak('Aucun coup joué pour le moment.', { language: 'fr-FR', rate: 0.9 });
+      setIsSpeaking(true);
+      Speech.speak('Aucun coup joué pour le moment.', {
+        language: 'fr-FR',
+        rate: 0.9,
+        onDone:    () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError:   () => setIsSpeaking(false),
+      });
       return;
     }
+    setIsSpeaking(true);
     const speakAt = (i: number) => {
-      if (i >= moves.length) return;
+      if (i >= moves.length) { setIsSpeaking(false); return; }
       const pairNum = Math.floor(i / 2) + 1;
       const isWhite = i % 2 === 0;
       const text = isWhite ? `${pairNum}. ${moves[i]}` : moves[i];
       Speech.speak(text, {
         language: 'fr-FR',
         rate: 0.9,
-        onDone: () => { setTimeout(() => speakAt(i + 1), 2000); },
+        onDone:    () => { setTimeout(() => speakAt(i + 1), 400); },
+        onStopped: () => setIsSpeaking(false),
+        onError:   () => setIsSpeaking(false),
       });
     };
     speakAt(0);
@@ -368,6 +388,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         getLegalDestinations,
         newGame,
         changeColor,
+        isSpeaking,
         repeatLast,
         summarizeGame: summarizeGameHistory,
       }}

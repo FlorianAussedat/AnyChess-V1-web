@@ -28,6 +28,7 @@ import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
+import { Audio } from 'expo-av';
 import { CHESS_CONTEXT_STRINGS } from '@/lib/chessParser';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export default function GameScreen() {
     newGame,
     changeColor,
     repeatLast,
+    isSpeaking,
     summarizeGame,
   } = useGame();
 
@@ -94,7 +96,9 @@ export default function GameScreen() {
   const [isListening, setIsListening] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const micActiveRef = useRef(false);
+  const isSpeakingRef = useRef(false);
   useEffect(() => { micActiveRef.current = micActive; }, [micActive]);
+  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
 
   // ── Manual text input ────────────────────────────────────────────────────
 
@@ -132,6 +136,15 @@ export default function GameScreen() {
       const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       setHasPermission(granted);
       if (!granted) return;
+      // Configure audio session before starting so the OS does not play its
+      // "recording started" chime when AVAudioSession is activated.
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+        staysActiveInBackground: false,
+      });
       ExpoSpeechRecognitionModule.start({
         lang: 'fr-FR',
         interimResults: false,
@@ -149,17 +162,27 @@ export default function GameScreen() {
     try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
   }, []);
 
-  // ── Fallback restart: if the OS stops the session unexpectedly while
-  //    the toggle is still on, restart after a short delay.
-  //    This should rarely fire with continuous:true.
+  // ── Pause mic while TTS is speaking so the STT doesn't capture the voice ──
 
   useEffect(() => {
-    if (!micActive || isListening) return;
+    if (!micActive) return;
+    if (isSpeaking) {
+      // Abort immediately — don't wait for a graceful stop.
+      try { ExpoSpeechRecognitionModule.abort(); } catch { /* ignore */ }
+    }
+    // When isSpeaking goes false the fallback below will restart automatically.
+  }, [isSpeaking, micActive]);
+
+  // ── Fallback restart: if the OS drops the session (or we aborted for TTS)
+  //    while the toggle is still on, restart after a short delay.
+
+  useEffect(() => {
+    if (!micActive || isListening || isSpeaking) return; // never restart during TTS
     const t = setTimeout(() => {
-      if (micActiveRef.current && !isListening) startListening();
-    }, 100); // near-instant restart so gaps are imperceptible
+      if (micActiveRef.current && !isSpeakingRef.current) startListening();
+    }, 100);
     return () => clearTimeout(t);
-  }, [micActive, isListening, startListening]);
+  }, [micActive, isListening, isSpeaking, startListening]);
 
   // Auto-deactivate toggle when game ends
   useEffect(() => {
@@ -331,7 +354,7 @@ export default function GameScreen() {
           testID="new-game-btn"
         >
           <Ionicons name="refresh-outline" size={14} color={colors.foreground} />
-          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Reprendre</Text>
+          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]} numberOfLines={2}>Recommencer{'\n'}la partie</Text>
         </Pressable>
       </View>
 
@@ -511,13 +534,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    height: 32,
+    minHeight: 36,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
     borderRadius: 10,
     borderWidth: 1,
   },
   actionBtnLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   // Color picker
   colorRow: {
