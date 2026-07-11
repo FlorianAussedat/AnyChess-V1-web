@@ -134,6 +134,8 @@ export default function GameScreen() {
         lang: 'fr-FR',
         interimResults: false,
         maxAlternatives: 4,
+        continuous: true,   // stay open between moves — eliminates repeated start/stop beeps
+        requiresOnDeviceRecognition: false,
       });
     } catch {
       setIsListening(false);
@@ -144,15 +146,17 @@ export default function GameScreen() {
     try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
   }, []);
 
-  // ── Auto-restart: toggle ON + it's the player's turn + not already listening
+  // ── Fallback restart: if the OS stops the session unexpectedly while
+  //    the toggle is still on, restart after a short delay.
+  //    This should rarely fire with continuous:true.
 
   useEffect(() => {
-    if (!micActive || !canAct || isListening) return;
+    if (!micActive || isListening) return;
     const t = setTimeout(() => {
-      if (micActiveRef.current) startListening();
-    }, 600);
+      if (micActiveRef.current && !isListening) startListening();
+    }, 2000); // generous delay so TTS has time to finish first
     return () => clearTimeout(t);
-  }, [micActive, canAct, isListening, startListening]);
+  }, [micActive, isListening, startListening]);
 
   // Auto-deactivate toggle when game ends
   useEffect(() => {

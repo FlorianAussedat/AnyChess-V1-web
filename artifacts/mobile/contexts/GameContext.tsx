@@ -170,18 +170,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         announcement = gameStateAnnouncement(game, announcement);
         setIsOpponentThinking(false);
 
-        // ── "Les Noirs / Les Blancs jouent : …" format ─────────────────
-        const oppColor = playerColorRef.current === 'w' ? 'Les Noirs' : 'Les Blancs';
-
         if (game.isGameOver()) {
           setWaitingForUser(false);
           setStatus(announcement);
           speak(announcement);
         } else {
-          const msg = `${oppColor} jouent : ${announcement}`;
           setWaitingForUser(true);
-          setStatus(msg);
-          speak(msg);
+          setStatus(announcement);
+          speak(announcement);
         }
       } catch {
         setIsOpponentThinking(false);
@@ -202,16 +198,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       emitEvent('success');
 
       const game = gameRef.current;
-      const checkNote = game.isCheck() ? ' Échec.' : '';
-      setStatus('Coup joué : ' + verbalMove(played) + checkNote);
-      if (game.isCheck()) speak('Échec.');
+
+      // Always speak the player's move aloud so they can confirm without
+      // looking at the screen.
+      const moveText = verbalMove(played);
 
       if (game.isGameOver()) {
         const endMsg = gameStateAnnouncement(game);
         setWaitingForUser(false);
-        setStatus(endMsg);
-        speak(endMsg);
+        setStatus(moveText + ' — ' + endMsg);
+        speak(moveText + '. ' + endMsg);
+      } else if (game.isCheck()) {
+        setStatus('Coup joué : ' + moveText + ' — Échec !');
+        speak(moveText + '. Échec !');
+        setWaitingForUser(false);
+        opponentMoveRef.current();
       } else {
+        setStatus('Coup joué : ' + moveText);
+        speak(moveText);
         setWaitingForUser(false);
         opponentMoveRef.current();
       }
@@ -236,17 +240,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const parsed = parseSpoken(raw, game);
 
       if (parsed.kind === 'unknown') {
-        const msg = "Je n'ai pas compris le coup. Répète.";
-        setStatus(msg);
-        speak(msg);
-        // Only buzz if the input looked like a chess attempt, not random noise
+        // No TTS for errors — avoids the mic picking up its own audio.
+        // The status text + haptic is enough feedback.
+        setStatus("Coup non reconnu. Répète.");
         if (looksLikeChessMove(input)) emitEvent('error');
         return;
       }
       if (parsed.kind === 'ambiguous') {
-        const msg = "Je ne suis pas sûr d'avoir compris. Répète le coup.";
-        setStatus(msg);
-        speak(msg);
+        setStatus("Coup ambigu. Répète plus précisément.");
         emitEvent('error');
         return;
       }
@@ -259,9 +260,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }) as Move;
         finishPlayerMove(played);
       } catch {
-        const msg = 'Ce coup est illégal. Répète.';
-        setStatus(msg);
-        speak(msg);
+        setStatus('Coup illégal. Répète.');
         emitEvent('error');
       }
     },

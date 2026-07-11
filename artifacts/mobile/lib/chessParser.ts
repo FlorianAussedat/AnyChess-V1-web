@@ -91,15 +91,20 @@ export function gameStateAnnouncement(game: Chess, prefix = ''): string {
 function trySAN(input: string, game: Chess): Move | null {
   const clean = input.trim().replace(/\s+/g, '');
   if (!clean) return null;
-  try {
-    const clone = new Chess(game.fen());
-    const played = clone.move(clean);
-    if (!played) return null;
-    const legal = game.moves({ verbose: true }) as Move[];
-    return legal.find(m => m.from === played.from && m.to === played.to) ?? null;
-  } catch {
-    return null;
+  // Try both the original input and a lowercase version.
+  // chess.js requires lowercase file letters for pawn moves (e.g. "d5" not "D5").
+  const attempts = clean === clean.toLowerCase() ? [clean] : [clean, clean.toLowerCase()];
+  for (const attempt of attempts) {
+    try {
+      const clone = new Chess(game.fen());
+      const played = clone.move(attempt);
+      if (!played) continue;
+      const legal = game.moves({ verbose: true }) as Move[];
+      const found = legal.find(m => m.from === played.from && m.to === played.to);
+      if (found) return found;
+    } catch { /* try next */ }
   }
+  return null;
 }
 
 /**
