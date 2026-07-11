@@ -13,6 +13,7 @@ import {
   normalize,
   parseSpoken,
   pickOpponentMove,
+  sanToVerbal,
   verbalMove,
 } from '@/lib/chessParser';
 
@@ -141,7 +142,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (i >= moves.length) { setIsSpeaking(false); return; }
       const pairNum = Math.floor(i / 2) + 1;
       const isWhite = i % 2 === 0;
-      const text = isWhite ? `${pairNum}. ${moves[i]}` : moves[i];
+      // Convert SAN to readable French so TTS spells out letters properly:
+      // "Bd5" → "Fou D 5", "Qd8" → "Dame D 8", not "boulevard" / "quand".
+      const verbal = sanToVerbal(moves[i]);
+      const text = isWhite ? `${pairNum}. ${verbal}` : verbal;
       Speech.speak(text, {
         language: 'fr-FR',
         rate: 0.9,
@@ -267,16 +271,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (looksLikeChessMove(input)) emitEvent('error');
         return;
       }
-      if (parsed.kind === 'ambiguous') {
-        setStatus("Coup ambigu. Répète plus précisément.");
-        emitEvent('error');
-        return;
-      }
+      // For 'ambiguous', play the best guess — vocabulary is limited enough
+      // that the top match is almost always correct.
+      const moveToPlay = parsed.kind === 'ambiguous' ? parsed.guess : parsed.move;
 
       try {
         const played = game.move({
-          from: parsed.move.from,
-          to: parsed.move.to,
+          from: moveToPlay.from,
+          to: moveToPlay.to,
           promotion: 'q',
         }) as Move;
         finishPlayerMove(played);

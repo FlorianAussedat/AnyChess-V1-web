@@ -27,7 +27,7 @@ const CAPTURE_VALUES: Record<string, number> = {
 
 /** Normalize spoken French/English text for fuzzy matching. */
 export function normalize(s: string): string {
-  return s
+  const n = s
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -35,20 +35,15 @@ export function normalize(s: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     // ── STT corruption fixes (must run before piece-name mapping) ───────────
-    // "damage", "dam", "dom" → dame  (frequent STT corruption of "dame")
     .replace(/\bdamage\b/g, 'dame')
     .replace(/\bdam\b/g, 'dame')
     .replace(/\bdoms?\b/g, 'dame')
     .replace(/\bdames\b/g, 'dame')
-    // "cavalerie", "cavaliers" → cavalier
     .replace(/\bcavalerie\b/g, 'cavalier')
     .replace(/\bcavaliers\b/g, 'cavalier')
-    // "fous", "foul" → fou
     .replace(/\bfous\b/g, 'fou')
     .replace(/\bfoul\b/g, 'fou')
-    // "tours" → tour
     .replace(/\btours\b/g, 'tour')
-    // "pions" → pion
     .replace(/\bpions\b/g, 'pion')
     // ── English piece names → French ─────────────────────────────────────────
     .replace(/\bknight\b/g, 'cavalier')
@@ -72,6 +67,31 @@ export function normalize(s: string): string {
     .replace(/\bdeux\b/g, '2')
     .replace(/\btrois\b/g, '3')
     .replace(/\bun\b/g, '1');
+
+  // ── Context-aware phonetic file-letter recovery ───────────────────────────
+  // When the user says "Dame D 4", STT may transcribe the file letter as a
+  // French word ("de", "et", "effe"…). Recover the letter only when it
+  // appears right after a piece name / "prend", so we don't corrupt ordinary
+  // French sentences.
+  const PIECE_WORDS = '(?:dame|cavalier|fou|tour|roi|pion|prend)';
+  return n
+    // After a piece word, replace phonetic letter + rank digit
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(de|des|du)\\s+([1-8])\\b`, 'g'), '$1 d$3')
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(et|est|eh)\\s+([1-8])\\b`, 'g'), '$1 e$3')
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(effe|eff|ef|aif)\\s+([1-8])\\b`, 'g'), '$1 f$3')
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(ge|gee|je|jai|j'ai)\\s+([1-8])\\b`, 'g'), '$1 g$3')
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(ache|aiche|ha)\\s+([1-8])\\b`, 'g'), '$1 h$3')
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(be|bi|bais)\\s+([1-8])\\b`, 'g'), '$1 b$3')
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(ce|se|sa|ça)\\s+([1-8])\\b`, 'g'), '$1 c$3')
+    .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(a|ah)\\s+([1-8])\\b`, 'g'), '$1 a$3')
+    // Pawn moves: phonetic letter at start of string followed immediately by rank
+    .replace(/^(de|des|du)\s+([1-8])$/, 'd$2')
+    .replace(/^(et|est)\s+([1-8])$/, 'e$2')
+    .replace(/^(effe|ef|eff)\s+([1-8])$/, 'f$2')
+    .replace(/^(ge|gee|je)\s+([1-8])$/, 'g$2')
+    .replace(/^(ache|ha)\s+([1-8])$/, 'h$2')
+    // Collapse any stray spaces that appeared between a letter and its digit
+    .replace(/\b([a-h])\s+([1-8])\b/g, '$1$2');
 }
 
 /**
@@ -94,16 +114,71 @@ export const CHESS_CONTEXT_STRINGS: string[] = [
   ),
 ];
 
-/** Convert a move to a French verbal description. */
+/** Spell out a square so TTS says "D 5" not "d5" (avoids "boulevard", etc.). */
+function spellSquare(sq: string): string {
+  return sq[0].toUpperCase() + ' ' + sq[1];
+}
+
+/** Convert a move to a French verbal description with spelled-out squares. */
 export function verbalMove(m: Move): string {
   if (m.flags.includes('k')) return 'Petit roque';
   if (m.flags.includes('q')) return 'Grand roque';
   const pieceName = FRENCH_PIECE_NAMES[m.piece] ?? m.piece;
   let txt = pieceName + ' ';
   if (m.captured) txt += 'prend ';
-  txt += m.to;
+  txt += spellSquare(m.to);
   if (m.promotion) txt += ', promotion en dame';
   return txt;
+}
+
+/**
+ * Convert raw SAN from game.history() (e.g. "Bd5", "Qd8", "Nxf3", "O-O",
+ * "cxd4") into spoken French with each file letter spelled out individually.
+ * Prevents TTS from reading "Bd5" as "boulevard cinq" or "Qd8" as "quand huit".
+ */
+export function sanToVerbal(san: string): string {
+  // Castling
+  if (/^O-O-O$|^0-0-0$/.test(san)) return 'Grand roque';
+  if (/^O-O$|^0-0$/.test(san))     return 'Petit roque';
+
+  // Strip check / checkmate / annotation symbols
+  const s = san.replace(/[+#!?]/g, '');
+
+  const PIECES: Record<string, string> = {
+    N: 'Cavalier', B: 'Fou', R: 'Tour', Q: 'Dame', K: 'Roi',
+  };
+
+  // Promotion: e.g. "e8=Q", "exd8=N"
+  const promoM = s.match(/^([NBRQK]?)([a-h]?)x?([a-h][1-8])=([NBRQK])$/);
+  if (promoM) {
+    const pn = promoM[1] ? (PIECES[promoM[1]] ?? promoM[1]) : 'Pion';
+    const cap = s.includes('x') ? ' prend' : '';
+    const promoPiece = (PIECES[promoM[4]] ?? promoM[4]).toLowerCase();
+    return `${pn}${cap} ${spellSquare(promoM[3])}, promotion en ${promoPiece}`;
+  }
+
+  // Standard move: [Piece?][from_disambig?][x?][dest]
+  const mv = s.match(/^([NBRQK]?)([a-h]?[1-8]?)?(x?)([a-h][1-8])$/);
+  if (mv) {
+    const pieceLetter  = mv[1];
+    const fromDisambig = mv[2] ?? '';
+    const isCapture    = !!mv[3];
+    const dest         = mv[4];
+
+    const pieceName = pieceLetter ? (PIECES[pieceLetter] ?? pieceLetter) : 'Pion';
+    let result = pieceName;
+
+    // Pawn capture: departure file is the disambiguation
+    if (!pieceLetter && fromDisambig) {
+      result += ' en ' + fromDisambig.toUpperCase();
+    }
+    if (isCapture) result += ' prend';
+    result += ' ' + spellSquare(dest);
+    return result;
+  }
+
+  // Fallback: spell each character
+  return s.split('').join(' ');
 }
 
 /** Produce a status message for end-of-game and check conditions. */
@@ -243,7 +318,7 @@ export function parseSpoken(raw: string, game: Chess): ParseResult {
 
   ranked.sort((a, b) => b.score - a.score);
 
-  if (!ranked.length || ranked[0].score < 0.72) return { kind: 'unknown' };
+  if (!ranked.length || ranked[0].score < 0.55) return { kind: 'unknown' };
 
   const top = ranked[0];
   const second = ranked.find(

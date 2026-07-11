@@ -120,10 +120,12 @@ export default function GameScreen() {
   useSpeechRecognitionEvent('end',   () => setIsListening(false));
 
   useSpeechRecognitionEvent('result', (event: any) => {
+    // Ignore everything the STT picks up while TTS is speaking — that's
+    // the app's own voice, not the player's move.
+    if (isSpeakingRef.current) return;
     if (event?.isFinal) {
       const transcript: string = event.results?.[0]?.transcript ?? '';
       if (transcript) applyRef.current(transcript);
-      // (haptics/flash are triggered via moveEvent in the effect above)
     }
   });
 
@@ -131,20 +133,24 @@ export default function GameScreen() {
 
   // ── Mic helpers ───────────────────────────────────────────────────────────
 
+  // ── Pre-initialise audio session once at mount so iOS doesn't play its
+  //    recording-activation chime when the user first presses the mic button.
+
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: false,
+      playThroughEarpieceAndroid: false,
+      staysActiveInBackground: false,
+    }).catch(() => { /* ignore — non-fatal */ });
+  }, []);
+
   const startListening = useCallback(async () => {
     try {
       const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       setHasPermission(granted);
       if (!granted) return;
-      // Configure audio session before starting so the OS does not play its
-      // "recording started" chime when AVAudioSession is activated.
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-        staysActiveInBackground: false,
-      });
       ExpoSpeechRecognitionModule.start({
         lang: 'fr-FR',
         interimResults: false,
@@ -162,27 +168,17 @@ export default function GameScreen() {
     try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
   }, []);
 
-  // ── Pause mic while TTS is speaking so the STT doesn't capture the voice ──
+  // ── Fallback restart: if the OS unexpectedly drops a continuous session
+  //    while the toggle is on, restart quickly.  isSpeaking results are already
+  //    filtered in the result handler so we never need to stop/restart for TTS.
 
   useEffect(() => {
-    if (!micActive) return;
-    if (isSpeaking) {
-      // Abort immediately — don't wait for a graceful stop.
-      try { ExpoSpeechRecognitionModule.abort(); } catch { /* ignore */ }
-    }
-    // When isSpeaking goes false the fallback below will restart automatically.
-  }, [isSpeaking, micActive]);
-
-  // ── Fallback restart: if the OS drops the session (or we aborted for TTS)
-  //    while the toggle is still on, restart after a short delay.
-
-  useEffect(() => {
-    if (!micActive || isListening || isSpeaking) return; // never restart during TTS
+    if (!micActive || isListening) return;
     const t = setTimeout(() => {
-      if (micActiveRef.current && !isSpeakingRef.current) startListening();
+      if (micActiveRef.current) startListening();
     }, 100);
     return () => clearTimeout(t);
-  }, [micActive, isListening, isSpeaking, startListening]);
+  }, [micActive, isListening, startListening]);
 
   // Auto-deactivate toggle when game ends
   useEffect(() => {
