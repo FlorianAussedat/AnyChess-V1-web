@@ -28,6 +28,9 @@ export type BoardPiece = {
 
 export type LastMove = { from: string; to: string };
 
+/** Emitted after every user-move attempt so the UI can trigger haptics/sounds. */
+export type MoveEvent = { kind: 'success' | 'error'; id: number };
+
 interface GameContextValue {
   board: (BoardPiece | null)[][];
   history: string[];
@@ -38,6 +41,7 @@ interface GameContextValue {
   waitingForUser: boolean;
   isOpponentThinking: boolean;
   playerColor: PlayerColor;
+  moveEvent: MoveEvent | null;
   applyUserMove: (raw: string) => void;
   movePieceBySquare: (from: string, to: string) => boolean;
   getLegalDestinations: (square: string) => string[];
@@ -49,6 +53,17 @@ interface GameContextValue {
 // ── Context ────────────────────────────────────────────────────────────────
 
 const GameContext = createContext<GameContextValue | null>(null);
+
+// ── Chess-relevance heuristic ─────────────────────────────────────────────
+// Only emit an error event when the input looks like a genuine move attempt.
+// Prevents buzzing on random ambient noise or unrelated speech.
+
+function looksLikeChessMove(normalized: string): boolean {
+  if (/\b[a-h][1-8]\b/.test(normalized)) return true;
+  if (/\b(pion|cavalier|fou|tour|dame|roi|pawn|knight|bishop|rook|queen|king|roque|castle|petit|grand)\b/.test(normalized)) return true;
+  if (/\bprend|takes|captures\b/.test(normalized)) return true;
+  return false;
+}
 
 // ── Provider ───────────────────────────────────────────────────────────────
 
@@ -68,6 +83,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isGameOver, setIsGameOver] = useState(false);
   const [waitingForUser, setWaitingForUser] = useState(true);
   const [isOpponentThinking, setIsOpponentThinking] = useState(false);
+  const [moveEvent, setMoveEvent] = useState<MoveEvent | null>(null);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -85,12 +101,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     } catch { /* silently ignore TTS failures */ }
   }, []);
 
+  const emitEvent = useCallback((kind: 'success' | 'error') => {
+    setMoveEvent(prev => ({ kind, id: (prev?.id ?? 0) + 1 }));
+  }, []);
+
   const repeatLast = useCallback(() => {
     speak(lastSpokenRef.current || 'Aucun coup à répéter.');
   }, [speak]);
 
   // ── summarizeGameHistory ──────────────────────────────────────────────────
-  // Speaks every move in the game history separated by 2-second pauses.
 
   const summarizeGameHistory = useCallback(() => {
     try { Speech.stop(); } catch { /* ignore */ }
@@ -99,27 +118,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       Speech.speak('Aucun coup joué pour le moment.', { language: 'fr-FR', rate: 0.9 });
       return;
     }
-
     const speakAt = (i: number) => {
       if (i >= moves.length) return;
-      // Pair number every 2 moves (0-indexed)
       const pairNum = Math.floor(i / 2) + 1;
       const isWhite = i % 2 === 0;
-      // Prefix with move number on White's move for clarity
       const text = isWhite ? `${pairNum}. ${moves[i]}` : moves[i];
       Speech.speak(text, {
         language: 'fr-FR',
         rate: 0.9,
-        onDone: () => {
-          setTimeout(() => speakAt(i + 1), 2000);
-        },
+        onDone: () => { setTimeout(() => speakAt(i + 1), 2000); },
       });
     };
     speakAt(0);
   }, []);
 
-  // ── opponentMove ─────────────────────────────────────────────────────────
-  // Kept in a ref so applyUserMove / movePieceBySquare avoid circular deps.
+  // ── opponentMove ──────────────────────────────────────────────────────────
 
   const opponentMoveRef = useRef<() => void>(() => {});
   const opponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,20 +170,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         announcement = gameStateAnnouncement(game, announcement);
         setIsOpponentThinking(false);
 
+        // ── "Les Noirs / Les Blancs jouent : …" format ─────────────────
+        const oppColor = playerColorRef.current === 'w' ? 'Les Noirs' : 'Les Blancs';
+
         if (game.isGameOver()) {
           setWaitingForUser(false);
           setStatus(announcement);
           speak(announcement);
         } else {
+          const msg = `${oppColor} jouent : ${announcement}`;
           setWaitingForUser(true);
-          setStatus(announcement + ' À toi.');
-          speak(announcement);
+          setStatus(msg);
+          speak(msg);
         }
       } catch {
         setIsOpponentThinking(false);
         setWaitingForUser(true);
       }
-    }, 2000); // 2-second thinking delay
+    }, 2000);
   }, [syncState, speak]);
 
   opponentMoveRef.current = opponentMove;
@@ -182,6 +199,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setLastMove({ from: played.from, to: played.to });
       setHeardText('');
       syncState();
+      emitEvent('success');
 
       const game = gameRef.current;
       const checkNote = game.isCheck() ? ' Échec.' : '';
@@ -198,7 +216,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         opponentMoveRef.current();
       }
     },
-    [syncState, speak],
+    [syncState, speak, emitEvent],
   );
 
   // ── applyUserMove (voice / text input) ────────────────────────────────────
@@ -207,16 +225,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     (raw: string) => {
       const input = normalize(raw);
 
-      // ── Special commands — work regardless of turn ──────────────────────
-      if (/\brepete\b/.test(input)) {
-        repeatLast();
-        return;
-      }
-      if (input.includes('resum')) {
-        summarizeGameHistory();
-        return;
-      }
-      // ───────────────────────────────────────────────────────────────────
+      // ── Special commands — bypass turn guard ────────────────────────────
+      if (/\brepete\b/.test(input)) { repeatLast(); return; }
+      if (input.includes('resum'))  { summarizeGameHistory(); return; }
 
       const game = gameRef.current;
       if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
@@ -228,12 +239,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const msg = "Je n'ai pas compris le coup. Répète.";
         setStatus(msg);
         speak(msg);
+        // Only buzz if the input looked like a chess attempt, not random noise
+        if (looksLikeChessMove(input)) emitEvent('error');
         return;
       }
       if (parsed.kind === 'ambiguous') {
-        const msg = "Je ne suis pas sûre d'avoir compris. Répète le coup.";
+        const msg = "Je ne suis pas sûr d'avoir compris. Répète le coup.";
         setStatus(msg);
         speak(msg);
+        emitEvent('error');
         return;
       }
 
@@ -248,9 +262,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const msg = 'Ce coup est illégal. Répète.';
         setStatus(msg);
         speak(msg);
+        emitEvent('error');
       }
     },
-    [waitingForUser, isOpponentThinking, speak, finishPlayerMove, repeatLast, summarizeGameHistory],
+    [waitingForUser, isOpponentThinking, speak, finishPlayerMove,
+     emitEvent, repeatLast, summarizeGameHistory],
   );
 
   // ── movePieceBySquare (touch input) ───────────────────────────────────────
@@ -279,10 +295,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const piece = game.get(square as Square);
       if (!piece || piece.color !== playerColorRef.current) return [];
       try {
-        const moves = game.moves({
-          verbose: true,
-          square: square as Square,
-        }) as Move[];
+        const moves = game.moves({ verbose: true, square: square as Square }) as Move[];
         return [...new Set(moves.map(m => m.to))];
       } catch {
         return [];
@@ -306,10 +319,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setHeardText('');
       setIsGameOver(false);
       setIsOpponentThinking(false);
+      setMoveEvent(null);
       syncState();
 
       if (color === 'b') {
-        // User plays Black — AI goes first as White
         setWaitingForUser(false);
         setStatus("L'adversaire prépare son coup…");
         opponentTimeoutRef.current = setTimeout(() => {
@@ -349,6 +362,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         waitingForUser,
         isOpponentThinking,
         playerColor,
+        moveEvent,
         applyUserMove,
         movePieceBySquare,
         getLegalDestinations,

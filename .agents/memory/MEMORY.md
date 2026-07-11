@@ -1,1 +1,6 @@
-- [Chess app architecture](chess-app-arch.md) — voice chess game: expo-speech-recognition + chess.js v1, French parsing in lib/chessParser.ts
+- [Chess app architecture](chess-app-arch.md) — AnyChess: expo-speech-recognition toggle mic, chess.js v1, French+English parsing in lib/chessParser.ts
+- [AnyChess branding & theme](anychess-theme.md) — renamed AnyChess, navy #0B1728 bg, gold #F5A623 primary, blue-gray board (#738FA8/#3D5472), knight PNG logo in assets/images/icon.png
+- [SVG pieces](anychess-pieces.md) — PieceSvg.tsx uses react-native-svg (already in deps); 12 pieces inline; white fill #F2F2F2 stroke #2A2A2A, black fill #1C1C30 stroke #9090B8; viewBox 0 0 45 45
+- [Move feedback pattern](anychess-feedback.md) — moveEvent {kind:'success'|'error', id} in GameContext; looksLikeChessMove() guard prevents buzzing on random noise; haptics via NotificationFeedbackType; showRecognized 1.5s flash on mic button
+- [Mic toggle behavior](anychess-mic.md) — always toggle mode (not press-per-move); auto-restarts via useEffect(micActive && canAct && !isListening); 4 visual states: Parler/J'écoute.../Micro actif/Coup reconnu
+- [sqName fix for flipped board](chess-board-flip.md) — always use FILES[boardCol]+(8-boardRow) regardless of isFlipped; rows/cols arrays handle the visual flip, formula stays the same

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -49,6 +50,7 @@ export default function GameScreen() {
     waitingForUser,
     isOpponentThinking,
     playerColor,
+    moveEvent,
     applyUserMove,
     movePieceBySquare,
     getLegalDestinations,
@@ -57,13 +59,34 @@ export default function GameScreen() {
     repeatLast,
   } = useGame();
 
-  // Stable ref so STT event handlers never hold stale closure
+  // Stable ref so STT handlers never hold stale closures
   const applyRef = useRef(applyUserMove);
   useEffect(() => { applyRef.current = applyUserMove; }, [applyUserMove]);
 
   const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
+  const gameStarted = history.length > 0; // locks color pills once moves begin
 
-  // ── STT state ─────────────────────────────────────────────────────────────
+  // ── Haptics on move success / error ──────────────────────────────────────
+
+  const [showRecognized, setShowRecognized] = useState(false);
+  const recognizedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!moveEvent) return;
+    if (moveEvent.kind === 'success') {
+      // Light, pleasant confirmation vibration
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Brief "Coup reconnu" flash on the mic button
+      setShowRecognized(true);
+      if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
+      recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
+    } else {
+      // Soft error buzz — only fires when input looked like a chess attempt
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [moveEvent?.id]); // fires on every new event regardless of kind
+
+  // ── Mic state ─────────────────────────────────────────────────────────────
 
   const [micActive, setMicActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -71,7 +94,7 @@ export default function GameScreen() {
   const micActiveRef = useRef(false);
   useEffect(() => { micActiveRef.current = micActive; }, [micActive]);
 
-  // ── Manual input ──────────────────────────────────────────────────────────
+  // ── Manual text input ────────────────────────────────────────────────────
 
   const [manualText, setManualText] = useState('');
 
@@ -80,33 +103,31 @@ export default function GameScreen() {
   const [touchSelected, setTouchSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
 
-  // Clear touch selection when it's no longer the player's turn
   useEffect(() => {
-    if (!canAct) {
-      setTouchSelected(null);
-      setLegalDests([]);
-    }
+    if (!canAct) { setTouchSelected(null); setLegalDests([]); }
   }, [canAct]);
 
-  // ── Speech recognition events ──────────────────────────────────────────
+  // ── Speech recognition events ─────────────────────────────────────────────
+  // Hooks must be called unconditionally.
 
   useSpeechRecognitionEvent('start', () => setIsListening(true));
-  useSpeechRecognitionEvent('end', () => setIsListening(false));
+  useSpeechRecognitionEvent('end',   () => setIsListening(false));
+
   useSpeechRecognitionEvent('result', (event: any) => {
     if (event?.isFinal) {
-      const results: Array<{ transcript: string }> = event.results ?? [];
-      const transcript = results[0]?.transcript ?? '';
+      const transcript: string = event.results?.[0]?.transcript ?? '';
       if (transcript) applyRef.current(transcript);
+      // (haptics/flash are triggered via moveEvent in the effect above)
     }
   });
+
   useSpeechRecognitionEvent('error', () => setIsListening(false));
 
-  // ── Mic helpers ────────────────────────────────────────────────────────────
+  // ── Mic helpers ───────────────────────────────────────────────────────────
 
   const startListening = useCallback(async () => {
     try {
-      const { granted } =
-        await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       setHasPermission(granted);
       if (!granted) return;
       ExpoSpeechRecognitionModule.start({
@@ -123,46 +144,37 @@ export default function GameScreen() {
     try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
   }, []);
 
-  // ── Auto-restart mic when toggle is on and it's the player's turn ─────────
+  // ── Auto-restart: toggle ON + it's the player's turn + not already listening
 
   useEffect(() => {
-    // Only restart when all three conditions are simultaneously true
     if (!micActive || !canAct || isListening) return;
-
     const t = setTimeout(() => {
       if (micActiveRef.current) startListening();
-    }, 600); // brief pause before re-opening the mic
-
+    }, 600);
     return () => clearTimeout(t);
   }, [micActive, canAct, isListening, startListening]);
 
-  // Turn off mic toggle when game is over
+  // Auto-deactivate toggle when game ends
   useEffect(() => {
-    if (isGameOver && micActive) {
-      setMicActive(false);
-      stopListening();
-    }
+    if (isGameOver && micActive) { setMicActive(false); stopListening(); }
   }, [isGameOver, micActive, stopListening]);
 
-  // ── Mic button toggle ─────────────────────────────────────────────────────
+  // ── Mic toggle ────────────────────────────────────────────────────────────
 
   const onMicPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (micActive) {
-      // Turn mic OFF
       setMicActive(false);
       stopListening();
     } else {
-      // Turn mic ON
       setMicActive(true);
-      if (canAct) startListening(); // start immediately if it's our turn
+      if (canAct) startListening();
     }
   }, [micActive, canAct, startListening, stopListening]);
 
-  // ── Pulse animation ────────────────────────────────────────────────────────
+  // ── Pulse animation (only during active listening) ────────────────────────
 
   const scale = useSharedValue(1);
-
   useEffect(() => {
     if (isListening) {
       scale.value = withRepeat(
@@ -178,11 +190,9 @@ export default function GameScreen() {
     }
   }, [isListening, scale]);
 
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  // ── Manual input submit ────────────────────────────────────────────────────
+  // ── Manual input submit ───────────────────────────────────────────────────
 
   const onPlayManual = useCallback(() => {
     const text = manualText.trim();
@@ -196,53 +206,35 @@ export default function GameScreen() {
   const onSquarePress = useCallback(
     (square: string) => {
       if (!canAct) return;
-
       if (touchSelected === null) {
-        // Try to select a piece
         const dests = getLegalDestinations(square);
-        if (dests.length > 0) {
-          setTouchSelected(square);
-          setLegalDests(dests);
-        }
+        if (dests.length > 0) { setTouchSelected(square); setLegalDests(dests); }
       } else if (square === touchSelected) {
-        // Tap the selected piece again → deselect
-        setTouchSelected(null);
-        setLegalDests([]);
+        setTouchSelected(null); setLegalDests([]);
       } else if (legalDests.includes(square)) {
-        // Execute the move
         movePieceBySquare(touchSelected, square);
-        setTouchSelected(null);
-        setLegalDests([]);
+        setTouchSelected(null); setLegalDests([]);
       } else {
-        // Try re-selecting another friendly piece
         const dests = getLegalDestinations(square);
-        if (dests.length > 0) {
-          setTouchSelected(square);
-          setLegalDests(dests);
-        } else {
-          // Deselect
-          setTouchSelected(null);
-          setLegalDests([]);
-        }
+        if (dests.length > 0) { setTouchSelected(square); setLegalDests(dests); }
+        else { setTouchSelected(null); setLegalDests([]); }
       }
     },
     [canAct, touchSelected, legalDests, getLegalDestinations, movePieceBySquare],
   );
 
-  // ── Color picker handler ───────────────────────────────────────────────────
+  // ── Color picker — locked once the game has started ───────────────────────
 
   const onPickColor = useCallback(
     (color: PlayerColor) => {
-      if (color === playerColor) {
-        newGame(); // same color → just restart
-      } else {
-        changeColor(color);
-      }
+      if (gameStarted) return; // locked during a game
+      if (color === playerColor) newGame();
+      else changeColor(color);
     },
-    [playerColor, newGame, changeColor],
+    [gameStarted, playerColor, newGame, changeColor],
   );
 
-  // ── Move history rows ──────────────────────────────────────────────────────
+  // ── Move history rows ─────────────────────────────────────────────────────
 
   const moveRows: MoveRow[] = [];
   for (let i = 0; i < history.length; i += 2) {
@@ -254,63 +246,72 @@ export default function GameScreen() {
     });
   }
 
-  // ── Layout ────────────────────────────────────────────────────────────────
+  // ── Mic button appearance (4 states) ─────────────────────────────────────
+
+  let micBg: string;
+  let micIconName: string;
+  let micLabel: string;
+
+  if (showRecognized) {
+    micBg = '#27AE60';          // green — coup validé
+    micIconName = 'checkmark-circle';
+    micLabel = 'Coup reconnu';
+  } else if (isListening) {
+    micBg = '#C0392B';          // red — écoute active
+    micIconName = 'mic';
+    micLabel = "J'écoute…";
+  } else if (micActive) {
+    micBg = '#D4880A';          // amber — toggle actif, en attente
+    micIconName = 'mic-outline';
+    micLabel = 'Micro actif';
+  } else {
+    micBg = colors.primary;     // or — toggle éteint
+    micIconName = 'mic-off-outline';
+    micLabel = 'Parler';
+  }
+
+  // ── Layout helpers ────────────────────────────────────────────────────────
 
   const topPad    = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : insets.bottom;
-
-  const micBg = micActive
-    ? isListening ? '#c0392b' : '#992520'
-    : colors.primary;
-
-  const micIcon = micActive
-    ? isListening ? 'mic' : 'mic-outline'
-    : 'mic-off-outline';
-
-  const micLabel = isListening
-    ? 'Écoute…'
-    : micActive
-    ? 'Micro actif'
-    : 'Micro éteint';
 
   return (
     <View
       style={[
         styles.root,
-        {
-          backgroundColor: colors.background,
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
-        },
+        { backgroundColor: colors.background, paddingTop: topPad + 6, paddingBottom: bottomPad + 6 },
       ]}
     >
-      {/* ── Header ──────────────────────────────────────────────────── */}
+      {/* ── Header ────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            Échecs à l'oral
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {playerColor === 'w' ? 'Tu joues les Blancs' : 'Tu joues les Noirs'}
-          </Text>
+        {/* Logo + title */}
+        <View style={styles.brandRow}>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.logoImg}
+          />
+          <View>
+            <Text style={[styles.title, { color: colors.foreground }]}>AnyChess</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+              {playerColor === 'w' ? 'Tu joues les Blancs' : 'Tu joues les Noirs'}
+            </Text>
+          </View>
         </View>
+
+        {/* Répéter + Reprendre buttons */}
         <View style={styles.headerBtns}>
           <Pressable
-            style={({ pressed }) => [
-              styles.iconBtn,
-              { backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 },
-            ]}
+            style={({ pressed }) => [styles.iconBtn, { backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 }]}
             onPress={repeatLast}
+            accessibilityLabel="Répéter le dernier coup"
             testID="repeat-btn"
           >
-            <Ionicons name="volume-high-outline" size={20} color={colors.foreground} />
+            <Ionicons name="volume-medium-outline" size={20} color={colors.foreground} />
           </Pressable>
           <Pressable
-            style={({ pressed }) => [
-              styles.iconBtn,
-              { backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 },
-            ]}
+            style={({ pressed }) => [styles.iconBtn, { backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 }]}
             onPress={newGame}
+            accessibilityLabel="Reprendre la partie depuis le début"
             testID="new-game-btn"
           >
             <Ionicons name="refresh-outline" size={20} color={colors.foreground} />
@@ -318,53 +319,35 @@ export default function GameScreen() {
         </View>
       </View>
 
-      {/* ── Color picker ────────────────────────────────────────────── */}
+      {/* ── Color picker — locked when game has started ──────────────── */}
       <View style={styles.colorRow}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.colorPill,
-            {
-              backgroundColor:
-                playerColor === 'w' ? colors.primary : colors.card,
-              borderColor:
-                playerColor === 'w' ? colors.primary : colors.border,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-          onPress={() => onPickColor('w')}
-          testID="color-white"
-        >
-          <Text style={[
-            styles.colorPillText,
-            { color: playerColor === 'w' ? '#fff' : colors.mutedForeground },
-          ]}>
-            ♔ Blancs
-          </Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.colorPill,
-            {
-              backgroundColor:
-                playerColor === 'b' ? colors.primary : colors.card,
-              borderColor:
-                playerColor === 'b' ? colors.primary : colors.border,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-          onPress={() => onPickColor('b')}
-          testID="color-black"
-        >
-          <Text style={[
-            styles.colorPillText,
-            { color: playerColor === 'b' ? '#fff' : colors.mutedForeground },
-          ]}>
-            ♚ Noirs
-          </Text>
-        </Pressable>
+        {(['w', 'b'] as PlayerColor[]).map((c) => {
+          const active = playerColor === c;
+          const locked = gameStarted;
+          return (
+            <Pressable
+              key={c}
+              style={[
+                styles.colorPill,
+                {
+                  backgroundColor: active ? colors.primary : colors.card,
+                  borderColor: active ? colors.primary : colors.border,
+                  opacity: locked && !active ? 0.45 : 1,
+                },
+              ]}
+              onPress={() => onPickColor(c)}
+              disabled={locked && !active}
+              testID={c === 'w' ? 'color-white' : 'color-black'}
+            >
+              <Text style={[styles.colorPillText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
+                {c === 'w' ? '♔ Blancs' : '♚ Noirs'}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {/* ── Board ──────────────────────────────────────────────────── */}
+      {/* ── Board ───────────────────────────────────────────────────────── */}
       <View style={styles.boardRow}>
         <ChessBoard
           board={board}
@@ -376,20 +359,15 @@ export default function GameScreen() {
         />
       </View>
 
-      {/* ── Status ─────────────────────────────────────────────────── */}
-      <View
-        style={[
-          styles.statusCard,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
+      {/* ── Status ──────────────────────────────────────────────────────── */}
+      <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text
           numberOfLines={2}
           style={[
             styles.statusText,
             {
               color: isGameOver
-                ? '#ffcf70'
+                ? '#F5A623'
                 : isOpponentThinking
                 ? colors.mutedForeground
                 : colors.foreground,
@@ -399,51 +377,38 @@ export default function GameScreen() {
           {isOpponentThinking ? "L'adversaire réfléchit…" : status}
         </Text>
         {!!heardText && (
-          <Text numberOfLines={1} style={[styles.heardText, { color: '#a9d6ff' }]}>
+          <Text numberOfLines={1} style={[styles.heardText, { color: '#7BC8FF' }]}>
             Entendu : {heardText}
           </Text>
         )}
       </View>
 
-      {/* ── Mic toggle button ───────────────────────────────────────── */}
+      {/* ── Mic toggle button ────────────────────────────────────────────── */}
       <View style={styles.micRow}>
         <Animated.View style={animStyle}>
           <Pressable
             onPress={onMicPress}
             testID="mic-btn"
-            style={({ pressed }) => [
-              styles.micBtn,
-              {
-                backgroundColor: micBg,
-                opacity: pressed ? 0.80 : 1,
-              },
-            ]}
+            style={({ pressed }) => [styles.micBtn, { backgroundColor: micBg, opacity: pressed ? 0.82 : 1 }]}
           >
-            <Ionicons name={micIcon as any} size={22} color="#fff" />
+            <Ionicons name={micIconName as any} size={22} color="#fff" />
             <Text style={styles.micLabel}>{micLabel}</Text>
           </Pressable>
         </Animated.View>
         {hasPermission === false && (
-          <Text style={[styles.permWarn, { color: '#ffcf70' }]}>
+          <Text style={[styles.permWarn, { color: '#F5A623' }]}>
             Permission microphone refusée
           </Text>
         )}
       </View>
 
-      {/* ── Manual input ───────────────────────────────────────────── */}
+      {/* ── Manual text input ────────────────────────────────────────────── */}
       <View style={styles.inputRow}>
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.input,
-              color: colors.foreground,
-              borderColor: colors.border,
-            },
-          ]}
+          style={[styles.input, { backgroundColor: colors.input, color: colors.foreground, borderColor: colors.border }]}
           value={manualText}
           onChangeText={setManualText}
-          placeholder="Ex. Fou b5, e4, petit roque…"
+          placeholder="Ex. Nc3, Fou b5, e4, petit roque…"
           placeholderTextColor={colors.mutedForeground}
           onSubmitEditing={onPlayManual}
           returnKeyType="send"
@@ -451,10 +416,7 @@ export default function GameScreen() {
           testID="manual-input"
         />
         <Pressable
-          style={({ pressed }) => [
-            styles.sendBtn,
-            { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 },
-          ]}
+          style={({ pressed }) => [styles.sendBtn, { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 }]}
           onPress={onPlayManual}
           testID="send-btn"
         >
@@ -462,16 +424,9 @@ export default function GameScreen() {
         </Pressable>
       </View>
 
-      {/* ── Move history ───────────────────────────────────────────── */}
-      <View
-        style={[
-          styles.historyCard,
-          { flex: 1, backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
-        <Text style={[styles.historyTitle, { color: colors.foreground }]}>
-          Coups joués
-        </Text>
+      {/* ── Move history ─────────────────────────────────────────────────── */}
+      <View style={[styles.historyCard, { flex: 1, backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.historyTitle, { color: colors.mutedForeground }]}>Coups joués</Text>
         {moveRows.length === 0 ? (
           <Text style={[styles.emptyMsg, { color: colors.mutedForeground }]}>
             La partie commence ici
@@ -483,18 +438,10 @@ export default function GameScreen() {
             scrollEnabled={!!moveRows.length}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
-              <View
-                style={[styles.moveRow, { borderBottomColor: colors.border }]}
-              >
-                <Text style={[styles.moveNum, { color: colors.mutedForeground }]}>
-                  {item.num}.
-                </Text>
-                <Text style={[styles.moveCell, { color: colors.foreground }]}>
-                  {item.white}
-                </Text>
-                <Text style={[styles.moveCell, { color: colors.mutedForeground }]}>
-                  {item.black}
-                </Text>
+              <View style={[styles.moveRow, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.moveNum,  { color: colors.mutedForeground }]}>{item.num}.</Text>
+                <Text style={[styles.moveCell, { color: colors.foreground }]}>{item.white}</Text>
+                <Text style={[styles.moveCell, { color: colors.mutedForeground }]}>{item.black}</Text>
               </View>
             )}
           />
@@ -518,9 +465,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  logoImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
   title: {
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.3,
   },
   subtitle: {
     fontSize: 11,
@@ -631,11 +589,11 @@ const styles = StyleSheet.create({
     minHeight: 70,
   },
   historyTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
     marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   emptyMsg: {
     fontSize: 12,

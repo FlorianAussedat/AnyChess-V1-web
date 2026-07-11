@@ -7,25 +7,23 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
+import { PieceSvg } from './PieceSvg';
+import type { PType, PColor } from './PieceSvg';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const PIECES: Record<string, string> = {
-  wp: '♙', wn: '♘', wb: '♗', wr: '♖', wq: '♕', wk: '♔',
-  bp: '♟', bn: '♞', bb: '♝', br: '♜', bq: '♛', bk: '♚',
-};
-
 const FILES = 'abcdefgh';
 
-const LIGHT_SQ = '#e8d9b5';
-const DARK_SQ  = '#8a6650';
-const LIGHT_LAST = 'rgba(255,220,30,0.70)';
-const DARK_LAST  = 'rgba(200,145,0,0.66)';
-const LIGHT_SEL  = 'rgba(20,148,220,0.72)';
-const DARK_SEL   = 'rgba(10,115,180,0.72)';
-const COORD_ON_LIGHT = 'rgba(100,70,45,0.80)';
-const COORD_ON_DARK  = 'rgba(225,200,150,0.80)';
-const BORDER_COLOR   = '#8795a1';
+// AnyChess board — navy blue palette matching the logo
+const LIGHT_SQ   = '#738FA8';
+const DARK_SQ    = '#3D5472';
+const LIGHT_LAST = 'rgba(245,166,35,0.60)';   // gold — from logo waves
+const DARK_LAST  = 'rgba(200,120,0,0.60)';
+const LIGHT_SEL  = 'rgba(80,160,255,0.70)';
+const DARK_SEL   = 'rgba(40,120,220,0.70)';
+const COORD_ON_LIGHT = 'rgba(255,255,255,0.70)';
+const COORD_ON_DARK  = 'rgba(180,210,240,0.80)';
+const BORDER_COLOR   = '#1C3558';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -34,9 +32,9 @@ function pieceAtSquare(
   board: (BoardPiece | null)[][],
   square: string,
 ): BoardPiece | null {
-  const file = square.charCodeAt(0) - 97; // a=0…h=7
-  const rank = parseInt(square[1], 10);   // 1…8
-  const row  = 8 - rank;                  // board row index
+  const file = square.charCodeAt(0) - 97;
+  const rank = parseInt(square[1], 10);
+  const row  = 8 - rank;
   return board[row]?.[file] ?? null;
 }
 
@@ -66,7 +64,7 @@ export function ChessBoard({
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - 20, 352);
   const cellSize  = boardSize / 8;
-  const pieceSize = cellSize * 0.70;
+  const pieceSize = cellSize * 0.86;
   const coordSize = cellSize * 0.21;
   const dotSize   = cellSize * 0.32;
   const ringSize  = cellSize * 0.88;
@@ -82,8 +80,7 @@ export function ChessBoard({
           {cols.map((boardCol, displayC) => {
             const piece = board[boardRow]?.[boardCol] ?? null;
 
-            // Algebraic square name — same formula regardless of flip.
-            // board[row][col] always encodes: rank = 8-row, file = col.
+            // Algebraic square — same formula regardless of flip
             const sqName = FILES[boardCol] + (8 - boardRow);
 
             const isLight    = (displayR + displayC) % 2 === 0;
@@ -92,7 +89,6 @@ export function ChessBoard({
             const isLegal    = legalDots.includes(sqName);
             const isCapture  = isLegal && piece != null;
 
-            // Background colour priority: selected > lastMove > plain
             let bg: string;
             if (isSelected) {
               bg = isLight ? LIGHT_SEL : DARK_SEL;
@@ -103,13 +99,10 @@ export function ChessBoard({
             }
 
             const coordColor = isLight ? COORD_ON_LIGHT : COORD_ON_DARK;
-
-            // Bottom-row file label (last display row)
-            const showFile  = displayR === 7;
-            // Left-column rank label
-            const showRank  = displayC === 0;
-            const fileLabel = FILES[boardCol];
-            const rankLabel = String(8 - boardRow);
+            const showFile   = displayR === 7;
+            const showRank   = displayC === 0;
+            const fileLabel  = FILES[boardCol];
+            const rankLabel  = String(8 - boardRow);
 
             const cell = (
               <View
@@ -121,18 +114,13 @@ export function ChessBoard({
                   justifyContent: 'center',
                 }}
               >
-                {/* Piece */}
+                {/* SVG Piece */}
                 {piece != null && (
-                  <Text
-                    style={{
-                      fontSize: pieceSize,
-                      lineHeight: cellSize,
-                      textAlign: 'center',
-                      includeFontPadding: false,
-                    }}
-                  >
-                    {PIECES[piece.color + piece.type] ?? ''}
-                  </Text>
+                  <PieceSvg
+                    type={piece.type as PType}
+                    color={piece.color as PColor}
+                    size={pieceSize}
+                  />
                 )}
 
                 {/* Legal-move dot (empty destination) */}
@@ -143,7 +131,7 @@ export function ChessBoard({
                       width: dotSize,
                       height: dotSize,
                       borderRadius: dotSize / 2,
-                      backgroundColor: 'rgba(0,0,0,0.28)',
+                      backgroundColor: 'rgba(0,0,0,0.30)',
                     }}
                   />
                 )}
@@ -157,7 +145,7 @@ export function ChessBoard({
                       height: ringSize,
                       borderRadius: ringSize / 2,
                       borderWidth: ringBorder,
-                      borderColor: 'rgba(0,0,0,0.30)',
+                      borderColor: 'rgba(0,0,0,0.32)',
                     }}
                   />
                 )}
@@ -188,7 +176,6 @@ export function ChessBoard({
               </View>
             );
 
-            // Wrap in Pressable only when there is a press handler
             if (!onSquarePress) {
               return <View key={boardCol}>{cell}</View>;
             }
@@ -214,7 +201,7 @@ export function ChessBoard({
 const styles = StyleSheet.create({
   wrapper: {
     overflow: 'hidden',
-    borderRadius: 6,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: BORDER_COLOR,
     alignSelf: 'center',

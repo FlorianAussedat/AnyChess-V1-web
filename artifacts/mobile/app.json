@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Échecs à l'oral",
+    "name": "AnyChess",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#111820"
+      "backgroundColor": "#0B1728"
     },
     "ios": {
       "supportsTablet": false
@@ -32,8 +32,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "L'application a besoin du microphone pour reconnaître vos coups d'échecs.",
-          "speechRecognitionPermission": "L'application a besoin de la reconnaissance vocale pour jouer aux échecs."
+          "microphonePermission": "AnyChess a besoin du microphone pour reconnaître vos coups d'échecs.",
+          "speechRecognitionPermission": "AnyChess a besoin de la reconnaissance vocale pour jouer aux échecs."
         }
       ]
     ],

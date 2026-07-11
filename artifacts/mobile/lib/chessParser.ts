@@ -1,6 +1,8 @@
 /**
- * French voice parsing for chess moves.
- * Ported from the original HTML prototype.
+ * French + English voice/text parsing for chess moves.
+ * Accepts: French voice, French SAN (Cc3, Fd4, Td8, Dd5),
+ *          English SAN (Nc3, Bd4, Rd8, Qd5, Nxe5, cxd4),
+ *          and natural language in both languages.
  */
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
@@ -23,7 +25,7 @@ const CAPTURE_VALUES: Record<string, number> = {
   p: 1, n: 3, b: 3, r: 5, q: 9,
 };
 
-/** Normalize spoken French text for fuzzy matching. */
+/** Normalize spoken French/English text for fuzzy matching. */
 export function normalize(s: string): string {
   return s
     .toLowerCase()
@@ -32,8 +34,20 @@ export function normalize(s: string): string {
     .replace(/[.,;:!?]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+    // English piece names → French for unified matching
+    .replace(/\bknight\b/g, 'cavalier')
+    .replace(/\bbishop\b/g, 'fou')
+    .replace(/\brook\b/g, 'tour')
+    .replace(/\bqueen\b/g, 'dame')
+    .replace(/\bking\b/g, 'roi')
+    .replace(/\bpawn\b/g, 'pion')
+    // English actions
+    .replace(/\btakes\b/g, 'prend')
+    .replace(/\bcaptures\b/g, 'prend')
+    // French synonyms
     .replace(/\bfois\b/g, 'prend')
     .replace(/\bx\b/g, 'prend')
+    // Numbers spoken aloud
     .replace(/\bquatre\b/g, '4')
     .replace(/\bcinq\b/g, '5')
     .replace(/\bsix\b/g, '6')
@@ -68,22 +82,65 @@ export function gameStateAnnouncement(game: Chess, prefix = ''): string {
   return prefix.trim();
 }
 
+// ── Direct SAN parsing ────────────────────────────────────────────────────
+
+/**
+ * Try to parse `input` as a SAN move on a clone of `game`.
+ * Returns the matching legal Move object from the original game, or null.
+ */
+function trySAN(input: string, game: Chess): Move | null {
+  const clean = input.trim().replace(/\s+/g, '');
+  if (!clean) return null;
+  try {
+    const clone = new Chess(game.fen());
+    const played = clone.move(clean);
+    if (!played) return null;
+    const legal = game.moves({ verbose: true }) as Move[];
+    return legal.find(m => m.from === played.from && m.to === played.to) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert French SAN notation to English SAN so chess.js can parse it.
+ *   C → N  (Cavalier → kNight)
+ *   F → B  (Fou → Bishop)
+ *   T → R  (Tour → Rook)
+ *   D → Q  (Dame → Queen)
+ *   R → K  (Roi → King) — only when followed by a valid square/capture
+ * Also normalises "×" and spaced captures to "x".
+ */
+function frSANtoEN(raw: string): string {
+  return raw
+    .replace(/×/g, 'x')
+    .replace(/\s*x\s*/g, 'x')
+    .replace(/^C(?=[a-h1-8x])/i, 'N')
+    .replace(/^F(?=[a-h1-8x])/i, 'B')
+    .replace(/^T(?=[a-h1-8x])/i, 'R')
+    .replace(/^D(?=[a-h1-8x])/i, 'Q')
+    // R for Roi/King — only when the result is a plausible King move (Rx is capture for rook in EN, not desired)
+    .replace(/^R(?=[a-h][1-8][+#]?$)/i, 'K');
+}
+
+// ── Fuzzy French / English voice matching ────────────────────────────────
+
 /** Generate the set of French spoken strings that could describe a move. */
 function spokenCandidates(move: Move): string[] {
   const names: Record<string, string[]> = {
     p: ['pion', ''],
-    n: ['cavalier'],
-    b: ['fou'],
-    r: ['tour'],
-    q: ['dame'],
-    k: ['roi'],
+    n: ['cavalier', 'knight'],
+    b: ['fou', 'bishop'],
+    r: ['tour', 'rook'],
+    q: ['dame', 'queen'],
+    k: ['roi', 'king'],
   };
-  if (move.flags.includes('k')) return ['petit roque', 'roque cote roi'];
-  if (move.flags.includes('q')) return ['grand roque', 'roque cote dame'];
+  if (move.flags.includes('k')) return ['petit roque', 'roque cote roi', 'kingside castle', 'short castle'];
+  if (move.flags.includes('q')) return ['grand roque', 'roque cote dame', 'queenside castle', 'long castle'];
   const out: string[] = [];
   for (const name of names[move.piece] ?? []) {
     const middles = move.captured
-      ? [' prend ', ' capture ']
+      ? [' prend ', ' capture ', ' takes ', ' x ']
       : [' ', ' en '];
     for (const middle of middles) {
       out.push(normalize((name ? name + middle : '') + move.to));
@@ -110,8 +167,29 @@ export type ParseResult =
   | { kind: 'ambiguous'; guess: Move }
   | { kind: 'unknown' };
 
-/** Parse a raw French spoken/typed string into a chess move. */
+/**
+ * Parse a raw French/English spoken/typed string into a chess move.
+ *
+ * Strategy:
+ *  1. Direct English SAN (Nc3, Bxe5, O-O, cxd4, …)
+ *  2. French SAN converted to English (Cc3, Fd5, Txe8, …)
+ *  3. Fuzzy French/English voice matching
+ */
 export function parseSpoken(raw: string, game: Chess): ParseResult {
+  const clean = raw.trim();
+
+  // 1. Try direct SAN (handles English notation and standard algebraic)
+  const direct = trySAN(clean, game);
+  if (direct) return { kind: 'move', move: direct };
+
+  // 2. Try French SAN → English conversion
+  const converted = frSANtoEN(clean);
+  if (converted !== clean) {
+    const fr = trySAN(converted, game);
+    if (fr) return { kind: 'move', move: fr };
+  }
+
+  // 3. Fuzzy voice / natural language matching
   const input = normalize(raw);
   const legal = game.moves({ verbose: true }) as Move[];
   const ranked: Array<{ m: Move; score: number }> = [];
