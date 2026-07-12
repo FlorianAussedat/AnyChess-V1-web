@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -15,7 +16,8 @@ import {
   sanToVerbal,
   verbalMove,
 } from '@/lib/chessParser';
-import { randomEngine } from '@/lib/engines/random';
+import type { ChessEngine } from '@/lib/engine';
+import { createOpponentEngine } from '@/lib/engines';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +77,28 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const gameRef         = useRef(new Chess());
   const lastSpokenRef   = useRef('');
   const playerColorRef  = useRef<PlayerColor>('w');
+
+  // ── Opponent engine (Stockfish on web, built-in fallback on native) ─────────
+  // We only ever talk to the ChessEngine interface — the concrete engine is
+  // chosen by createOpponentEngine() and can be swapped without touching this
+  // file. Created lazily once, warmed up on mount, torn down on unmount.
+  const engineRef = useRef<ChessEngine | null>(null);
+  if (engineRef.current === null) {
+    engineRef.current = createOpponentEngine();
+  }
+
+  // Monotonic token that identifies the "current" engine turn. Bumping it
+  // invalidates any in-flight engine computation (undo / new game / colour
+  // change while the engine is thinking), so a late result is safely ignored.
+  const moveGenerationRef = useRef(0);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    engine?.init?.().catch(() => {
+      /* engine failed to load — opponentMove will simply produce no move */
+    });
+    return () => { engine?.destroy?.(); };
+  }, []);
 
   const [playerColor, setPlayerColor]           = useState<PlayerColor>('w');
   const [board, setBoard]                       = useState<(BoardPiece | null)[][]>(
@@ -161,52 +185,64 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const opponentMoveRef     = useRef<() => void>(() => {});
   const opponentTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const opponentMove = useCallback(() => {
+  /**
+   * Abort a pending/in-flight engine turn. Invalidates the current generation
+   * (so a late engine result is discarded), clears any scheduled kickoff, and
+   * tells the engine to stop calculating. Call this before undo / new game /
+   * colour change.
+   */
+  const cancelPendingOpponent = useCallback(() => {
+    moveGenerationRef.current += 1;
+    if (opponentTimeoutRef.current != null) {
+      clearTimeout(opponentTimeoutRef.current);
+      opponentTimeoutRef.current = null;
+    }
+    engineRef.current?.cancel?.();
+  }, []);
+
+  const opponentMove = useCallback(async () => {
     const game = gameRef.current;
     if (game.isGameOver()) return;
 
+    const myGen = moveGenerationRef.current;
     setIsOpponentThinking(true);
-    if (opponentTimeoutRef.current != null) {
-      clearTimeout(opponentTimeoutRef.current);
+
+    let selected: Move | null = null;
+    try {
+      selected = (await engineRef.current?.pickMove(game)) ?? null;
+    } catch {
+      selected = null;
     }
 
-    opponentTimeoutRef.current = setTimeout(async () => {
-      opponentTimeoutRef.current = null;
-      try {
-        const selected = await randomEngine.pickMove(game);
-        if (!selected) {
-          setIsOpponentThinking(false);
-          setWaitingForUser(true);
-          return;
-        }
+    // Superseded while thinking (undo / new game / colour change) → discard.
+    // The action that cancelled us is responsible for resetting UI state.
+    if (myGen !== moveGenerationRef.current) return;
 
-        const played = game.move({
-          from: selected.from,
-          to: selected.to,
-          promotion: 'q',
-        }) as Move;
+    if (!selected) {
+      setIsOpponentThinking(false);
+      setWaitingForUser(true);
+      return;
+    }
 
-        setLastMove({ from: played.from, to: played.to });
-        syncState();
+    try {
+      const played = game.move({
+        from: selected.from,
+        to: selected.to,
+        promotion: selected.promotion || 'q',
+      }) as Move;
 
-        let announcement = verbalMove(played);
-        announcement = gameStateAnnouncement(game, announcement);
-        setIsOpponentThinking(false);
+      setLastMove({ from: played.from, to: played.to });
+      syncState();
 
-        if (game.isGameOver()) {
-          setWaitingForUser(false);
-          setStatus(announcement);
-          speak(announcement);
-        } else {
-          setWaitingForUser(true);
-          setStatus(announcement);
-          speak(announcement);
-        }
-      } catch {
-        setIsOpponentThinking(false);
-        setWaitingForUser(true);
-      }
-    }, 1200); // slightly faster than before
+      const announcement = gameStateAnnouncement(game, verbalMove(played));
+      setIsOpponentThinking(false);
+      setWaitingForUser(!game.isGameOver());
+      setStatus(announcement);
+      speak(announcement);
+    } catch {
+      setIsOpponentThinking(false);
+      setWaitingForUser(true);
+    }
   }, [syncState, speak]);
 
   opponentMoveRef.current = opponentMove;
@@ -260,17 +296,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    */
   const undoMove = useCallback(() => {
     const game = gameRef.current;
+
+    // Abort any pending/in-flight engine turn first, so a late Stockfish
+    // result cannot land on the restored position.
+    cancelPendingOpponent();
+
     const allMoves = game.history({ verbose: true }) as Move[];
 
     // Need at least 2 half-moves to undo (player + engine)
     if (allMoves.length < 2) {
       // Only one half-move: undo it if it was the player's
       if (allMoves.length === 1 && allMoves[0].color === playerColorRef.current) {
-        // Cancel any pending opponent move
-        if (opponentTimeoutRef.current != null) {
-          clearTimeout(opponentTimeoutRef.current);
-          opponentTimeoutRef.current = null;
-        }
         game.undo();
         syncState();
         setLastMove(null);
@@ -282,12 +318,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         speak('Coup annulé. Début de la partie.');
       }
       return;
-    }
-
-    // Cancel any pending opponent move
-    if (opponentTimeoutRef.current != null) {
-      clearTimeout(opponentTimeoutRef.current);
-      opponentTimeoutRef.current = null;
     }
 
     // Undo engine's last move, then player's last move
@@ -324,7 +354,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setStatus('À toi de jouer.');
       speak('Coup annulé. Début de la partie.');
     }
-  }, [syncState, speak]);
+  }, [syncState, speak, cancelPendingOpponent]);
 
   // ── applyUserMove (voice / text input) ────────────────────────────────────
 
@@ -408,10 +438,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const resetForColor = useCallback(
     (color: PlayerColor) => {
-      if (opponentTimeoutRef.current != null) {
-        clearTimeout(opponentTimeoutRef.current);
-        opponentTimeoutRef.current = null;
-      }
+      cancelPendingOpponent();
+      engineRef.current?.newGame?.();
       try { Speech.stop(); } catch { /* ignore */ }
       gameRef.current.reset();
       lastSpokenRef.current = '';
@@ -435,7 +463,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setStatus('À toi de jouer.');
       }
     },
-    [syncState],
+    [syncState, cancelPendingOpponent],
   );
 
   const newGame = useCallback(() => {
