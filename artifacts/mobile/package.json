@@ -59,6 +59,7 @@
     "chess.js": "^1.4.0",
     "expo-av": "^16.0.8",
     "expo-speech": "^14.0.8",
-    "expo-speech-recognition": "^56.0.1"
+    "expo-speech-recognition": "^56.0.1",
+    "stockfish": "^18.0.8"
   }
 }

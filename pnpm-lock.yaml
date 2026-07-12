@@ -231,6 +231,9 @@ importers:
       expo-speech-recognition:
         specifier: ^56.0.1
         version: 56.0.1(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      stockfish:
+        specifier: ^18.0.8
+        version: 18.0.8
     devDependencies:
       '@babel/core':
         specifier: ^7.25.2
@@ -5170,6 +5173,10 @@ packages:
   statuses@2.0.2:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
+
+  stockfish@18.0.8:
+    resolution: {integrity: sha512-z+f2UMPXLylDBGjv9e9zU8QulY7hUl8MYHesLRrdddewlOXjJrUSmtNmbtID1/F72EPhq0CCkCNxgWS5MQVWtQ==}
+    hasBin: true
 
   stream-buffers@2.2.0:
     resolution: {integrity: sha512-uyQK/mx5QjHun80FLJTfaWE7JtwfRMKBLkMne6udYOmvH0CawotVa7TfgYHzAnpphn4+TweIx1QKMnRIbipmUg==}
@@ -11299,6 +11306,8 @@ snapshots:
   statuses@1.5.0: {}
 
   statuses@2.0.2: {}
+
+  stockfish@18.0.8: {}
 
   stream-buffers@2.2.0: {}
 
