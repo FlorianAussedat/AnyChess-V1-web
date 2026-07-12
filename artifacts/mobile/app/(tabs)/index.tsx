@@ -24,11 +24,11 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
+import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
-import { Audio } from 'expo-av';
 import { CHESS_CONTEXT_STRINGS } from '@/lib/chessParser';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -38,9 +38,9 @@ type MoveRow = { key: string; num: number; white: string; black: string };
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function GameScreen() {
-  const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const isWeb = Platform.OS === 'web';
+  const colors  = useColors();
+  const insets  = useSafeAreaInsets();
+  const isWeb   = Platform.OS === 'web';
 
   const {
     board,
@@ -53,88 +53,65 @@ export default function GameScreen() {
     isOpponentThinking,
     playerColor,
     moveEvent,
+    isSpeaking,
     applyUserMove,
     movePieceBySquare,
     getLegalDestinations,
     newGame,
     changeColor,
     repeatLast,
-    isSpeaking,
     summarizeGame,
+    undoMove,
   } = useGame();
 
-  // Stable ref so STT handlers never hold stale closures
+  // Stable ref so STT handlers never close over stale values
   const applyRef = useRef(applyUserMove);
   useEffect(() => { applyRef.current = applyUserMove; }, [applyUserMove]);
 
-  const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
-  const gameStarted = history.length > 0; // locks color pills once moves begin
+  const canAct     = waitingForUser && !isOpponentThinking && !isGameOver;
+  const gameStarted = history.length > 0;
 
-  // ── Haptics on move success / error ──────────────────────────────────────
+  // ── Sound effects ─────────────────────────────────────────────────────────
 
-  const [showRecognized, setShowRecognized] = useState(false);
-  const recognizedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (!moveEvent) return;
-    if (moveEvent.kind === 'success') {
-      // Light, pleasant confirmation vibration
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Brief "Coup reconnu" flash on the mic button
-      setShowRecognized(true);
-      if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
-      recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
-    } else {
-      // Soft error buzz — only fires when input looked like a chess attempt
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  }, [moveEvent?.id]); // fires on every new event regardless of kind
-
-  // ── Mic state ─────────────────────────────────────────────────────────────
-
-  const [micActive, setMicActive] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const micActiveRef = useRef(false);
-  const isSpeakingRef = useRef(false);
-  useEffect(() => { micActiveRef.current = micActive; }, [micActive]);
-  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
-
-  // ── Manual text input ────────────────────────────────────────────────────
-
-  const [manualText, setManualText] = useState('');
-
-  // ── Touch move state ──────────────────────────────────────────────────────
-
-  const [touchSelected, setTouchSelected] = useState<string | null>(null);
-  const [legalDests, setLegalDests] = useState<string[]>([]);
+  const successSoundRef = useRef<Audio.Sound | null>(null);
+  const errorSoundRef   = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
-    if (!canAct) { setTouchSelected(null); setLegalDests([]); }
-  }, [canAct]);
-
-  // ── Speech recognition events ─────────────────────────────────────────────
-  // Hooks must be called unconditionally.
-
-  useSpeechRecognitionEvent('start', () => setIsListening(true));
-  useSpeechRecognitionEvent('end',   () => setIsListening(false));
-
-  useSpeechRecognitionEvent('result', (event: any) => {
-    // Ignore everything the STT picks up while TTS is speaking — that's
-    // the app's own voice, not the player's move.
-    if (isSpeakingRef.current) return;
-    if (event?.isFinal) {
-      const transcript: string = event.results?.[0]?.transcript ?? '';
-      if (transcript) applyRef.current(transcript);
+    let mounted = true;
+    async function loadSounds() {
+      try {
+        const { sound: s1 } = await Audio.Sound.createAsync(
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          require('@/assets/sounds/success.wav'),
+          { volume: 0.6 },
+        );
+        const { sound: s2 } = await Audio.Sound.createAsync(
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          require('@/assets/sounds/error.wav'),
+          { volume: 0.5 },
+        );
+        if (mounted) {
+          successSoundRef.current = s1;
+          errorSoundRef.current   = s2;
+        } else {
+          s1.unloadAsync().catch(() => {});
+          s2.unloadAsync().catch(() => {});
+        }
+      } catch {
+        /* sounds are non-critical — fail silently */
+      }
     }
-  });
+    loadSounds();
+    return () => {
+      mounted = false;
+      successSoundRef.current?.unloadAsync().catch(() => {});
+      errorSoundRef.current?.unloadAsync().catch(() => {});
+    };
+  }, []);
 
-  useSpeechRecognitionEvent('error', () => setIsListening(false));
-
-  // ── Mic helpers ───────────────────────────────────────────────────────────
-
-  // ── Pre-initialise audio session once at mount so iOS doesn't play its
-  //    recording-activation chime when the user first presses the mic button.
+  // ── Audio session initialisation ──────────────────────────────────────────
+  // Pre-configure the iOS audio session so toggling the mic on for the first
+  // time doesn't trigger the system recording-activation chime.
 
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -143,8 +120,54 @@ export default function GameScreen() {
       shouldDuckAndroid: false,
       playThroughEarpieceAndroid: false,
       staysActiveInBackground: false,
-    }).catch(() => { /* ignore — non-fatal */ });
+    }).catch(() => {});
   }, []);
+
+  // ── Haptics + sound on move success / error ───────────────────────────────
+
+  const [showRecognized, setShowRecognized] = useState(false);
+  const recognizedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!moveEvent) return;
+    if (moveEvent.kind === 'success') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      successSoundRef.current?.replayAsync().catch(() => {});
+      setShowRecognized(true);
+      if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
+      recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      errorSoundRef.current?.replayAsync().catch(() => {});
+    }
+  }, [moveEvent?.id]);
+
+  // ── Mic state ─────────────────────────────────────────────────────────────
+
+  const [micActive, setMicActive]         = useState(false);
+  const [isListening, setIsListening]     = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+
+  // Stable refs for use inside async callbacks / timeouts
+  const micActiveRef   = useRef(false);
+  const isSpeakingRef  = useRef(false);
+  useEffect(() => { micActiveRef.current  = micActive;   }, [micActive]);
+  useEffect(() => { isSpeakingRef.current = isSpeaking;  }, [isSpeaking]);
+
+  // ── Manual text input ─────────────────────────────────────────────────────
+
+  const [manualText, setManualText] = useState('');
+
+  // ── Touch move state ──────────────────────────────────────────────────────
+
+  const [touchSelected, setTouchSelected] = useState<string | null>(null);
+  const [legalDests, setLegalDests]       = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!canAct) { setTouchSelected(null); setLegalDests([]); }
+  }, [canAct]);
+
+  // ── STT helpers ───────────────────────────────────────────────────────────
 
   const startListening = useCallback(async () => {
     try {
@@ -155,9 +178,9 @@ export default function GameScreen() {
         lang: 'fr-FR',
         interimResults: false,
         maxAlternatives: 4,
-        continuous: true,          // keep mic open between moves
+        continuous: true,
         requiresOnDeviceRecognition: false,
-        contextualStrings: CHESS_CONTEXT_STRINGS, // bias STT toward chess vocab
+        contextualStrings: CHESS_CONTEXT_STRINGS,
       });
     } catch {
       setIsListening(false);
@@ -168,19 +191,43 @@ export default function GameScreen() {
     try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
   }, []);
 
-  // ── Fallback restart: if the OS unexpectedly drops a continuous session
-  //    while the toggle is on, restart quickly.  isSpeaking results are already
-  //    filtered in the result handler so we never need to stop/restart for TTS.
+  // ── STT events ────────────────────────────────────────────────────────────
+
+  useSpeechRecognitionEvent('start', () => setIsListening(true));
+  useSpeechRecognitionEvent('end',   () => setIsListening(false));
+  useSpeechRecognitionEvent('error', () => setIsListening(false));
+
+  useSpeechRecognitionEvent('result', (event: any) => {
+    if (event?.isFinal) {
+      const transcript: string = event.results?.[0]?.transcript ?? '';
+      if (transcript) applyRef.current(transcript);
+    }
+  });
+
+  // ── Pause mic during TTS, resume immediately after ────────────────────────
+  // When isSpeaking becomes true  → stop the recognizer
+  // When isSpeaking becomes false → the fallback restart below handles resume
 
   useEffect(() => {
-    if (!micActive || isListening) return;
-    const t = setTimeout(() => {
-      if (micActiveRef.current) startListening();
-    }, 100);
-    return () => clearTimeout(t);
-  }, [micActive, isListening, startListening]);
+    if (isSpeaking && micActive && isListening) {
+      stopListening();
+    }
+  }, [isSpeaking, micActive, isListening, stopListening]);
 
-  // Auto-deactivate toggle when game ends
+  // ── Fallback restart: OS drops the session, or TTS just finished ──────────
+  // Fires whenever micActive=true AND isListening=false AND isSpeaking=false.
+  // The isSpeaking guard prevents premature restart while TTS is still playing.
+
+  useEffect(() => {
+    if (!micActive || isListening || isSpeaking) return;
+    const t = setTimeout(() => {
+      if (micActiveRef.current && !isSpeakingRef.current) startListening();
+    }, 80);
+    return () => clearTimeout(t);
+  }, [micActive, isListening, isSpeaking, startListening]);
+
+  // ── Auto-deactivate toggle when game ends ─────────────────────────────────
+
   useEffect(() => {
     if (isGameOver && micActive) { setMicActive(false); stopListening(); }
   }, [isGameOver, micActive, stopListening]);
@@ -194,11 +241,12 @@ export default function GameScreen() {
       stopListening();
     } else {
       setMicActive(true);
-      if (canAct) startListening();
+      // Always start immediately; game-state guards live in applyUserMove
+      startListening();
     }
-  }, [micActive, canAct, startListening, stopListening]);
+  }, [micActive, startListening, stopListening]);
 
-  // ── Pulse animation (only during active listening) ────────────────────────
+  // ── Pulse animation ───────────────────────────────────────────────────────
 
   const scale = useSharedValue(1);
   useEffect(() => {
@@ -249,11 +297,11 @@ export default function GameScreen() {
     [canAct, touchSelected, legalDests, getLegalDestinations, movePieceBySquare],
   );
 
-  // ── Color picker — locked once the game has started ───────────────────────
+  // ── Color picker — locked once game has started ───────────────────────────
 
   const onPickColor = useCallback(
     (color: PlayerColor) => {
-      if (gameStarted) return; // locked during a game
+      if (gameStarted) return;
       if (color === playerColor) newGame();
       else changeColor(color);
     },
@@ -267,36 +315,44 @@ export default function GameScreen() {
     moveRows.push({
       key: String(i),
       num: Math.floor(i / 2) + 1,
-      white: history[i] ?? '',
+      white: history[i]  ?? '',
       black: history[i + 1] ?? '',
     });
   }
 
-  // ── Mic button appearance (4 states) ─────────────────────────────────────
+  // Auto-scroll to latest move
+  const historyListRef = useRef<FlatList<MoveRow>>(null);
+  useEffect(() => {
+    if (moveRows.length > 0) {
+      setTimeout(() => historyListRef.current?.scrollToEnd({ animated: true }), 60);
+    }
+  }, [moveRows.length]);
+
+  // ── Mic button — 4 visual states ──────────────────────────────────────────
 
   let micBg: string;
   let micIconName: string;
   let micLabel: string;
 
   if (showRecognized) {
-    micBg = '#27AE60';          // green — coup validé
+    micBg       = '#27AE60';
     micIconName = 'checkmark-circle';
-    micLabel = 'Coup reconnu';
+    micLabel    = 'Coup reconnu';
   } else if (isListening) {
-    micBg = '#C0392B';          // red — écoute active
+    micBg       = '#C0392B';
     micIconName = 'mic';
-    micLabel = "J'écoute…";
+    micLabel    = "J'écoute…";
   } else if (micActive) {
-    micBg = '#D4880A';          // amber — toggle actif, en attente
+    micBg       = '#D4880A';
     micIconName = 'mic-outline';
-    micLabel = 'Micro actif';
+    micLabel    = 'Micro actif';
   } else {
-    micBg = colors.primary;     // or — toggle éteint
+    micBg       = colors.primary;
     micIconName = 'mic-off-outline';
-    micLabel = 'Parler';
+    micLabel    = 'Parler';
   }
 
-  // ── Layout helpers ────────────────────────────────────────────────────────
+  // ── Layout ────────────────────────────────────────────────────────────────
 
   const topPad    = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : insets.bottom;
@@ -310,12 +366,8 @@ export default function GameScreen() {
     >
       {/* ── Header ────────────────────────────────────────────────────── */}
       <View style={styles.header}>
-        {/* Logo + title */}
         <View style={styles.brandRow}>
-          <Image
-            source={require('@/assets/images/icon.png')}
-            style={styles.logoImg}
-          />
+          <Image source={require('@/assets/images/icon.png')} style={styles.logoImg} />
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>AnyChess</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
@@ -323,10 +375,9 @@ export default function GameScreen() {
             </Text>
           </View>
         </View>
-
       </View>
 
-      {/* ── Action row: Répéter · Résumé · Reprendre ─────────────────── */}
+      {/* ── Action row ───────────────────────────────────────────────────── */}
       <View style={styles.actionRow}>
         <Pressable
           style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
@@ -336,6 +387,16 @@ export default function GameScreen() {
           <Ionicons name="volume-medium-outline" size={14} color={colors.foreground} />
           <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Répéter</Text>
         </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
+          onPress={undoMove}
+          testID="undo-btn"
+        >
+          <Ionicons name="arrow-undo-outline" size={14} color={colors.foreground} />
+          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Annuler</Text>
+        </Pressable>
+
         <Pressable
           style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
           onPress={summarizeGame}
@@ -344,13 +405,16 @@ export default function GameScreen() {
           <Ionicons name="list-outline" size={14} color={colors.foreground} />
           <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Résumé</Text>
         </Pressable>
+
         <Pressable
           style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
           onPress={newGame}
           testID="new-game-btn"
         >
           <Ionicons name="refresh-outline" size={14} color={colors.foreground} />
-          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]} numberOfLines={2}>Recommencer{'\n'}la partie</Text>
+          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]} numberOfLines={2}>
+            Nouvelle{'\n'}partie
+          </Text>
         </Pressable>
       </View>
 
@@ -366,8 +430,8 @@ export default function GameScreen() {
                 styles.colorPill,
                 {
                   backgroundColor: active ? colors.primary : colors.card,
-                  borderColor: active ? colors.primary : colors.border,
-                  opacity: locked && !active ? 0.45 : 1,
+                  borderColor:     active ? colors.primary : colors.border,
+                  opacity:         locked && !active ? 0.45 : 1,
                 },
               ]}
               onPress={() => onPickColor(c)}
@@ -443,7 +507,7 @@ export default function GameScreen() {
           style={[styles.input, { backgroundColor: colors.input, color: colors.foreground, borderColor: colors.border }]}
           value={manualText}
           onChangeText={setManualText}
-          placeholder="Ex. Nc3, Fou b5, e4, petit roque…"
+          placeholder="Ex. Nc3, Fou b5, e4, petit roque, annuler…"
           placeholderTextColor={colors.mutedForeground}
           onSubmitEditing={onPlayManual}
           returnKeyType="send"
@@ -468,9 +532,10 @@ export default function GameScreen() {
           </Text>
         ) : (
           <FlatList
+            ref={historyListRef}
             data={moveRows}
             keyExtractor={item => item.key}
-            scrollEnabled={!!moveRows.length}
+            scrollEnabled
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => (
               <View style={[styles.moveRow, { borderBottomColor: colors.border }]}>
@@ -520,24 +585,25 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     marginTop: 1,
   },
+  // Action row
   actionRow: {
     flexDirection: 'row',
-    gap: 7,
+    gap: 6,
   },
   actionBtn: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    minHeight: 36,
-    paddingVertical: 5,
-    paddingHorizontal: 6,
+    gap: 2,
+    minHeight: 44,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
     borderRadius: 10,
     borderWidth: 1,
   },
   actionBtnLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Inter_600SemiBold',
     textAlign: 'center',
     flexShrink: 1,
@@ -569,7 +635,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    minHeight: 48,
+    minHeight: 46,
     justifyContent: 'center',
   },
   statusText: {
@@ -591,8 +657,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 28,
+    paddingVertical: 13,
+    paddingHorizontal: 32,
     borderRadius: 999,
   },
   micLabel: {
@@ -632,7 +698,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 9,
     paddingBottom: 8,
-    minHeight: 70,
+    minHeight: 60,
   },
   historyTitle: {
     fontSize: 11,
@@ -649,7 +715,7 @@ const styles = StyleSheet.create({
   },
   moveRow: {
     flexDirection: 'row',
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 4,
   },

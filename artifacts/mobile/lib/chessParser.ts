@@ -21,9 +21,7 @@ const FRENCH_PIECE_NAMES: Record<string, string> = {
   k: 'Roi',
 };
 
-const CAPTURE_VALUES: Record<string, number> = {
-  p: 1, n: 3, b: 3, r: 5, q: 9,
-};
+// ── Normalize ─────────────────────────────────────────────────────────────
 
 /** Normalize spoken French/English text for fuzzy matching. */
 export function normalize(s: string): string {
@@ -34,7 +32,7 @@ export function normalize(s: string): string {
     .replace(/[.,;:!?]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    // ── STT corruption fixes (must run before piece-name mapping) ───────────
+    // ── STT corruption fixes ──────────────────────────────────────────────
     .replace(/\bdamage\b/g, 'dame')
     .replace(/\bdam\b/g, 'dame')
     .replace(/\bdoms?\b/g, 'dame')
@@ -45,20 +43,26 @@ export function normalize(s: string): string {
     .replace(/\bfoul\b/g, 'fou')
     .replace(/\btours\b/g, 'tour')
     .replace(/\bpions\b/g, 'pion')
-    // ── English piece names → French ─────────────────────────────────────────
+    // ── Castling STT variants → canonical tokens ──────────────────────────
+    // Must run BEFORE English piece-name mapping so "rock" doesn't become "tour"
+    .replace(/\b(petit\s+ro[ck]e?|roque\s+cote\s+roi|kingside\s+castl(?:ing|e)|castle\s+kingside|short\s+castl(?:ing|e)|o-o(?!-o))\b/g, 'petit roque')
+    .replace(/\b(grand\s+ro[ck]e?|roque\s+cote\s+dame|queenside\s+castl(?:ing|e)|castle\s+queenside|long\s+castl(?:ing|e)|o-o-o)\b/g, 'grand roque')
+    // Isolated "roc", "rok", "rock", "roque" → roque (STT mishearing)
+    .replace(/\b(roc|rok|rock)\b/g, 'roque')
+    // ── English piece names → French ──────────────────────────────────────
     .replace(/\bknight\b/g, 'cavalier')
     .replace(/\bbishop\b/g, 'fou')
     .replace(/\brook\b/g, 'tour')
     .replace(/\bqueen\b/g, 'dame')
     .replace(/\bking\b/g, 'roi')
     .replace(/\bpawn\b/g, 'pion')
-    // ── English actions ───────────────────────────────────────────────────────
+    // ── English actions ───────────────────────────────────────────────────
     .replace(/\btakes\b/g, 'prend')
     .replace(/\bcaptures\b/g, 'prend')
-    // ── French synonyms ───────────────────────────────────────────────────────
+    // ── French synonyms ───────────────────────────────────────────────────
     .replace(/\bfois\b/g, 'prend')
     .replace(/\bx\b/g, 'prend')
-    // ── Numbers spoken aloud ──────────────────────────────────────────────────
+    // ── Numbers spoken aloud ──────────────────────────────────────────────
     .replace(/\bquatre\b/g, '4')
     .replace(/\bcinq\b/g, '5')
     .replace(/\bsix\b/g, '6')
@@ -75,7 +79,6 @@ export function normalize(s: string): string {
   // French sentences.
   const PIECE_WORDS = '(?:dame|cavalier|fou|tour|roi|pion|prend)';
   return n
-    // After a piece word, replace phonetic letter + rank digit
     .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(de|des|du)\\s+([1-8])\\b`, 'g'), '$1 d$3')
     .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(et|est|eh)\\s+([1-8])\\b`, 'g'), '$1 e$3')
     .replace(new RegExp(`\\b(${PIECE_WORDS})\\s+(effe|eff|ef|aif)\\s+([1-8])\\b`, 'g'), '$1 f$3')
@@ -106,20 +109,24 @@ export const CHESS_CONTEXT_STRINGS: string[] = [
   'queen', 'knight', 'bishop', 'rook', 'king', 'pawn',
   // Special moves
   'petit roque', 'grand roque', 'roque', 'promotion',
-  // Actions
+  'kingside castle', 'queenside castle',
+  // Actions & commands
   'prend', 'en passant', 'échec', 'mat', 'échec et mat',
+  'annuler', 'annulé', 'cancel',
   // All 64 squares
   ...['a','b','c','d','e','f','g','h'].flatMap(f =>
     ['1','2','3','4','5','6','7','8'].map(r => f + r)
   ),
 ];
 
+// ── TTS helpers ───────────────────────────────────────────────────────────
+
 /** Spell out a square so TTS says "D 5" not "d5" (avoids "boulevard", etc.). */
 function spellSquare(sq: string): string {
   return sq[0].toUpperCase() + ' ' + sq[1];
 }
 
-/** Convert a move to a French verbal description with spelled-out squares. */
+/** Convert a Move object to a French verbal description with spelled-out squares. */
 export function verbalMove(m: Move): string {
   if (m.flags.includes('k')) return 'Petit roque';
   if (m.flags.includes('q')) return 'Grand roque';
@@ -181,7 +188,7 @@ export function sanToVerbal(san: string): string {
   return s.split('').join(' ');
 }
 
-/** Produce a status message for end-of-game and check conditions. */
+/** Produce a status/announcement for end-of-game and check conditions. */
 export function gameStateAnnouncement(game: Chess, prefix = ''): string {
   const base = prefix ? prefix + ' ' : '';
   if (game.isCheckmate()) return (base + 'Échec et mat. Partie terminée.').trim();
@@ -202,8 +209,6 @@ export function gameStateAnnouncement(game: Chess, prefix = ''): string {
 function trySAN(input: string, game: Chess): Move | null {
   const clean = input.trim().replace(/\s+/g, '');
   if (!clean) return null;
-  // Try both the original input and a lowercase version.
-  // chess.js requires lowercase file letters for pawn moves (e.g. "d5" not "D5").
   const attempts = clean === clean.toLowerCase() ? [clean] : [clean, clean.toLowerCase()];
   for (const attempt of attempts) {
     try {
@@ -224,8 +229,7 @@ function trySAN(input: string, game: Chess): Move | null {
  *   F → B  (Fou → Bishop)
  *   T → R  (Tour → Rook)
  *   D → Q  (Dame → Queen)
- *   R → K  (Roi → King) — only when followed by a valid square/capture
- * Also normalises "×" and spaced captures to "x".
+ *   R → K  (Roi → King)
  */
 function frSANtoEN(raw: string): string {
   return raw
@@ -235,13 +239,12 @@ function frSANtoEN(raw: string): string {
     .replace(/^F(?=[a-h1-8x])/i, 'B')
     .replace(/^T(?=[a-h1-8x])/i, 'R')
     .replace(/^D(?=[a-h1-8x])/i, 'Q')
-    // R for Roi/King — only when the result is a plausible King move (Rx is capture for rook in EN, not desired)
     .replace(/^R(?=[a-h][1-8][+#]?$)/i, 'K');
 }
 
-// ── Fuzzy French / English voice matching ────────────────────────────────
+// ── Fuzzy French / English voice matching ─────────────────────────────────
 
-/** Generate the set of French spoken strings that could describe a move. */
+/** Generate the set of French/English spoken strings that could describe a move. */
 function spokenCandidates(move: Move): string[] {
   const names: Record<string, string[]> = {
     p: ['pion', ''],
@@ -330,28 +333,4 @@ export function parseSpoken(raw: string, game: Chess): ParseResult {
   }
 
   return { kind: 'move', move: top.m };
-}
-
-/**
- * AI opponent: picks one of the top-5 moves biased toward captures and checks.
- * Intentionally non-deterministic — not an engine.
- */
-export function pickOpponentMove(game: Chess): Move | null {
-  const moves = game.moves({ verbose: true }) as Move[];
-  if (!moves.length) return null;
-
-  const scored = moves.map(m => {
-    let s = Math.random() * 3;
-    if (m.captured) s += (CAPTURE_VALUES[m.captured] ?? 0) * 2;
-    try {
-      const clone = new Chess(game.fen());
-      clone.move({ from: m.from, to: m.to, promotion: 'q' });
-      if (clone.isCheck()) s += 4;
-    } catch { /* ignore */ }
-    return { m, s };
-  });
-
-  scored.sort((a, b) => b.s - a.s);
-  const pool = scored.slice(0, Math.min(5, scored.length));
-  return pool[Math.floor(Math.random() * pool.length)].m;
 }

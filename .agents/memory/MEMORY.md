@@ -1,6 +1,9 @@
 - [Chess app architecture](chess-app-arch.md) — AnyChess: expo-speech-recognition toggle mic, chess.js v1, French+English parsing in lib/chessParser.ts
 - [AnyChess branding & theme](anychess-theme.md) — renamed AnyChess, navy #0B1728 bg, gold #F5A623 primary, blue-gray board (#738FA8/#3D5472), knight PNG logo in assets/images/icon.png
 - [SVG pieces](anychess-pieces.md) — PieceSvg.tsx uses react-native-svg (already in deps); 12 pieces inline; white fill #F2F2F2 stroke #2A2A2A, black fill #1C1C30 stroke #9090B8; viewBox 0 0 45 45
-- [Move feedback pattern](anychess-feedback.md) — moveEvent {kind:'success'|'error', id} in GameContext; looksLikeChessMove() guard prevents buzzing on random noise; haptics via NotificationFeedbackType; showRecognized 1.5s flash on mic button
-- [Mic toggle behavior](anychess-mic.md) — always toggle mode (not press-per-move); auto-restarts via useEffect(micActive && canAct && !isListening); 4 visual states: Parler/J'écoute.../Micro actif/Coup reconnu
+- [Move feedback pattern](anychess-feedback.md) — moveEvent {kind:'success'|'error', id} in GameContext; looksLikeChessMove() guard prevents buzzing on random noise; haptics via NotificationFeedbackType; sound via expo-av (assets/sounds/success.wav + error.wav); showRecognized 1.5s flash on mic button
+- [Mic toggle behavior](anychess-mic.md) — toggle mode; mic actually STOPS during TTS (isSpeaking effect calls stopListening); restarts via fallback effect (micActive && !isListening && !isSpeaking → 80ms restart); no isSpeakingRef filter needed
 - [sqName fix for flipped board](chess-board-flip.md) — always use FILES[boardCol]+(8-boardRow) regardless of isFlipped; rows/cols arrays handle the visual flip, formula stays the same
+- [Engine module](anychess-engine.md) — ChessEngine interface in lib/engine.ts; RandomEngine in lib/engines/random.ts; opponentMove is async; swap engine by changing import in GameContext
+- [Undo / annuler](anychess-undo.md) — undoMove() in GameContext undoes 2 half-moves; detects "annule/annuler/cancel" in applyUserMove before turn guard; re-announces last engine move after undo; Annuler button in action row
+- [No player TTS](anychess-no-player-tts.md) — finishPlayerMove only speaks check/checkmate/stalemate; normal moves set status bar only; engine always speaks its own move via opponentMove
