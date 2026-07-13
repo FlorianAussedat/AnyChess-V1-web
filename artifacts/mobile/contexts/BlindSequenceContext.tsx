@@ -10,27 +10,34 @@ import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import { createOpponentEngine } from '@/lib/engines';
 import type { ChessEngine } from '@/lib/engine';
+import { parseSpoken } from '@/lib/chessParser';
 import {
   classifyAttempt,
+  classifySpokenAttempt,
   computeScore,
   generateBlindSequence,
   halfMoveCount,
   sequenceKey,
+  OBSERVATION_DELAY_MS,
   type BlindAttemptRecord,
   type BlindOrientation,
   type BlindPhase,
   type BlindScore,
   type BlindSequenceMove,
+  type BlindSubmode,
+  type ObservationPace,
 } from '@/lib/blind';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { speechService } from '@/services/SpeechService';
+import { audioSettings } from '@/services/AudioSettings';
 
 interface BlindSequenceContextValue {
   phase: BlindPhase;
+  submode: BlindSubmode | null;
   orientation: BlindOrientation;
   fullMoves: number;
+  pace: ObservationPace;
   sequence: BlindSequenceMove[];
-  /** Current expected half-move index during reconstruction. */
   expectedIndex: number;
   board: (BoardPiece | null)[][];
   lastMove: LastMove | null;
@@ -40,21 +47,27 @@ interface BlindSequenceContextValue {
   score: BlindScore | null;
   lastFeedback: string | null;
   revealedHint: string | null;
+  observationIndex: number;
   setOrientation: (o: BlindOrientation) => void;
   setFullMoves: (n: number) => void;
+  setPace: (p: ObservationPace) => void;
+  selectSubmode: (m: BlindSubmode) => void;
+  backToHub: () => void;
   startSession: () => Promise<void>;
   replayDictation: () => void;
   startReconstruction: () => void;
+  startRecitation: () => void;
   getLegalDestinations: (square: string) => string[];
   attemptMove: (from: string, to: string) => boolean;
+  attemptSpoken: (raw: string) => 'correct' | 'wrong' | 'recognition-failure';
   useHelp: () => void;
   retrySameSequence: () => void;
   generateNewSequence: () => Promise<void>;
+  reviewSequenceVisually: () => void;
   backToSettings: () => void;
 }
 
 const BlindSequenceContext = createContext<BlindSequenceContextValue | null>(null);
-
 const previousKeyRefGlobal = { current: null as string | null };
 
 export function BlindSequenceProvider({ children }: { children: React.ReactNode }) {
@@ -68,12 +81,16 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const firstAttemptOkRef = useRef<boolean[]>([]);
   const attemptsRef = useRef<BlindAttemptRecord[]>([]);
   const triedCurrentRef = useRef(false);
+  const observeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [phase, setPhase] = useState<BlindPhase>('settings');
+  const [phase, setPhase] = useState<BlindPhase>('hub');
+  const [submode, setSubmode] = useState<BlindSubmode | null>(null);
   const [orientation, setOrientation] = useState<BlindOrientation>('w');
-  const [fullMoves, setFullMoves] = useState(3);
+  const [fullMoves, setFullMovesState] = useState(3);
+  const [pace, setPace] = useState<ObservationPace>('normal');
   const [sequence, setSequence] = useState<BlindSequenceMove[]>([]);
   const [expectedIndex, setExpectedIndex] = useState(0);
+  const [observationIndex, setObservationIndex] = useState(0);
   const [board, setBoard] = useState<(BoardPiece | null)[][]>(
     () => gameRef.current.board() as (BoardPiece | null)[][],
   );
@@ -85,13 +102,19 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
   const [revealedHint, setRevealedHint] = useState<string | null>(null);
 
+  const setFullMoves = useCallback((n: number) => {
+    setFullMovesState(Math.max(1, Math.min(20, Math.round(n))));
+  }, []);
+
   useEffect(() => {
     const engine = engineRef.current;
     engine?.init?.().catch(() => {});
+    audioSettings.ensureLoaded().catch(() => {});
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
     return () => {
       unsub();
       speechService.stop();
+      if (observeTimerRef.current) clearTimeout(observeTimerRef.current);
       engine?.destroy?.();
     };
   }, []);
@@ -102,71 +125,19 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
 
   const speakSequence = useCallback((moves: BlindSequenceMove[], flush = true) => {
     if (flush) speechService.stop();
-    for (const m of moves) {
-      speechService.speak(m.verbal, { rate: 0.92 });
-    }
+    for (const m of moves) speechService.speak(m.verbal, { rate: 0.92 });
   }, []);
 
-  const resetReconstructionBoard = useCallback(() => {
+  const resetBoard = useCallback(() => {
     gameRef.current.reset();
     setLastMove(null);
     setExpectedIndex(0);
+    setObservationIndex(0);
     setLastFeedback(null);
     setRevealedHint(null);
     triedCurrentRef.current = false;
     syncBoard();
   }, [syncBoard]);
-
-  const beginDictation = useCallback(
-    (moves: BlindSequenceMove[]) => {
-      sequenceRef.current = moves;
-      setSequence(moves);
-      previousKeyRefGlobal.current = sequenceKey(moves);
-      firstAttemptOkRef.current = moves.map(() => false);
-      attemptsRef.current = [];
-      setScore(null);
-      setPhase('dictation');
-      speakSequence(moves, true);
-    },
-    [speakSequence],
-  );
-
-  const startSession = useCallback(async () => {
-    setIsGenerating(true);
-    setGenerateError(null);
-    setPhase('generating');
-    speechService.stop();
-    try {
-      const moves = await generateBlindSequence({
-        fullMoves,
-        engine: engineRef.current!,
-        previousKey: previousKeyRefGlobal.current,
-      });
-      if (moves.length < halfMoveCount(fullMoves)) {
-        // Accept shorter if game ended early, but require at least 2 half-moves.
-        if (moves.length < 2) {
-          throw new Error('Impossible de générer une séquence. Réessaie.');
-        }
-      }
-      beginDictation(moves);
-    } catch (err) {
-      setGenerateError(err instanceof Error ? err.message : String(err));
-      setPhase('settings');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [fullMoves, beginDictation]);
-
-  const replayDictation = useCallback(() => {
-    if (sequenceRef.current.length === 0) return;
-    speakSequence(sequenceRef.current, true);
-  }, [speakSequence]);
-
-  const startReconstruction = useCallback(() => {
-    speechService.stop();
-    resetReconstructionBoard();
-    setPhase('reconstruction');
-  }, [resetReconstructionBoard]);
 
   const finishSession = useCallback(() => {
     const s = computeScore(
@@ -182,18 +153,141 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     );
   }, []);
 
-  const getLegalDestinations = useCallback((square: string): string[] => {
-    if (phase !== 'reconstruction') return [];
-    const game = gameRef.current;
-    const piece = game.get(square as Square);
-    if (!piece || piece.color !== game.turn()) return [];
+  const beginListenPath = useCallback(
+    (moves: BlindSequenceMove[]) => {
+      sequenceRef.current = moves;
+      setSequence(moves);
+      previousKeyRefGlobal.current = sequenceKey(moves);
+      firstAttemptOkRef.current = moves.map(() => false);
+      attemptsRef.current = [];
+      setScore(null);
+      setPhase('dictation');
+      speakSequence(moves, true);
+    },
+    [speakSequence],
+  );
+
+  const runObservation = useCallback(
+    (moves: BlindSequenceMove[]) => {
+      sequenceRef.current = moves;
+      setSequence(moves);
+      previousKeyRefGlobal.current = sequenceKey(moves);
+      firstAttemptOkRef.current = moves.map(() => false);
+      attemptsRef.current = [];
+      setScore(null);
+      resetBoard();
+      setPhase('observing');
+      setObservationIndex(0);
+
+      const delay = OBSERVATION_DELAY_MS[pace];
+      let i = 0;
+
+      const step = () => {
+        if (i >= moves.length) {
+          // Done observing — prepare recitation.
+          gameRef.current.reset();
+          setLastMove(null);
+          syncBoard();
+          setExpectedIndex(0);
+          setPhase('recitation');
+          setLastFeedback('Récite la séquence à voix haute, coup par coup.');
+          return;
+        }
+        const m = moves[i];
+        try {
+          const played = gameRef.current.move({
+            from: m.from,
+            to: m.to,
+            promotion: m.promotion || 'q',
+          }) as Move;
+          setLastMove({ from: played.from, to: played.to });
+          syncBoard();
+          setObservationIndex(i + 1);
+        } catch {
+          /* skip */
+        }
+        i += 1;
+        observeTimerRef.current = setTimeout(step, delay);
+      };
+
+      observeTimerRef.current = setTimeout(step, delay);
+    },
+    [pace, resetBoard, syncBoard],
+  );
+
+  const selectSubmode = useCallback((m: BlindSubmode) => {
+    setSubmode(m);
+    setPhase('settings');
+  }, []);
+
+  const backToHub = useCallback(() => {
+    speechService.stop();
+    if (observeTimerRef.current) clearTimeout(observeTimerRef.current);
+    setSubmode(null);
+    setPhase('hub');
+    setScore(null);
+    resetBoard();
+  }, [resetBoard]);
+
+  const startSession = useCallback(async () => {
+    if (!submode) return;
+    setIsGenerating(true);
+    setGenerateError(null);
+    setPhase('generating');
+    speechService.stop();
+    if (observeTimerRef.current) clearTimeout(observeTimerRef.current);
     try {
-      const moves = game.moves({ verbose: true, square: square as Square }) as Move[];
-      return [...new Set(moves.map((m) => m.to))];
-    } catch {
-      return [];
+      const moves = await generateBlindSequence({
+        fullMoves,
+        engine: engineRef.current!,
+        previousKey: previousKeyRefGlobal.current,
+      });
+      if (moves.length < 2) {
+        throw new Error('Impossible de générer une séquence. Réessaie.');
+      }
+      if (submode === 'listen-reconstruct') beginListenPath(moves);
+      else runObservation(moves);
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : String(err));
+      setPhase('settings');
+    } finally {
+      setIsGenerating(false);
     }
-  }, [phase]);
+  }, [submode, fullMoves, beginListenPath, runObservation]);
+
+  const replayDictation = useCallback(() => {
+    if (sequenceRef.current.length === 0) return;
+    speakSequence(sequenceRef.current, true);
+  }, [speakSequence]);
+
+  const startReconstruction = useCallback(() => {
+    speechService.stop();
+    resetBoard();
+    setPhase('reconstruction');
+  }, [resetBoard]);
+
+  const startRecitation = useCallback(() => {
+    speechService.stop();
+    resetBoard();
+    setPhase('recitation');
+    setLastFeedback('Récite la séquence à voix haute, coup par coup.');
+  }, [resetBoard]);
+
+  const getLegalDestinations = useCallback(
+    (square: string): string[] => {
+      if (phase !== 'reconstruction') return [];
+      const game = gameRef.current;
+      const piece = game.get(square as Square);
+      if (!piece || piece.color !== game.turn()) return [];
+      try {
+        const moves = game.moves({ verbose: true, square: square as Square }) as Move[];
+        return [...new Set(moves.map((m) => m.to))];
+      } catch {
+        return [];
+      }
+    },
+    [phase],
+  );
 
   const attemptMove = useCallback(
     (from: string, to: string): boolean => {
@@ -221,7 +315,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         setLastFeedback('Correct.');
         setRevealedHint(null);
         syncBoard();
-
         const next = expectedIndex + 1;
         if (next >= sequenceRef.current.length) {
           setExpectedIndex(next);
@@ -232,7 +325,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         return true;
       }
 
-      // Error — record, undo, stay on same expected move.
       attemptsRef.current.push({
         expectedIndex,
         kind: verdict.kind,
@@ -241,11 +333,11 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       triedCurrentRef.current = true;
       game.undo();
       syncBoard();
-
       const labels: Record<string, string> = {
         'wrong-piece': 'Erreur de pièce',
         'wrong-destination': "Erreur de case d'arrivée",
         'wrong-order': "Erreur d'ordre",
+        'wrong-move': 'Erreur de coup',
       };
       const label = labels[verdict.kind] ?? 'Erreur';
       setLastFeedback(label);
@@ -255,11 +347,99 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     [phase, expectedIndex, syncBoard, finishSession],
   );
 
+  const attemptSpoken = useCallback(
+    (raw: string): 'correct' | 'wrong' | 'recognition-failure' => {
+      if (phase !== 'recitation') return 'recognition-failure';
+      const expected = sequenceRef.current[expectedIndex];
+      if (!expected) return 'recognition-failure';
+
+      // Rebuild position up to expectedIndex for the parser.
+      const probe = new Chess();
+      for (let i = 0; i < expectedIndex; i++) {
+        const m = sequenceRef.current[i];
+        probe.move({ from: m.from, to: m.to, promotion: m.promotion || 'q' });
+      }
+
+      const parsed = parseSpoken(raw, probe);
+      // Ambiguous / unknown = recognition problem, not a chess-memory error.
+      if (parsed.kind === 'unknown' || parsed.kind === 'ambiguous') {
+        attemptsRef.current.push({ expectedIndex, kind: 'recognition-failure' });
+        setLastFeedback(
+          parsed.kind === 'ambiguous'
+            ? 'Ambigu — reformule le coup (non compté comme erreur de mémoire).'
+            : 'Non reconnu — réessaie (non compté comme erreur de mémoire).',
+        );
+        return 'recognition-failure';
+      }
+
+      const moveToPlay = parsed.move;
+      let played: Move | null = null;
+      try {
+        played = probe.move({
+          from: moveToPlay.from,
+          to: moveToPlay.to,
+          promotion: 'q',
+        }) as Move;
+      } catch {
+        played = null;
+      }
+
+      const remaining = sequenceRef.current.slice(expectedIndex);
+      const verdict = classifySpokenAttempt(expected, played, remaining);
+      const isFirstTry = !triedCurrentRef.current;
+
+      if (verdict.ok && played) {
+        if (isFirstTry) firstAttemptOkRef.current[expectedIndex] = true;
+        triedCurrentRef.current = false;
+        // Apply on the visible board too.
+        try {
+          const onBoard = gameRef.current.move({
+            from: played.from,
+            to: played.to,
+            promotion: played.promotion || 'q',
+          }) as Move;
+          setLastMove({ from: onBoard.from, to: onBoard.to });
+          syncBoard();
+        } catch {
+          /* ignore */
+        }
+        setLastFeedback('Correct.');
+        const next = expectedIndex + 1;
+        if (next >= sequenceRef.current.length) {
+          setExpectedIndex(next);
+          finishSession();
+        } else {
+          setExpectedIndex(next);
+        }
+        return 'correct';
+      }
+
+      if (!verdict.ok && verdict.kind === 'recognition-failure') {
+        attemptsRef.current.push({ expectedIndex, kind: 'recognition-failure' });
+        setLastFeedback('Non reconnu — réessaie.');
+        return 'recognition-failure';
+      }
+
+      const kind = !verdict.ok ? verdict.kind : 'wrong-move';
+      attemptsRef.current.push({
+        expectedIndex,
+        kind,
+        attemptedSan: played?.san,
+      });
+      triedCurrentRef.current = true;
+      const label =
+        kind === 'wrong-order' ? "Erreur d'ordre" : 'Erreur de coup';
+      setLastFeedback(label);
+      speechService.speak(label, { flush: true });
+      return 'wrong';
+    },
+    [phase, expectedIndex, syncBoard, finishSession],
+  );
+
   const useHelp = useCallback(() => {
-    if (phase !== 'reconstruction') return;
+    if (phase !== 'reconstruction' && phase !== 'recitation') return;
     const expected = sequenceRef.current[expectedIndex];
     if (!expected) return;
-
     attemptsRef.current.push({ expectedIndex, kind: 'help' });
     triedCurrentRef.current = true;
     const hint = `Coup attendu : ${expected.verbal}`;
@@ -269,33 +449,45 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   }, [phase, expectedIndex]);
 
   const retrySameSequence = useCallback(() => {
+    if (observeTimerRef.current) clearTimeout(observeTimerRef.current);
     firstAttemptOkRef.current = sequenceRef.current.map(() => false);
     attemptsRef.current = [];
     setScore(null);
-    setPhase('dictation');
-    speakSequence(sequenceRef.current, true);
-  }, [speakSequence]);
+    if (submode === 'listen-reconstruct') {
+      setPhase('dictation');
+      speakSequence(sequenceRef.current, true);
+    } else if (submode === 'watch-recite') {
+      runObservation(sequenceRef.current);
+    }
+  }, [submode, speakSequence, runObservation]);
 
   const generateNewSequence = useCallback(async () => {
     await startSession();
   }, [startSession]);
 
+  const reviewSequenceVisually = useCallback(() => {
+    if (sequenceRef.current.length === 0) return;
+    runObservation(sequenceRef.current);
+  }, [runObservation]);
+
   const backToSettings = useCallback(() => {
     speechService.stop();
+    if (observeTimerRef.current) clearTimeout(observeTimerRef.current);
     setPhase('settings');
     setScore(null);
     setLastFeedback(null);
     setRevealedHint(null);
-    gameRef.current.reset();
-    syncBoard();
-  }, [syncBoard]);
+    resetBoard();
+  }, [resetBoard]);
 
   return (
     <BlindSequenceContext.Provider
       value={{
         phase,
+        submode,
         orientation,
         fullMoves,
+        pace,
         sequence,
         expectedIndex,
         board,
@@ -306,16 +498,23 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         score,
         lastFeedback,
         revealedHint,
+        observationIndex,
         setOrientation,
         setFullMoves,
+        setPace,
+        selectSubmode,
+        backToHub,
         startSession,
         replayDictation,
         startReconstruction,
+        startRecitation,
         getLegalDestinations,
         attemptMove,
+        attemptSpoken,
         useHelp,
         retrySameSequence,
         generateNewSequence,
+        reviewSequenceVisually,
         backToSettings,
       }}
     >

@@ -6,16 +6,10 @@ import type { BlindErrorKind, BlindSequenceMove } from './types';
 
 export type AttemptVerdict =
   | { ok: true }
-  | { ok: false; kind: Exclude<BlindErrorKind, 'help'> };
+  | { ok: false; kind: Exclude<BlindErrorKind, 'help' | 'recognition-failure'> };
 
 /**
  * Compare an attempted legal move to the currently expected sequence move.
- *
- * Priority:
- *  1. Exact match (from/to/promotion) → correct
- *  2. Same UCI appears later in the remaining sequence → wrong order
- *  3. Different piece type → wrong piece
- *  4. Same piece (and preferably same origin) but wrong destination → wrong destination
  */
 export function classifyAttempt(
   expected: BlindSequenceMove,
@@ -29,8 +23,6 @@ export function classifyAttempt(
     return { ok: true };
   }
 
-  // Wrong order: this exact move appears later (not at index 0 of remaining,
-  // which is `expected` itself).
   const later = remainingSequence.slice(1);
   if (later.some((m) => m.uci === attemptedUci || m.san === attempted.san)) {
     return { ok: false, kind: 'wrong-order' };
@@ -40,8 +32,22 @@ export function classifyAttempt(
     return { ok: false, kind: 'wrong-piece' };
   }
 
-  // Same piece type — destination (or origin) is wrong.
   return { ok: false, kind: 'wrong-destination' };
+}
+
+/** Spoken-recitation verdict (simpler taxonomy). */
+export function classifySpokenAttempt(
+  expected: BlindSequenceMove,
+  attempted: Move | null,
+  remainingSequence: BlindSequenceMove[],
+): AttemptVerdict | { ok: false; kind: 'recognition-failure' } {
+  if (!attempted) return { ok: false, kind: 'recognition-failure' };
+
+  const exact = classifyAttempt(expected, attempted, remainingSequence);
+  if (exact.ok) return exact;
+  if (exact.kind === 'wrong-order') return exact;
+  // Bundle piece/destination mismatches as wrong-move for voice mode reporting.
+  return { ok: false, kind: 'wrong-move' };
 }
 
 export function computeScore(
@@ -55,7 +61,9 @@ export function computeScore(
   wrongPiece: number;
   wrongDestination: number;
   wrongOrder: number;
+  wrongMove: number;
   helpsUsed: number;
+  recognitionFailures: number;
 } {
   const correctOnFirstAttempt = firstAttemptCorrect.filter(Boolean).length;
   const accuracyPercent =
@@ -66,12 +74,16 @@ export function computeScore(
   let wrongPiece = 0;
   let wrongDestination = 0;
   let wrongOrder = 0;
+  let wrongMove = 0;
   let helpsUsed = 0;
+  let recognitionFailures = 0;
   for (const a of attempts) {
     if (a.kind === 'wrong-piece') wrongPiece += 1;
     else if (a.kind === 'wrong-destination') wrongDestination += 1;
     else if (a.kind === 'wrong-order') wrongOrder += 1;
+    else if (a.kind === 'wrong-move') wrongMove += 1;
     else if (a.kind === 'help') helpsUsed += 1;
+    else if (a.kind === 'recognition-failure') recognitionFailures += 1;
   }
 
   return {
@@ -81,6 +93,8 @@ export function computeScore(
     wrongPiece,
     wrongDestination,
     wrongOrder,
+    wrongMove,
     helpsUsed,
+    recognitionFailures,
   };
 }

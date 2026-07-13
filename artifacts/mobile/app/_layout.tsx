@@ -13,6 +13,7 @@ import {
 } from '@expo-google-fonts/inter';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { audioSettings } from '@/services/AudioSettings';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -41,6 +42,10 @@ export default function RootLayout() {
     Inter_600SemiBold,
     Inter_700Bold,
   });
+
+  useEffect(() => {
+    audioSettings.ensureLoaded().catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (fontsLoaded || fontError) {

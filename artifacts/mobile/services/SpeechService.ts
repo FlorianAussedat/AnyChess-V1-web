@@ -1,4 +1,5 @@
 import * as Speech from 'expo-speech';
+import { audioSettings } from './AudioSettings';
 
 /**
  * Centralised text-to-speech service.
@@ -9,11 +10,9 @@ import * as Speech from 'expo-speech';
  *  - Expose a single `isSpeaking` signal that stays true for the whole
  *    queue, so the microphone layer can pause recognition while ANY
  *    speech is playing and resume once the queue drains.
+ *  - Honour global AudioSettings: when sound is muted, speak() is a no-op
+ *    (isSpeaking stays false so the mic is not interrupted).
  *  - Be platform-agnostic and reusable by every game mode.
- *
- * This module is intentionally free of any React / chess / UI logic so it
- * can be reused unchanged by Classic, Opening and Blind-sequence modes and
- * swapped for a native implementation later.
  */
 
 export interface SpeakOptions {
@@ -66,9 +65,16 @@ class SpeechService {
   /**
    * Enqueue text to be spoken. Utterances play sequentially. Pass
    * `{ flush: true }` to interrupt whatever is playing and speak now.
+   * When global sound is muted, this is a silent no-op.
    */
   speak(text: string, options: SpeakOptions = {}): void {
     if (!text) return;
+
+    // Output mute — do not block the mic (isSpeaking stays false).
+    if (!audioSettings.isSoundEnabled()) {
+      if (options.flush) this.hardStop();
+      return;
+    }
 
     if (options.flush) {
       this.hardStop();

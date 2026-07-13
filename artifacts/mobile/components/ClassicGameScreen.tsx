@@ -21,18 +21,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
+import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { ChessBoard } from '@/components/ChessBoard';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
+import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
-import { CHESS_CONTEXT_STRINGS } from '@/lib/chessParser';
+import { useSpeechInput } from '@/services/SpeechRecognitionService';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +43,7 @@ export function ClassicGameScreen() {
   const insets  = useSafeAreaInsets();
   const router  = useRouter();
   const isWeb   = Platform.OS === 'web';
+  const { soundEnabled } = useAudioSettings();
 
   const {
     board,
@@ -76,9 +75,19 @@ export function ClassicGameScreen() {
   const gameStarted = history.length > 0;
 
   // ── Board visibility (eye toggle) ─────────────────────────────────────────
-  // Purely presentational: hiding the board never touches game state — the
-  // engine keeps playing, the mic keeps listening, history stays visible.
   const [boardVisible, setBoardVisible] = useState(true);
+
+  // ── Speech input (shared service) ─────────────────────────────────────────
+  const {
+    micActive,
+    isListening,
+    status: micStatus,
+    toggleMic,
+  } = useSpeechInput({
+    isSpeaking,
+    forceOff: isGameOver,
+    onTranscript: (text) => applyRef.current(text),
+  });
 
   // ── Sound effects ─────────────────────────────────────────────────────────
 
@@ -119,8 +128,6 @@ export function ClassicGameScreen() {
   }, []);
 
   // ── Audio session initialisation ──────────────────────────────────────────
-  // Pre-configure the iOS audio session so toggling the mic on for the first
-  // time doesn't trigger the system recording-activation chime.
 
   useEffect(() => {
     Audio.setAudioModeAsync({
@@ -141,27 +148,15 @@ export function ClassicGameScreen() {
     if (!moveEvent) return;
     if (moveEvent.kind === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      successSoundRef.current?.replayAsync().catch(() => {});
+      if (soundEnabled) successSoundRef.current?.replayAsync().catch(() => {});
       setShowRecognized(true);
       if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
       recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      errorSoundRef.current?.replayAsync().catch(() => {});
+      if (soundEnabled) errorSoundRef.current?.replayAsync().catch(() => {});
     }
-  }, [moveEvent?.id]);
-
-  // ── Mic state ─────────────────────────────────────────────────────────────
-
-  const [micActive, setMicActive]         = useState(false);
-  const [isListening, setIsListening]     = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-
-  // Stable refs for use inside async callbacks / timeouts
-  const micActiveRef   = useRef(false);
-  const isSpeakingRef  = useRef(false);
-  useEffect(() => { micActiveRef.current  = micActive;   }, [micActive]);
-  useEffect(() => { isSpeakingRef.current = isSpeaking;  }, [isSpeaking]);
+  }, [moveEvent?.id, soundEnabled]);
 
   // ── Manual text input ─────────────────────────────────────────────────────
 
@@ -176,84 +171,10 @@ export function ClassicGameScreen() {
     if (!canAct) { setTouchSelected(null); setLegalDests([]); }
   }, [canAct]);
 
-  // ── STT helpers ───────────────────────────────────────────────────────────
-
-  const startListening = useCallback(async () => {
-    try {
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      setHasPermission(granted);
-      if (!granted) return;
-      ExpoSpeechRecognitionModule.start({
-        lang: 'fr-FR',
-        interimResults: false,
-        maxAlternatives: 4,
-        continuous: true,
-        requiresOnDeviceRecognition: false,
-        contextualStrings: CHESS_CONTEXT_STRINGS,
-      });
-    } catch {
-      setIsListening(false);
-    }
-  }, []);
-
-  const stopListening = useCallback(() => {
-    try { ExpoSpeechRecognitionModule.stop(); } catch { /* ignore */ }
-  }, []);
-
-  // ── STT events ────────────────────────────────────────────────────────────
-
-  useSpeechRecognitionEvent('start', () => setIsListening(true));
-  useSpeechRecognitionEvent('end',   () => setIsListening(false));
-  useSpeechRecognitionEvent('error', () => setIsListening(false));
-
-  useSpeechRecognitionEvent('result', (event: any) => {
-    if (event?.isFinal) {
-      const transcript: string = event.results?.[0]?.transcript ?? '';
-      if (transcript) applyRef.current(transcript);
-    }
-  });
-
-  // ── Pause mic during TTS, resume immediately after ────────────────────────
-  // When isSpeaking becomes true  → stop the recognizer
-  // When isSpeaking becomes false → the fallback restart below handles resume
-
-  useEffect(() => {
-    if (isSpeaking && micActive && isListening) {
-      stopListening();
-    }
-  }, [isSpeaking, micActive, isListening, stopListening]);
-
-  // ── Fallback restart: OS drops the session, or TTS just finished ──────────
-  // Fires whenever micActive=true AND isListening=false AND isSpeaking=false.
-  // The isSpeaking guard prevents premature restart while TTS is still playing.
-
-  useEffect(() => {
-    if (!micActive || isListening || isSpeaking) return;
-    const t = setTimeout(() => {
-      if (micActiveRef.current && !isSpeakingRef.current) startListening();
-    }, 80);
-    return () => clearTimeout(t);
-  }, [micActive, isListening, isSpeaking, startListening]);
-
-  // ── Auto-deactivate toggle when game ends ─────────────────────────────────
-
-  useEffect(() => {
-    if (isGameOver && micActive) { setMicActive(false); stopListening(); }
-  }, [isGameOver, micActive, stopListening]);
-
-  // ── Mic toggle ────────────────────────────────────────────────────────────
-
   const onMicPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (micActive) {
-      setMicActive(false);
-      stopListening();
-    } else {
-      setMicActive(true);
-      // Always start immediately; game-state guards live in applyUserMove
-      startListening();
-    }
-  }, [micActive, startListening, stopListening]);
+    toggleMic();
+  }, [toggleMic]);
 
   // ── Pulse animation ───────────────────────────────────────────────────────
 
@@ -393,10 +314,13 @@ export function ClassicGameScreen() {
           </View>
         </View>
 
-        <BoardVisibilityToggle
-          visible={boardVisible}
-          onToggle={() => setBoardVisible((v) => !v)}
-        />
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <SoundToggle />
+          <BoardVisibilityToggle
+            visible={boardVisible}
+            onToggle={() => setBoardVisible((v) => !v)}
+          />
+        </View>
       </View>
 
       {/* ── Action row ───────────────────────────────────────────────────── */}
@@ -520,9 +444,9 @@ export function ClassicGameScreen() {
             <Text style={styles.micLabel}>{micLabel}</Text>
           </Pressable>
         </Animated.View>
-        {hasPermission === false && (
+        {!!micStatus.message && (
           <Text style={[styles.permWarn, { color: '#F5A623' }]}>
-            Permission microphone refusée
+            {micStatus.message}
           </Text>
         )}
       </View>

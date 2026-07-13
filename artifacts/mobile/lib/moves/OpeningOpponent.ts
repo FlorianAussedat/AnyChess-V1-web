@@ -1,22 +1,15 @@
-/**
- * Opening-mode opponent controller.
- *
- * While the game stays in the selected repertoire, moves come from
- * OpeningMoveProvider. The first time the player leaves the book — or the
- * repertoire naturally ends — control switches permanently to Stockfish for
- * the rest of that game (no accidental return on transposition).
- *
- * Theory-exit events are recorded with correct move numbering so the UI / PGN
- * exporter can announce and comment them distinctly:
- *   - player deviation → "Vous êtes sorti de la théorie au …"
- *   - repertoire end   → "Fin du répertoire après …"
- */
 import type { Chess, Move } from 'chess.js';
 import type { ChessEngine } from '@/lib/engine';
 import type { ParsedRepertoire } from '@/lib/repertoire';
+import {
+  analyzeDeviation,
+  type DeviationAnalysis,
+} from '@/lib/repertoire/RepertoireDeviationAnalyzer';
+import { formatNumberedSan } from './formatNumberedSan';
 import { OpeningMoveProvider, StockfishMoveProvider } from './MoveProviders';
 
 export type TheoryExitKind = 'player-deviation' | 'repertoire-end';
+export { formatNumberedSan };
 
 export interface TheoryExit {
   kind: TheoryExitKind;
@@ -27,21 +20,17 @@ export interface TheoryExit {
   message: string;
   /** Compact PGN comment body (without braces). */
   pgnComment: string;
+  /** Present only for player deviations. */
+  analysis?: DeviationAnalysis;
 }
 
 export type OpeningPhase = 'book' | 'engine';
-
-/** Format a half-move as "5.e3" or "8...Fg7". */
-export function formatNumberedSan(ply: number, san: string): string {
-  const fullMove = Math.floor(ply / 2) + 1;
-  const isWhite = ply % 2 === 0;
-  return isWhite ? `${fullMove}.${san}` : `${fullMove}...${san}`;
-}
 
 function buildTheoryExit(
   kind: TheoryExitKind,
   ply: number,
   san: string,
+  analysis?: DeviationAnalysis,
 ): TheoryExit {
   const numbered = formatNumberedSan(ply, san);
   if (kind === 'player-deviation') {
@@ -49,16 +38,17 @@ function buildTheoryExit(
       kind,
       ply,
       san,
-      message: `Vous êtes sorti de la théorie au ${Math.floor(ply / 2) + 1}e coup avec ${numbered}.`,
-      pgnComment: `Sortie du répertoire au ${Math.floor(ply / 2) + 1}e coup avec ${numbered}`,
+      message: `Vous êtes sorti de la théorie avec ${numbered}.`,
+      pgnComment: `Sortie du répertoire avec ${numbered}`,
+      analysis,
     };
   }
   return {
     kind,
     ply,
     san,
-    message: `Fin du répertoire après ${numbered}.`,
-    pgnComment: `Fin du répertoire après ${numbered}`,
+    message: 'Ligne théorique complète.',
+    pgnComment: `Fin de la ligne théorique importée après ${numbered}`,
   };
 }
 
@@ -67,8 +57,10 @@ export class OpeningOpponent {
   private theoryExit: TheoryExit | null = null;
   private readonly book: OpeningMoveProvider;
   private readonly engine: StockfishMoveProvider;
+  private readonly repertoire: ParsedRepertoire;
 
   constructor(repertoire: ParsedRepertoire, stockfish: ChessEngine) {
+    this.repertoire = repertoire;
     this.book = new OpeningMoveProvider(repertoire);
     this.engine = new StockfishMoveProvider(stockfish);
   }
@@ -113,16 +105,19 @@ export class OpeningOpponent {
       return null;
     }
 
-    const exit = buildTheoryExit('player-deviation', plyAfterMove - 1, played.san);
+    const deviationPly = plyAfterMove - 1;
+    const analysis = analyzeDeviation(
+      this.repertoire,
+      beforeFen,
+      played,
+      deviationPly,
+    );
+    const exit = buildTheoryExit('player-deviation', deviationPly, played.san, analysis);
     this.theoryExit = exit;
     this.phase = 'engine';
     return exit.message;
   }
 
-  /**
-   * Restore book mode when undoing past the theory-exit ply.
-   * `remainingPlyCount` is history.length after the undo.
-   */
   onUndo(remainingPlyCount: number): void {
     if (this.theoryExit && remainingPlyCount <= this.theoryExit.ply) {
       this.theoryExit = null;
@@ -131,10 +126,6 @@ export class OpeningOpponent {
     this.engine.cancel?.();
   }
 
-  /**
-   * Opponent's turn. Uses repertoire while in book; switches to Stockfish
-   * when the book has no move (natural repertoire end) or after a deviation.
-   */
   async pickMove(
     game: Chess,
   ): Promise<{ move: Move | null; theoryMessage: string | null }> {
@@ -144,7 +135,6 @@ export class OpeningOpponent {
         return { move: bookMove, theoryMessage: null };
       }
 
-      // Book ran out on the opponent's turn while the player followed theory.
       const history = game.history();
       const lastSan = history[history.length - 1] ?? '?';
       const lastPly = history.length - 1;

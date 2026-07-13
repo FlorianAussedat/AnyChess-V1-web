@@ -38,3 +38,5 @@ export type {
   PgnParseSummary,
   RepertoireStoreSnapshot,
 } from './storage/types';
+export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
+export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';

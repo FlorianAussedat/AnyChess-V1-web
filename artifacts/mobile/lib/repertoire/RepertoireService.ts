@@ -232,7 +232,14 @@ export class RepertoireService {
       };
     }
 
-    const combined = files.map((f) => f.pgnText).join('\n\n');
+    const combined = files
+      .map((f) => {
+        // Inject a Source header so deviation analysis can name the file.
+        const hasHeaders = /^\s*\[/.test(f.pgnText);
+        const sourceTag = `[Source "${f.filename.replace(/"/g, '')}"]\n`;
+        return hasHeaders ? `${sourceTag}${f.pgnText}` : `${sourceTag}\n${f.pgnText}`;
+      })
+      .join('\n\n');
     const repertoire = buildRepertoire(combined);
 
     // Surface per-file issues with the filename for clarity.

@@ -173,13 +173,19 @@ export function OpeningGameProvider({
       return;
     }
     speechService.stop();
+    const exit = opponentRef.current?.getTheoryExit() ?? theoryExit;
+    if (exit?.kind === 'player-deviation') {
+      speechService.speak(`Rapport : ${exit.message}`);
+    } else if (exit?.kind === 'repertoire-end') {
+      speechService.speak('Rapport : ligne théorique importée suivie jusqu’à son terme.');
+    }
     moves.forEach((san, i) => {
       const pairNum = Math.floor(i / 2) + 1;
       const isWhite = i % 2 === 0;
       const verbal = sanToVerbal(san);
       speechService.speak(isWhite ? `${pairNum}. ${verbal}` : verbal, { rate: 0.9 });
     });
-  }, [speak]);
+  }, [speak, theoryExit]);
 
   const cancelPendingOpponent = useCallback(() => {
     moveGenerationRef.current += 1;

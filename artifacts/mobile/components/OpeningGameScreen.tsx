@@ -22,18 +22,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
+import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { ChessBoard } from '@/components/ChessBoard';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
+import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
+import { TheoryContinuationViewer } from '@/components/TheoryContinuationViewer';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
 import type { PlayerColor } from '@/contexts/OpeningGameContext';
-import { CHESS_CONTEXT_STRINGS } from '@/lib/chessParser';
+import { useSpeechInput } from '@/services/SpeechRecognitionService';
 
 type MoveRow = { key: string; num: number; white: string; black: string };
 
@@ -42,6 +41,7 @@ export function OpeningGameScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isWeb = Platform.OS === 'web';
+  const { soundEnabled } = useAudioSettings();
 
   const {
     board,
@@ -81,6 +81,7 @@ export function OpeningGameScreen() {
   const gameStarted = history.length > 0;
   const [boardVisible, setBoardVisible] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
+  const [theoryOpen, setTheoryOpen] = useState(false);
   const [exportedText, setExportedText] = useState('');
   const prevGameOver = useRef(false);
 
@@ -91,6 +92,17 @@ export function OpeningGameScreen() {
     }
     prevGameOver.current = isGameOver;
   }, [isGameOver, exportPgn]);
+
+  const {
+    micActive,
+    isListening,
+    status: micStatus,
+    toggleMic,
+  } = useSpeechInput({
+    isSpeaking,
+    forceOff: isGameOver,
+    onTranscript: (text) => applyRef.current(text),
+  });
 
   const successSoundRef = useRef<Audio.Sound | null>(null);
   const errorSoundRef = useRef<Audio.Sound | null>(null);
@@ -145,27 +157,15 @@ export function OpeningGameScreen() {
     if (!moveEvent) return;
     if (moveEvent.kind === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      successSoundRef.current?.replayAsync().catch(() => {});
+      if (soundEnabled) successSoundRef.current?.replayAsync().catch(() => {});
       setShowRecognized(true);
       if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
       recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      errorSoundRef.current?.replayAsync().catch(() => {});
+      if (soundEnabled) errorSoundRef.current?.replayAsync().catch(() => {});
     }
-  }, [moveEvent?.id]);
-
-  const [micActive, setMicActive] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const micActiveRef = useRef(false);
-  const isSpeakingRef = useRef(false);
-  useEffect(() => {
-    micActiveRef.current = micActive;
-  }, [micActive]);
-  useEffect(() => {
-    isSpeakingRef.current = isSpeaking;
-  }, [isSpeaking]);
+  }, [moveEvent?.id, soundEnabled]);
 
   const [manualText, setManualText] = useState('');
   const [touchSelected, setTouchSelected] = useState<string | null>(null);
@@ -178,71 +178,10 @@ export function OpeningGameScreen() {
     }
   }, [canAct]);
 
-  const startListening = useCallback(async () => {
-    try {
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      setHasPermission(granted);
-      if (!granted) return;
-      ExpoSpeechRecognitionModule.start({
-        lang: 'fr-FR',
-        interimResults: false,
-        maxAlternatives: 4,
-        continuous: true,
-        requiresOnDeviceRecognition: false,
-        contextualStrings: CHESS_CONTEXT_STRINGS,
-      });
-    } catch {
-      setIsListening(false);
-    }
-  }, []);
-
-  const stopListening = useCallback(() => {
-    try {
-      ExpoSpeechRecognitionModule.stop();
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  useSpeechRecognitionEvent('start', () => setIsListening(true));
-  useSpeechRecognitionEvent('end', () => setIsListening(false));
-  useSpeechRecognitionEvent('error', () => setIsListening(false));
-  useSpeechRecognitionEvent('result', (event: any) => {
-    if (event?.isFinal) {
-      const transcript: string = event.results?.[0]?.transcript ?? '';
-      if (transcript) applyRef.current(transcript);
-    }
-  });
-
-  useEffect(() => {
-    if (isSpeaking && micActive && isListening) stopListening();
-  }, [isSpeaking, micActive, isListening, stopListening]);
-
-  useEffect(() => {
-    if (!micActive || isListening || isSpeaking) return;
-    const t = setTimeout(() => {
-      if (micActiveRef.current && !isSpeakingRef.current) startListening();
-    }, 80);
-    return () => clearTimeout(t);
-  }, [micActive, isListening, isSpeaking, startListening]);
-
-  useEffect(() => {
-    if (isGameOver && micActive) {
-      setMicActive(false);
-      stopListening();
-    }
-  }, [isGameOver, micActive, stopListening]);
-
   const onMicPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (micActive) {
-      setMicActive(false);
-      stopListening();
-    } else {
-      setMicActive(true);
-      startListening();
-    }
-  }, [micActive, startListening, stopListening]);
+    toggleMic();
+  }, [toggleMic]);
 
   const scale = useSharedValue(1);
   useEffect(() => {
@@ -397,7 +336,10 @@ export function OpeningGameScreen() {
             </Text>
           </View>
         </View>
-        <BoardVisibilityToggle visible={boardVisible} onToggle={() => setBoardVisible((v) => !v)} />
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <SoundToggle />
+          <BoardVisibilityToggle visible={boardVisible} onToggle={() => setBoardVisible((v) => !v)} />
+        </View>
       </View>
 
       {theoryExit && (
@@ -413,6 +355,13 @@ export function OpeningGameScreen() {
           <Text style={[styles.theoryText, { color: colors.foreground }]} numberOfLines={2}>
             {theoryExit.message}
           </Text>
+          {theoryExit.kind === 'player-deviation' && theoryExit.analysis && (
+            <Pressable onPress={() => setTheoryOpen(true)} hitSlop={6}>
+              <Text style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold', fontSize: 12, marginTop: 4 }}>
+                Voir la ligne théorique
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -532,8 +481,8 @@ export function OpeningGameScreen() {
             <Text style={styles.micLabel}>{micLabel}</Text>
           </Pressable>
         </Animated.View>
-        {hasPermission === false && (
-          <Text style={[styles.permWarn, { color: '#F5A623' }]}>Permission microphone refusée</Text>
+        {!!micStatus.message && (
+          <Text style={[styles.permWarn, { color: '#F5A623' }]}>{micStatus.message}</Text>
         )}
       </View>
 
@@ -605,6 +554,12 @@ export function OpeningGameScreen() {
           />
         )}
       </View>
+
+      <TheoryContinuationViewer
+        visible={theoryOpen}
+        analysis={theoryExit?.analysis ?? null}
+        onClose={() => setTheoryOpen(false)}
+      />
 
       <Modal visible={exportOpen} transparent animationType="fade" onRequestClose={() => setExportOpen(false)}>
         <View style={styles.modalBackdrop}>

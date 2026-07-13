@@ -11,16 +11,19 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
+import { SoundToggle } from '@/components/SoundToggle';
 import {
   BlindSequenceProvider,
   useBlindSequence,
 } from '@/contexts/BlindSequenceContext';
-import { halfMoveCount } from '@/lib/blind';
-import type { BlindOrientation } from '@/lib/blind';
+import { halfMoveCount, type BlindOrientation, type ObservationPace } from '@/lib/blind';
+import { useSpeechInput } from '@/services/SpeechRecognitionService';
+import { useAudioSettings } from '@/hooks/useAudioSettings';
 
-const FULL_MOVE_OPTIONS = [2, 3, 4, 5, 6, 8];
+const FULL_MOVE_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
 
 export default function BlindRoute() {
   return (
@@ -32,19 +35,24 @@ export default function BlindRoute() {
 
 function BlindSequenceScreen() {
   const { phase } = useBlindSequence();
-
   switch (phase) {
+    case 'hub':
+      return <HubPhase />;
     case 'settings':
     case 'generating':
       return <SettingsPhase />;
     case 'dictation':
       return <DictationPhase />;
+    case 'observing':
+      return <ObservingPhase />;
     case 'reconstruction':
       return <ReconstructionPhase />;
+    case 'recitation':
+      return <RecitationPhase />;
     case 'results':
       return <ResultsPhase />;
     default:
-      return <SettingsPhase />;
+      return <HubPhase />;
   }
 }
 
@@ -86,41 +94,102 @@ function ScreenShell({
         >
           <Ionicons name="chevron-back" size={20} color={colors.foreground} />
         </Pressable>
-        <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+        <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+          {title}
+        </Text>
+        <SoundToggle />
       </View>
       {children}
     </View>
   );
 }
 
-function SettingsPhase() {
+function HubPhase() {
   const colors = useColors();
-  const {
-    orientation,
-    fullMoves,
-    setOrientation,
-    setFullMoves,
-    startSession,
-    isGenerating,
-    generateError,
-  } = useBlindSequence();
+  const { selectSubmode } = useBlindSequence();
   const router = useRouter();
 
   return (
     <ScreenShell title="Séquences à l’aveugle" onBack={() => router.back()}>
       <ScrollView contentContainerStyle={styles.settingsBody}>
         <Text style={[styles.lead, { color: colors.mutedForeground }]}>
-          Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.
+          Choisis un exercice. Les séquences sont générées par Stockfish (1 à 20 coups complets).
         </Text>
 
+        <Pressable
+          onPress={() => selectSubmode('listen-reconstruct')}
+          style={({ pressed }) => [
+            styles.modeCard,
+            { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Ionicons name="ear-outline" size={28} color={colors.primary} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={[styles.modeTitle, { color: colors.foreground }]}>
+              Écouter puis reconstruire
+            </Text>
+            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+              Dictée orale, puis reproduction sur l’échiquier.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => selectSubmode('watch-recite')}
+          style={({ pressed }) => [
+            styles.modeCard,
+            { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Ionicons name="eye-outline" size={28} color={colors.primary} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={[styles.modeTitle, { color: colors.foreground }]}>
+              Regarder puis réciter
+            </Text>
+            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+              Observation visuelle silencieuse, puis récitation à voix haute.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+        </Pressable>
+      </ScrollView>
+    </ScreenShell>
+  );
+}
+
+function SettingsPhase() {
+  const colors = useColors();
+  const {
+    submode,
+    orientation,
+    fullMoves,
+    pace,
+    setOrientation,
+    setFullMoves,
+    setPace,
+    startSession,
+    isGenerating,
+    generateError,
+    backToHub,
+  } = useBlindSequence();
+
+  const title =
+    submode === 'watch-recite' ? 'Regarder puis réciter' : 'Écouter puis reconstruire';
+
+  return (
+    <ScreenShell title={title} onBack={backToHub}>
+      <ScrollView contentContainerStyle={styles.settingsBody}>
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
           Orientation de l’échiquier
         </Text>
         <View style={styles.row}>
-          {([
-            { id: 'w' as BlindOrientation, label: '♔ Blancs en bas' },
-            { id: 'b' as BlindOrientation, label: '♚ Noirs en bas' },
-          ]).map((opt) => {
+          {(
+            [
+              { id: 'w' as BlindOrientation, label: '♔ Blancs en bas' },
+              { id: 'b' as BlindOrientation, label: '♚ Noirs en bas' },
+            ] as const
+          ).map((opt) => {
             const active = orientation === opt.id;
             return (
               <Pressable
@@ -149,11 +218,11 @@ function SettingsPhase() {
           })}
         </View>
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          Les Blancs jouent toujours en premier. L’orientation ne change que la vue.
+          Les Blancs jouent toujours en premier. 1 coup complet = 1 coup Blanc + 1 coup Noir.
         </Text>
 
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-          Nombre de coups complets
+          Coups complets (1–20)
         </Text>
         <View style={styles.chipRow}>
           {FULL_MOVE_OPTIONS.map((n) => {
@@ -173,6 +242,7 @@ function SettingsPhase() {
                 <Text
                   style={{
                     fontFamily: 'Inter_600SemiBold',
+                    fontSize: 12,
                     color: active ? colors.primaryForeground : colors.foreground,
                   }}
                 >
@@ -183,9 +253,51 @@ function SettingsPhase() {
           })}
         </View>
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          {fullMoves} coups complets = {fullMoves} Blancs + {fullMoves} Noirs ={' '}
-          {halfMoveCount(fullMoves)} demi-coups
+          {fullMoves} coups complets = {halfMoveCount(fullMoves)} demi-coups
+          {fullMoves === 20 ? ' (maximum)' : ''}
         </Text>
+
+        {submode === 'watch-recite' && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+              Vitesse d’observation
+            </Text>
+            <View style={styles.row}>
+              {(
+                [
+                  { id: 'slow' as ObservationPace, label: 'Lent' },
+                  { id: 'normal' as ObservationPace, label: 'Normal' },
+                  { id: 'fast' as ObservationPace, label: 'Rapide' },
+                ] as const
+              ).map((opt) => {
+                const active = pace === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setPace(opt.id)}
+                    style={[
+                      styles.choice,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 13,
+                        color: active ? colors.primaryForeground : colors.foreground,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         {!!generateError && (
           <Text style={{ color: colors.destructive, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
@@ -198,10 +310,7 @@ function SettingsPhase() {
           disabled={isGenerating}
           style={({ pressed }) => [
             styles.cta,
-            {
-              backgroundColor: colors.primary,
-              opacity: isGenerating || pressed ? 0.7 : 1,
-            },
+            { backgroundColor: colors.primary, opacity: isGenerating || pressed ? 0.7 : 1 },
           ]}
         >
           {isGenerating ? (
@@ -215,11 +324,6 @@ function SettingsPhase() {
             </>
           )}
         </Pressable>
-        {isGenerating && (
-          <Text style={[styles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-            Stockfish prépare une ligne d’ouverture…
-          </Text>
-        )}
       </ScrollView>
     </ScreenShell>
   );
@@ -227,25 +331,17 @@ function SettingsPhase() {
 
 function DictationPhase() {
   const colors = useColors();
-  const {
-    fullMoves,
-    isSpeaking,
-    replayDictation,
-    startReconstruction,
-    backToSettings,
-  } = useBlindSequence();
+  const { fullMoves, isSpeaking, replayDictation, startReconstruction, backToSettings } =
+    useBlindSequence();
 
   return (
     <ScreenShell title="Dictée" onBack={backToSettings}>
       <View style={styles.phaseBody}>
         <View style={[styles.hiddenCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="ear-outline" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.hiddenTitle, { color: colors.foreground }]}>
-            Échiquier masqué
-          </Text>
+          <Text style={[styles.hiddenTitle, { color: colors.foreground }]}>Échiquier masqué</Text>
           <Text style={[styles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-            Écoute les {halfMoveCount(fullMoves)} demi-coups ({fullMoves} coups complets).
-            Aucune notation n’est affichée — mémorise à l’oreille.
+            Écoute les {halfMoveCount(fullMoves)} demi-coups. Aucune notation affichée.
           </Text>
           {isSpeaking && (
             <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', marginTop: 8 }}>
@@ -253,7 +349,6 @@ function DictationPhase() {
             </Text>
           )}
         </View>
-
         <Pressable
           onPress={replayDictation}
           style={({ pressed }) => [
@@ -266,7 +361,6 @@ function DictationPhase() {
             Rejouer la séquence
           </Text>
         </Pressable>
-
         <Pressable
           onPress={startReconstruction}
           style={({ pressed }) => [
@@ -279,6 +373,32 @@ function DictationPhase() {
             Commencer la reconstruction
           </Text>
         </Pressable>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function ObservingPhase() {
+  const colors = useColors();
+  const { board, lastMove, orientation, sequence, observationIndex, backToSettings } =
+    useBlindSequence();
+
+  return (
+    <ScreenShell title="Observation" onBack={backToSettings}>
+      <View style={styles.phaseBody}>
+        <Text style={[styles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
+          Regarde la séquence — aucune annonce orale.
+        </Text>
+        <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', textAlign: 'center' }}>
+          Coup {observationIndex} / {sequence.length}
+        </Text>
+        <View style={{ alignItems: 'center' }}>
+          <ChessBoard
+            board={board}
+            lastMove={lastMove}
+            isFlipped={orientation === 'b'}
+          />
+        </View>
       </View>
     </ScreenShell>
   );
@@ -299,6 +419,7 @@ function ReconstructionPhase() {
     useHelp,
     backToSettings,
   } = useBlindSequence();
+  const { soundEnabled } = useAudioSettings();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
@@ -320,7 +441,10 @@ function ReconstructionPhase() {
         setSelected(null);
         setLegalDests([]);
       } else if (legalDests.includes(square)) {
-        attemptMove(selected, square);
+        const ok = attemptMove(selected, square);
+        if (!ok && soundEnabled) {
+          /* TTS already handled in context when unmuted */
+        }
         setSelected(null);
         setLegalDests([]);
       } else {
@@ -334,29 +458,25 @@ function ReconstructionPhase() {
         }
       }
     },
-    [selected, legalDests, getLegalDestinations, attemptMove],
+    [selected, legalDests, getLegalDestinations, attemptMove, soundEnabled],
   );
-
-  const expected = sequence[expectedIndex];
-  const progress = `${Math.min(expectedIndex + 1, sequence.length)} / ${sequence.length}`;
 
   return (
     <ScreenShell title="Reconstruction" onBack={backToSettings}>
       <View style={styles.phaseBody}>
         <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-            Coup {progress}
+            Coup {Math.min(expectedIndex + 1, sequence.length)} / {sequence.length}
           </Text>
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
-            {lastFeedback ?? 'Reproduis le prochain coup annoncé.'}
+            {lastFeedback ?? 'Reproduis le prochain coup.'}
           </Text>
           {!!revealedHint && (
-            <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 13, marginTop: 4 }}>
+            <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 13 }}>
               {revealedHint}
             </Text>
           )}
         </View>
-
         <View style={{ alignItems: 'center' }}>
           <ChessBoard
             board={board}
@@ -367,6 +487,93 @@ function ReconstructionPhase() {
             onSquarePress={onSquarePress}
           />
         </View>
+        <Pressable
+          onPress={useHelp}
+          style={({ pressed }) => [
+            styles.secondaryCta,
+            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="help-circle-outline" size={18} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+            Aide — révéler le coup
+          </Text>
+        </Pressable>
+      </View>
+    </ScreenShell>
+  );
+}
+
+function RecitationPhase() {
+  const colors = useColors();
+  const {
+    sequence,
+    expectedIndex,
+    lastFeedback,
+    revealedHint,
+    isSpeaking,
+    attemptSpoken,
+    useHelp,
+    backToSettings,
+  } = useBlindSequence();
+
+  const {
+    micActive,
+    isListening,
+    status: micStatus,
+    toggleMic,
+  } = useSpeechInput({
+    isSpeaking,
+    onTranscript: (text) => {
+      attemptSpoken(text);
+    },
+  });
+
+  return (
+    <ScreenShell title="Récitation" onBack={backToSettings}>
+      <View style={styles.phaseBody}>
+        <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+            Coup {Math.min(expectedIndex + 1, sequence.length)} / {sequence.length}
+          </Text>
+          <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
+            {lastFeedback ?? 'Dis le prochain coup à voix haute.'}
+          </Text>
+          {!!revealedHint && (
+            <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 13 }}>
+              {revealedHint}
+            </Text>
+          )}
+        </View>
+
+        <View style={[styles.hiddenCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="mic-outline" size={40} color={colors.mutedForeground} />
+          <Text style={[styles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
+            Ex. « e4 », « Cavalier f3 », « petit roque »
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            toggleMic();
+          }}
+          style={({ pressed }) => [
+            styles.cta,
+            {
+              backgroundColor: isListening ? '#C0392B' : micActive ? '#D4880A' : colors.primary,
+              opacity: pressed ? 0.8 : 1,
+            },
+          ]}
+        >
+          <Ionicons name={isListening ? 'mic' : 'mic-outline'} size={20} color="#fff" />
+          <Text style={[styles.ctaLabel, { color: '#fff' }]}>
+            {isListening ? "J'écoute…" : micActive ? 'Micro actif' : 'Activer le micro'}
+          </Text>
+        </Pressable>
+        {!!micStatus.message && (
+          <Text style={{ color: '#F5A623', fontSize: 12, textAlign: 'center' }}>{micStatus.message}</Text>
+        )}
 
         <Pressable
           onPress={useHelp}
@@ -380,12 +587,6 @@ function ReconstructionPhase() {
             Aide — révéler le coup
           </Text>
         </Pressable>
-
-        {expected && (
-          <Text style={[styles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-            À toi de jouer ({expected.color === 'w' ? 'Blancs' : 'Noirs'})
-          </Text>
-        )}
       </View>
     </ScreenShell>
   );
@@ -395,9 +596,12 @@ function ResultsPhase() {
   const colors = useColors();
   const {
     score,
+    submode,
     retrySameSequence,
     generateNewSequence,
+    reviewSequenceVisually,
     backToSettings,
+    backToHub,
     isGenerating,
   } = useBlindSequence();
   const router = useRouter();
@@ -421,10 +625,25 @@ function ResultsPhase() {
         </Text>
 
         <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <StatRow label="Erreurs de pièce" value={score.wrongPiece} colors={colors} />
-          <StatRow label="Erreurs de destination" value={score.wrongDestination} colors={colors} />
-          <StatRow label="Erreurs d’ordre" value={score.wrongOrder} colors={colors} />
-          <StatRow label="Aides utilisées" value={score.helpsUsed} colors={colors} />
+          {submode === 'listen-reconstruct' ? (
+            <>
+              <StatRow label="Erreurs de pièce" value={score.wrongPiece} colors={colors} />
+              <StatRow label="Erreurs de destination" value={score.wrongDestination} colors={colors} />
+              <StatRow label="Erreurs d’ordre" value={score.wrongOrder} colors={colors} />
+              <StatRow label="Aides utilisées" value={score.helpsUsed} colors={colors} />
+            </>
+          ) : (
+            <>
+              <StatRow label="Erreurs de coup" value={score.wrongMove} colors={colors} />
+              <StatRow label="Erreurs d’ordre" value={score.wrongOrder} colors={colors} />
+              <StatRow
+                label="Erreurs de reconnaissance non comptabilisées"
+                value={score.recognitionFailures}
+                colors={colors}
+              />
+              <StatRow label="Aides utilisées" value={score.helpsUsed} colors={colors} />
+            </>
+          )}
         </View>
 
         <Pressable
@@ -434,11 +653,24 @@ function ResultsPhase() {
             { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Ionicons name="refresh-outline" size={18} color={colors.foreground} />
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
             Refaire la même séquence
           </Text>
         </Pressable>
+
+        {submode === 'watch-recite' && (
+          <Pressable
+            onPress={reviewSequenceVisually}
+            style={({ pressed }) => [
+              styles.secondaryCta,
+              { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+              Revoir la séquence
+            </Text>
+          </Pressable>
+        )}
 
         <Pressable
           onPress={() => generateNewSequence()}
@@ -448,41 +680,20 @@ function ResultsPhase() {
             { backgroundColor: colors.primary, opacity: isGenerating || pressed ? 0.7 : 1 },
           ]}
         >
-          {isGenerating ? (
-            <ActivityIndicator color={colors.primaryForeground} />
-          ) : (
-            <>
-              <Ionicons name="sparkles-outline" size={18} color={colors.primaryForeground} />
-              <Text style={[styles.ctaLabel, { color: colors.primaryForeground }]}>
-                Nouvelle séquence
-              </Text>
-            </>
-          )}
-        </Pressable>
-
-        <Pressable
-          onPress={backToSettings}
-          style={({ pressed }) => [
-            styles.secondaryCta,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Ionicons name="options-outline" size={18} color={colors.foreground} />
-          <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Réglages
+          <Text style={[styles.ctaLabel, { color: colors.primaryForeground }]}>
+            Nouvelle séquence
           </Text>
         </Pressable>
 
         <Pressable
-          onPress={() => router.push('/' as Href)}
+          onPress={backToHub}
           style={({ pressed }) => [
             styles.secondaryCta,
             { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Ionicons name="home-outline" size={18} color={colors.foreground} />
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Menu principal
+            Menu des exercices
           </Text>
         </Pressable>
       </ScrollView>
@@ -501,7 +712,7 @@ function StatRow({
 }) {
   return (
     <View style={styles.statRow}>
-      <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
+      <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13, flex: 1 }}>
         {label}
       </Text>
       <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 14 }}>
@@ -522,7 +733,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 18, fontFamily: 'Inter_700Bold', flex: 1 },
+  title: { fontSize: 17, fontFamily: 'Inter_700Bold', flex: 1 },
   settingsBody: { gap: 14, paddingBottom: 28 },
   phaseBody: { flex: 1, gap: 12 },
   lead: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
@@ -543,11 +754,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
-    width: 44,
-    height: 40,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -573,23 +784,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
   },
+  modeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  modeTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
   hiddenCard: {
     borderRadius: 16,
     borderWidth: 2,
     borderStyle: 'dashed',
-    minHeight: 200,
+    minHeight: 180,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     padding: 20,
   },
   hiddenTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
-  listCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
-    gap: 4,
-  },
+  listCard: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
   statusCard: {
     borderRadius: 12,
     borderWidth: 1,
@@ -598,7 +813,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   scoreHero: {
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: 'Inter_700Bold',
     textAlign: 'center',
     marginTop: 8,
@@ -606,6 +821,8 @@ const styles = StyleSheet.create({
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 6,
+    gap: 8,
   },
 });
