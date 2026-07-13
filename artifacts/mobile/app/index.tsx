@@ -2,11 +2,12 @@ import React from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 
 interface ModeCard {
-  route: '/classic' | '/openings' | '/blind';
+  id: string;
+  route: Href;
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
@@ -14,19 +15,22 @@ interface ModeCard {
 
 const MODES: ModeCard[] = [
   {
-    route: '/classic',
+    id: 'classic',
+    route: '/classic' as Href,
     title: 'Partie classique',
     description: 'Joue une partie complète contre Stockfish, à la voix ou au doigt.',
     icon: 'game-controller-outline',
   },
   {
-    route: '/openings',
+    id: 'openings',
+    route: '/openings' as Href,
     title: 'Ouvertures',
     description: 'Affronte un adversaire qui suit tes répertoires PGN importés.',
     icon: 'book-outline',
   },
   {
-    route: '/blind',
+    id: 'blind',
+    route: '/blind' as Href,
     title: 'Séquences à l’aveugle',
     description: 'Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.',
     icon: 'eye-off-outline',
@@ -61,9 +65,9 @@ export default function MainMenu() {
       <View style={styles.cards}>
         {MODES.map((mode) => (
           <Pressable
-            key={mode.route}
+            key={mode.id}
             onPress={() => router.push(mode.route)}
-            testID={`menu-${mode.route.slice(1)}`}
+            testID={`menu-${mode.id}`}
             style={({ pressed }) => [
               styles.card,
               {

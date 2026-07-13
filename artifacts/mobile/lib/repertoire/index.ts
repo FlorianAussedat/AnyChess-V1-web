@@ -6,9 +6,9 @@
  * move tree that supports transpositions, then lets a caller choose a book
  * move for the current position or detect that play has left the repertoire.
  *
- * Intended future use (not wired yet): a `RepertoireEngine implements
- * ChessEngine` consults `chooseRepertoireMove` first and delegates to
- * Stockfish once `chooseRepertoireMove` returns null.
+ * Persistence (folders + PGN files) lives behind RepertoireStorage so the
+ * Android build can swap the backend later. RepertoireService is the only
+ * API the UI should call for CRUD + merged-tree building.
  */
 export {
   buildRepertoire,
@@ -29,3 +29,12 @@ export type {
   RepertoireSelectionSettings,
   PgnHeaders,
 } from './types';
+export { RepertoireService, repertoireService } from './RepertoireService';
+export type { RepertoireStorage } from './storage/RepertoireStorage';
+export { AsyncStorageRepertoireStorage, defaultRepertoireStorage } from './storage/AsyncStorageRepertoireStorage';
+export type {
+  RepertoireFolder,
+  StoredPgnFile,
+  PgnParseSummary,
+  RepertoireStoreSnapshot,
+} from './storage/types';
