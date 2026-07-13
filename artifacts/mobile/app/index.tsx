@@ -35,6 +35,13 @@ const MODES: ModeCard[] = [
     description: 'Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.',
     icon: 'eye-off-outline',
   },
+  {
+    id: 'puzzles',
+    route: '/puzzles' as Href,
+    title: 'Problèmes / Visualisation',
+    description: 'Résous des problèmes Lichess à vue ou à l’aveugle, hors-ligne.',
+    icon: 'extension-puzzle-outline',
+  },
 ];
 
 export default function MainMenu() {

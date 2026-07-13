@@ -31,6 +31,7 @@ function RootLayoutNav() {
       <Stack.Screen name="classic" />
       <Stack.Screen name="openings" />
       <Stack.Screen name="blind" />
+      <Stack.Screen name="puzzles" />
     </Stack>
   );
 }

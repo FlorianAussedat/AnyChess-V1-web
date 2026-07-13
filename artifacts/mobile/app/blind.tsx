@@ -380,8 +380,18 @@ function DictationPhase() {
 
 function ObservingPhase() {
   const colors = useColors();
-  const { board, lastMove, orientation, sequence, observationIndex, backToSettings } =
-    useBlindSequence();
+  const {
+    board,
+    lastMove,
+    orientation,
+    sequence,
+    observationIndex,
+    isReplaying,
+    startRecitation,
+    backToSettings,
+  } = useBlindSequence();
+
+  const observationDone = !isReplaying && observationIndex >= sequence.length && sequence.length > 0;
 
   return (
     <ScreenShell title="Observation" onBack={backToSettings}>
@@ -399,6 +409,25 @@ function ObservingPhase() {
             isFlipped={orientation === 'b'}
           />
         </View>
+        {observationDone && (
+          <>
+            <Text style={[styles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
+              Séquence terminée. Mémorise la position finale, puis commence la récitation.
+            </Text>
+            <Pressable
+              onPress={startRecitation}
+              style={({ pressed }) => [
+                styles.cta,
+                { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+              ]}
+            >
+              <Ionicons name="mic-outline" size={18} color={colors.primaryForeground} />
+              <Text style={[styles.ctaLabel, { color: colors.primaryForeground }]}>
+                Passer à la récitation
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
     </ScreenShell>
   );
@@ -514,6 +543,7 @@ function RecitationPhase() {
     isSpeaking,
     attemptSpoken,
     useHelp,
+    skipExpectedMove,
     backToSettings,
   } = useBlindSequence();
 
@@ -574,6 +604,19 @@ function RecitationPhase() {
         {!!micStatus.message && (
           <Text style={{ color: '#F5A623', fontSize: 12, textAlign: 'center' }}>{micStatus.message}</Text>
         )}
+
+        <Pressable
+          onPress={skipExpectedMove}
+          style={({ pressed }) => [
+            styles.secondaryCta,
+            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="play-skip-forward-outline" size={18} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+            Passer ce coup
+          </Text>
+        </Pressable>
 
         <Pressable
           onPress={useHelp}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "sourceUrl": "https://database.lichess.org/lichess_db_puzzle.csv.zst",
+  "license": "CC0",
+  "seed": 20260713,
+  "selectionSeed": 20260713,
+  "ratingMin": 1600,
+  "ratingMax": 2200,
+  "minRating": 1600,
+  "maxRating": 2200,
+  "filters": {
+    "popularityMin": 70,
+    "nbPlaysMin": 100,
+    "ratingDeviationMax": 100
+  },
+  "count": 10000,
+  "generatedAt": "2026-07-13T06:22:15.290Z"
+}

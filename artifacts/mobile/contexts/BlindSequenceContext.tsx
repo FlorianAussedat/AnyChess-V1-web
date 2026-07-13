@@ -60,8 +60,10 @@ interface BlindSequenceContextValue {
   startRecitation: () => void;
   getLegalDestinations: (square: string) => string[];
   attemptMove: (from: string, to: string) => boolean;
-  attemptSpoken: (raw: string) => 'correct' | 'wrong' | 'recognition-failure';
+  attemptSpoken: (raw: string) => 'correct' | 'wrong' | 'illegal' | 'recognition-failure';
   useHelp: () => void;
+  /** Pass the current expected move without scoring it as correct. */
+  skipExpectedMove: () => void;
   retrySameSequence: () => void;
   generateNewSequence: () => Promise<void>;
   reviewSequenceVisually: () => void;
@@ -189,7 +191,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
             setPhase('recitation');
             setLastFeedback('Récite la séquence à voix haute, coup par coup.');
           }
-          // keep-final: leave the board on the last position
+          // keep-final: leave the board on the last position (observation or results)
         },
       });
     },
@@ -241,7 +243,8 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       attemptsRef.current = [];
       setScore(null);
       setPhase('observing');
-      playVisualReplay(moves, { after: 'recitation' });
+      // Keep the final observed position visible until the user starts recitation.
+      playVisualReplay(moves, { after: 'keep-final' });
     },
     [playVisualReplay],
   );
@@ -301,10 +304,42 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
 
   const startRecitation = useCallback(() => {
     speechService.stop();
+    replayRef.current.cancel();
+    setIsReplaying(false);
     resetBoard();
     setPhase('recitation');
     setLastFeedback('Récite la séquence à voix haute, coup par coup.');
   }, [resetBoard]);
+
+  const skipExpectedMove = useCallback(() => {
+    if (phase !== 'recitation') return;
+    const expected = sequenceRef.current[expectedIndex];
+    if (!expected) return;
+    attemptsRef.current.push({ expectedIndex, kind: 'help', attemptedSan: '(passé)' });
+    triedCurrentRef.current = false;
+    // Apply the expected move on the board so the position stays consistent.
+    try {
+      const onBoard = gameRef.current.move({
+        from: expected.from,
+        to: expected.to,
+        promotion: expected.promotion || 'q',
+      }) as Move;
+      setLastMove({ from: onBoard.from, to: onBoard.to });
+      syncBoard();
+    } catch {
+      /* ignore */
+    }
+    setRevealedHint(null);
+    setLastFeedback('Coup passé.');
+    speechService.speak('Coup passé.', { flush: true });
+    const next = expectedIndex + 1;
+    if (next >= sequenceRef.current.length) {
+      setExpectedIndex(next);
+      finishSession();
+    } else {
+      setExpectedIndex(next);
+    }
+  }, [phase, expectedIndex, syncBoard, finishSession]);
 
   const getLegalDestinations = useCallback(
     (square: string): string[] => {
@@ -381,7 +416,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   );
 
   const attemptSpoken = useCallback(
-    (raw: string): 'correct' | 'wrong' | 'recognition-failure' => {
+    (raw: string): 'correct' | 'wrong' | 'illegal' | 'recognition-failure' => {
       if (phase !== 'recitation') return 'recognition-failure';
       const expected = sequenceRef.current[expectedIndex];
       if (!expected) return 'recognition-failure';
@@ -406,25 +441,45 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       }
 
       const moveToPlay = parsed.move;
+      // Is this move legal in the current position?
+      const legal = (probe.moves({ verbose: true }) as Move[]).some(
+        (m) =>
+          m.from === moveToPlay.from &&
+          m.to === moveToPlay.to &&
+          (m.promotion ?? 'q') === (moveToPlay.promotion ?? 'q'),
+      );
+      if (!legal) {
+        const msg = 'Coup illégal.';
+        setLastFeedback(msg);
+        speechService.speak(msg, { flush: true });
+        return 'illegal';
+      }
+
       let played: Move | null = null;
       try {
         played = probe.move({
           from: moveToPlay.from,
           to: moveToPlay.to,
-          promotion: 'q',
+          promotion: moveToPlay.promotion || 'q',
         }) as Move;
       } catch {
         played = null;
+      }
+
+      if (!played) {
+        const msg = 'Coup illégal.';
+        setLastFeedback(msg);
+        speechService.speak(msg, { flush: true });
+        return 'illegal';
       }
 
       const remaining = sequenceRef.current.slice(expectedIndex);
       const verdict = classifySpokenAttempt(expected, played, remaining);
       const isFirstTry = !triedCurrentRef.current;
 
-      if (verdict.ok && played) {
+      if (verdict.ok) {
         if (isFirstTry) firstAttemptOkRef.current[expectedIndex] = true;
         triedCurrentRef.current = false;
-        // Apply on the visible board too.
         try {
           const onBoard = gameRef.current.move({
             from: played.from,
@@ -457,7 +512,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       attemptsRef.current.push({
         expectedIndex,
         kind,
-        attemptedSan: played?.san,
+        attemptedSan: played.san,
       });
       triedCurrentRef.current = true;
       const label =
@@ -492,7 +547,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       speakSequence(sequenceRef.current, true);
     } else if (submode === 'watch-recite') {
       setPhase('observing');
-      playVisualReplay(sequenceRef.current, { after: 'recitation' });
+      playVisualReplay(sequenceRef.current, { after: 'keep-final' });
     }
   }, [submode, speakSequence, playVisualReplay]);
 
@@ -551,6 +606,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         attemptMove,
         attemptSpoken,
         useHelp,
+        skipExpectedMove,
         retrySameSequence,
         generateNewSequence,
         reviewSequenceVisually,

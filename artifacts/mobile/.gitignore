@@ -39,3 +39,6 @@ yarn-error.*
 .vercel
 
 .env
+
+# Large upstream dumps for offline dataset builds
+scripts/.cache/
