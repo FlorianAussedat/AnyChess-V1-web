@@ -19,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import {
   ExpoSpeechRecognitionModule,
@@ -27,6 +28,8 @@ import {
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
+import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
+import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
 import { CHESS_CONTEXT_STRINGS } from '@/lib/chessParser';
@@ -37,9 +40,10 @@ type MoveRow = { key: string; num: number; white: string; black: string };
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
-export default function GameScreen() {
+export function ClassicGameScreen() {
   const colors  = useColors();
   const insets  = useSafeAreaInsets();
+  const router  = useRouter();
   const isWeb   = Platform.OS === 'web';
 
   const {
@@ -70,6 +74,11 @@ export default function GameScreen() {
 
   const canAct     = waitingForUser && !isOpponentThinking && !isGameOver;
   const gameStarted = history.length > 0;
+
+  // ── Board visibility (eye toggle) ─────────────────────────────────────────
+  // Purely presentational: hiding the board never touches game state — the
+  // engine keeps playing, the mic keeps listening, history stays visible.
+  const [boardVisible, setBoardVisible] = useState(true);
 
   // ── Sound effects ─────────────────────────────────────────────────────────
 
@@ -367,14 +376,27 @@ export default function GameScreen() {
       {/* ── Header ────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         <View style={styles.brandRow}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={({ pressed }) => [styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 }]}
+            testID="back-btn"
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.foreground} />
+          </Pressable>
           <Image source={require('@/assets/images/icon.png')} style={styles.logoImg} />
           <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>AnyChess</Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>Partie classique</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
               {playerColor === 'w' ? 'Tu joues les Blancs' : 'Tu joues les Noirs'}
             </Text>
           </View>
         </View>
+
+        <BoardVisibilityToggle
+          visible={boardVisible}
+          onToggle={() => setBoardVisible((v) => !v)}
+        />
       </View>
 
       {/* ── Action row ───────────────────────────────────────────────────── */}
@@ -446,16 +468,20 @@ export default function GameScreen() {
         })}
       </View>
 
-      {/* ── Board ───────────────────────────────────────────────────────── */}
+      {/* ── Board (hidden by the eye toggle without touching game state) ── */}
       <View style={styles.boardRow}>
-        <ChessBoard
-          board={board}
-          lastMove={lastMove}
-          isFlipped={playerColor === 'b'}
-          selectedSquare={touchSelected}
-          legalDots={legalDests}
-          onSquarePress={onSquarePress}
-        />
+        {boardVisible ? (
+          <ChessBoard
+            board={board}
+            lastMove={lastMove}
+            isFlipped={playerColor === 'b'}
+            selectedSquare={touchSelected}
+            legalDots={legalDests}
+            onSquarePress={onSquarePress}
+          />
+        ) : (
+          <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
+        )}
       </View>
 
       {/* ── Status ──────────────────────────────────────────────────────── */}
@@ -569,6 +595,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
+  },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoImg: {
     width: 36,

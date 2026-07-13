@@ -8,7 +8,6 @@ import React, {
 } from 'react';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
-import * as Speech from 'expo-speech';
 import {
   gameStateAnnouncement,
   normalize,
@@ -18,6 +17,7 @@ import {
 } from '@/lib/chessParser';
 import type { ChessEngine } from '@/lib/engine';
 import { createOpponentEngine } from '@/lib/engines';
+import { speechService } from '@/services/SpeechService';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +100,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return () => { engine?.destroy?.(); };
   }, []);
 
+  // Mirror the shared SpeechService "speaking" signal into React state so the
+  // mic layer can pause recognition while TTS (player move + engine reply) is
+  // playing and resume once the whole queue drains.
+  useEffect(() => {
+    const unsubscribe = speechService.onSpeakingChange(setIsSpeaking);
+    return () => {
+      unsubscribe();
+      speechService.stop();
+    };
+  }, []);
+
   const [playerColor, setPlayerColor]           = useState<PlayerColor>('w');
   const [board, setBoard]                       = useState<(BoardPiece | null)[][]>(
     () => gameRef.current.board() as (BoardPiece | null)[][],
@@ -124,25 +135,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
-   * Speak text via TTS.  Sets isSpeaking = true beforehand so the mic
-   * layer (index.tsx) knows to pause listening.  The mic restarts once
-   * onDone / onStopped / onError fires.
+   * Speak text via the shared SpeechService.  Utterances are queued so the
+   * player's move announcement plays fully before the engine's reply.  The
+   * mic layer pauses while `isSpeaking` is true and resumes when it clears.
+   *
+   * Pass `{ flush: true }` to interrupt current speech (repeat / new game).
    */
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((text: string, opts?: { flush?: boolean }) => {
     lastSpokenRef.current = text;
-    try {
-      Speech.stop();
-      setIsSpeaking(true);
-      Speech.speak(text, {
-        language: 'fr-FR',
-        rate: 0.95,
-        onDone:    () => setIsSpeaking(false),
-        onStopped: () => setIsSpeaking(false),
-        onError:   () => setIsSpeaking(false),
-      });
-    } catch {
-      setIsSpeaking(false);
-    }
+    speechService.speak(text, opts);
   }, []);
 
   const emitEvent = useCallback((kind: 'success' | 'error') => {
@@ -150,34 +151,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const repeatLast = useCallback(() => {
-    speak(lastSpokenRef.current || 'Aucun coup à répéter.');
+    speak(lastSpokenRef.current || 'Aucun coup à répéter.', { flush: true });
   }, [speak]);
 
   // ── summarizeGame ─────────────────────────────────────────────────────────
 
   const summarizeGameHistory = useCallback(() => {
-    try { Speech.stop(); } catch { /* ignore */ }
     const moves = gameRef.current.history();
     if (!moves.length) {
-      speak('Aucun coup joué pour le moment.');
+      speak('Aucun coup joué pour le moment.', { flush: true });
       return;
     }
-    setIsSpeaking(true);
-    const speakAt = (i: number) => {
-      if (i >= moves.length) { setIsSpeaking(false); return; }
+    // Flush anything playing, then queue each half-move; the SpeechService
+    // plays them back-to-back and clears isSpeaking when finished.
+    speechService.stop();
+    moves.forEach((san, i) => {
       const pairNum = Math.floor(i / 2) + 1;
       const isWhite = i % 2 === 0;
-      const verbal = sanToVerbal(moves[i]);
+      const verbal = sanToVerbal(san);
       const text = isWhite ? `${pairNum}. ${verbal}` : verbal;
-      Speech.speak(text, {
-        language: 'fr-FR',
-        rate: 0.9,
-        onDone:    () => { setTimeout(() => speakAt(i + 1), 300); },
-        onStopped: () => setIsSpeaking(false),
-        onError:   () => setIsSpeaking(false),
-      });
-    };
-    speakAt(0);
+      speechService.speak(text, { rate: 0.9 });
+    });
   }, [speak]);
 
   // ── opponentMove ──────────────────────────────────────────────────────────
@@ -251,9 +245,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * Called after any successful player move (voice or touch).
-   * We do NOT speak the player's own move — only the engine announces moves.
-   * Exception: check, checkmate, stalemate caused by the player's move are
-   * spoken because they end or decisively change the game.
+   *
+   * The player's validated move is always announced aloud — including
+   * captures, checks, checkmate, promotions and castling — via
+   * gameStateAnnouncement(verbalMove(...)).  The announcement is queued, so
+   * when the engine replies its own announcement plays right after (the mic
+   * stays paused for the whole sequence).
    */
   const finishPlayerMove = useCallback(
     (played: Move) => {
@@ -263,23 +260,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       emitEvent('success');
 
       const game = gameRef.current;
-      const moveSAN = played.san;
+
+      // verbalMove handles piece name, capture ("prend"), castling and
+      // promotion; gameStateAnnouncement appends check / checkmate / draw.
+      const playerAnnouncement = gameStateAnnouncement(game, verbalMove(played));
 
       if (game.isGameOver()) {
-        // Game ends on player's move → still announce it
-        const endMsg = gameStateAnnouncement(game);
         setWaitingForUser(false);
-        setStatus(`${moveSAN}  •  ${endMsg}`);
-        speak(endMsg);
-      } else if (game.isCheck()) {
-        // Player gives check → announce it so they know
-        setStatus(`${moveSAN}  •  Échec !`);
-        speak('Échec !');
-        setWaitingForUser(false);
-        opponentMoveRef.current();
+        setStatus(playerAnnouncement);
+        speak(playerAnnouncement);
       } else {
-        // Normal move — show in status bar, stay silent
-        setStatus(`Coup joué : ${moveSAN}`);
+        setStatus(playerAnnouncement);
+        speak(playerAnnouncement);
         setWaitingForUser(false);
         opponentMoveRef.current();
       }
@@ -440,7 +432,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     (color: PlayerColor) => {
       cancelPendingOpponent();
       engineRef.current?.newGame?.();
-      try { Speech.stop(); } catch { /* ignore */ }
+      speechService.stop();
       gameRef.current.reset();
       lastSpokenRef.current = '';
       setLastMove(null);

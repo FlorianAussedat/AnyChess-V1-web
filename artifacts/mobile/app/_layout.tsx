@@ -13,19 +13,24 @@ import {
 } from '@expo-google-fonts/inter';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { GameProvider } from '@/contexts/GameContext';
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+/**
+ * Root navigator. Each game mode is its own route with its own isolated
+ * logic/state (GameProvider is scoped per-mode, not global), so modes never
+ * accidentally share state.
+ */
 function RootLayoutNav() {
   return (
-    <GameProvider>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </GameProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="classic" />
+      <Stack.Screen name="openings" />
+      <Stack.Screen name="blind" />
+    </Stack>
   );
 }
 
