@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { StoredPgnFile } from '@/lib/repertoire';
+import type { PlayerColor } from '@/contexts/GameContext';
 
 function formatDate(iso: string): string {
   try {
@@ -61,11 +62,23 @@ export default function FolderDetailScreen() {
   const [importOpen, setImportOpen] = useState(false);
   const [replaceTarget, setReplaceTarget] = useState<StoredPgnFile | null>(null);
   const [detailFile, setDetailFile] = useState<StoredPgnFile | null>(null);
+  const [playOpen, setPlayOpen] = useState(false);
+  const [playColor, setPlayColor] = useState<PlayerColor>('w');
   const [filename, setFilename] = useState('lignes.pgn');
   const [pgnText, setPgnText] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [lastImportResult, setLastImportResult] = useState<StoredPgnFile | null>(null);
+
+  const canPlay = files.some((f) => f.summary.parseSucceeded);
+
+  const startPlay = useCallback(() => {
+    if (!folderId || !canPlay) return;
+    setPlayOpen(false);
+    router.push(
+      `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${playColor}` as Href,
+    );
+  }, [folderId, canPlay, playColor, router]);
 
   const openImport = useCallback(() => {
     setFilename('lignes.pgn');
@@ -213,13 +226,35 @@ export default function FolderDetailScreen() {
           onPress={openImport}
           style={({ pressed }) => [
             styles.primaryBtn,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+            { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, opacity: pressed ? 0.75 : 1 },
           ]}
           testID="import-pgn-btn"
         >
-          <Ionicons name="cloud-upload-outline" size={16} color={colors.primaryForeground} />
-          <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
+          <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
+          <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>
             Importer
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => canPlay && setPlayOpen(true)}
+          disabled={!canPlay}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            {
+              backgroundColor: canPlay ? colors.primary : colors.muted,
+              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
+            },
+          ]}
+          testID="play-opening-btn"
+        >
+          <Ionicons name="play" size={16} color={canPlay ? colors.primaryForeground : colors.mutedForeground} />
+          <Text
+            style={[
+              styles.primaryBtnLabel,
+              { color: canPlay ? colors.primaryForeground : colors.mutedForeground },
+            ]}
+          >
+            Jouer
           </Text>
         </Pressable>
       </View>
@@ -443,6 +478,94 @@ export default function FolderDetailScreen() {
               >
                 <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
                   {busy ? 'Analyse…' : replaceTarget ? 'Remplacer' : 'Importer'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Play setup modal */}
+      <Modal
+        visible={playOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPlayOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Lancer une partie
+            </Text>
+            <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
+              Répertoire : {folder.name}
+            </Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 8 }]}>
+              Tu joues
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['w', 'b'] as PlayerColor[]).map((c) => {
+                const active = playColor === c;
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => setPlayColor(c)}
+                    style={[
+                      {
+                        flex: 1,
+                        height: 40,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: active ? colors.primary : colors.input,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 14,
+                        color: active ? colors.primaryForeground : colors.foreground,
+                      }}
+                    >
+                      {c === 'w' ? '♔ Blancs' : '♚ Noirs'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 4 }]}>
+              L’échiquier s’oriente selon ta couleur. Les Blancs jouent toujours en premier.
+              L’adversaire suit le répertoire tant que tu restes dans la théorie.
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setPlayOpen(false)}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                  Annuler
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={startPlay}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+                testID="confirm-play-btn"
+              >
+                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+                  Commencer
                 </Text>
               </Pressable>
             </View>
