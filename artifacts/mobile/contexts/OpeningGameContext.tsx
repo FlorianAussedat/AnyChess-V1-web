@@ -19,10 +19,12 @@ import { createOpponentEngine } from '@/lib/engines';
 import { OpeningOpponent, type TheoryExit } from '@/lib/moves/OpeningOpponent';
 import type { ParsedRepertoire } from '@/lib/repertoire';
 import {
+  anyChessPgnFilename,
   downloadPgnFile,
   exportGamePgn,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
+import { identifyOpeningFromSans } from '@/lib/openings';
 import { speechService } from '@/services/SpeechService';
 import type { BoardPiece, LastMove, MoveEvent, PlayerColor } from '@/contexts/GameContext';
 
@@ -476,6 +478,7 @@ export function OpeningGameProvider({
   const buildPgn = useCallback(() => {
     const game = gameRef.current;
     const moves = game.history({ verbose: true }) as Move[];
+    const opening = identifyOpeningFromSans(game.history());
     const exit = opponentRef.current?.getTheoryExit() ?? null;
     const result = resultFromGame({
       isGameOver: game.isGameOver(),
@@ -493,7 +496,9 @@ export function OpeningGameProvider({
         White: whiteName,
         Black: blackName,
         Result: result,
-        Opening: repertoireName,
+        Opening: opening?.name ?? repertoireName,
+        Eco: opening?.eco,
+        Repertoire: repertoireName,
       },
       moves,
       commentAfterPly: exit
@@ -505,10 +510,8 @@ export function OpeningGameProvider({
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
 
   const downloadPgn = useCallback(() => {
-    const pgn = buildPgn();
-    const safe = repertoireName.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'partie';
-    downloadPgnFile(`${safe}.pgn`, pgn);
-  }, [buildPgn, repertoireName]);
+    downloadPgnFile(anyChessPgnFilename(), buildPgn());
+  }, [buildPgn]);
 
   // Kick off first game once ready (White to move by default).
   useEffect(() => {

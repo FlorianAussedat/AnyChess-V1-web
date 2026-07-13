@@ -20,9 +20,9 @@ export type BlindOrientation = 'w' | 'b';
 export type ObservationPace = 'slow' | 'normal' | 'fast';
 
 export const OBSERVATION_DELAY_MS: Record<ObservationPace, number> = {
-  slow: 1600,
-  normal: 900,
-  fast: 450,
+  slow: 5000,
+  normal: 3000,
+  fast: 1000,
 };
 
 /** One half-move in the memorised sequence. */

@@ -14,8 +14,10 @@ export interface PgnExportHeaders {
   White?: string;
   Black?: string;
   Result?: string;
-  /** Opening repertoire name (Opening Mode). */
+  /** Opening name (ECO identification or repertoire label). */
   Opening?: string;
+  /** Encyclopaedia of Chess Openings code, e.g. "C50". */
+  Eco?: string;
   /** Free-form extra tags. */
   [key: string]: string | undefined;
 }
@@ -56,7 +58,7 @@ export function exportGamePgn(options: PgnExportOptions): string {
   };
 
   const lines: string[] = [];
-  const order = ['Event', 'Site', 'Date', 'White', 'Black', 'Result', 'Opening'];
+  const order = ['Event', 'Site', 'Date', 'White', 'Black', 'Result', 'Opening', 'Eco'];
   const seen = new Set<string>();
   for (const key of order) {
     const val = headers[key];
@@ -122,4 +124,14 @@ export function downloadPgnFile(filename: string, pgn: string): void {
   a.download = filename.endsWith('.pgn') ? filename : `${filename}.pgn`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/** Example: AnyChess_2026-07-13_1430.pgn */
+export function anyChessPgnFilename(date: Date = new Date()): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mi = String(date.getMinutes()).padStart(2, '0');
+  return `AnyChess_${yyyy}-${mm}-${dd}_${hh}${mi}.pgn`;
 }

@@ -30,9 +30,11 @@ import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { TheoryContinuationViewer } from '@/components/TheoryContinuationViewer';
+import { OpeningIdentityBadge } from '@/components/OpeningIdentityBadge';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
 import type { PlayerColor } from '@/contexts/OpeningGameContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
+import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 
 type MoveRow = { key: string; num: number; white: string; black: string };
 
@@ -71,6 +73,8 @@ export function OpeningGameScreen() {
     exportPgn,
     downloadPgn,
   } = useOpeningGame();
+
+  const openingIdentity = useOpeningIdentity(history);
 
   const applyRef = useRef(applyUserMove);
   useEffect(() => {
@@ -518,7 +522,10 @@ export function OpeningGameScreen() {
         ]}
       >
         <View style={styles.historyHeader}>
-          <Text style={[styles.historyTitle, { color: colors.mutedForeground }]}>Coups joués</Text>
+          <View style={{ flex: 1, gap: 2, paddingRight: 8 }}>
+            <Text style={[styles.historyTitle, { color: colors.mutedForeground }]}>Coups joués</Text>
+            <OpeningIdentityBadge opening={openingIdentity} />
+          </View>
           {history.length > 0 && (
             <Pressable
               onPress={() => {

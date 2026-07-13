@@ -18,6 +18,13 @@ import {
 import type { ChessEngine } from '@/lib/engine';
 import { createOpponentEngine } from '@/lib/engines';
 import { speechService } from '@/services/SpeechService';
+import {
+  anyChessPgnFilename,
+  downloadPgnFile,
+  exportGamePgn,
+  resultFromGame,
+} from '@/lib/pgn/PgnExporter';
+import { identifyOpeningFromSans } from '@/lib/openings';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +61,10 @@ interface GameContextValue {
   repeatLast: () => void;
   summarizeGame: () => void;
   undoMove: () => void;
+  /** Build current game as PGN text (in progress or finished). */
+  exportPgn: () => string;
+  /** Download/share the current game as a .pgn file. */
+  downloadPgn: () => void;
 }
 
 // ── Context ────────────────────────────────────────────────────────────────
@@ -471,6 +482,40 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     [resetForColor],
   );
 
+  const buildPgn = useCallback(() => {
+    const game = gameRef.current;
+    const moves = game.history({ verbose: true }) as Move[];
+    const sans = game.history();
+    const opening = identifyOpeningFromSans(sans);
+    const result = resultFromGame({
+      isGameOver: game.isGameOver(),
+      isCheckmate: game.isCheckmate(),
+      turn: game.turn(),
+      isDraw: game.isDraw(),
+    });
+
+    const whiteName = playerColorRef.current === 'w' ? 'Joueur' : 'Stockfish';
+    const blackName = playerColorRef.current === 'b' ? 'Joueur' : 'Stockfish';
+
+    return exportGamePgn({
+      headers: {
+        Event: 'AnyChess — Classique',
+        White: whiteName,
+        Black: blackName,
+        Result: result,
+        Opening: opening?.name,
+        Eco: opening?.eco,
+      },
+      moves,
+    });
+  }, []);
+
+  const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
+
+  const downloadPgn = useCallback(() => {
+    downloadPgnFile(anyChessPgnFilename(), buildPgn());
+  }, [buildPgn]);
+
   return (
     <GameContext.Provider
       value={{
@@ -493,6 +538,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         repeatLast,
         summarizeGame: summarizeGameHistory,
         undoMove,
+        exportPgn,
+        downloadPgn,
       }}
     >
       {children}

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -28,9 +29,11 @@ import { ChessBoard } from '@/components/ChessBoard';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
+import { OpeningIdentityBadge } from '@/components/OpeningIdentityBadge';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
+import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -65,7 +68,11 @@ export function ClassicGameScreen() {
     repeatLast,
     summarizeGame,
     undoMove,
+    exportPgn,
+    downloadPgn,
   } = useGame();
+
+  const openingIdentity = useOpeningIdentity(history);
 
   // Stable ref so STT handlers never close over stale values
   const applyRef = useRef(applyUserMove);
@@ -76,6 +83,8 @@ export function ClassicGameScreen() {
 
   // ── Board visibility (eye toggle) ─────────────────────────────────────────
   const [boardVisible, setBoardVisible] = useState(true);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportedText, setExportedText] = useState('');
 
   // ── Speech input (shared service) ─────────────────────────────────────────
   const {
@@ -475,7 +484,28 @@ export function ClassicGameScreen() {
 
       {/* ── Move history ─────────────────────────────────────────────────── */}
       <View style={[styles.historyCard, { flex: 1, backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.historyTitle, { color: colors.mutedForeground }]}>Coups joués</Text>
+        <View style={styles.historyHeader}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.historyTitle, { color: colors.mutedForeground }]}>Coups joués</Text>
+            <OpeningIdentityBadge opening={openingIdentity} />
+          </View>
+          {history.length > 0 && (
+            <Pressable
+              onPress={() => {
+                setExportedText(exportPgn());
+                setExportOpen(true);
+              }}
+              hitSlop={8}
+              accessibilityLabel="Exporter en PGN"
+              style={({ pressed }) => [
+                styles.exportIconBtn,
+                { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Ionicons name="download-outline" size={16} color={colors.foreground} />
+            </Pressable>
+          )}
+        </View>
         {moveRows.length === 0 ? (
           <Text style={[styles.emptyMsg, { color: colors.mutedForeground }]}>
             La partie commence ici
@@ -497,6 +527,52 @@ export function ClassicGameScreen() {
           />
         )}
       </View>
+
+      <Modal visible={exportOpen} transparent animationType="fade" onRequestClose={() => setExportOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Exporter la partie en PGN ?
+            </Text>
+            <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
+              Inclut les coups, le résultat, ta couleur, Stockfish
+              {openingIdentity ? `, l’ouverture (${openingIdentity.name}) et le code ECO` : ''}.
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setExportOpen(false)}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Non</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  if (isWeb) downloadPgn();
+                  else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(exportedText || exportPgn()).catch(() => {});
+                  }
+                  setExportOpen(false);
+                }}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+                  Oui
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -658,12 +734,26 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     minHeight: 60,
   },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+    gap: 8,
+  },
   historyTitle: {
     fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
-    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+  },
+  exportIconBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyMsg: {
     fontSize: 12,
@@ -686,5 +776,31 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily: 'Inter_500Medium',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 18,
+    gap: 10,
+  },
+  modalTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
+  modalBody: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
+  modalBtn: {
+    minWidth: 72,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
   },
 });

@@ -597,6 +597,12 @@ function ResultsPhase() {
   const {
     score,
     submode,
+    board,
+    lastMove,
+    orientation,
+    sequence,
+    observationIndex,
+    isReplaying,
     retrySameSequence,
     generateNewSequence,
     reviewSequenceVisually,
@@ -624,6 +630,24 @@ function ResultsPhase() {
           Coups corrects au premier essai : {score.correctOnFirstAttempt} / {score.totalHalfMoves}
         </Text>
 
+        {submode === 'watch-recite' && (
+          <View style={{ alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+              {isReplaying
+                ? `Relecture ${observationIndex} / ${sequence.length}`
+                : 'Position finale'}
+            </Text>
+            <ChessBoard
+              board={board}
+              lastMove={lastMove}
+              isFlipped={orientation === 'b'}
+              selectedSquare={null}
+              legalDots={[]}
+              onSquarePress={() => {}}
+            />
+          </View>
+        )}
+
         <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {submode === 'listen-reconstruct' ? (
             <>
@@ -648,9 +672,14 @@ function ResultsPhase() {
 
         <Pressable
           onPress={retrySameSequence}
+          disabled={isReplaying}
           style={({ pressed }) => [
             styles.secondaryCta,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+              opacity: isReplaying || pressed ? 0.55 : 1,
+            },
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
@@ -661,9 +690,14 @@ function ResultsPhase() {
         {submode === 'watch-recite' && (
           <Pressable
             onPress={reviewSequenceVisually}
+            disabled={isReplaying}
             style={({ pressed }) => [
               styles.secondaryCta,
-              { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                opacity: isReplaying || pressed ? 0.55 : 1,
+              },
             ]}
           >
             <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
@@ -674,10 +708,13 @@ function ResultsPhase() {
 
         <Pressable
           onPress={() => generateNewSequence()}
-          disabled={isGenerating}
+          disabled={isGenerating || isReplaying}
           style={({ pressed }) => [
             styles.cta,
-            { backgroundColor: colors.primary, opacity: isGenerating || pressed ? 0.7 : 1 },
+            {
+              backgroundColor: colors.primary,
+              opacity: isGenerating || isReplaying || pressed ? 0.7 : 1,
+            },
           ]}
         >
           <Text style={[styles.ctaLabel, { color: colors.primaryForeground }]}>
@@ -687,9 +724,14 @@ function ResultsPhase() {
 
         <Pressable
           onPress={backToHub}
+          disabled={isReplaying}
           style={({ pressed }) => [
             styles.secondaryCta,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+            {
+              borderColor: colors.border,
+              backgroundColor: colors.card,
+              opacity: isReplaying || pressed ? 0.55 : 1,
+            },
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
