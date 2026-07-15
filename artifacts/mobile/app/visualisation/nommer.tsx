@@ -53,8 +53,16 @@ export default function NommerLeCoupScreen() {
   function answer(raw: string) {
     if (!challenge) return;
     const result = parseChessVoice(raw, new Chess(challenge.initialFen));
-    if (result.type !== 'move') submitOutcome('recognition-failure');
-    else submitOutcome(result.move.san === challenge.expectedSan ? 'correct' : 'wrong');
+    if (result.type === 'unrecognized' || result.type === 'ambiguous') {
+      submitOutcome('recognition-failure');
+    } else if (result.type === 'move') {
+      const ok =
+        result.move.from === challenge.setupMove.from &&
+        result.move.to === challenge.setupMove.to;
+      submitOutcome(ok ? 'correct' : 'wrong');
+    } else {
+      submitOutcome('wrong');
+    }
     setInput('');
   }
   const { micActive, toggleMic } = useSpeechInput({ forceOff: !active, isSpeaking: false, onTranscript: answer });
