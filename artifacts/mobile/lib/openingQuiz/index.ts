@@ -1,0 +1,12 @@
+export { openingAliasRepository, OpeningAliasRepository } from './OpeningAliasRepository.ts';
+export { normalizeOpeningName } from './OpeningNameNormalizer.ts';
+export { validateOpeningAnswer } from './OpeningAnswerValidator.ts';
+export { availableOpeningQuizLines, pickOpeningQuizLine } from './OpeningQuizSelector.ts';
+export { OpeningIdentificationSession } from './OpeningIdentificationSession.ts';
+export { openingTargets, findOpeningTarget, lineStopsAtDefiningPosition } from './OpeningLineBuilder.ts';
+export { matchOpeningMove } from './OpeningTargetMatcher.ts';
+export { OpeningConstructionSession } from './OpeningConstructionSession.ts';
+export type { OpeningQuizLine } from './OpeningQuizSelector.ts';
+export type { OpeningIdentificationSnapshot } from './OpeningIdentificationSession.ts';
+export type { OpeningTarget } from './OpeningLineBuilder.ts';
+export type { ConstructionSnapshot, ConstructionPhase } from './OpeningConstructionSession.ts';

@@ -5,7 +5,7 @@
  * names the position being played. It never influences Stockfish or book play.
  */
 import { Chess } from 'chess.js';
-import openingsData from './data/openings.json';
+import openingsData from './data/openings.json' with { type: 'json' };
 
 export interface OpeningIdentity {
   eco: string;
