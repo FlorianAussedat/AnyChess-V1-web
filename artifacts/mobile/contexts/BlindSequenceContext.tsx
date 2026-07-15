@@ -10,7 +10,7 @@ import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import { createOpponentEngine } from '@/lib/engines';
 import type { ChessEngine } from '@/lib/engine';
-import { parseSpoken } from '@/lib/chessParser';
+import { parseChessVoice } from '@/lib/voice';
 import {
   BoardReplayController,
   classifyAttempt,
@@ -428,16 +428,29 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         probe.move({ from: m.from, to: m.to, promotion: m.promotion || 'q' });
       }
 
-      const parsed = parseSpoken(raw, probe);
-      // Ambiguous / unknown = recognition problem, not a chess-memory error.
-      if (parsed.kind === 'unknown' || parsed.kind === 'ambiguous') {
+      const parsed = parseChessVoice(raw, probe, { mode: 'blind' });
+
+      if (parsed.type === 'command') {
+        attemptsRef.current.push({ expectedIndex, kind: 'recognition-failure' });
+        setLastFeedback('Non reconnu — réessaie (non compté comme erreur de mémoire).');
+        return 'recognition-failure';
+      }
+
+      if (parsed.type === 'unrecognized' || parsed.type === 'ambiguous') {
         attemptsRef.current.push({ expectedIndex, kind: 'recognition-failure' });
         setLastFeedback(
-          parsed.kind === 'ambiguous'
+          parsed.type === 'ambiguous'
             ? 'Ambigu — reformule le coup (non compté comme erreur de mémoire).'
             : 'Non reconnu — réessaie (non compté comme erreur de mémoire).',
         );
         return 'recognition-failure';
+      }
+
+      if (parsed.type === 'illegal') {
+        const msg = 'Coup illégal.';
+        setLastFeedback(msg);
+        speechService.speak(msg, { flush: true });
+        return 'illegal';
       }
 
       const moveToPlay = parsed.move;

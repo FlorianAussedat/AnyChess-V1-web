@@ -24,7 +24,7 @@ import {
   useSpeechRecognitionEvent,
 } from 'expo-speech-recognition';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CHESS_CONTEXT_STRINGS } from '@/lib/chessParser';
+import { CHESS_CONTEXT_STRINGS } from '@/lib/voice';
 
 export type MicStatusCode =
   | 'idle'

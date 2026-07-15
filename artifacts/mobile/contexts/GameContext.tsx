@@ -10,11 +10,10 @@ import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import {
   gameStateAnnouncement,
-  normalize,
-  parseSpoken,
   sanToVerbal,
   verbalMove,
 } from '@/lib/chessParser';
+import { normalizeTranscript, parseChessVoice } from '@/lib/voice';
 import type { ChessEngine } from '@/lib/engine';
 import { createOpponentEngine } from '@/lib/engines';
 import { speechService } from '@/services/SpeechService';
@@ -363,34 +362,45 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const applyUserMove = useCallback(
     (raw: string) => {
-      const input = normalize(raw);
-
-      // ── Special commands — bypass the turn guard ──────────────────────
-      if (/\brepete\b/.test(input)) { repeatLast(); return; }
-      if (input.includes('resum'))  { summarizeGameHistory(); return; }
-      if (/\b(annule|annuler|cancel)\b/.test(input)) { undoMove(); return; }
-
+      const input = normalizeTranscript(raw);
       const game = gameRef.current;
+      const parsed = parseChessVoice(raw, game, { mode: 'classic' });
+
+      // ── App commands — bypass the turn guard ──────────────────────────
+      if (parsed.type === 'command') {
+        if (parsed.command === 'repeat') { repeatLast(); return; }
+        if (parsed.command === 'summarize') { summarizeGameHistory(); return; }
+        if (parsed.command === 'undo') { undoMove(); return; }
+        return;
+      }
+
       if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
 
       setHeardText(raw ? `« ${raw} »` : '');
-      const parsed = parseSpoken(raw, game);
 
-      if (parsed.kind === 'unknown') {
+      if (parsed.type === 'unrecognized') {
         setStatus('Coup non reconnu. Répète.');
         if (looksLikeChessMove(input)) emitEvent('error');
         return;
       }
 
-      // For 'ambiguous', play the best guess — vocabulary is restricted
-      // enough that the top fuzzy match is almost always correct.
-      const moveToPlay = parsed.kind === 'ambiguous' ? parsed.guess : parsed.move;
+      if (parsed.type === 'ambiguous') {
+        setStatus('Coup ambigu. Précise la case de départ.');
+        emitEvent('error');
+        return;
+      }
+
+      if (parsed.type === 'illegal') {
+        setStatus('Coup illégal. Répète.');
+        emitEvent('error');
+        return;
+      }
 
       try {
         const played = game.move({
-          from: moveToPlay.from,
-          to: moveToPlay.to,
-          promotion: 'q',
+          from: parsed.move.from,
+          to: parsed.move.to,
+          promotion: parsed.move.promotion ?? 'q',
         }) as Move;
         finishPlayerMove(played);
       } catch {

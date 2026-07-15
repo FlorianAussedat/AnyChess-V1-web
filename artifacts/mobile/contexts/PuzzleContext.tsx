@@ -12,7 +12,8 @@ import React, {
 } from 'react';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
-import { normalize, parseSpoken, verbalMove } from '@/lib/chessParser';
+import { verbalMove } from '@/lib/chessParser';
+import { parseChessVoice } from '@/lib/voice';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
@@ -71,22 +72,6 @@ interface PuzzleContextValue {
 }
 
 const PuzzleContext = createContext<PuzzleContextValue | null>(null);
-
-function isSolutionCommand(normalized: string): boolean {
-  return (
-    /\bsolution\b/.test(normalized) ||
-    /\bla\s+solution\b/.test(normalized) ||
-    /\bmontre\s+la\s+solution\b/.test(normalized)
-  );
-}
-
-function isRepeatPositionCommand(normalized: string): boolean {
-  return (
-    /\brepete\s+la\s+position\b/.test(normalized) ||
-    /\brepeter\s+la\s+position\b/.test(normalized) ||
-    /\brepete\s+position\b/.test(normalized)
-  );
-}
 
 export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const sessionRef = useRef(new PuzzleSession());
@@ -387,24 +372,40 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       const session = sessionRef.current;
       if (!session.isLoaded || session.isComplete()) return 'idle';
 
-      const norm = normalize(raw);
-      if (isSolutionCommand(norm)) {
-        revealSolution();
-        return 'command';
-      }
-      if (isRepeatPositionCommand(norm)) {
-        repeatPosition();
-        return 'command';
+      const parsed = parseChessVoice(raw, session.getChess(), { mode: 'puzzle' });
+
+      if (parsed.type === 'command') {
+        if (parsed.command === 'solution') {
+          revealSolution();
+          return 'command';
+        }
+        if (parsed.command === 'repeat_position') {
+          repeatPosition();
+          return 'command';
+        }
+        return 'idle';
       }
 
-      const parsed = parseSpoken(raw, session.getChess());
-      if (parsed.kind === 'unknown' || parsed.kind === 'ambiguous') {
+      if (parsed.type === 'unrecognized' || parsed.type === 'ambiguous') {
         session.recordRecognitionFailure();
         setStats(session.getStats());
         setLastFeedback(
-          parsed.kind === 'ambiguous'
+          parsed.type === 'ambiguous'
             ? 'Ambigu — reformule le coup (non compté comme erreur de coup).'
             : 'Non reconnu — réessaie (non compté comme erreur de coup).',
+        );
+        return 'recognition-failure';
+      }
+
+      if (parsed.type === 'illegal') {
+        // Understood chess move, but not legal in this position — treat as a
+        // wrong attempt via a failed UCI path would be incorrect; surface as
+        // recognition-adjacent feedback without counting as puzzle "wrong move"
+        // since no board move can be applied. Still distinct from "unrecognized".
+        session.recordRecognitionFailure();
+        setStats(session.getStats());
+        setLastFeedback(
+          `Illégal ici (${parsed.intendedDescription ?? '?'}). Non compté comme erreur de coup.`,
         );
         return 'recognition-failure';
       }

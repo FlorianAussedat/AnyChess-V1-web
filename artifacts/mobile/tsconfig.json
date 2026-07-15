@@ -4,6 +4,7 @@
     "baseUrl": ".",
     "strict": true,
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": [
         "./*"
@@ -15,6 +16,9 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "lib/voice/__tests__/**"
   ],
   "references": [
     {

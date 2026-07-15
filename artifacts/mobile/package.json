@@ -9,7 +9,9 @@
     "build:openings": "node scripts/build-openings-index.mjs",
     "build:puzzles": "node scripts/build-puzzle-dataset.mjs",
     "serve": "node server/serve.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts",
+    "test:voice": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
