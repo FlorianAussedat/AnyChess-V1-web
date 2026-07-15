@@ -51,6 +51,8 @@ interface Props {
   legalDots?: string[];
   /** Called when the user taps a square. */
   onSquarePress?: (square: string) => void;
+  /** Hide rank/file labels for recognition exercises. */
+  showCoordinates?: boolean;
 }
 
 export function ChessBoard({
@@ -60,6 +62,7 @@ export function ChessBoard({
   selectedSquare = null,
   legalDots = [],
   onSquarePress,
+  showCoordinates = true,
 }: Props) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - 20, 352);
@@ -151,7 +154,7 @@ export function ChessBoard({
                 )}
 
                 {/* File coordinate */}
-                {showFile && (
+                {showCoordinates && showFile && (
                   <Text
                     style={[
                       styles.coord,
@@ -163,7 +166,7 @@ export function ChessBoard({
                 )}
 
                 {/* Rank coordinate */}
-                {showRank && (
+                {showCoordinates && showRank && (
                   <Text
                     style={[
                       styles.coord,
