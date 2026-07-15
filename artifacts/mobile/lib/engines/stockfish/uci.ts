@@ -3,20 +3,24 @@
  * No engine/worker/DOM dependencies — trivially unit-testable.
  */
 import type { StockfishConfig } from './types';
+import { recommendedStockfishElo } from '@/lib/difficulty/PlayerDifficultyProfile';
 
 /**
  * Default engine configuration.
  *
- * ~1800 Elo is requested via `UCI_LimitStrength` (see StockfishEngine), which
- * is Stockfish's dedicated human-strength model — far more natural and
- * consistent than merely capping search depth.
+ * Strength is sourced from `PlayerDifficultyProfile` (~1800 Chess.com today)
+ * via `recommendedStockfishElo`, so a future global level can adjust Classic
+ * without hunting hardcoded constants across the UI.
+ *
+ * `UCI_LimitStrength` is Stockfish's dedicated human-strength model — far more
+ * natural than merely capping search depth.
  *
  * `enginePath` points at the lite single-threaded WASM build copied into
  * `public/engine/`. The single-threaded build needs no COOP/COEP headers,
  * runs fully offline, and is still vastly stronger than any human at 1800.
  */
 export const DEFAULT_STOCKFISH_CONFIG: StockfishConfig = {
-  elo: 1800,
+  elo: recommendedStockfishElo(),
   moveTimeMs: 1000,
   enginePath: '/engine/stockfish-18-lite-single.js',
   multiPv: 4,

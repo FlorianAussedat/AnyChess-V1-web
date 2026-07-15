@@ -18,7 +18,8 @@
     "expo-env.d.ts"
   ],
   "exclude": [
-    "lib/voice/__tests__/**"
+    "lib/voice/__tests__/**",
+    "lib/app/__tests__/**"
   ],
   "references": [
     {

@@ -42,6 +42,7 @@ export interface PuzzleFilters {
 }
 
 export const DEFAULT_PUZZLE_FILTERS: PuzzleFilters = {
+  // Pack window for ~1800 Chess.com target (see PlayerDifficultyProfile).
   ratingMin: 1600,
   ratingMax: 2200,
 };

@@ -235,34 +235,72 @@ export default function FolderDetailScreen() {
             Importer
           </Text>
         </Pressable>
-        <Pressable
-          onPress={() => canPlay && setPlayOpen(true)}
-          disabled={!canPlay}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            {
-              backgroundColor: canPlay ? colors.primary : colors.muted,
-              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
-            },
-          ]}
-          testID="play-opening-btn"
-        >
-          <Ionicons name="play" size={16} color={canPlay ? colors.primaryForeground : colors.mutedForeground} />
-          <Text
-            style={[
-              styles.primaryBtnLabel,
-              { color: canPlay ? colors.primaryForeground : colors.mutedForeground },
-            ]}
-          >
-            Jouer
-          </Text>
-        </Pressable>
       </View>
 
       <Text style={[styles.hint, { color: colors.mutedForeground }]}>
         Plusieurs PGN dans ce dossier seront fusionnés en un seul arbre de répertoire
         (transpositions reconnues, doublons évités).
       </Text>
+
+      <View style={styles.exerciseBlock}>
+        <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>Exercices</Text>
+        <Pressable
+          onPress={() => canPlay && setPlayOpen(true)}
+          disabled={!canPlay}
+          testID="play-opening-btn"
+          style={({ pressed }) => [
+            styles.exerciseCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
+            },
+          ]}
+        >
+          <Ionicons name="play-circle-outline" size={22} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.exerciseTitle, { color: colors.foreground }]}>
+              Jouer contre le répertoire
+            </Text>
+            <Text style={[styles.exerciseDesc, { color: colors.mutedForeground }]}>
+              L’adversaire suit tes lignes importées, puis Stockfish hors livre.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            if (!folderId || !canPlay) return;
+            router.push(
+              `/openings/continue?folderId=${encodeURIComponent(folderId)}` as Href,
+            );
+          }}
+          disabled={!canPlay}
+          testID="continue-line-btn"
+          style={({ pressed }) => [
+            styles.exerciseCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
+            },
+          ]}
+        >
+          <Ionicons name="mic-outline" size={22} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.exerciseTitle, { color: colors.foreground }]}>
+              Continue la ligne
+            </Text>
+            <Text style={[styles.exerciseDesc, { color: colors.mutedForeground }]}>
+              Récite la suite d’une branche choisie dans ce répertoire.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+        </Pressable>
+        <Text style={[styles.exerciseHeading, { color: colors.foreground, marginTop: 8 }]}>
+          Gérer les PGN
+        </Text>
+      </View>
 
       {files.length === 0 ? (
         <View style={styles.centered}>
@@ -734,6 +772,33 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     lineHeight: 17,
     paddingHorizontal: 2,
+  },
+  exerciseBlock: {
+    gap: 8,
+  },
+  exerciseHeading: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    marginBottom: 2,
+  },
+  exerciseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    minHeight: 64,
+  },
+  exerciseTitle: {
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  exerciseDesc: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 16,
+    marginTop: 2,
   },
   list: {
     gap: 10,

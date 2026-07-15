@@ -1,9 +1,13 @@
+/**
+ * Rewrite main menu: Tactiques + Visualisation + Quiz Ouverture + version label.
+ */
 import React from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { formatAppVersionLabel } from '@/lib/app/version';
 
 interface ModeCard {
   id: string;
@@ -25,7 +29,7 @@ const MODES: ModeCard[] = [
     id: 'openings',
     route: '/openings' as Href,
     title: 'Ouvertures',
-    description: 'Affronte un adversaire qui suit tes répertoires PGN importés.',
+    description: 'Joue contre ton répertoire ou continue une ligne PGN importée.',
     icon: 'book-outline',
   },
   {
@@ -38,9 +42,23 @@ const MODES: ModeCard[] = [
   {
     id: 'puzzles',
     route: '/puzzles' as Href,
-    title: 'Problèmes / Visualisation',
+    title: 'Tactiques',
     description: 'Résous des problèmes Lichess à vue ou à l’aveugle, hors-ligne.',
     icon: 'extension-puzzle-outline',
+  },
+  {
+    id: 'visualisation',
+    route: '/visualisation' as Href,
+    title: 'Visualisation',
+    description: 'Suivi mental de position et reconnaissance rapide de coups.',
+    icon: 'eye-outline',
+  },
+  {
+    id: 'quiz-ouverture',
+    route: '/quiz-ouverture' as Href,
+    title: 'Quiz Ouverture',
+    description: 'Nomme ou construis des ouvertures à partir de la base ECO.',
+    icon: 'school-outline',
   },
 ];
 
@@ -97,6 +115,14 @@ export default function MainMenu() {
           </Pressable>
         ))}
       </View>
+
+      <Text
+        style={[styles.version, { color: colors.mutedForeground }]}
+        accessibilityLabel={formatAppVersionLabel()}
+        testID="app-version-label"
+      >
+        {formatAppVersionLabel()}
+      </Text>
     </ScrollView>
   );
 }
@@ -134,6 +160,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
+    minHeight: 72,
   },
   iconWrap: {
     width: 52,
@@ -154,5 +181,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
     lineHeight: 17,
+  },
+  version: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    letterSpacing: 0.2,
   },
 });
