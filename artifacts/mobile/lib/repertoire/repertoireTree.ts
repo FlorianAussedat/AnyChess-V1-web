@@ -12,14 +12,14 @@
  */
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
-import { parsePgn, PgnSyntaxError, type PgnMoveNode } from './pgnParser';
+import { parsePgn, PgnSyntaxError, type PgnMoveNode } from './pgnParser.ts';
 import type {
   ParsedRepertoire,
   RepertoireIssue,
   RepertoireMoveChoice,
   RepertoireNode,
   RepertoireSelectionSettings,
-} from './types';
+} from './types.ts';
 
 export const DEFAULT_FEN =
   'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';

@@ -13,7 +13,7 @@
  * their surrounding context. Keeping parsing and validation separate keeps
  * each piece simple and testable.
  */
-import type { PgnHeaders } from './types';
+import type { PgnHeaders } from './types.ts';
 
 /** One move in the parsed tree. */
 export interface PgnMoveNode {

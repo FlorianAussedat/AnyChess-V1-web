@@ -3,7 +3,7 @@
  * Keep AsyncStorage imports here — not in mode business logic.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { KeyValueStorage } from './KeyValueStorage';
+import type { KeyValueStorage } from './KeyValueStorage.ts';
 
 export class AsyncKeyValueStorage implements KeyValueStorage {
   async getItem(key: string): Promise<string | null> {

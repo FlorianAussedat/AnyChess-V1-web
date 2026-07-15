@@ -19,7 +19,8 @@
   ],
   "exclude": [
     "lib/voice/__tests__/**",
-    "lib/app/__tests__/**"
+    "lib/app/__tests__/**",
+    "lib/continueLine/__tests__/**"
   ],
   "references": [
     {

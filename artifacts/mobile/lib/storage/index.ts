@@ -1,3 +1,3 @@
-export type { KeyValueStorage } from './KeyValueStorage';
-export { MemoryKeyValueStorage } from './KeyValueStorage';
-export { AsyncKeyValueStorage, defaultKeyValueStorage } from './AsyncKeyValueStorage';
+export type { KeyValueStorage } from './KeyValueStorage.ts';
+export { MemoryKeyValueStorage } from './KeyValueStorage.ts';
+export { AsyncKeyValueStorage, defaultKeyValueStorage } from './AsyncKeyValueStorage.ts';
