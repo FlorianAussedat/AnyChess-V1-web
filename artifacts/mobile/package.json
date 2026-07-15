@@ -10,7 +10,7 @@
     "build:puzzles": "node scripts/build-puzzle-dataset.mjs",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts lib/app/__tests__/stage1Architecture.test.ts lib/continueLine/__tests__/continueLine.test.ts",
+    "test": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts lib/app/__tests__/stage1Architecture.test.ts lib/continueLine/__tests__/continueLine.test.ts lib/mentalPosition/__tests__/mentalPosition.test.ts lib/moveNaming/__tests__/moveNaming.test.ts lib/openingQuiz/__tests__/openingQuiz.test.ts",
     "test:voice": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts"
   },
   "devDependencies": {
