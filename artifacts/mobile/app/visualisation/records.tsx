@@ -20,7 +20,7 @@ export default function VisualisationRecordsScreen() {
     load();
   }, [load]);
 
-  const reset = () =>
+  const resetAll = () =>
     Alert.alert(
       'Réinitialiser tous les records ?',
       'Cette action supprimera tous les meilleurs scores enregistrés.',
@@ -30,6 +30,20 @@ export default function VisualisationRecordsScreen() {
           text: 'Réinitialiser',
           style: 'destructive',
           onPress: () => store.reset().then(load),
+        },
+      ],
+    );
+
+  const resetOne = (seconds: number) =>
+    Alert.alert(
+      `Réinitialiser le record ${seconds} s ?`,
+      `Le meilleur score pour ${seconds} seconde${seconds > 1 ? 's' : ''} par coup sera remis à zéro.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Réinitialiser',
+          style: 'destructive',
+          onPress: () => store.resetCategory(seconds).then(load),
         },
       ],
     );
@@ -49,10 +63,22 @@ export default function VisualisationRecordsScreen() {
           style={[styles.row, { borderColor: colors.border }]}
         >
           <Text style={{ color: colors.foreground }}>{seconds} s par coup</Text>
-          <Text style={{ color: colors.foreground }}>{records[seconds] ?? 0}</Text>
+          <View style={styles.rowRight}>
+            <Text style={{ color: colors.foreground }}>{records[seconds] ?? 0}</Text>
+            {(records[seconds] ?? 0) > 0 ? (
+              <Pressable
+                onPress={() => resetOne(seconds)}
+                hitSlop={8}
+                style={styles.resetOneBtn}
+                testID={`reset-record-${seconds}`}
+              >
+                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Réinit.</Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       ))}
-      <Pressable onPress={reset} style={styles.resetBtn} testID="reset-records">
+      <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-records">
         <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
           Réinitialiser les scores
         </Text>
@@ -67,10 +93,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 13,
     borderWidth: 1,
     borderRadius: 10,
   },
+  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  resetOneBtn: { paddingHorizontal: 4, paddingVertical: 2 },
   resetBtn: {
     marginTop: 8,
     padding: 12,

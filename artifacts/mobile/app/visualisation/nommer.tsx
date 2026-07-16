@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
@@ -11,15 +11,11 @@ import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useColors } from '@/hooks/useColors';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage } from '@/lib/storage';
-import { parseChessVoice } from '@/lib/voice';
 import {
   MoveNamingRecordsStore,
-  MoveNamingTimer,
-  emptyMoveNamingScore,
+  MoveNamingSession,
   pickMoveNamingChallenge,
-  scoreMoveNamingAttempt,
-  type MoveNamingChallenge,
-  type MoveNamingScore,
+  type MoveNamingSnapshot,
 } from '@/lib/moveNaming';
 
 const records = new MoveNamingRecordsStore(defaultKeyValueStorage);
@@ -28,73 +24,68 @@ export default function NommerLeCoupScreen() {
   const colors = useColors();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
-  const timer = useRef(new MoveNamingTimer());
-  const [seconds, setSeconds] = useState(4);
-  const [challenge, setChallenge] = useState<MoveNamingChallenge | null>(null);
-  const [score, setScore] = useState<MoveNamingScore>(emptyMoveNamingScore());
-  const [active, setActive] = useState(false);
-  const [remaining, setRemaining] = useState(60);
+  const sessionRef = useRef(new MoveNamingSession({ pickChallenge: pickMoveNamingChallenge }));
+  const micPrimedRef = useRef(false);
+  const [snap, setSnap] = useState<MoveNamingSnapshot>(() => sessionRef.current.snapshot());
 
-  useEffect(() => () => timer.current.dispose(), []);
+  const sync = useCallback(() => {
+    setSnap(sessionRef.current.snapshot());
+  }, []);
+
+  useEffect(() => () => sessionRef.current.dispose(), []);
+
+  // Poll during countdown (3-2-1-GO labels) and play (session clock + challenge timeouts).
   useEffect(() => {
-    if (!active) return;
-    const id = setInterval(
-      () => setRemaining(Math.max(0, 60 - Math.floor(timer.current.elapsedSeconds()))),
-      250,
-    );
+    if (snap.phase !== 'countdown' && snap.phase !== 'playing') return;
+    const id = setInterval(sync, snap.phase === 'countdown' ? 100 : 250);
     return () => clearInterval(id);
-  }, [active]);
-
-  function next(previousId?: string) {
-    const nextChallenge = pickMoveNamingChallenge(previousId);
-    setChallenge(nextChallenge);
-    if (nextChallenge) timer.current.startChallenge(seconds, () => submitOutcome('timeout'));
-  }
-  function start() {
-    const nextScore = emptyMoveNamingScore();
-    setScore(nextScore);
-    setRemaining(60);
-    setActive(true);
-    timer.current.startSession(60, () => {
-      timer.current.clearChallenge();
-      setActive(false);
-    });
-    next();
-  }
-  function submitOutcome(outcome: 'correct' | 'wrong' | 'timeout' | 'recognition-failure') {
-    if (!active || !challenge) return;
-    timer.current.clearChallenge();
-    setScore((current) => scoreMoveNamingAttempt(current, outcome));
-    next(challenge.puzzleId);
-  }
-  function answer(raw: string) {
-    if (!challenge) return;
-    const result = parseChessVoice(raw, new Chess(challenge.initialFen));
-    if (result.type === 'unrecognized' || result.type === 'ambiguous') {
-      submitOutcome('recognition-failure');
-    } else if (result.type === 'move') {
-      const ok =
-        result.move.from === challenge.setupMove.from &&
-        result.move.to === challenge.setupMove.to;
-      submitOutcome(ok ? 'correct' : 'wrong');
-    } else {
-      submitOutcome('wrong');
-    }
-  }
-  const { micActive, toggleMic } = useSpeechInput({
-    forceOff: !active,
-    isSpeaking: false,
-    onTranscript: answer,
-  });
-  const display = challenge ? new Chess(challenge.positionFen) : null;
+  }, [snap.phase, sync]);
 
   useEffect(() => {
-    if (!active) records.saveScore(seconds, score.score).catch(() => undefined);
-  }, [active]); // save final round only
+    if (snap.phase !== 'completed') return;
+    records.saveScore(snap.responseSeconds, snap.score.score).catch(() => undefined);
+  }, [snap.phase, snap.responseSeconds, snap.score.score]);
+
+  const beginSession = useCallback(async () => {
+    micPrimedRef.current = false;
+    const current = sessionRef.current.snapshot();
+    const loaded = await records.load().catch(() => ({} as Record<number, number>));
+    sessionRef.current.configure({
+      previousRecord: loaded[current.responseSeconds] ?? 0,
+    });
+    sessionRef.current.startCountdown();
+    sync();
+  }, [sync]);
+
+  const { micActive, status, toggleMic, stopListening } = useSpeechInput({
+    forceOff: snap.phase !== 'playing',
+    enabled: snap.voiceEnabled,
+    isSpeaking: false,
+    onTranscript: (raw) => {
+      sessionRef.current.answer(raw);
+      sync();
+    },
+  });
+
+  useEffect(() => {
+    if (snap.phase !== 'playing' || !snap.voiceEnabled || micPrimedRef.current) return;
+    micPrimedRef.current = true;
+    if (!micActive) toggleMic();
+  }, [snap.phase, snap.voiceEnabled, micActive, toggleMic]);
+
+  const display =
+    snap.phase === 'playing' && snap.challenge ? new Chess(snap.challenge.positionFen) : null;
 
   return (
     <ScrollView contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}>
-      <BackButton onPress={() => router.back()} label="Retour" />
+      <BackButton
+        onPress={() => {
+          sessionRef.current.returnToIdle();
+          sync();
+          router.back();
+        }}
+        label="Retour"
+      />
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: colors.foreground }]}>Nommer le coup</Text>
         <BoardCoordinatesToggle
@@ -104,27 +95,32 @@ export default function NommerLeCoupScreen() {
           }}
         />
       </View>
-      {!active ? (
+
+      {snap.phase === 'idle' && (
         <View style={styles.gap}>
           <Text style={{ color: colors.mutedForeground }}>
-            Réponse par coup : {seconds} s · partie : 60 s
+            Réponse par coup : {snap.responseSeconds} s · partie : 60 s
           </Text>
           <View style={styles.row}>
             {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
               <Pressable
                 key={n}
-                onPress={() => setSeconds(n)}
+                onPress={() => {
+                  sessionRef.current.configure({ responseSeconds: n });
+                  sync();
+                }}
                 style={[
                   styles.chip,
                   {
                     borderColor: colors.border,
-                    backgroundColor: n === seconds ? colors.primary : colors.card,
+                    backgroundColor: n === snap.responseSeconds ? colors.primary : colors.card,
                   },
                 ]}
               >
                 <Text
                   style={{
-                    color: n === seconds ? colors.primaryForeground : colors.foreground,
+                    color:
+                      n === snap.responseSeconds ? colors.primaryForeground : colors.foreground,
                   }}
                 >
                   {n}
@@ -132,58 +128,128 @@ export default function NommerLeCoupScreen() {
               </Pressable>
             ))}
           </View>
-          <Pressable onPress={start} style={[styles.button, { backgroundColor: colors.primary }]}>
+          <Pressable
+            onPress={() => {
+              sessionRef.current.configure({ voiceEnabled: !snap.voiceEnabled });
+              sync();
+            }}
+            style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.card }]}
+          >
+            <Text style={{ color: colors.foreground }}>
+              Réponse vocale : {snap.voiceEnabled ? 'activée' : 'désactivée'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void beginSession()}
+            style={[styles.button, { backgroundColor: colors.primary }]}
+          >
             <Text style={{ color: colors.primaryForeground }}>Commencer</Text>
           </Pressable>
           <Pressable onPress={() => router.push('/visualisation/records')}>
             <Text style={{ color: colors.primary }}>Voir les records</Text>
           </Pressable>
-          {score.correct + score.wrong + score.timeouts > 0 && (
-            <Text style={{ color: colors.foreground }}>
-              Dernier score : {score.score} (+{score.correct} / −{score.wrong}, {score.timeouts}{' '}
-              temps écoulés)
-            </Text>
-          )}
         </View>
-      ) : (
+      )}
+
+      {snap.phase === 'countdown' && (
+        <View style={styles.countdownWrap}>
+          <Text style={[styles.countdown, { color: colors.foreground }]}>
+            {snap.countdownLabel}
+          </Text>
+        </View>
+      )}
+
+      {snap.phase === 'playing' && (
         <View style={styles.gap}>
           <Text style={{ color: colors.foreground }}>
-            Temps : {remaining}s · Score : {score.score}
+            Temps : {snap.remainingSeconds}s · Score : {snap.score.score}
           </Text>
           {display && (
             <ChessBoard
               board={display.board() as (BoardPiece | null)[][]}
-              lastMove={challenge?.setupMove ?? null}
+              lastMove={snap.challenge?.setupMove ?? null}
               showCoordinates={showCoordinates}
             />
           )}
           <Text style={{ color: colors.mutedForeground }}>Quel était le dernier coup ?</Text>
           <ChessAnswerInput
-            onSubmit={answer}
-            enabled={active}
+            onSubmit={(raw) => {
+              sessionRef.current.answer(raw);
+              sync();
+            }}
+            enabled
             persistFocus
             placeholder="ex. Cavalier prend e5"
           />
+          {snap.voiceEnabled && (
+            <>
+              <Pressable
+                onPress={toggleMic}
+                style={[
+                  styles.button,
+                  {
+                    backgroundColor: micActive ? '#b33' : colors.card,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: colors.foreground }}>
+                  {micActive ? 'Écoute…' : 'Répondre à voix haute'}
+                </Text>
+              </Pressable>
+              {status.message ? (
+                <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{status.message}</Text>
+              ) : null}
+            </>
+          )}
+        </View>
+      )}
+
+      {snap.phase === 'completed' && (
+        <View style={styles.gap}>
+          <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>SCORE</Text>
+          <Text style={[styles.scoreValue, { color: colors.foreground }]}>{snap.score.score}</Text>
+          {snap.isNewRecord ? (
+            <Text style={[styles.newRecord, { color: colors.primary }]}>Nouveau record !</Text>
+          ) : null}
+          <Text style={{ color: colors.foreground }}>Correct : {snap.score.correct}</Text>
+          <Text style={{ color: colors.foreground }}>Incorrect : {snap.score.wrong}</Text>
+          <Text style={{ color: colors.foreground }}>Temps écoulés : {snap.score.timeouts}</Text>
+          <Text style={{ color: colors.foreground }}>
+            Échecs de reconnaissance : {snap.score.recognitionFailures}
+          </Text>
           <Pressable
-            onPress={toggleMic}
-            style={[
-              styles.button,
-              {
-                backgroundColor: micActive ? '#b33' : colors.card,
-                borderColor: colors.border,
-                borderWidth: 1,
-              },
-            ]}
+            onPress={() => {
+              sessionRef.current.returnToIdle();
+              sync();
+              router.back();
+            }}
+            style={[styles.button, { backgroundColor: colors.primary }]}
           >
-            <Text style={{ color: colors.foreground }}>
-              {micActive ? 'Écoute…' : 'Répondre à voix haute'}
-            </Text>
+            <Text style={{ color: colors.primaryForeground }}>Retour</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/visualisation/records')}
+            style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+          >
+            <Text style={{ color: colors.foreground }}>Voir les records</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              stopListening();
+              void beginSession();
+            }}
+            style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+          >
+            <Text style={{ color: colors.foreground }}>Rejouer</Text>
           </Pressable>
         </View>
       )}
     </ScrollView>
   );
 }
+
 const styles = StyleSheet.create({
   page: { flexGrow: 1, padding: 20, gap: 16 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
@@ -192,4 +258,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { padding: 10, borderWidth: 1, borderRadius: 8 },
   button: { padding: 14, borderRadius: 10, alignItems: 'center' },
+  toggleRow: { padding: 14, borderRadius: 10, borderWidth: 1 },
+  countdownWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 220 },
+  countdown: { fontSize: 96, fontWeight: '800' },
+  scoreLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 2, textAlign: 'center' },
+  scoreValue: { fontSize: 64, fontWeight: '800', textAlign: 'center' },
+  newRecord: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
 });

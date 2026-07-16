@@ -37,4 +37,14 @@ export class MoveNamingRecordsStore {
   async reset(): Promise<void> {
     await this.storage.removeItem(KEY);
   }
+
+  async resetCategory(responseSeconds: number): Promise<MoveNamingRecords> {
+    if (!Number.isInteger(responseSeconds) || responseSeconds < 1 || responseSeconds > 10) {
+      throw new Error('Le délai doit être compris entre 1 et 10 secondes.');
+    }
+    const records = await this.load();
+    records[responseSeconds] = 0;
+    await this.storage.setItem(KEY, JSON.stringify(records));
+    return records;
+  }
 }
