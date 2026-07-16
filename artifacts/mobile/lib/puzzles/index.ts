@@ -7,6 +7,7 @@ export type {
   PuzzleFilters,
   PuzzleAttemptResult,
   PuzzleAttemptStats,
+  PuzzleHelpUsage,
   PuzzleHistoryRecord,
   PuzzleReplayMove,
 } from './types';
@@ -14,7 +15,10 @@ export {
   DEFAULT_PUZZLE_FILTERS,
   emptyPuzzleStats,
   finalizePuzzleStats,
+  formatHelpsUsed,
+  anyHelpUsed,
 } from './types';
+export { filterBoardPieces, type PieceRevealFilter } from './boardDisplay';
 
 export { PuzzleRepository, puzzleRepository } from './PuzzleRepository';
 export { PuzzleHistoryStorage, puzzleHistoryStorage } from './PuzzleHistoryStorage';

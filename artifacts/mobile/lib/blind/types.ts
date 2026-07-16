@@ -25,6 +25,14 @@ export const OBSERVATION_DELAY_MS: Record<ObservationPace, number> = {
   fast: 1000,
 };
 
+export type DictationPace = 'slow' | 'medium' | 'fast';
+
+export const DICTATION_SPEEDS: Record<DictationPace, number> = {
+  slow: 5000,
+  medium: 3000,
+  fast: 1000,
+};
+
 /** One half-move in the memorised sequence. */
 export interface BlindSequenceMove {
   san: string;
@@ -69,6 +77,7 @@ export interface BlindSessionConfig {
   fullMoves: number;
   submode: BlindSubmode;
   pace?: ObservationPace;
+  dictationPace?: DictationPace;
 }
 
 export function halfMoveCount(fullMoves: number): number {

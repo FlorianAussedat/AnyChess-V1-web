@@ -54,6 +54,13 @@ export type PuzzleAttemptResult =
   | 'recognition-failure'
   | 'complete';
 
+export interface PuzzleHelpUsage {
+  whiteReveal: boolean;
+  blackReveal: boolean;
+  solution: boolean;
+  positionRepeat: boolean;
+}
+
 export interface PuzzleAttemptStats {
   solved: boolean;
   solvedWithoutHelp: boolean;
@@ -62,6 +69,7 @@ export interface PuzzleAttemptStats {
   wrongChessMoves: number;
   recognitionFailures: number;
   solutionRequested: boolean;
+  helps: PuzzleHelpUsage;
   /** Number of user plies in the solution line. */
   userMoveCount: number;
   correctOnFirstAttempt: number;
@@ -100,10 +108,29 @@ export function emptyPuzzleStats(userMoveCount = 0): PuzzleAttemptStats {
     wrongChessMoves: 0,
     recognitionFailures: 0,
     solutionRequested: false,
+    helps: {
+      whiteReveal: false,
+      blackReveal: false,
+      solution: false,
+      positionRepeat: false,
+    },
     userMoveCount,
     correctOnFirstAttempt: 0,
     accuracyPercent: userMoveCount === 0 ? 0 : 0,
   };
+}
+
+export function anyHelpUsed(helps: PuzzleHelpUsage): boolean {
+  return helps.whiteReveal || helps.blackReveal || helps.solution || helps.positionRepeat;
+}
+
+export function formatHelpsUsed(helps: PuzzleHelpUsage): string {
+  const parts: string[] = [];
+  if (helps.whiteReveal) parts.push('pièces blanches');
+  if (helps.blackReveal) parts.push('pièces noires');
+  if (helps.solution) parts.push('solution');
+  if (helps.positionRepeat) parts.push('répétition position');
+  return parts.length ? parts.join(', ') : 'aucune';
 }
 
 export function finalizePuzzleStats(stats: PuzzleAttemptStats): PuzzleAttemptStats {
@@ -118,6 +145,6 @@ export function finalizePuzzleStats(stats: PuzzleAttemptStats): PuzzleAttemptSta
       stats.userMoveCount > 0 &&
       stats.correctOnFirstAttempt === stats.userMoveCount &&
       !stats.solutionRequested,
-    solvedWithoutHelp: stats.solved && !stats.solutionRequested,
+    solvedWithoutHelp: stats.solved && !stats.solutionRequested && !anyHelpUsed(stats.helps),
   };
 }

@@ -21,7 +21,7 @@ import {
   BlindSequenceProvider,
   useBlindSequence,
 } from '@/contexts/BlindSequenceContext';
-import { halfMoveCount, type BlindOrientation, type ObservationPace } from '@/lib/blind';
+import { halfMoveCount, type BlindOrientation, type DictationPace, type ObservationPace } from '@/lib/blind';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
@@ -168,9 +168,11 @@ function SettingsPhase() {
     orientation,
     fullMoves,
     pace,
+    dictationPace,
     setOrientation,
     setFullMoves,
     setPace,
+    setDictationPace,
     startSession,
     isGenerating,
     generateError,
@@ -278,6 +280,48 @@ function SettingsPhase() {
                   <Pressable
                     key={opt.id}
                     onPress={() => setPace(opt.id)}
+                    style={[
+                      styles.choice,
+                      {
+                        backgroundColor: active ? colors.primary : colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 13,
+                        color: active ? colors.primaryForeground : colors.foreground,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {submode === 'listen-reconstruct' && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+              Vitesse de dictée
+            </Text>
+            <View style={styles.row}>
+              {(
+                [
+                  { id: 'slow' as DictationPace, label: 'Lent' },
+                  { id: 'medium' as DictationPace, label: 'Moyen' },
+                  { id: 'fast' as DictationPace, label: 'Rapide' },
+                ] as const
+              ).map((opt) => {
+                const active = dictationPace === opt.id;
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setDictationPace(opt.id)}
                     style={[
                       styles.choice,
                       {
@@ -683,7 +727,7 @@ function ResultsPhase() {
           Coups corrects au premier essai : {score.correctOnFirstAttempt} / {score.totalHalfMoves}
         </Text>
 
-        {submode === 'watch-recite' && (
+        {(submode === 'watch-recite' || submode === 'listen-reconstruct') && (
           <View style={{ alignItems: 'center', gap: 8 }}>
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
               {isReplaying

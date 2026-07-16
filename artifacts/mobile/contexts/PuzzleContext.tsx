@@ -1,12 +1,12 @@
 /**
  * React wrapper around PuzzleSession for visual / blind puzzle modes.
- * Not wired to routes yet — export provider + hook for future screens.
  */
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -25,6 +25,7 @@ import {
   narratePositionSpoken,
   puzzleHistoryStorage,
   selectPuzzle,
+  filterBoardPieces,
   type LocalPuzzle,
   type PuzzleAttemptOutcome,
   type PuzzleAttemptResult,
@@ -34,6 +35,7 @@ import {
   type PuzzlePhase,
   type PuzzleReplayMove,
   type PuzzleSubmode,
+  type PieceRevealFilter,
 } from '@/lib/puzzles';
 
 export type PuzzleSpokenResult =
@@ -48,10 +50,13 @@ interface PuzzleContextValue {
   puzzle: LocalPuzzle | null;
   stats: PuzzleAttemptStats | null;
   board: (BoardPiece | null)[][];
+  displayBoard: (BoardPiece | null)[][];
   lastMove: LastMove | null;
   orientation: PuzzleOrientation;
   sideToMove: 'w' | 'b';
   boardVisible: boolean;
+  pieceRevealFilter: PieceRevealFilter;
+  isPreviewing: boolean;
   isReplaying: boolean;
   isSpeaking: boolean;
   lastFeedback: string | null;
@@ -65,6 +70,8 @@ interface PuzzleContextValue {
   nextPuzzle: () => Promise<void>;
   retry: () => void;
   revealSolution: () => void;
+  revealWhitePieces: () => void;
+  revealBlackPieces: () => void;
   repeatPosition: () => void;
   getLegalDestinations: (square: string) => string[];
   attemptBoardMove: (from: string, to: string) => PuzzleAttemptResult | 'idle';
@@ -73,10 +80,15 @@ interface PuzzleContextValue {
 
 const PuzzleContext = createContext<PuzzleContextValue | null>(null);
 
+const PREVIEW_WRONG_MS = 1000;
+const PIECE_REVEAL_MS = 5000;
+
 export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const sessionRef = useRef(new PuzzleSession());
   const replayRef = useRef(new PuzzleSolutionReplay());
   const submodeRef = useRef<PuzzleSubmode | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [phase, setPhase] = useState<PuzzlePhase>('hub');
   const [submode, setSubmode] = useState<PuzzleSubmode | null>(null);
@@ -90,12 +102,54 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const [orientation, setOrientation] = useState<PuzzleOrientation>('w');
   const [sideToMove, setSideToMove] = useState<'w' | 'b'>('w');
   const [boardVisible, setBoardVisible] = useState(true);
+  const [pieceRevealFilter, setPieceRevealFilter] = useState<PieceRevealFilter>('all');
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
   const [solutionLine, setSolutionLine] = useState<string | null>(null);
   const [positionNarration, setPositionNarration] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const clearPreviewTimer = useCallback(() => {
+    if (previewTimerRef.current != null) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+  }, []);
+
+  const clearRevealTimer = useCallback(() => {
+    if (revealTimerRef.current != null) {
+      clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
+    }
+  }, []);
+
+  const resetPresentation = useCallback(() => {
+    clearPreviewTimer();
+    clearRevealTimer();
+    setIsPreviewing(false);
+    setPieceRevealFilter('all');
+  }, [clearPreviewTimer, clearRevealTimer]);
+
+  const syncFromSession = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session.isLoaded) return;
+    setBoard(session.getChess().board() as (BoardPiece | null)[][]);
+    setSideToMove(session.getSideToMove());
+    setOrientation(session.getOrientation());
+    setStats(session.getStats());
+  }, []);
+
+  const displayBoard = useMemo(() => {
+    if (submode === 'blind' && !boardVisible && pieceRevealFilter === 'all') {
+      return filterBoardPieces(board, 'hidden');
+    }
+    if (submode === 'blind' && pieceRevealFilter !== 'all') {
+      return filterBoardPieces(board, pieceRevealFilter);
+    }
+    return board;
+  }, [board, submode, boardVisible, pieceRevealFilter]);
 
   useEffect(() => {
     submodeRef.current = submode;
@@ -108,17 +162,44 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       unsub();
       speechService.stop();
       replayRef.current.cancel();
+      clearPreviewTimer();
+      clearRevealTimer();
     };
-  }, []);
+  }, [clearPreviewTimer, clearRevealTimer]);
 
-  const syncFromSession = useCallback(() => {
+  const markHelp = useCallback((key: keyof PuzzleAttemptStats['helps']) => {
     const session = sessionRef.current;
     if (!session.isLoaded) return;
-    setBoard(session.getChess().board() as (BoardPiece | null)[][]);
-    setSideToMove(session.getSideToMove());
-    setOrientation(session.getOrientation());
+    const next = session.getStats();
+    if (next.helps[key]) return;
+    next.helps[key] = true;
+    session.setStats(next);
     setStats(session.getStats());
   }, []);
+
+  const showWrongMovePreview = useCallback(
+    (from: string, to: string) => {
+      const session = sessionRef.current;
+      if (!session.isLoaded) return;
+      const clone = new Chess(session.getFen());
+      try {
+        const played = clone.move({ from, to, promotion: 'q' }) as Move;
+        clearPreviewTimer();
+        setIsPreviewing(true);
+        setBoard(clone.board() as (BoardPiece | null)[][]);
+        setLastMove({ from: played.from, to: played.to });
+        previewTimerRef.current = setTimeout(() => {
+          previewTimerRef.current = null;
+          setIsPreviewing(false);
+          setLastMove(null);
+          syncFromSession();
+        }, PREVIEW_WRONG_MS);
+      } catch {
+        syncFromSession();
+      }
+    },
+    [clearPreviewTimer, syncFromSession],
+  );
 
   const setFilters = useCallback((partial: Partial<PuzzleFilters>) => {
     setFiltersState((prev) => ({ ...prev, ...partial }));
@@ -135,6 +216,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const backToHub = useCallback(() => {
     speechService.stop();
     replayRef.current.cancel();
+    resetPresentation();
     setIsReplaying(false);
     setSubmode(null);
     setPhase('hub');
@@ -147,7 +229,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setLoadError(null);
     setBoardVisible(true);
     setBoard(new Chess().board() as (BoardPiece | null)[][]);
-  }, []);
+  }, [resetPresentation]);
 
   const announceBlindPosition = useCallback((fen: string) => {
     const text = narratePosition(fen);
@@ -185,8 +267,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const applyOutcome = useCallback(
-    (outcome: PuzzleAttemptOutcome) => {
-      syncFromSession();
+    (outcome: PuzzleAttemptOutcome, preview?: { from: string; to: string }) => {
       const { result, userMove, opponentMove } = outcome;
 
       if (result === 'illegal') {
@@ -199,8 +280,19 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         const msg = 'Coup incorrect. Réessaie.';
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
+        if (
+          preview &&
+          submodeRef.current === 'visual' &&
+          !isPreviewing
+        ) {
+          showWrongMovePreview(preview.from, preview.to);
+        } else {
+          syncFromSession();
+        }
         return;
       }
+
+      syncFromSession();
       if (result === 'correct' || result === 'complete') {
         if (userMove) setLastMove({ from: userMove.from, to: userMove.to });
         setLastFeedback(result === 'complete' ? 'Problème résolu' : 'Correct.');
@@ -211,13 +303,14 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         if (result === 'complete') finishSolved();
       }
     },
-    [finishSolved, syncFromSession],
+    [finishSolved, isPreviewing, showWrongMovePreview, syncFromSession],
   );
 
   const beginPuzzle = useCallback(
     async (chosen: LocalPuzzle) => {
       speechService.stop();
       replayRef.current.cancel();
+      resetPresentation();
       setIsReplaying(false);
       setLoadError(null);
       setSolutionLine(null);
@@ -233,9 +326,11 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         const mode = submodeRef.current;
         if (mode === 'blind') {
           setBoardVisible(false);
+          setPieceRevealFilter('hidden');
           announceBlindPosition(snap.startFen);
         } else {
           setBoardVisible(true);
+          setPieceRevealFilter('all');
           setPositionNarration(null);
           const turn =
             snap.sideToMove === 'w' ? 'Trait aux Blancs.' : 'Trait aux Noirs.';
@@ -249,7 +344,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         setPhase('hub');
       }
     },
-    [announceBlindPosition, syncFromSession],
+    [announceBlindPosition, resetPresentation, syncFromSession],
   );
 
   const startPuzzle = useCallback(async () => {
@@ -273,18 +368,43 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     if (!p) return;
     speechService.stop();
     replayRef.current.cancel();
+    resetPresentation();
     setIsReplaying(false);
     setSolutionLine(null);
     setLastFeedback(null);
     beginPuzzle(p).catch(() => {});
-  }, [beginPuzzle]);
+  }, [beginPuzzle, resetPresentation]);
 
   const repeatPosition = useCallback(() => {
     const session = sessionRef.current;
     if (!session.isLoaded || phase !== 'playing') return;
+    markHelp('positionRepeat');
     announceBlindPosition(session.getFen());
     setLastFeedback('Position répétée.');
-  }, [announceBlindPosition, phase]);
+  }, [announceBlindPosition, markHelp, phase]);
+
+  const startPieceReveal = useCallback(
+    (color: 'white' | 'black') => {
+      if (submodeRef.current !== 'blind' || phase !== 'playing') return;
+      const key = color === 'white' ? 'whiteReveal' : 'blackReveal';
+      const session = sessionRef.current;
+      if (!session.isLoaded) return;
+      const current = session.getStats();
+      if (current.helps[key]) return;
+
+      markHelp(key);
+      clearRevealTimer();
+      setPieceRevealFilter(color);
+      revealTimerRef.current = setTimeout(() => {
+        revealTimerRef.current = null;
+        setPieceRevealFilter('hidden');
+      }, PIECE_REVEAL_MS);
+    },
+    [clearRevealTimer, markHelp, phase],
+  );
+
+  const revealWhitePieces = useCallback(() => startPieceReveal('white'), [startPieceReveal]);
+  const revealBlackPieces = useCallback(() => startPieceReveal('black'), [startPieceReveal]);
 
   const revealSolution = useCallback(() => {
     const session = sessionRef.current;
@@ -293,6 +413,8 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
     speechService.stop();
     replayRef.current.cancel();
+    resetPresentation();
+    markHelp('solution');
 
     const line = session.requestSolution();
     const fullLine = session.getUserFacingSolutionLine();
@@ -304,6 +426,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setLastMove(null);
     syncFromSession();
     setBoardVisible(true);
+    setPieceRevealFilter('all');
     setPhase('solution-replay');
     setIsReplaying(true);
 
@@ -351,24 +474,24 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         }
       },
     });
-  }, [phase, syncFromSession]);
+  }, [markHelp, phase, resetPresentation, syncFromSession]);
 
   const attemptBoardMove = useCallback(
     (from: string, to: string): PuzzleAttemptResult | 'idle' => {
-      if (phase !== 'playing' || isReplaying) return 'idle';
+      if (phase !== 'playing' || isReplaying || isPreviewing) return 'idle';
       const session = sessionRef.current;
       if (!session.isLoaded || session.isComplete()) return 'idle';
 
       const outcome = session.attemptMove(from, to, 'q');
-      applyOutcome(outcome);
+      applyOutcome(outcome, { from, to });
       return outcome.result;
     },
-    [phase, isReplaying, applyOutcome],
+    [phase, isReplaying, isPreviewing, applyOutcome],
   );
 
   const applySpokenMove = useCallback(
     (raw: string): PuzzleSpokenResult => {
-      if (phase !== 'playing' || isReplaying) return 'idle';
+      if (phase !== 'playing' || isReplaying || isPreviewing) return 'idle';
       const session = sessionRef.current;
       if (!session.isLoaded || session.isComplete()) return 'idle';
 
@@ -398,10 +521,6 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (parsed.type === 'illegal') {
-        // Understood chess move, but not legal in this position — treat as a
-        // wrong attempt via a failed UCI path would be incorrect; surface as
-        // recognition-adjacent feedback without counting as puzzle "wrong move"
-        // since no board move can be applied. Still distinct from "unrecognized".
         session.recordRecognitionFailure();
         setStats(session.getStats());
         setLastFeedback(
@@ -411,16 +530,20 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       }
 
       const outcome = session.attemptFromChessMove(parsed.move);
-      applyOutcome(outcome);
+      if (outcome.result === 'wrong-legal' && submodeRef.current === 'visual') {
+        applyOutcome(outcome, { from: parsed.move.from, to: parsed.move.to });
+      } else {
+        applyOutcome(outcome);
+      }
       return outcome.result;
     },
-    [phase, isReplaying, revealSolution, repeatPosition, applyOutcome],
+    [phase, isReplaying, isPreviewing, revealSolution, repeatPosition, applyOutcome],
   );
 
   const getLegalDestinations = useCallback(
     (square: string): string[] => {
-      if (phase !== 'playing' || isReplaying) return [];
-      if (submodeRef.current === 'blind' && !boardVisible) return [];
+      if (phase !== 'playing' || isReplaying || isPreviewing) return [];
+      if (submodeRef.current === 'blind' && pieceRevealFilter === 'hidden') return [];
       const game = sessionRef.current.getChess();
       const piece = game.get(square as Square);
       if (!piece || piece.color !== game.turn()) return [];
@@ -431,7 +554,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         return [];
       }
     },
-    [phase, isReplaying, boardVisible],
+    [phase, isReplaying, isPreviewing, pieceRevealFilter],
   );
 
   return (
@@ -443,10 +566,13 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         puzzle,
         stats,
         board,
+        displayBoard,
         lastMove,
         orientation,
         sideToMove,
         boardVisible,
+        pieceRevealFilter,
+        isPreviewing,
         isReplaying,
         isSpeaking,
         lastFeedback,
@@ -460,6 +586,8 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         nextPuzzle,
         retry,
         revealSolution,
+        revealWhitePieces,
+        revealBlackPieces,
         repeatPosition,
         getLegalDestinations,
         attemptBoardMove,

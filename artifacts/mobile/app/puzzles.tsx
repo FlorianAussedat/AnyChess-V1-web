@@ -22,7 +22,7 @@ import { PuzzleProvider, usePuzzle } from '@/contexts/PuzzleContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
-import { puzzleRepository } from '@/lib/puzzles';
+import { puzzleRepository, formatHelpsUsed } from '@/lib/puzzles';
 
 export default function PuzzlesRoute() {
   return (
@@ -229,10 +229,14 @@ function PlayingPhase() {
     phase,
     submode,
     puzzle,
+    stats,
     board,
+    displayBoard,
     lastMove,
     orientation,
     boardVisible,
+    pieceRevealFilter,
+    isPreviewing,
     isReplaying,
     isSpeaking,
     lastFeedback,
@@ -243,6 +247,8 @@ function PlayingPhase() {
     attemptBoardMove,
     applySpokenMove,
     revealSolution,
+    revealWhitePieces,
+    revealBlackPieces,
     repeatPosition,
     backToHub,
   } = usePuzzle();
@@ -269,8 +275,8 @@ function PlayingPhase() {
     toggleMic,
   } = useSpeechInput({
     isSpeaking,
-    enabled: !isReplaying,
-    forceOff: isReplaying,
+    enabled: !isReplaying && !isPreviewing,
+    forceOff: isReplaying || isPreviewing,
     onTranscript: submitSpoken,
   });
 
@@ -281,7 +287,7 @@ function PlayingPhase() {
 
   const onSquarePress = useCallback(
     (square: string) => {
-      if (isReplaying || submode !== 'visual' || !boardVisible) return;
+      if (isReplaying || isPreviewing || submode !== 'visual' || !boardVisible) return;
       if (selected === null) {
         const dests = getLegalDestinations(square);
         if (dests.length > 0) {
@@ -313,6 +319,7 @@ function PlayingPhase() {
     },
     [
       isReplaying,
+      isPreviewing,
       submode,
       boardVisible,
       selected,
@@ -350,31 +357,33 @@ function PlayingPhase() {
           )}
         </View>
 
-        {boardVisible ? (
+        {boardVisible || pieceRevealFilter !== 'hidden' ? (
           <View style={{ alignItems: 'center', gap: 8 }}>
-            <View style={{ alignSelf: 'flex-end' }}>
-              <BoardCoordinatesToggle
-                visible={showCoordinates}
-                onToggle={() => {
-                  void toggleCoordinates();
-                }}
-              />
-            </View>
+            {boardVisible && (
+              <View style={{ alignSelf: 'flex-end' }}>
+                <BoardCoordinatesToggle
+                  visible={showCoordinates}
+                  onToggle={() => {
+                    void toggleCoordinates();
+                  }}
+                />
+              </View>
+            )}
             <ChessBoard
-              board={board}
+              board={displayBoard}
               lastMove={lastMove}
               isFlipped={orientation === 'b'}
               selectedSquare={selected}
               legalDots={legalDests}
               onSquarePress={onSquarePress}
-              showCoordinates={showCoordinates}
+              showCoordinates={boardVisible && showCoordinates}
             />
           </View>
         ) : (
           <HiddenBoardPlaceholder />
         )}
 
-        {submode === 'blind' && !!positionNarration && !boardVisible && (
+        {submode === 'blind' && !!positionNarration && pieceRevealFilter === 'hidden' && (
           <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18 }}>
               {positionNarration}
@@ -382,11 +391,11 @@ function PlayingPhase() {
           </View>
         )}
 
-        {!isReplaying && (
+        {!isReplaying && !isPreviewing && (
           <>
             <ChessAnswerInput
               onSubmit={submitSpoken}
-              enabled={!isReplaying}
+              enabled={!isReplaying && !isPreviewing}
               persistFocus
               placeholder="Ex. Cf3, Fou prend e5, petit roque…"
             />
@@ -413,18 +422,54 @@ function PlayingPhase() {
             )}
 
             {submode === 'blind' && (
-              <Pressable
-                onPress={repeatPosition}
-                style={({ pressed }) => [
-                  styles.secondaryCta,
-                  { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                <Ionicons name="volume-medium-outline" size={18} color={colors.foreground} />
-                <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                  Répéter la position
-                </Text>
-              </Pressable>
+              <>
+                <Pressable
+                  onPress={revealWhitePieces}
+                  disabled={!!stats?.helps.whiteReveal}
+                  style={({ pressed }) => [
+                    styles.secondaryCta,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                      opacity: stats?.helps.whiteReveal ? 0.45 : pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons name="eye-outline" size={18} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+                    Afficher les pièces blanches
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={revealBlackPieces}
+                  disabled={!!stats?.helps.blackReveal}
+                  style={({ pressed }) => [
+                    styles.secondaryCta,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                      opacity: stats?.helps.blackReveal ? 0.45 : pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Ionicons name="eye-outline" size={18} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+                    Afficher les pièces noires
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={repeatPosition}
+                  style={({ pressed }) => [
+                    styles.secondaryCta,
+                    { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Ionicons name="volume-medium-outline" size={18} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+                    Répéter la position
+                  </Text>
+                </Pressable>
+              </>
             )}
 
             <Pressable
@@ -458,6 +503,7 @@ function ResultsPhase() {
     stats,
     solutionLine,
     board,
+    displayBoard,
     lastMove,
     orientation,
     isReplaying,
@@ -488,8 +534,8 @@ function ResultsPhase() {
               colors={colors}
             />
             <StatRow
-              label="Solution utilisée"
-              value={stats.solutionRequested ? 'oui' : 'non'}
+              label="Aides utilisées"
+              value={formatHelpsUsed(stats.helps)}
               colors={colors}
             />
           </View>
@@ -503,7 +549,7 @@ function ResultsPhase() {
 
         <View style={{ alignItems: 'center' }}>
           <ChessBoard
-            board={board}
+            board={displayBoard}
             lastMove={lastMove}
             isFlipped={orientation === 'b'}
             onSquarePress={() => {}}

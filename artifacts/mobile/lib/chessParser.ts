@@ -13,7 +13,7 @@ import {
   toLegacyParseResult,
   type LegacyParseResult,
   type VoiceParseResult,
-} from '@/lib/voice';
+} from './voice/index.ts';
 
 export { CHESS_CONTEXT_STRINGS };
 export { normalizeTranscript as normalize };

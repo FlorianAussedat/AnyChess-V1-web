@@ -18,14 +18,17 @@ import {
   computeScore,
   generateBlindSequence,
   sequenceKey,
+  DICTATION_SPEEDS,
   type BlindAttemptRecord,
   type BlindOrientation,
   type BlindPhase,
   type BlindScore,
   type BlindSequenceMove,
   type BlindSubmode,
+  type DictationPace,
   type ObservationPace,
 } from '@/lib/blind';
+import { replayLine, type ReplayLineHandle } from '@/lib/replay';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
@@ -36,6 +39,7 @@ interface BlindSequenceContextValue {
   orientation: BlindOrientation;
   fullMoves: number;
   pace: ObservationPace;
+  dictationPace: DictationPace;
   sequence: BlindSequenceMove[];
   expectedIndex: number;
   board: (BoardPiece | null)[][];
@@ -52,6 +56,7 @@ interface BlindSequenceContextValue {
   setOrientation: (o: BlindOrientation) => void;
   setFullMoves: (n: number) => void;
   setPace: (p: ObservationPace) => void;
+  setDictationPace: (p: DictationPace) => void;
   selectSubmode: (m: BlindSubmode) => void;
   backToHub: () => void;
   startSession: () => Promise<void>;
@@ -85,7 +90,10 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const attemptsRef = useRef<BlindAttemptRecord[]>([]);
   const triedCurrentRef = useRef(false);
   const replayRef = useRef(new BoardReplayController());
+  const resultReplayRef = useRef<ReplayLineHandle | null>(null);
+  const dictationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const paceRef = useRef<ObservationPace>('normal');
+  const dictationPaceRef = useRef<DictationPace>('medium');
   const submodeRef = useRef<BlindSubmode | null>(null);
 
   const [phase, setPhase] = useState<BlindPhase>('hub');
@@ -93,6 +101,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const [orientation, setOrientation] = useState<BlindOrientation>('w');
   const [fullMoves, setFullMovesState] = useState(3);
   const [pace, setPaceState] = useState<ObservationPace>('normal');
+  const [dictationPace, setDictationPaceState] = useState<DictationPace>('medium');
   const [sequence, setSequence] = useState<BlindSequenceMove[]>([]);
   const [expectedIndex, setExpectedIndex] = useState(0);
   const [observationIndex, setObservationIndex] = useState(0);
@@ -117,6 +126,18 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setPaceState(p);
   }, []);
 
+  const setDictationPace = useCallback((p: DictationPace) => {
+    dictationPaceRef.current = p;
+    setDictationPaceState(p);
+  }, []);
+
+  const clearDictationTimer = useCallback(() => {
+    if (dictationTimerRef.current != null) {
+      clearTimeout(dictationTimerRef.current);
+      dictationTimerRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     submodeRef.current = submode;
   }, [submode]);
@@ -130,18 +151,31 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       unsub();
       speechService.stop();
       replayRef.current.cancel();
+      resultReplayRef.current?.cancel();
+      clearDictationTimer();
       engine?.destroy?.();
     };
-  }, []);
+  }, [clearDictationTimer]);
 
   const syncBoard = useCallback(() => {
     setBoard(gameRef.current.board() as (BoardPiece | null)[][]);
   }, []);
 
   const speakSequence = useCallback((moves: BlindSequenceMove[], flush = true) => {
+    clearDictationTimer();
     if (flush) speechService.stop();
-    for (const m of moves) speechService.speak(m.verbal, { rate: 0.92 });
-  }, []);
+    const delay = DICTATION_SPEEDS[dictationPaceRef.current];
+    let i = 0;
+    const step = () => {
+      if (i >= moves.length) return;
+      speechService.speak(moves[i].verbal, { rate: 0.92, flush: i === 0 && flush });
+      i += 1;
+      if (i < moves.length) {
+        dictationTimerRef.current = setTimeout(step, delay);
+      }
+    };
+    step();
+  }, [clearDictationTimer]);
 
   const resetBoard = useCallback(() => {
     gameRef.current.reset();
@@ -203,6 +237,45 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     playVisualReplayRef.current = playVisualReplay;
   }, [playVisualReplay]);
 
+  const playResultReplay = useCallback(
+    (moves: BlindSequenceMove[]) => {
+      resultReplayRef.current?.cancel();
+      gameRef.current.reset();
+      setLastMove(null);
+      setObservationIndex(0);
+      syncBoard();
+      setIsReplaying(true);
+
+      resultReplayRef.current = replayLine({
+        moves: moves.map((m) => ({
+          from: m.from,
+          to: m.to,
+          promotion: m.promotion,
+          san: m.san,
+        })),
+        intervalMs: 1000,
+        onMove: (m, index) => {
+          try {
+            const played = gameRef.current.move({
+              from: m.from,
+              to: m.to,
+              promotion: m.promotion || 'q',
+            }) as Move;
+            setLastMove({ from: played.from, to: played.to });
+            syncBoard();
+            setObservationIndex(index + 1);
+          } catch {
+            /* ignore */
+          }
+        },
+        onComplete: () => {
+          setIsReplaying(false);
+        },
+      });
+    },
+    [syncBoard],
+  );
+
   const finishSession = useCallback(() => {
     const s = computeScore(
       sequenceRef.current.length,
@@ -217,8 +290,10 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     );
     if (submodeRef.current === 'watch-recite') {
       playVisualReplayRef.current(sequenceRef.current, { after: 'keep-final' });
+    } else if (submodeRef.current === 'listen-reconstruct') {
+      playResultReplay(sequenceRef.current);
     }
-  }, []);
+  }, [playResultReplay]);
 
   const beginListenPath = useCallback(
     (moves: BlindSequenceMove[]) => {
@@ -257,12 +332,14 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const backToHub = useCallback(() => {
     speechService.stop();
     replayRef.current.cancel();
+    resultReplayRef.current?.cancel();
+    clearDictationTimer();
     setIsReplaying(false);
     setSubmode(null);
     setPhase('hub');
     setScore(null);
     resetBoard();
-  }, [resetBoard]);
+  }, [resetBoard, clearDictationTimer]);
 
   const startSession = useCallback(async () => {
     if (!submode) return;
@@ -271,6 +348,8 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setPhase('generating');
     speechService.stop();
     replayRef.current.cancel();
+    resultReplayRef.current?.cancel();
+    clearDictationTimer();
     setIsReplaying(false);
     try {
       const moves = await generateBlindSequence({
@@ -289,7 +368,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     } finally {
       setIsGenerating(false);
     }
-  }, [submode, fullMoves, beginListenPath, runObservation]);
+  }, [submode, fullMoves, beginListenPath, runObservation, clearDictationTimer]);
 
   const replayDictation = useCallback(() => {
     if (sequenceRef.current.length === 0) return;
@@ -578,13 +657,15 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const backToSettings = useCallback(() => {
     speechService.stop();
     replayRef.current.cancel();
+    resultReplayRef.current?.cancel();
+    clearDictationTimer();
     setIsReplaying(false);
     setPhase('settings');
     setScore(null);
     setLastFeedback(null);
     setRevealedHint(null);
     resetBoard();
-  }, [resetBoard]);
+  }, [resetBoard, clearDictationTimer]);
 
   return (
     <BlindSequenceContext.Provider
@@ -594,6 +675,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         orientation,
         fullMoves,
         pace,
+        dictationPace,
         sequence,
         expectedIndex,
         board,
@@ -609,6 +691,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         setOrientation,
         setFullMoves,
         setPace,
+        setDictationPace,
         selectSubmode,
         backToHub,
         startSession,

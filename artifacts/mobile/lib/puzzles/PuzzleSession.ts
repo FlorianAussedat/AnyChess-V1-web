@@ -7,8 +7,8 @@
  */
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
-import { sanToVerbal, verbalMove } from '@/lib/chessParser';
-import { isExpectedMove, normalizeUci, uciFromSquares } from './PuzzleMoveValidator';
+import { sanToVerbal, verbalMove } from '../chessParser.ts';
+import { isExpectedMove, normalizeUci, uciFromSquares } from './PuzzleMoveValidator.ts';
 import {
   emptyPuzzleStats,
   finalizePuzzleStats,
@@ -17,7 +17,7 @@ import {
   type PuzzleAttemptStats,
   type PuzzleOrientation,
   type PuzzleReplayMove,
-} from './types';
+} from './types.ts';
 
 export interface PuzzleSessionSnapshot {
   puzzle: LocalPuzzle;
@@ -112,6 +112,10 @@ export class PuzzleSession {
 
   getStats(): PuzzleAttemptStats {
     return { ...this.stats };
+  }
+
+  setStats(stats: PuzzleAttemptStats): void {
+    this.stats = { ...stats, helps: { ...stats.helps } };
   }
 
   getFinalStats(): PuzzleAttemptStats {
