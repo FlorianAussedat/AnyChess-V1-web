@@ -1,46 +1,198 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Chess } from 'chess.js';
 import { BackButton } from '@/components/BackButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessBoard } from '@/components/ChessBoard';
 import { useColors } from '@/hooks/useColors';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
+import { replayLine, type ReplayLineHandle } from '@/lib/replay';
 import {
   OpeningConstructionSession,
-  openingTargets,
-  type ConstructionSnapshot,
+  openingFamilyNames,
+  openingTargetsForFamily,
+  pickRandomVariation,
   type OpeningTarget,
+  type PlayerConstructionSnapshot,
 } from '@/lib/openingQuiz';
+import type { BoardPiece } from '@/contexts/GameContext';
 
 function makeSession(target: OpeningTarget): OpeningConstructionSession {
   return new OpeningConstructionSession(target);
 }
 
+function Dropdown({
+  label,
+  value,
+  options,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onSelect: (v: string) => void;
+}) {
+  const colors = useColors();
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={{ gap: 6 }}>
+      <Text style={{ color: colors.mutedForeground, fontSize: 12, fontWeight: '600' }}>
+        {label}
+      </Text>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        style={{
+          padding: 12,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 10,
+          backgroundColor: colors.card,
+        }}
+      >
+        <Text style={{ color: colors.foreground }} numberOfLines={2}>
+          {value}
+        </Text>
+      </Pressable>
+      {open && (
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 10,
+            maxHeight: 220,
+            backgroundColor: colors.card,
+          }}
+        >
+          <ScrollView nestedScrollEnabled>
+            {options.map((opt) => (
+              <Pressable
+                key={opt}
+                onPress={() => {
+                  onSelect(opt);
+                  setOpen(false);
+                }}
+                style={{
+                  padding: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                  backgroundColor: opt === value ? colors.primary : colors.card,
+                }}
+              >
+                <Text
+                  style={{
+                    color: opt === value ? colors.primaryForeground : colors.foreground,
+                    fontSize: 13,
+                  }}
+                >
+                  {opt}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function ConstruisOuvertureScreen() {
   const colors = useColors();
   const router = useRouter();
-  const targets = openingTargets();
-  const [target, setTarget] = useState(targets[0] ?? null);
+  const families = useMemo(() => openingFamilyNames(), []);
+  const [family, setFamily] = useState(families[0] ?? '');
+  const variations = useMemo(() => openingTargetsForFamily(family), [family]);
+  const [target, setTarget] = useState<OpeningTarget | null>(variations[0] ?? null);
+  const [randomAnnouncement, setRandomAnnouncement] = useState<string | null>(null);
   const session = useRef(target ? makeSession(target) : null);
-  const [snap, setSnap] = useState<ConstructionSnapshot | null>(
-    () => session.current?.snapshot() ?? null,
+  const replayHandle = useRef<ReplayLineHandle | null>(null);
+  const [snap, setSnap] = useState<PlayerConstructionSnapshot | null>(() =>
+    session.current?.snapshotForPlayer() ?? null,
   );
+  const [replayBoard, setReplayBoard] = useState<(BoardPiece | null)[][] | null>(null);
+  const [replayLastMove, setReplayLastMove] = useState<{ from: string; to: string } | null>(null);
+  const [isReplaying, setIsReplaying] = useState(false);
 
-  function select(next: OpeningTarget) {
-    session.current = makeSession(next);
+  useEffect(() => {
+    return () => {
+      replayHandle.current?.cancel();
+    };
+  }, []);
+
+  function selectFamily(nextFamily: string) {
+    setFamily(nextFamily);
+    setRandomAnnouncement(null);
+    const vars = openingTargetsForFamily(nextFamily);
+    const next = vars[0] ?? null;
     setTarget(next);
-    setSnap(session.current.snapshot());
+    session.current = next ? makeSession(next) : null;
+    setSnap(session.current?.snapshotForPlayer() ?? null);
+    replayHandle.current?.cancel();
+    setReplayBoard(null);
+    setIsReplaying(false);
   }
+
+  function selectVariation(name: string) {
+    const next = variations.find((v) => v.identity.name === name) ?? null;
+    setRandomAnnouncement(null);
+    setTarget(next);
+    session.current = next ? makeSession(next) : null;
+    setSnap(session.current?.snapshotForPlayer() ?? null);
+    replayHandle.current?.cancel();
+    setReplayBoard(null);
+    setIsReplaying(false);
+  }
+
+  function pickRandom() {
+    const pick = pickRandomVariation();
+    if (!pick) return;
+    setFamily(pick.family);
+    const nextTarget = { identity: pick.line.identity, sans: pick.line.sans };
+    setTarget(nextTarget);
+    session.current = makeSession(nextTarget);
+    setSnap(session.current.snapshotForPlayer());
+    setRandomAnnouncement(`Construis : ${pick.line.identity.name}`);
+    replayHandle.current?.cancel();
+    setReplayBoard(null);
+    setIsReplaying(false);
+  }
+
+  function startReplay(line: string[]) {
+    replayHandle.current?.cancel();
+    setIsReplaying(true);
+    replayHandle.current = replayLine({
+      moves: line,
+      intervalMs: 1000,
+      onPosition: (fen) => {
+        const game = new Chess(fen);
+        setReplayBoard(game.board() as (BoardPiece | null)[][]);
+      },
+      onMove: (m) => {
+        setReplayLastMove({ from: m.from, to: m.to });
+      },
+      onComplete: () => setIsReplaying(false),
+    });
+  }
+
   function answer(raw: string) {
-    if (session.current) setSnap(session.current.answer(raw));
+    if (!session.current) return;
+    const next = session.current.answer(raw);
+    setSnap(session.current.snapshotForPlayer());
+    if (next.phase === 'wrong' || next.phase === 'complete') {
+      startReplay(next.target.sans);
+    }
   }
+
   const { micActive, toggleMic } = useSpeechInput({
-    forceOff: snap?.phase !== 'playing',
+    forceOff: snap?.phase !== 'playing' || isReplaying,
     isSpeaking: false,
-    onTranscript: (raw) => {
-      if (session.current) setSnap(session.current.answer(raw));
-    },
+    onTranscript: answer,
   });
+
+  const boardToShow =
+    replayBoard ??
+    (session.current?.getBoard() as (BoardPiece | null)[][] | undefined) ??
+    null;
 
   return (
     <ScrollView
@@ -51,43 +203,59 @@ export default function ConstruisOuvertureScreen() {
         backgroundColor: colors.background,
       }}
     >
-      <BackButton onPress={() => router.back()} />
+      <BackButton
+        onPress={() => {
+          replayHandle.current?.cancel();
+          router.back();
+        }}
+      />
       <Text style={{ color: colors.foreground, fontSize: 25, fontWeight: '700' }}>
         Construis l’ouverture
       </Text>
       <Text style={{ color: colors.mutedForeground }}>
-        Les transpositions ne sont pas encore acceptées : joue la ligne de référence exacte.
+        Joue la ligne de référence exacte, coup par coup.
       </Text>
-      <View style={{ gap: 8 }}>
-        {targets.map((item) => (
-          <Pressable
-            key={item.identity.name}
-            onPress={() => select(item)}
-            style={{
-              padding: 10,
-              borderWidth: 1,
-              borderRadius: 8,
-              borderColor: colors.border,
-              backgroundColor:
-                target?.identity.name === item.identity.name ? colors.primary : colors.card,
-            }}
-          >
-            <Text
-              style={{
-                color:
-                  target?.identity.name === item.identity.name
-                    ? colors.primaryForeground
-                    : colors.foreground,
-              }}
-            >
-              {item.identity.name}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+
+      <Dropdown label="Ouverture" value={family} options={families} onSelect={selectFamily} />
+      {variations.length > 0 && target && (
+        <Dropdown
+          label="Variation"
+          value={target.identity.name}
+          options={variations.map((v) => v.identity.name)}
+          onSelect={selectVariation}
+        />
+      )}
+
+      <Pressable
+        onPress={pickRandom}
+        style={{
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.card,
+          alignItems: 'center',
+        }}
+      >
+        <Text style={{ color: colors.foreground, fontWeight: '600' }}>Aléatoire</Text>
+      </Pressable>
+
+      {!!randomAnnouncement && (
+        <Text style={{ color: colors.primary, fontWeight: '600' }}>{randomAnnouncement}</Text>
+      )}
+
+      {boardToShow && (
+        <View style={{ alignItems: 'center' }}>
+          <ChessBoard
+            board={boardToShow}
+            lastMove={replayLastMove}
+            onSquarePress={() => {}}
+          />
+        </View>
+      )}
+
       {snap && (
         <>
-          {/* Stage 4 will hide expectedSan during play — keep placeholder for Stage 1 wiring */}
           <Text style={{ color: colors.mutedForeground }}>
             Joué : {snap.playedSans.join(' ') || '—'}
           </Text>
@@ -95,7 +263,7 @@ export default function ConstruisOuvertureScreen() {
             <>
               <ChessAnswerInput
                 onSubmit={answer}
-                enabled
+                enabled={!isReplaying}
                 persistFocus
                 placeholder="Dicte ou écris le coup"
               />
@@ -117,6 +285,9 @@ export default function ConstruisOuvertureScreen() {
             <Text style={{ color: snap.phase === 'complete' ? '#398a55' : '#c44' }}>
               {snap.feedback}
             </Text>
+          )}
+          {isReplaying && (
+            <Text style={{ color: colors.mutedForeground }}>Relecture de la ligne attendue…</Text>
           )}
         </>
       )}
