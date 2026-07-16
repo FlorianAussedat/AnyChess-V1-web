@@ -7,7 +7,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Animated, {
@@ -25,8 +24,11 @@ import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
+import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { ChessBoard } from '@/components/ChessBoard';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
+import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
+import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { TheoryContinuationViewer } from '@/components/TheoryContinuationViewer';
@@ -44,6 +46,7 @@ export function OpeningGameScreen() {
   const router = useRouter();
   const isWeb = Platform.OS === 'web';
   const { soundEnabled } = useAudioSettings();
+  const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
 
   const {
     board,
@@ -171,7 +174,6 @@ export function OpeningGameScreen() {
     }
   }, [moveEvent?.id, soundEnabled]);
 
-  const [manualText, setManualText] = useState('');
   const [touchSelected, setTouchSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
 
@@ -201,12 +203,9 @@ export function OpeningGameScreen() {
   }, [isListening, scale]);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const onPlayManual = useCallback(() => {
-    const text = manualText.trim();
-    if (!text) return;
+  const onPlayManual = useCallback((text: string) => {
     applyRef.current(text);
-    setManualText('');
-  }, [manualText]);
+  }, []);
 
   const onSquarePress = useCallback(
     (square: string) => {
@@ -342,6 +341,10 @@ export function OpeningGameScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <SoundToggle />
+          <BoardCoordinatesToggle
+            visible={showCoordinates}
+            onToggle={() => { void toggleCoordinates(); }}
+          />
           <BoardVisibilityToggle visible={boardVisible} onToggle={() => setBoardVisible((v) => !v)} />
         </View>
       </View>
@@ -442,6 +445,7 @@ export function OpeningGameScreen() {
             selectedSquare={touchSelected}
             legalDots={legalDests}
             onSquarePress={onSquarePress}
+            showCoordinates={showCoordinates}
           />
         ) : (
           <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
@@ -490,30 +494,13 @@ export function OpeningGameScreen() {
         )}
       </View>
 
-      <View style={styles.inputRow}>
-        <TextInput
-          style={[
-            styles.input,
-            { backgroundColor: colors.input, color: colors.foreground, borderColor: colors.border },
-          ]}
-          value={manualText}
-          onChangeText={setManualText}
-          placeholder="Ex. e4, Cf3, petit roque…"
-          placeholderTextColor={colors.mutedForeground}
-          onSubmitEditing={onPlayManual}
-          returnKeyType="send"
-          editable={canAct}
-        />
-        <Pressable
-          style={({ pressed }) => [
-            styles.sendBtn,
-            { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 },
-          ]}
-          onPress={onPlayManual}
-        >
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </Pressable>
-      </View>
+      <ChessAnswerInput
+        onSubmit={onPlayManual}
+        enabled={canAct}
+        persistFocus={canAct}
+        placeholder="Ex. e4, Cf3, petit roque…"
+        testID="opening-manual-input"
+      />
 
       <View
         style={[

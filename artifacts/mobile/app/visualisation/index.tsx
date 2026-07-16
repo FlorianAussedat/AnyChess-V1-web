@@ -28,13 +28,6 @@ const EXERCISES: ExerciseCard[] = [
     description: 'Jeu chronométré : nomme le coup que tu vois sur l’échiquier.',
     icon: 'flash-outline',
   },
-  {
-    id: 'records',
-    route: '/visualisation/records' as Href,
-    title: 'Records',
-    description: 'Meilleurs scores par délai de réponse (Nommer le coup).',
-    icon: 'trophy-outline',
-  },
 ];
 
 export default function VisualisationHub() {
@@ -71,7 +64,8 @@ export default function VisualisationHub() {
 
       <Text style={[styles.title, { color: colors.foreground }]}>Visualisation</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Deux exercices distincts pour entraîner le suivi mental et la reconnaissance de coups.
+        Deux exercices pour entraîner le suivi mental et la reconnaissance de coups.
+        Les records de Nommer le coup restent accessibles depuis cet exercice.
       </Text>
 
       <View style={styles.cards}>

@@ -7,7 +7,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Animated, {
@@ -27,6 +26,8 @@ import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { ChessBoard } from '@/components/ChessBoard';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
+import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
+import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { OpeningIdentityBadge } from '@/components/OpeningIdentityBadge';
@@ -34,6 +35,7 @@ import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
+import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,7 @@ export function ClassicGameScreen() {
   const router  = useRouter();
   const isWeb   = Platform.OS === 'web';
   const { soundEnabled } = useAudioSettings();
+  const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
 
   const {
     board,
@@ -167,10 +170,6 @@ export function ClassicGameScreen() {
     }
   }, [moveEvent?.id, soundEnabled]);
 
-  // ── Manual text input ─────────────────────────────────────────────────────
-
-  const [manualText, setManualText] = useState('');
-
   // ── Touch move state ──────────────────────────────────────────────────────
 
   const [touchSelected, setTouchSelected] = useState<string | null>(null);
@@ -205,14 +204,9 @@ export function ClassicGameScreen() {
 
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  // ── Manual input submit ───────────────────────────────────────────────────
-
-  const onPlayManual = useCallback(() => {
-    const text = manualText.trim();
-    if (!text) return;
+  const onPlayManual = useCallback((text: string) => {
     applyRef.current(text);
-    setManualText('');
-  }, [manualText]);
+  }, []);
 
   // ── Touch move handler ────────────────────────────────────────────────────
 
@@ -325,6 +319,10 @@ export function ClassicGameScreen() {
 
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <SoundToggle />
+          <BoardCoordinatesToggle
+            visible={showCoordinates}
+            onToggle={() => { void toggleCoordinates(); }}
+          />
           <BoardVisibilityToggle
             visible={boardVisible}
             onToggle={() => setBoardVisible((v) => !v)}
@@ -411,6 +409,7 @@ export function ClassicGameScreen() {
             selectedSquare={touchSelected}
             legalDots={legalDests}
             onSquarePress={onSquarePress}
+            showCoordinates={showCoordinates}
           />
         ) : (
           <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
@@ -461,26 +460,13 @@ export function ClassicGameScreen() {
       </View>
 
       {/* ── Manual text input ────────────────────────────────────────────── */}
-      <View style={styles.inputRow}>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.input, color: colors.foreground, borderColor: colors.border }]}
-          value={manualText}
-          onChangeText={setManualText}
-          placeholder="Ex. Nc3, Fou b5, e4, petit roque, annuler…"
-          placeholderTextColor={colors.mutedForeground}
-          onSubmitEditing={onPlayManual}
-          returnKeyType="send"
-          editable={canAct}
-          testID="manual-input"
-        />
-        <Pressable
-          style={({ pressed }) => [styles.sendBtn, { backgroundColor: colors.accent, opacity: pressed ? 0.72 : 1 }]}
-          onPress={onPlayManual}
-          testID="send-btn"
-        >
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </Pressable>
-      </View>
+      <ChessAnswerInput
+        onSubmit={onPlayManual}
+        enabled={canAct}
+        persistFocus={canAct}
+        placeholder="Ex. Nc3, Fou b5, e4, petit roque, annuler…"
+        testID="manual-input"
+      />
 
       {/* ── Move history ─────────────────────────────────────────────────── */}
       <View style={[styles.historyCard, { flex: 1, backgroundColor: colors.card, borderColor: colors.border }]}>

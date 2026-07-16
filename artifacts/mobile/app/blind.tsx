@@ -14,6 +14,8 @@ import { useRouter, type Href } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
+import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { SoundToggle } from '@/components/SoundToggle';
 import {
   BlindSequenceProvider,
@@ -22,6 +24,7 @@ import {
 import { halfMoveCount, type BlindOrientation, type ObservationPace } from '@/lib/blind';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
+import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 
 const FULL_MOVE_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
 
@@ -582,6 +585,13 @@ function RecitationPhase() {
             Ex. « e4 », « Cavalier f3 », « petit roque »
           </Text>
         </View>
+
+        <ChessAnswerInput
+          onSubmit={(text) => attemptSpoken(text)}
+          enabled
+          persistFocus
+          placeholder="Ex. e4, Cf3, petit roque…"
+        />
 
         <Pressable
           onPress={() => {

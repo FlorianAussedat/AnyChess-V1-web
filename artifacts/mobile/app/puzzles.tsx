@@ -14,11 +14,14 @@ import { useRouter, type Href } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
+import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { PuzzleProvider, usePuzzle } from '@/contexts/PuzzleContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
+import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { puzzleRepository } from '@/lib/puzzles';
 
 export default function PuzzlesRoute() {
@@ -221,6 +224,7 @@ function HubPhase() {
 function PlayingPhase() {
   const colors = useColors();
   const { soundEnabled } = useAudioSettings();
+  const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const {
     phase,
     submode,
@@ -246,6 +250,18 @@ function PlayingPhase() {
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
 
+  const submitSpoken = useCallback(
+    (text: string) => {
+      const r = applySpokenMove(text);
+      if (r === 'correct' || r === 'complete') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (r === 'wrong-legal' || r === 'illegal') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    },
+    [applySpokenMove],
+  );
+
   const {
     micActive,
     isListening,
@@ -255,14 +271,7 @@ function PlayingPhase() {
     isSpeaking,
     enabled: !isReplaying,
     forceOff: isReplaying,
-    onTranscript: (text) => {
-      const r = applySpokenMove(text);
-      if (r === 'correct' || r === 'complete') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else if (r === 'wrong-legal' || r === 'illegal') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
-    },
+    onTranscript: submitSpoken,
   });
 
   useEffect(() => {
@@ -342,7 +351,15 @@ function PlayingPhase() {
         </View>
 
         {boardVisible ? (
-          <View style={{ alignItems: 'center' }}>
+          <View style={{ alignItems: 'center', gap: 8 }}>
+            <View style={{ alignSelf: 'flex-end' }}>
+              <BoardCoordinatesToggle
+                visible={showCoordinates}
+                onToggle={() => {
+                  void toggleCoordinates();
+                }}
+              />
+            </View>
             <ChessBoard
               board={board}
               lastMove={lastMove}
@@ -350,6 +367,7 @@ function PlayingPhase() {
               selectedSquare={selected}
               legalDots={legalDests}
               onSquarePress={onSquarePress}
+              showCoordinates={showCoordinates}
             />
           </View>
         ) : (
@@ -366,6 +384,12 @@ function PlayingPhase() {
 
         {!isReplaying && (
           <>
+            <ChessAnswerInput
+              onSubmit={submitSpoken}
+              enabled={!isReplaying}
+              persistFocus
+              placeholder="Ex. Cf3, Fou prend e5, petit roque…"
+            />
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import type { Move } from 'chess.js';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
+import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { repertoireService } from '@/lib/repertoire';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
 import { sanToVerbal } from '@/lib/chessParser';
@@ -57,7 +57,6 @@ export default function ContinueLineScreen() {
   );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [manualText, setManualText] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const folderIdRef = useRef(folderId);
@@ -296,12 +295,9 @@ export default function ContinueLineScreen() {
     onTranscript: (text) => applyRef.current(text),
   });
 
-  const onPlayManual = useCallback(() => {
-    const text = manualText.trim();
-    if (!text) return;
+  const onPlayManual = useCallback((text: string) => {
     applyRef.current(text);
-    setManualText('');
-  }, [manualText]);
+  }, []);
 
   if (loading) {
     return (
@@ -411,31 +407,12 @@ export default function ContinueLineScreen() {
             <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{micStatus.message}</Text>
           ) : null}
 
-          <View style={styles.manualRow}>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                },
-              ]}
-              placeholder="Ex. Cf3, petit roque, e4…"
-              placeholderTextColor={colors.mutedForeground}
-              value={manualText}
-              onChangeText={setManualText}
-              onSubmitEditing={onPlayManual}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Pressable
-              onPress={onPlayManual}
-              style={[styles.sendBtn, { backgroundColor: colors.primary }]}
-            >
-              <Ionicons name="send" size={18} color={colors.primaryForeground} />
-            </Pressable>
-          </View>
+          <ChessAnswerInput
+            onSubmit={onPlayManual}
+            enabled={snap.phase === 'reciting'}
+            persistFocus={snap.phase === 'reciting'}
+            placeholder="Ex. Cf3, petit roque, e4…"
+          />
         </>
       )}
 
