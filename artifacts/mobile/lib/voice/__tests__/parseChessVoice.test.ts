@@ -269,6 +269,58 @@ describe('recognition-like STT errors', () => {
   });
 });
 
+describe('French SAN notation (regression)', () => {
+  const fenKnight = 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2';
+  for (const [raw, san] of [
+    ['Cc6', 'Nc6'],
+    ['Cf3', 'Nf3'],
+    ['Ce5', 'Ne5'],
+  ] as const) {
+    it(`${raw} → ${san}`, () => {
+      const fen =
+        raw === 'Cc6'
+          ? 'rnbqkbnr/pp2pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 2'
+          : raw === 'Ce5'
+            ? 'rnbqkbnr/pppp1ppp/8/8/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3'
+            : fenKnight;
+      expectMove(raw, fen, san);
+    });
+  }
+
+  const fenBishop = 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
+  for (const [raw, san] of [
+    ['Fc4', 'Bc4'],
+    ['Fb5', 'Bb5'],
+  ] as const) {
+    it(`${raw} → ${san}`, () => expectMove(raw, fenBishop, san));
+  }
+
+  const fenQueen = 'rnbqkbnr/pppp1ppp/8/8/8/3P4/PPP1PPPP/RNBQKBNR w KQkq - 0 1';
+  it('Dd2 → Qd2', () => expectMove('Dd2', fenQueen, 'Qd2'));
+
+  const fenRook = '3k4/8/8/8/8/8/8/R3K3 w - - 0 1';
+  it('Td1 → Rd1', () => expectMove('Td1', fenRook, 'Rd1'));
+
+  // King on e2 so Ke1 is a legal one-square move (French R = Roi).
+  const fenKing = '4k3/8/8/8/8/8/4K3/8 w - - 0 1';
+  it('Re1 → Ke1', () => expectMove('Re1', fenKing, 'Ke1'));
+
+  it('bare pawn c6 stays pawn (Black)', () => {
+    // After 1.e4 — Black still has a c-pawn on c7.
+    const fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+    expectMove('c6', fen, 'c6');
+  });
+
+  it('bare pawn f3 stays pawn (White)', () => {
+    const fen = 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2';
+    expectMove('f3', fen, 'f3');
+  });
+
+  it('bare pawn e4 stays pawn from start', () => {
+    expectMove('e4', undefined, 'e4');
+  });
+});
+
 describe('diagnoseVoiceTranscript', () => {
   it('returns normalized form and status for inspection', () => {
     const game = new Chess();

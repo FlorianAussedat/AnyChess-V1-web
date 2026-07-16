@@ -132,11 +132,48 @@ export function resolveAgainstLegalMoves(
   return { status: 'none' };
 }
 
+/** True when the token is a bare pawn SAN (no piece letter). */
+export function isBarePawnSan(raw: string): boolean {
+  const s = raw.replace(/[+#]/g, '');
+  if (/^[a-h][1-8]$/.test(s)) return true;
+  if (/^[a-h]x[a-h][1-8]/.test(s)) return true;
+  if (/^[a-h][a-h][1-8]/.test(s)) return true;
+  if (/^[a-h][1-8]=[nbrqNBRQ]$/.test(s)) return true;
+  return false;
+}
+
+/** French SAN piece letter at start (uppercase in standard French SAN). */
+export function hasFrenchPiecePrefix(raw: string): boolean {
+  if (/^[CFTD]/.test(raw)) return true;
+  if (/^R(?=[a-h][1-8][+#]?$)/.test(raw)) return true;
+  // Normalized lowercase French piece + square or capture
+  if (/^[cftd](?:[a-h][1-8]|[a-h]x[a-h][1-8])/.test(raw)) return true;
+  if (/^r[a-h][1-8][+#]?$/.test(raw)) return true;
+  return false;
+}
+
+const FRENCH_DEST = '(?:x[a-h][1-8]|[a-h][1-8])';
+
+function convertFrenchPiecePrefix(s: string): string {
+  return s
+    .replace(new RegExp(`^C(?=${FRENCH_DEST})`), 'N')
+    .replace(new RegExp(`^F(?=${FRENCH_DEST})`), 'B')
+    .replace(new RegExp(`^T(?=${FRENCH_DEST})`), 'R')
+    .replace(new RegExp(`^D(?=${FRENCH_DEST})`), 'Q');
+}
+
+function directSanAttempts(clean: string): string[] {
+  if (clean === clean.toLowerCase()) return [clean];
+  // Lowercasing Cc6 → cc6 breaks French knight notation; keep original casing.
+  if (hasFrenchPiecePrefix(clean)) return [clean];
+  return [clean, clean.toLowerCase()];
+}
+
 /** Direct SAN attempt via chess.js (English / standard algebraic). */
 export function tryDirectSan(input: string, game: Chess): Move | null {
   const clean = input.trim().replace(/\s+/g, '');
   if (!clean) return null;
-  const attempts = clean === clean.toLowerCase() ? [clean] : [clean, clean.toLowerCase()];
+  const attempts = directSanAttempts(clean);
   for (const attempt of attempts) {
     try {
       const clone = new Chess(game.fen());
@@ -167,14 +204,30 @@ export function tryDirectSan(input: string, game: Chess): Move | null {
 /**
  * French SAN letter map → English for chess.js.
  *   C→N, F→B, T→R, D→Q, R→K (Roi carefully)
+ *
+ * Bare pawn moves (c6, f3, exd5) must never be converted. French piece letters
+ * require a piece prefix + destination (length ≥ 2 after the letter).
  */
 export function frenchSanToEnglish(raw: string): string {
-  return raw
-    .replace(/×/g, 'x')
-    .replace(/\s*x\s*/g, 'x')
-    .replace(/^C(?=[a-h1-8x])/i, 'N')
-    .replace(/^F(?=[a-h1-8x])/i, 'B')
-    .replace(/^T(?=[a-h1-8x])/i, 'R')
-    .replace(/^D(?=[a-h1-8x])/i, 'Q')
-    .replace(/^R(?=[a-h][1-8][+#]?$)/i, 'K');
+  let s = raw.replace(/×/g, 'x').replace(/\s*x\s*/g, 'x');
+  if (isBarePawnSan(s)) return s;
+
+  // Uppercase French piece letters (raw SAN before normalization).
+  if (/^[CFTD]/.test(s)) {
+    return convertFrenchPiecePrefix(s);
+  }
+  if (/^R(?=[a-h][1-8][+#]?$)/.test(s)) {
+    return s.replace(/^R/, 'K');
+  }
+
+  // Normalized lowercase: cf3, cxe5… (French) vs nf3, nxe5… (English — leave as-is).
+  if (s === s.toLowerCase() && s.length >= 3) {
+    if (/^c(?:[a-h][1-8]|[a-h]x[a-h][1-8])/.test(s)) return `N${s.slice(1)}`;
+    if (/^f(?:[a-h][1-8]|[a-h]x[a-h][1-8])/.test(s)) return `B${s.slice(1)}`;
+    if (/^t(?:[a-h][1-8]|[a-h]x[a-h][1-8])/.test(s)) return `R${s.slice(1)}`;
+    if (/^d(?:[a-h][1-8]|[a-h]x[a-h][1-8])/.test(s)) return `Q${s.slice(1)}`;
+    if (/^r[a-h][1-8][+#]?$/.test(s)) return `K${s.slice(1)}`;
+  }
+
+  return s;
 }

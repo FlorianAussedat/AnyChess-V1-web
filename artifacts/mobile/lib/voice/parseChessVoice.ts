@@ -20,6 +20,7 @@ import { parseAppCommand } from './parseAppCommand.ts';
 import { describeIntent, extractMoveIntent } from './extractMoveIntent.ts';
 import {
   frenchSanToEnglish,
+  hasFrenchPiecePrefix,
   resolveAgainstLegalMoves,
   tryDirectSan,
 } from './resolveLegalMove.ts';
@@ -79,24 +80,27 @@ export function parseChessVoice(
     };
   }
 
-  // ── 2. Direct English / standard SAN ────────────────────────────────────
-  const direct = tryDirectSan(rawTrim, game) ?? tryDirectSan(normalized.replace(/\s+/g, ''), game);
-  if (direct) {
-    return moveResult(direct, 1, rawTrim, normalized);
+  const compactNorm = normalized.replace(/\s+/g, '');
+  const compactRaw = rawTrim.replace(/\s+/g, '');
+
+  // ── 2. French SAN → English (before direct SAN so Roi/Re1 ≠ English rook) ─
+  if (hasFrenchPiecePrefix(compactRaw)) {
+    const convertedRaw = frenchSanToEnglish(compactRaw);
+    if (convertedRaw !== compactRaw) {
+      const fr = tryDirectSan(convertedRaw, game);
+      if (fr) return moveResult(fr, 1, rawTrim, normalized);
+    }
+  }
+  const convertedNorm = frenchSanToEnglish(compactNorm);
+  if (convertedNorm !== compactNorm) {
+    const fr = tryDirectSan(convertedNorm, game);
+    if (fr) return moveResult(fr, 1, rawTrim, normalized);
   }
 
-  // ── 3. French SAN → English ─────────────────────────────────────────────
-  const compact = normalized.replace(/\s+/g, '');
-  const converted = frenchSanToEnglish(compact);
-  if (converted !== compact) {
-    const fr = tryDirectSan(converted, game);
-    if (fr) return moveResult(fr, 1, rawTrim, normalized);
-  }
-  // Also try original raw French SAN
-  const convertedRaw = frenchSanToEnglish(rawTrim.replace(/\s+/g, ''));
-  if (convertedRaw !== rawTrim.replace(/\s+/g, '')) {
-    const fr = tryDirectSan(convertedRaw, game);
-    if (fr) return moveResult(fr, 1, rawTrim, normalized);
+  // ── 3. Direct English / standard SAN ────────────────────────────────────
+  const direct = tryDirectSan(rawTrim, game) ?? tryDirectSan(compactNorm, game);
+  if (direct) {
+    return moveResult(direct, 1, rawTrim, normalized);
   }
 
   // ── 4. Structured intent + legal moves ──────────────────────────────────
