@@ -15,9 +15,14 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
+import { BackButton } from '@/components/BackButton';
+import { ChessBoard } from '@/components/ChessBoard';
+import type { BoardPiece, LastMove } from '@/contexts/GameContext';
+import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
 import {
-  generateMentalSequence,
+  generateMentalSequenceWithQuestions,
   MentalPositionSession,
   type MentalSnapshot,
 } from '@/lib/mentalPosition';
@@ -27,8 +32,13 @@ import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage } from '@/lib/storage';
+import { replayLine } from '@/lib/replay/replayLine';
 
 const RECENT_KEY = 'anychess.mental.recent.v1';
+
+function fenToBoard(fen: string): (BoardPiece | null)[][] {
+  return new Chess(fen).board() as (BoardPiece | null)[][];
+}
 
 export default function MentalPositionScreen() {
   const colors = useColors();
@@ -40,6 +50,8 @@ export default function MentalPositionScreen() {
   const { soundEnabled } = useAudioSettings();
 
   const sessionRef = useRef(new MentalPositionSession());
+  const replayRef = useRef<ReturnType<typeof replayLine> | null>(null);
+  const presentationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [snap, setSnap] = useState<MentalSnapshot>(() => sessionRef.current.snapshot());
   const [fullMoves, setFullMoves] = useState(4);
   const [orientation, setOrientation] = useState<'w' | 'b'>('w');
@@ -49,18 +61,69 @@ export default function MentalPositionScreen() {
   const [manual, setManual] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [sequenceLabel, setSequenceLabel] = useState('');
+  const [displayFen, setDisplayFen] = useState<string | null>(null);
+  const [lastMove, setLastMove] = useState<LastMove | null>(null);
+
+  const questioning = snap.phase === 'questioning';
+  const showing = snap.phase === 'showing';
+  const done = snap.phase === 'done';
+  const showSequenceText = showing || done;
+  const showBoardPanel = (showing && showBoard) || done;
+
+  const { inputRef, afterSubmit } = usePersistentAnswerFocus({ enabled: questioning });
 
   useEffect(() => {
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
     return () => {
       unsub();
       speechService.stop();
+      replayRef.current?.cancel();
+      if (presentationTimerRef.current) clearTimeout(presentationTimerRef.current);
     };
   }, []);
+
+  const dictateSequence = useCallback(
+    async (sans: string[]) => {
+      if (!dictate || !soundEnabled) return;
+      for (const san of sans) {
+        await speechService.speak(sanToVerbal(san), { rate: 0.92 });
+      }
+    },
+    [dictate, soundEnabled],
+  );
+
+  const startReplay = useCallback(
+    (sans: string[]) => {
+      replayRef.current?.cancel();
+      if (!showBoard) {
+        setDisplayFen(null);
+        setLastMove(null);
+        return;
+      }
+      replayRef.current = replayLine({
+        moves: sans,
+        intervalMs: 700,
+        onPosition: (fen, _idx, san) => {
+          setDisplayFen(fen);
+          if (san) {
+            const game = new Chess();
+            for (let i = 0; i < sans.indexOf(san); i++) game.move(sans[i]);
+            const m = game.move(san);
+            if (m) setLastMove({ from: m.from, to: m.to });
+          }
+        },
+        onComplete: (fen) => setDisplayFen(fen),
+      });
+    },
+    [showBoard],
+  );
 
   const start = useCallback(async () => {
     setBusy(true);
     speechService.stop();
+    replayRef.current?.cancel();
+    if (presentationTimerRef.current) clearTimeout(presentationTimerRef.current);
+
     try {
       let previousKey: string | null = null;
       try {
@@ -70,7 +133,7 @@ export default function MentalPositionScreen() {
       }
 
       const engine = createOpponentEngine();
-      const { sans, key } = await generateMentalSequence({
+      const { sans, key } = await generateMentalSequenceWithQuestions({
         fullMoves,
         engine,
         previousKey,
@@ -83,7 +146,7 @@ export default function MentalPositionScreen() {
         showBoardDuringSequence: showBoard,
         dictateSequence: dictate,
       });
-      let next = session.loadSequence(sans);
+      const next = session.loadSequence(sans);
       setSequenceLabel(sans.join(' '));
       setSnap(next);
       if (next.phase === 'error') {
@@ -91,17 +154,16 @@ export default function MentalPositionScreen() {
         return;
       }
 
-      if (dictate && soundEnabled) {
-        for (const san of sans) {
-          speechService.speak(sanToVerbal(san), { rate: 0.92 });
-        }
-      }
+      startReplay(sans);
+      void dictateSequence(sans);
 
-      // After a short delay (or immediately if muted / no dictate), start questions
-      const delay = dictate && soundEnabled ? Math.min(sans.length * 1200, 8000) : 400;
-      setTimeout(() => {
-        next = session.beginQuestions();
-        setSnap({ ...next });
+      const delay = dictate && soundEnabled ? Math.min(sans.length * 1200, 10000) : 1200;
+      presentationTimerRef.current = setTimeout(() => {
+        replayRef.current?.cancel();
+        setDisplayFen(null);
+        setLastMove(null);
+        const after = session.beginQuestions();
+        setSnap({ ...after });
         setBusy(false);
       }, delay);
     } catch (err) {
@@ -113,24 +175,46 @@ export default function MentalPositionScreen() {
       });
       setBusy(false);
     }
-  }, [fullMoves, orientation, dictate, showBoard, soundEnabled]);
+  }, [fullMoves, orientation, dictate, showBoard, soundEnabled, dictateSequence, startReplay]);
 
-  const answer = useCallback((raw: string) => {
-    const next = sessionRef.current.answer(raw);
-    setSnap({ ...next });
-  }, []);
+  const answer = useCallback(
+    (raw: string) => {
+      const trimmed = raw.trim();
+      if (!trimmed) return;
+      const next = sessionRef.current.answer(trimmed);
+      setSnap({ ...next });
+    },
+    [],
+  );
 
   const answerRef = useRef(answer);
   useEffect(() => {
     answerRef.current = answer;
   }, [answer]);
 
-  const questioning = snap.phase === 'questioning';
+  const handleHelp = useCallback(() => {
+    sessionRef.current.recordHelp('redictate');
+    void dictateSequence(snap.sans);
+    setSnap({ ...sessionRef.current.snapshot() });
+  }, [dictateSequence, snap.sans]);
+
   const { micActive, toggleMic, status: micStatus } = useSpeechInput({
     isSpeaking,
     forceOff: !questioning,
     onTranscript: (t) => answerRef.current(t),
   });
+
+  const submitManual = useCallback(() => {
+    answer(manual);
+    afterSubmit(() => setManual(''));
+  }, [answer, manual, afterSubmit]);
+
+  useEffect(() => {
+    if (done) {
+      setDisplayFen(snap.finalFen);
+      setLastMove(null);
+    }
+  }, [done, snap.finalFen]);
 
   return (
     <ScrollView
@@ -143,13 +227,7 @@ export default function MentalPositionScreen() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <Pressable
-        onPress={() => router.back()}
-        style={[styles.back, { borderColor: colors.border, backgroundColor: colors.card }]}
-      >
-        <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        <Text style={{ color: colors.foreground }}>Retour</Text>
-      </Pressable>
+      <BackButton onPress={() => router.back()} label="Retour" />
 
       <Text style={[styles.title, { color: colors.foreground }]}>Suivi mental de position</Text>
 
@@ -213,7 +291,7 @@ export default function MentalPositionScreen() {
           </Pressable>
           <Pressable onPress={() => setShowBoard((v) => !v)}>
             <Text style={{ color: colors.foreground }}>
-              Afficher l’échiquier pendant la séquence : {showBoard ? 'oui' : 'non'}
+              Afficher l'échiquier pendant la séquence : {showBoard ? 'oui' : 'non'}
             </Text>
           </Pressable>
           <Pressable
@@ -232,18 +310,38 @@ export default function MentalPositionScreen() {
         </View>
       ) : null}
 
-      {(snap.phase === 'showing' || snap.phase === 'questioning' || snap.phase === 'done') && (
+      {showSequenceText && sequenceLabel ? (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Séquence</Text>
           <Text style={{ color: colors.foreground }}>{sequenceLabel}</Text>
-          <Text style={{ color: colors.mutedForeground, marginTop: 8 }}>
-            Score : {snap.score}/{snap.answered || snap.questions.length}
-          </Text>
         </View>
+      ) : null}
+
+      {showBoardPanel && displayFen ? (
+        <ChessBoard
+          board={fenToBoard(displayFen)}
+          lastMove={lastMove}
+          isFlipped={orientation === 'b'}
+          showCoordinates={false}
+        />
+      ) : null}
+
+      {(showing || questioning) && (
+        <Text style={{ color: colors.mutedForeground }}>
+          Question {Math.min(snap.questionIndex + 1, snap.questions.length)}/{snap.questions.length}
+          {questioning ? ` · Score ${snap.score}/${snap.answered}` : ''}
+        </Text>
       )}
 
       {questioning && (
         <View style={{ gap: 10 }}>
+          <Pressable
+            onPress={handleHelp}
+            style={[styles.helpBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+          >
+            <Ionicons name="volume-high-outline" size={18} color={colors.foreground} />
+            <Text style={{ color: colors.foreground }}>Réécouter la séquence</Text>
+          </Pressable>
           <Text style={[styles.prompt, { color: colors.foreground }]}>{snap.currentPrompt}</Text>
           {snap.lastFeedback ? (
             <Text style={{ color: colors.mutedForeground }}>{snap.lastFeedback}</Text>
@@ -261,6 +359,7 @@ export default function MentalPositionScreen() {
           ) : null}
           <View style={styles.row}>
             <TextInput
+              ref={inputRef}
               style={[
                 styles.input,
                 {
@@ -274,16 +373,10 @@ export default function MentalPositionScreen() {
               onChangeText={setManual}
               placeholder="Réponse écrite…"
               placeholderTextColor={colors.mutedForeground}
-              onSubmitEditing={() => {
-                answer(manual);
-                setManual('');
-              }}
+              onSubmitEditing={submitManual}
             />
             <Pressable
-              onPress={() => {
-                answer(manual);
-                setManual('');
-              }}
+              onPress={submitManual}
               style={[styles.send, { backgroundColor: colors.primary }]}
             >
               <Ionicons name="send" size={18} color={colors.primaryForeground} />
@@ -292,11 +385,41 @@ export default function MentalPositionScreen() {
         </View>
       )}
 
-      {snap.phase === 'done' && (
+      {done && (
         <View style={{ gap: 10 }}>
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 18 }}>
             Terminé — score {snap.score}/{snap.questions.length}
+            {snap.helpUsed ? ' · aide utilisée' : ''}
           </Text>
+          {snap.answerLog.map((entry, i) => (
+            <View
+              key={`${entry.question.id}-${i}`}
+              style={[
+                styles.resultRow,
+                {
+                  borderColor: entry.correct ? '#3a7' : '#c44',
+                  backgroundColor: colors.card,
+                },
+              ]}
+            >
+              <Ionicons
+                name={entry.correct ? 'checkmark-circle' : 'close-circle'}
+                size={22}
+                color={entry.correct ? '#3a7' : '#c44'}
+              />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={{ color: colors.foreground }}>{entry.question.promptFr}</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                  Ta réponse : {entry.userAnswer || '—'}
+                </Text>
+                {!entry.correct ? (
+                  <Text style={{ color: '#c44', fontSize: 13 }}>
+                    Attendu : {entry.expectedDisplay}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          ))}
           <Pressable onPress={start} style={[styles.btn, { backgroundColor: colors.primary }]}>
             <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
               Nouvelle séquence
@@ -317,19 +440,8 @@ export default function MentalPositionScreen() {
 }
 
 const styles = StyleSheet.create({
-  back: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    minHeight: 44,
-  },
   title: { fontSize: 24, fontFamily: 'Inter_700Bold' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -345,6 +457,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
+  helpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
   card: { borderWidth: 1, borderRadius: 14, padding: 14 },
   prompt: { fontSize: 18, fontFamily: 'Inter_600SemiBold', lineHeight: 26 },
   input: {
@@ -359,5 +481,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  resultRow: {
+    flexDirection: 'row',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'flex-start',
   },
 });

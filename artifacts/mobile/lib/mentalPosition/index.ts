@@ -1,8 +1,42 @@
-export { analyzeHistory, countDeveloped, pieceOnSquare } from './PositionHistoryAnalyzer.ts';
-export type { TrackedPiece, HistoryAnalysis } from './PositionHistoryAnalyzer.ts';
-export { generateQuestions, normalizeAnswer } from './PositionQuestionGenerator.ts';
-export type { PositionQuestion, QuestionKind } from './PositionQuestionGenerator.ts';
+export {
+  analyzeHistory,
+  countDeveloped,
+  pieceOnSquare,
+  pieceById,
+  squareAtHalfMove,
+  pieceAtFen,
+  countPiecesOnBoard,
+} from './PositionHistoryAnalyzer.ts';
+export type {
+  TrackedPiece,
+  HistoryAnalysis,
+  CaptureRecord,
+  CastlingPlayed,
+  CastlingRightsRemaining,
+} from './PositionHistoryAnalyzer.ts';
+export {
+  generateQuestions,
+  buildQuestionPool,
+  normalizeAnswer,
+} from './PositionQuestionGenerator.ts';
+export type {
+  PositionQuestion,
+  QuestionKind,
+  QuestionCategory,
+} from './PositionQuestionGenerator.ts';
 export { validatePositionAnswer } from './PositionAnswerValidator.ts';
-export { MentalPositionSession } from './MentalPositionSession.ts';
-export type { MentalSnapshot, MentalPhase } from './MentalPositionSession.ts';
-export { generateMentalSequence } from './generateMentalSequence.ts';
+export {
+  MentalPositionSession,
+  MENTAL_MAX_QUESTIONS,
+  INSUFFICIENT_QUESTIONS_ERROR,
+} from './MentalPositionSession.ts';
+export type {
+  MentalSnapshot,
+  MentalPhase,
+  MentalAnswerLogEntry,
+  HelpKind,
+} from './MentalPositionSession.ts';
+export {
+  generateMentalSequence,
+  generateMentalSequenceWithQuestions,
+} from './generateMentalSequence.ts';

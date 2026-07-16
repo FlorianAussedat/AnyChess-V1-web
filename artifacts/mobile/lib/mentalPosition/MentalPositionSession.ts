@@ -8,7 +8,17 @@ import {
 } from './PositionQuestionGenerator.ts';
 import { validatePositionAnswer } from './PositionAnswerValidator.ts';
 
+export const MENTAL_MAX_QUESTIONS = 10;
+export const INSUFFICIENT_QUESTIONS_ERROR = 'Pas assez de questions fiables';
+
 export type MentalPhase = 'setup' | 'showing' | 'questioning' | 'done' | 'error';
+
+export type MentalAnswerLogEntry = {
+  question: PositionQuestion;
+  userAnswer: string;
+  correct: boolean;
+  expectedDisplay: string;
+};
 
 export type MentalSnapshot = {
   phase: MentalPhase;
@@ -23,8 +33,12 @@ export type MentalSnapshot = {
   lastFeedback: string | null;
   score: number;
   answered: number;
+  answerLog: MentalAnswerLogEntry[];
+  helpUsed: boolean;
   errorMessage: string | null;
 };
+
+export type HelpKind = 'redictate';
 
 export class MentalPositionSession {
   private phase: MentalPhase = 'setup';
@@ -39,6 +53,8 @@ export class MentalPositionSession {
   private answered = 0;
   private lastFeedback: string | null = null;
   private errorMessage: string | null = null;
+  private answerLog: MentalAnswerLogEntry[] = [];
+  private helpUsed = false;
 
   configure(options: {
     orientation: 'w' | 'b';
@@ -50,21 +66,24 @@ export class MentalPositionSession {
     this.dictateSequence = options.dictateSequence;
   }
 
-  loadSequence(sans: string[]): MentalSnapshot {
+  loadSequence(sans: string[], options: { maxQuestions?: number } = {}): MentalSnapshot {
+    const maxQuestions = options.maxQuestions ?? MENTAL_MAX_QUESTIONS;
     try {
       const analysis = analyzeHistory(sans);
       this.sans = sans;
       this.finalFen = analysis.finalFen;
-      this.questions = generateQuestions(analysis, { maxQuestions: 5 });
+      this.questions = generateQuestions(analysis, { maxQuestions });
       this.questionIndex = 0;
       this.score = 0;
       this.answered = 0;
       this.lastFeedback = null;
       this.errorMessage = null;
+      this.answerLog = [];
+      this.helpUsed = false;
       this.phase = 'showing';
-      if (this.questions.length === 0) {
+      if (this.questions.length < maxQuestions) {
         this.phase = 'error';
-        this.errorMessage = 'Aucune question fiable pour cette séquence.';
+        this.errorMessage = INSUFFICIENT_QUESTIONS_ERROR;
       }
     } catch (err) {
       this.phase = 'error';
@@ -77,6 +96,10 @@ export class MentalPositionSession {
     if (this.phase !== 'showing' && this.phase !== 'questioning') return this.snapshot();
     this.phase = 'questioning';
     return this.snapshot();
+  }
+
+  recordHelp(_kind: HelpKind): void {
+    this.helpUsed = true;
   }
 
   answer(raw: string): MentalSnapshot {
@@ -92,12 +115,19 @@ export class MentalPositionSession {
       return this.snapshot();
     }
     this.answered += 1;
-    if (verdict.correct) {
+    const correct = verdict.correct;
+    if (correct) {
       this.score += 1;
       this.lastFeedback = 'Correct.';
     } else {
       this.lastFeedback = `Incorrect. Réponse : ${q.displayAnswer}`;
     }
+    this.answerLog.push({
+      question: q,
+      userAnswer: raw.trim(),
+      correct,
+      expectedDisplay: q.displayAnswer,
+    });
     this.questionIndex += 1;
     if (this.questionIndex >= this.questions.length) {
       this.phase = 'done';
@@ -120,6 +150,8 @@ export class MentalPositionSession {
       lastFeedback: this.lastFeedback,
       score: this.score,
       answered: this.answered,
+      answerLog: [...this.answerLog],
+      helpUsed: this.helpUsed,
       errorMessage: this.errorMessage,
     };
   }
