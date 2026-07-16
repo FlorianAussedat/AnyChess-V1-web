@@ -9,9 +9,14 @@
  */
 import type { RepertoireIssue } from '../types';
 
+/** Which color the user trains this repertoire as. */
+export type RepertoireSide = 'white' | 'black';
+
 export interface RepertoireFolder {
   id: string;
   name: string;
+  /** Side the user studies this repertoire from; required before training modes. */
+  side?: RepertoireSide;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,11 +47,31 @@ export interface StoredPgnFile {
 
 /** Full snapshot persisted by the storage backend. */
 export interface RepertoireStoreSnapshot {
+  version: 2;
+  folders: RepertoireFolder[];
+  files: StoredPgnFile[];
+}
+
+/** Legacy on-disk shape (v1) before repertoire side metadata. */
+export interface RepertoireStoreSnapshotV1 {
   version: 1;
   folders: RepertoireFolder[];
   files: StoredPgnFile[];
 }
 
 export function emptyRepertoireStore(): RepertoireStoreSnapshot {
-  return { version: 1, folders: [], files: [] };
+  return { version: 2, folders: [], files: [] };
+}
+
+/** Normalize v1 snapshots and validate shape. */
+export function normalizeRepertoireStore(raw: unknown): RepertoireStoreSnapshot {
+  if (!raw || typeof raw !== 'object') return emptyRepertoireStore();
+  const parsed = raw as RepertoireStoreSnapshot | RepertoireStoreSnapshotV1;
+  if (!Array.isArray(parsed.folders) || !Array.isArray(parsed.files)) {
+    return emptyRepertoireStore();
+  }
+  if (parsed.version === 1 || parsed.version === 2) {
+    return { version: 2, folders: parsed.folders, files: parsed.files };
+  }
+  return emptyRepertoireStore();
 }

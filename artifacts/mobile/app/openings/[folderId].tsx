@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import type { StoredPgnFile } from '@/lib/repertoire';
+import type { StoredPgnFile, RepertoireSide } from '@/lib/repertoire';
+import { RepertoireSidePicker, sideLabel } from '@/components/RepertoireSidePicker';
 import type { PlayerColor } from '@/contexts/GameContext';
 
 function formatDate(iso: string): string {
@@ -51,6 +52,7 @@ export default function FolderDetailScreen() {
     importPgn,
     replacePgn,
     deletePgn,
+    setFolderSide,
   } = useRepertoireLibrary();
 
   const folder = folderId ? getFolder(folderId) : null;
@@ -63,7 +65,10 @@ export default function FolderDetailScreen() {
   const [replaceTarget, setReplaceTarget] = useState<StoredPgnFile | null>(null);
   const [detailFile, setDetailFile] = useState<StoredPgnFile | null>(null);
   const [playOpen, setPlayOpen] = useState(false);
-  const [playColor, setPlayColor] = useState<PlayerColor>('w');
+  const [sideMigrationOpen, setSideMigrationOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'play' | 'continue' | null>(null);
+  const [importSide, setImportSide] = useState<RepertoireSide | null>(null);
+  const [migrationSide, setMigrationSide] = useState<RepertoireSide | null>(null);
   const [filename, setFilename] = useState('lignes.pgn');
   const [pgnText, setPgnText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -72,13 +77,50 @@ export default function FolderDetailScreen() {
 
   const canPlay = files.some((f) => f.summary.parseSucceeded);
 
+  const ensureSideThen = useCallback(
+    (action: 'play' | 'continue') => {
+      if (!folderId || !canPlay) return;
+      if (folder?.side) {
+        if (action === 'play') setPlayOpen(true);
+        else {
+          router.push(`/openings/continue?folderId=${encodeURIComponent(folderId)}` as Href);
+        }
+        return;
+      }
+      setMigrationSide(null);
+      setPendingAction(action);
+      setSideMigrationOpen(true);
+    },
+    [folderId, canPlay, folder?.side, router],
+  );
+
+  const saveMigrationSide = useCallback(async () => {
+    if (!folderId || !migrationSide) return;
+    setBusy(true);
+    try {
+      await setFolderSide(folderId, migrationSide);
+      setSideMigrationOpen(false);
+      const action = pendingAction;
+      setPendingAction(null);
+      if (action === 'play') setPlayOpen(true);
+      else if (action === 'continue') {
+        router.push(`/openings/continue?folderId=${encodeURIComponent(folderId)}` as Href);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [folderId, migrationSide, pendingAction, setFolderSide, router]);
+
   const startPlay = useCallback(() => {
-    if (!folderId || !canPlay) return;
+    if (!folderId || !canPlay || !folder?.side) return;
     setPlayOpen(false);
+    const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
     router.push(
-      `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${playColor}` as Href,
+      `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}` as Href,
     );
-  }, [folderId, canPlay, playColor, router]);
+  }, [folderId, canPlay, folder?.side, router]);
 
   const openImport = useCallback(() => {
     setFilename('lignes.pgn');
@@ -86,8 +128,9 @@ export default function FolderDetailScreen() {
     setFormError(null);
     setLastImportResult(null);
     setReplaceTarget(null);
+    setImportSide(folder?.side ?? null);
     setImportOpen(true);
-  }, []);
+  }, [folder?.side]);
 
   const openReplace = useCallback((file: StoredPgnFile) => {
     setReplaceTarget(file);
@@ -100,9 +143,16 @@ export default function FolderDetailScreen() {
 
   const submitImport = useCallback(async () => {
     if (!folderId) return;
+    if (!folder?.side && !importSide) {
+      setFormError('Indique de quel côté tu travailles ce répertoire.');
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
+      if (!folder?.side && importSide) {
+        await setFolderSide(folderId, importSide);
+      }
       let file: StoredPgnFile;
       if (replaceTarget) {
         file = await replacePgn(replaceTarget.id, pgnText, filename);
@@ -123,7 +173,7 @@ export default function FolderDetailScreen() {
     } finally {
       setBusy(false);
     }
-  }, [folderId, filename, pgnText, replaceTarget, importPgn, replacePgn]);
+  }, [folderId, folder?.side, importSide, filename, pgnText, replaceTarget, importPgn, replacePgn, setFolderSide]);
 
   const confirmDeleteFile = useCallback(
     (file: StoredPgnFile) => {
@@ -220,6 +270,7 @@ export default function FolderDetailScreen() {
           </Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
             {files.length} fichier{files.length !== 1 ? 's' : ''} PGN
+            {folder.side ? ` · ${sideLabel(folder.side)}` : ''}
           </Text>
         </View>
         <Pressable
@@ -245,7 +296,7 @@ export default function FolderDetailScreen() {
       <View style={styles.exerciseBlock}>
         <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>Exercices</Text>
         <Pressable
-          onPress={() => canPlay && setPlayOpen(true)}
+          onPress={() => ensureSideThen('play')}
           disabled={!canPlay}
           testID="play-opening-btn"
           style={({ pressed }) => [
@@ -269,12 +320,7 @@ export default function FolderDetailScreen() {
           <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
         </Pressable>
         <Pressable
-          onPress={() => {
-            if (!folderId || !canPlay) return;
-            router.push(
-              `/openings/continue?folderId=${encodeURIComponent(folderId)}` as Href,
-            );
-          }}
+          onPress={() => ensureSideThen('continue')}
           disabled={!canPlay}
           testID="continue-line-btn"
           style={({ pressed }) => [
@@ -458,6 +504,19 @@ export default function FolderDetailScreen() {
               <Text style={[styles.modalError, { color: colors.destructive }]}>{formError}</Text>
             )}
 
+            {!folder?.side && !replaceTarget && (
+              <>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 4 }]}>
+                  De quel côté travaillez-vous ce répertoire ?
+                </Text>
+                <RepertoireSidePicker
+                  value={importSide}
+                  onChange={setImportSide}
+                  disabled={busy}
+                />
+              </>
+            )}
+
             {lastImportResult && (
               <View
                 style={[
@@ -503,7 +562,7 @@ export default function FolderDetailScreen() {
               </Pressable>
               <Pressable
                 onPress={submitImport}
-                disabled={busy || !pgnText.trim()}
+                disabled={busy || !pgnText.trim() || (!folder?.side && !importSide && !replaceTarget)}
                 style={({ pressed }) => [
                   styles.modalBtn,
                   {
@@ -537,45 +596,10 @@ export default function FolderDetailScreen() {
             </Text>
             <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
               Répertoire : {folder.name}
+              {folder.side ? ` · ${sideLabel(folder.side)}` : ''}
             </Text>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 8 }]}>
-              Tu joues
-            </Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {(['w', 'b'] as PlayerColor[]).map((c) => {
-                const active = playColor === c;
-                return (
-                  <Pressable
-                    key={c}
-                    onPress={() => setPlayColor(c)}
-                    style={[
-                      {
-                        flex: 1,
-                        height: 40,
-                        borderRadius: 10,
-                        borderWidth: 1,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: active ? colors.primary : colors.input,
-                        borderColor: active ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: 'Inter_600SemiBold',
-                        fontSize: 14,
-                        color: active ? colors.primaryForeground : colors.foreground,
-                      }}
-                    >
-                      {c === 'w' ? '♔ Blancs' : '♚ Noirs'}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 4 }]}>
-              L’échiquier s’oriente selon ta couleur. Les Blancs jouent toujours en premier.
+            <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 8 }]}>
+              L’échiquier s’oriente selon le côté enregistré pour ce répertoire.
               L’adversaire suit le répertoire tant que tu restes dans la théorie.
             </Text>
             <View style={styles.modalActions}>
@@ -604,6 +628,63 @@ export default function FolderDetailScreen() {
               >
                 <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
                   Commencer
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Side migration for existing repertoires without side */}
+      <Modal
+        visible={sideMigrationOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSideMigrationOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Côté du répertoire
+            </Text>
+            <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
+              De quel côté travaillez-vous « {folder.name} » ?
+            </Text>
+            <RepertoireSidePicker
+              value={migrationSide}
+              onChange={setMigrationSide}
+              disabled={busy}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => {
+                  setSideMigrationOpen(false);
+                  setPendingAction(null);
+                }}
+                disabled={busy}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                  Annuler
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={saveMigrationSide}
+                disabled={busy || !migrationSide}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                    opacity: pressed || busy || !migrationSide ? 0.6 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+                  Enregistrer
                 </Text>
               </Pressable>
             </View>

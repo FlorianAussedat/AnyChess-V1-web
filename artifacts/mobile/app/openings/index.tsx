@@ -17,6 +17,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { RepertoireFolder } from '@/lib/repertoire';
+import { sideLabel } from '@/components/RepertoireSidePicker';
 
 export default function OpeningsFolderList() {
   const colors = useColors();
@@ -34,7 +35,12 @@ export default function OpeningsFolderList() {
     renameFolder,
     deleteFolder,
     getFiles,
+    getTrainableFolders,
   } = useRepertoireLibrary();
+
+  const trainable = getTrainableFolders();
+  const [mixedSelect, setMixedSelect] = useState<Set<string>>(new Set());
+  const [mixedOpen, setMixedOpen] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RepertoireFolder | null>(null);
@@ -80,6 +86,28 @@ export default function OpeningsFolderList() {
       setBusy(false);
     }
   }, [renameFolder, renameTarget, nameDraft]);
+
+  const toggleMixedFolder = useCallback((folderId: string) => {
+    setMixedSelect((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  }, []);
+
+  const selectAllTrainable = useCallback(() => {
+    setMixedSelect(new Set(trainable.map((f) => f.id)));
+  }, [trainable]);
+
+  const startMixedContinue = useCallback(() => {
+    const ids = [...mixedSelect];
+    if (ids.length === 0) return;
+    setMixedOpen(false);
+    router.push(
+      `/openings/continue?folderIds=${encodeURIComponent(ids.join(','))}` as Href,
+    );
+  }, [mixedSelect, router]);
 
   const confirmDelete = useCallback(
     (folder: RepertoireFolder) => {
@@ -154,6 +182,33 @@ export default function OpeningsFolderList() {
         </Pressable>
       </View>
 
+      {trainable.length > 0 && (
+        <View style={[styles.mixedBlock, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Text style={[styles.mixedTitle, { color: colors.foreground }]}>
+            Entraînement mixte
+          </Text>
+          <Text style={[styles.mixedHint, { color: colors.mutedForeground }]}>
+            Combine plusieurs répertoires — l’orientation change selon le côté de chaque ligne.
+          </Text>
+          <Pressable
+            onPress={() => {
+              if (mixedSelect.size === 0) selectAllTrainable();
+              setMixedOpen(true);
+            }}
+            style={({ pressed }) => [
+              styles.mixedBtn,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+            ]}
+            testID="mixed-training-btn"
+          >
+            <Ionicons name="shuffle-outline" size={18} color={colors.primaryForeground} />
+            <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+              Continue la ligne (mixte)
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
       {!ready ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
@@ -201,6 +256,7 @@ export default function OpeningsFolderList() {
                     {files.length === 0
                       ? 'Aucun fichier PGN'
                       : `${files.length} fichier${files.length > 1 ? 's' : ''} PGN`}
+                    {item.side ? ` · ${sideLabel(item.side)}` : ''}
                   </Text>
                 </View>
                 <Pressable
@@ -251,6 +307,80 @@ export default function OpeningsFolderList() {
         error={formError}
         submitLabel="Enregistrer"
       />
+
+      <Modal visible={mixedOpen} transparent animationType="fade" onRequestClose={() => setMixedOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              Répertoires à mélanger
+            </Text>
+            <Pressable onPress={selectAllTrainable} hitSlop={8}>
+              <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
+                Tout sélectionner
+              </Text>
+            </Pressable>
+            <View style={{ gap: 8, maxHeight: 280 }}>
+              {trainable.map((folder) => {
+                const selected = mixedSelect.has(folder.id);
+                return (
+                  <Pressable
+                    key={folder.id}
+                    onPress={() => toggleMixedFolder(folder.id)}
+                    style={[
+                      styles.mixedRow,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: selected ? colors.input : colors.card,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={selected ? 'checkbox' : 'square-outline'}
+                      size={20}
+                      color={selected ? colors.primary : colors.mutedForeground}
+                    />
+                    <Text style={{ flex: 1, color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                      {folder.name}
+                    </Text>
+                    <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                      {folder.side ? sideLabel(folder.side) : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setMixedOpen(false)}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+                ]}
+              >
+                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                  Annuler
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={startMixedContinue}
+                disabled={mixedSelect.size === 0}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                    opacity: pressed || mixedSelect.size === 0 ? 0.6 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+                  Commencer
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -475,6 +605,37 @@ const styles = StyleSheet.create({
   modalBtn: {
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  mixedBlock: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
+  },
+  mixedTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  mixedHint: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 17,
+  },
+  mixedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  mixedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
     borderRadius: 10,
     borderWidth: 1,
   },

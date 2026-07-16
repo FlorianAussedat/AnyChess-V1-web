@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   repertoireService,
   type RepertoireFolder,
+  type RepertoireSide,
   type StoredPgnFile,
 } from '@/lib/repertoire';
 
@@ -94,6 +95,25 @@ export function useRepertoireLibrary() {
     [tick],
   );
 
+  const setFolderSide = useCallback(
+    async (folderId: string, side: RepertoireSide) => {
+      const folder = await repertoireService.setFolderSide(folderId, side);
+      bump();
+      return folder;
+    },
+    [bump],
+  );
+
+  const getTrainableFolders = useCallback(
+    () => repertoireService.getTrainableFolders(),
+    [tick],
+  );
+
+  const getFoldersMissingSide = useCallback(
+    () => repertoireService.getFoldersMissingSide(),
+    [tick],
+  );
+
   return {
     ready,
     folders,
@@ -107,5 +127,8 @@ export function useRepertoireLibrary() {
     importPgn,
     replacePgn,
     deletePgn,
+    setFolderSide,
+    getTrainableFolders,
+    getFoldersMissingSide,
   };
 }

@@ -32,6 +32,10 @@ export interface ContinueLineSessionSnapshot {
   phase: ContinueLinePhase;
   repertoireName: string;
   sourceLabel: string | null;
+  /** Folder this line comes from (mixed training). */
+  folderId?: string;
+  /** Training side for board orientation. */
+  trainingSide?: 'white' | 'black';
   /** Cue (moves shown/dictated before the user continues). */
   preambleSans: string[];
   /** FEN where the user starts answering. */

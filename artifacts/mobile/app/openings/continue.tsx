@@ -21,7 +21,8 @@ import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
-import { repertoireService } from '@/lib/repertoire';
+import { sideLabel } from '@/components/RepertoireSidePicker';
+import { repertoireService, mixedTrainingKey, pickMixedLine } from '@/lib/repertoire';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
 import { sanToVerbal } from '@/lib/chessParser';
 import { parseChessVoice } from '@/lib/voice';
@@ -49,7 +50,18 @@ export default function ContinueLineScreen() {
   const bottomPad = isWeb ? 34 : insets.bottom;
   const { soundEnabled } = useAudioSettings();
 
-  const { folderId } = useLocalSearchParams<{ folderId: string }>();
+  const { folderId, folderIds } = useLocalSearchParams<{
+    folderId?: string;
+    folderIds?: string;
+  }>();
+
+  const mixedFolderIds = folderIds
+    ? folderIds.split(',').map((s) => s.trim()).filter(Boolean)
+    : folderId
+      ? [folderId]
+      : [];
+  const isMixed = mixedFolderIds.length > 1;
+  const recentKey = isMixed ? mixedTrainingKey(mixedFolderIds) : mixedFolderIds[0] ?? '';
 
   const sessionRef = useRef(new ContinueLineSession());
   const [snap, setSnap] = useState<ContinueLineSessionSnapshot>(
@@ -59,11 +71,12 @@ export default function ContinueLineScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const folderIdRef = useRef(folderId);
+  const folderIdRef = useRef(mixedFolderIds[0]);
+  const activeFolderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    folderIdRef.current = folderId;
-  }, [folderId]);
+    folderIdRef.current = mixedFolderIds[0];
+  }, [mixedFolderIds.join(',')]);
 
   useEffect(() => {
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
@@ -89,7 +102,7 @@ export default function ContinueLineScreen() {
   );
 
   const startExercise = useCallback(async () => {
-    if (!folderId) {
+    if (mixedFolderIds.length === 0) {
       setLoadError('Dossier manquant.');
       setLoading(false);
       return;
@@ -99,30 +112,63 @@ export default function ContinueLineScreen() {
     setFeedback(null);
     try {
       await repertoireService.ensureLoaded();
-      const folder = repertoireService.getFolder(folderId);
-      if (!folder) {
-        setLoadError('Répertoire introuvable.');
-        setLoading(false);
-        return;
-      }
-      const { repertoire: rep, fileCount, issues } =
-        await repertoireService.buildFolderRepertoire(folderId);
-      if (fileCount === 0 || rep.positionCount === 0) {
-        setLoadError(
-          issues[0]?.message ??
-            'Ce répertoire ne contient aucune position jouable.',
-        );
-        setLoading(false);
-        return;
+
+      const entries = [];
+      for (const id of mixedFolderIds) {
+        const folder = repertoireService.getFolder(id);
+        if (!folder) {
+          setLoadError('Répertoire introuvable.');
+          setLoading(false);
+          return;
+        }
+        if (!folder.side) {
+          setLoadError(
+            `« ${folder.name} » n’a pas de côté enregistré. Ouvre le répertoire et indique Blancs ou Noirs.`,
+          );
+          setLoading(false);
+          return;
+        }
+        const { repertoire: rep, fileCount, issues } =
+          await repertoireService.buildFolderRepertoire(id);
+        if (fileCount === 0 || rep.positionCount === 0) {
+          setLoadError(
+            issues[0]?.message ??
+              `« ${folder.name} » ne contient aucune position jouable.`,
+          );
+          setLoading(false);
+          return;
+        }
+        entries.push({ folder, repertoire: rep });
       }
 
-      const recent = await continueLineRecentStorage.getRecentPathIds(folderId);
+      const recent = await continueLineRecentStorage.getRecentPathIds(recentKey);
       const session = sessionRef.current;
 
-      session.start(rep, folder.name, {
-        recentPathIds: recent,
-        sourceLabel: null,
-      });
+      if (isMixed) {
+        const pick = pickMixedLine(entries, { recentPathIds: recent });
+        if (!pick) {
+          setLoadError('Impossible de tirer une ligne dans la sélection mixte.');
+          setLoading(false);
+          return;
+        }
+        activeFolderIdRef.current = pick.folderId;
+        session.start(pick.repertoire, pick.repertoireName, {
+          recentPathIds: recent,
+          sourceLabel: null,
+          path: pick.path,
+          folderId: pick.folderId,
+          trainingSide: pick.side,
+        });
+      } else {
+        const folder = entries[0].folder;
+        activeFolderIdRef.current = folder.id;
+        session.start(entries[0].repertoire, folder.name, {
+          recentPathIds: recent,
+          sourceLabel: null,
+          folderId: folder.id,
+          trainingSide: folder.side,
+        });
+      }
 
       let next = session.snapshot();
       if (next.phase === 'error') {
@@ -137,15 +183,18 @@ export default function ContinueLineScreen() {
       setLoading(false);
 
       const pathId = session.getPathId();
-      if (pathId) {
-        await continueLineRecentStorage.pushRecentPathId(folderId, pathId);
+      const activeId = activeFolderIdRef.current;
+      if (pathId && activeId) {
+        const storageId = isMixed ? `${activeId}:${pathId}` : pathId;
+        await continueLineRecentStorage.pushRecentPathId(recentKey, storageId);
       }
 
       const preamble = formatLine(next.preambleSans, 0);
+      const sideHint = next.trainingSide ? ` (${sideLabel(next.trainingSide)})` : '';
       const intro =
         next.preambleSans.length > 0
-          ? `${preamble}. Continue la ligne.`
-          : 'Continue la ligne depuis le début.';
+          ? `${preamble}. Continue la ligne${sideHint}.`
+          : `Continue la ligne depuis le début${sideHint}.`;
       setFeedback(intro);
       if (soundEnabled) {
         const verbalCue =
@@ -159,30 +208,36 @@ export default function ContinueLineScreen() {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [folderId, soundEnabled, speak]);
+  }, [mixedFolderIds, isMixed, recentKey, soundEnabled, speak]);
 
   // Dedicated retry that keeps the current path if still available
   const retrySame = useCallback(async () => {
-    if (!folderId) return;
+    if (mixedFolderIds.length === 0) return;
     setLoading(true);
     setFeedback(null);
     try {
       await repertoireService.ensureLoaded();
-      const folder = repertoireService.getFolder(folderId);
+      const session = sessionRef.current;
+      const path = session.getPath();
+      const startPly = session.getStartPly();
+      const activeId = activeFolderIdRef.current ?? mixedFolderIds[0];
+      const folder = repertoireService.getFolder(activeId);
       if (!folder) {
         setLoadError('Répertoire introuvable.');
         setLoading(false);
         return;
       }
-      const { repertoire: rep } = await repertoireService.buildFolderRepertoire(folderId);
-      const session = sessionRef.current;
-      const path = session.getPath();
-      const startPly = session.getStartPly();
+      const { repertoire: rep } = await repertoireService.buildFolderRepertoire(activeId);
       if (!path) {
         await startExercise();
         return;
       }
-      session.start(rep, folder.name, { path, startPly });
+      session.start(rep, folder.name, {
+        path,
+        startPly,
+        folderId: folder.id,
+        trainingSide: folder.side,
+      });
       const next = session.beginRecitation();
       setSnap(next);
       setLoading(false);
@@ -203,7 +258,7 @@ export default function ContinueLineScreen() {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [folderId, soundEnabled, speak, startExercise]);
+  }, [mixedFolderIds, soundEnabled, speak, startExercise]);
 
   useEffect(() => {
     startExercise();
@@ -211,7 +266,7 @@ export default function ContinueLineScreen() {
       speechService.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [folderId]);
+  }, [mixedFolderIds.join(',')]);
 
   const applyRaw = useCallback(
     (raw: string) => {
@@ -348,7 +403,10 @@ export default function ContinueLineScreen() {
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>Continue la ligne</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{snap.repertoireName}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+            {snap.repertoireName}
+            {snap.trainingSide ? ` · ${sideLabel(snap.trainingSide)}` : ''}
+          </Text>
         </View>
       </View>
 
@@ -437,9 +495,11 @@ export default function ContinueLineScreen() {
           <Pressable
             onPress={() =>
               router.replace(
-                (folderId
-                  ? `/openings/${encodeURIComponent(folderId)}`
-                  : '/openings') as Href,
+                (isMixed
+                  ? '/openings'
+                  : activeFolderIdRef.current
+                    ? `/openings/${encodeURIComponent(activeFolderIdRef.current)}`
+                    : '/openings') as Href,
               )
             }
             style={[styles.btn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}

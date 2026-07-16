@@ -12,6 +12,7 @@ import { defaultRepertoireStorage } from './storage/AsyncStorageRepertoireStorag
 import type {
   PgnParseSummary,
   RepertoireFolder,
+  RepertoireSide,
   RepertoireStoreSnapshot,
   StoredPgnFile,
 } from './storage/types';
@@ -139,6 +140,35 @@ export class RepertoireService {
     this.snapshot!.folders = this.snapshot!.folders.filter((f) => f.id !== folderId);
     this.snapshot!.files = this.snapshot!.files.filter((f) => f.folderId !== folderId);
     await this.persist();
+  }
+
+  /** Persist which color the user trains this repertoire as. */
+  async setFolderSide(folderId: string, side: RepertoireSide): Promise<RepertoireFolder> {
+    await this.ensureLoaded();
+    const folder = this.snapshot!.folders.find((f) => f.id === folderId);
+    if (!folder) throw new Error('Dossier introuvable.');
+    folder.side = side;
+    folder.updatedAt = nowIso();
+    await this.persist();
+    return folder;
+  }
+
+  /** Folders that have at least one parseable PGN and a training side set. */
+  getTrainableFolders(): RepertoireFolder[] {
+    if (!this.snapshot) return [];
+    return this.getFolders().filter((folder) => {
+      if (!folder.side) return false;
+      return this.getFiles(folder.id).some((f) => f.summary.parseSucceeded);
+    });
+  }
+
+  /** Returns folders missing side among those with playable content. */
+  getFoldersMissingSide(): RepertoireFolder[] {
+    if (!this.snapshot) return [];
+    return this.getFolders().filter((folder) => {
+      if (folder.side) return false;
+      return this.getFiles(folder.id).some((f) => f.summary.parseSucceeded);
+    });
   }
 
   // ── PGN files ─────────────────────────────────────────────────────────────

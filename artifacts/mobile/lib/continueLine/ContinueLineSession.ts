@@ -42,6 +42,8 @@ export class ContinueLineSession {
   private proposedContinuation: string[] = [];
   private lineCompleted = false;
   private errorMessage: string | null = null;
+  private folderId: string | undefined;
+  private trainingSide: 'white' | 'black' | undefined;
   /** Remaining preferred SANs from the original sample (advisory). */
   private preferTail: string[] = [];
 
@@ -59,11 +61,15 @@ export class ContinueLineSession {
       sourceLabel?: string | null;
       path?: ContinueLinePath | null;
       startPly?: number;
+      folderId?: string;
+      trainingSide?: 'white' | 'black';
     } = {},
   ): ContinueLineSessionSnapshot {
     this.rep = rep;
     this.repertoireName = repertoireName;
     this.sourceLabel = options.sourceLabel ?? null;
+    this.folderId = options.folderId;
+    this.trainingSide = options.trainingSide;
     this.incorrectSan = null;
     this.validAlternatives = [];
     this.proposedContinuation = [];
@@ -192,6 +198,8 @@ export class ContinueLineSession {
       proposedContinuation: this.proposedContinuation,
       lineCompleted: this.lineCompleted,
       errorMessage: this.errorMessage,
+      folderId: this.folderId,
+      trainingSide: this.trainingSide,
     };
   }
 

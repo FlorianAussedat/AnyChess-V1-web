@@ -39,6 +39,8 @@ export function sampleRandomPath(
   let best: ContinueLinePath | null = null;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Diversify stuck RNGs across attempts so recent-path avoidance can explore forks.
+    const attemptRng = () => (rng() + attempt * 0.6180339887) % 1;
     const chess = new Chess(startFen);
     const sans: string[] = [];
     const fensBefore: string[] = [];
@@ -51,7 +53,7 @@ export function sampleRandomPath(
       if (seen.has(key)) break;
       seen.add(key);
 
-      const choice = chooseRepertoireMove(rep, fen, { mode: 'uniform-random', rng });
+      const choice = chooseRepertoireMove(rep, fen, { mode: 'uniform-random', rng: attemptRng });
       if (!choice) break;
 
       fensBefore.push(fen);

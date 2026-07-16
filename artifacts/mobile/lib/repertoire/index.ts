@@ -37,6 +37,13 @@ export type {
   StoredPgnFile,
   PgnParseSummary,
   RepertoireStoreSnapshot,
+  RepertoireSide,
 } from './storage/types';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
+export {
+  mixedTrainingKey,
+  pickMixedLine,
+  sideToPlayerColor,
+} from './MixedRepertoireTraining';
+export type { MixedRepertoireEntry, MixedLinePick } from './MixedRepertoireTraining';
