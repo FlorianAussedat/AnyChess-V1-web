@@ -42,9 +42,12 @@ export const DesignTokens = {
    */
   bottomNavContentHeight: 58,
   bottomNavIconSize: 22,
-  /** Rendered Home PNG box (portrait asset — visible knight ≈ 28–32px). */
-  bottomNavHomeIconWidth: 38,
-  bottomNavHomeIconHeight: 54,
+  /**
+   * Accueil nav — outer viewport for ~28–32px VISIBLE artwork.
+   * Source PNG has large black padding; image is positioned inside the viewport.
+   */
+  bottomNavHomeIconWidth: 32,
+  bottomNavHomeIconHeight: 32,
   minTouchTarget: 44,
   /** Home ModeCard target density (~4 cards above nav). */
   modeCardMinHeight: 150,

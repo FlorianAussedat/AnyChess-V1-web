@@ -1,8 +1,10 @@
 /**
  * Reusable home menu mode card — premium dark card with integrated knight art.
  * Illustration sits in the card (no white square container).
- * Portrait v1 mascot PNGs are oversized in a clipped right slot so the visible
- * figure fills the right third (~40–42%) without editing the PNG files.
+ *
+ * v1 mascot PNGs place the subject in the upper-middle of a tall canvas with
+ * empty black padding below. Layout aligns the measured artwork bounds to the
+ * card BOTTOM-RIGHT so heads stay visible (slight bottom crop OK).
  */
 import React, { type ComponentProps } from 'react';
 import {
@@ -11,15 +13,17 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
   type ImageSourcePropType,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
+import { MASCOT_ART, artHeight } from '@/constants/brandArtBounds';
 import type { ModeIconName } from '@/lib/app/mainModeCards';
+import type { MainModeId } from '@/lib/app/modes';
 
 export interface ModeCardProps {
+  modeId: MainModeId;
   title: string;
   description: string;
   iconName: ModeIconName;
@@ -29,6 +33,7 @@ export interface ModeCardProps {
 }
 
 export function ModeCard({
+  modeId,
   title,
   description,
   iconName,
@@ -37,18 +42,20 @@ export function ModeCard({
   testID,
 }: ModeCardProps) {
   const colors = useColors();
-  const { width } = useWindowDimensions();
-  const cardInnerWidth = width - DesignTokens.spacing.screenX * 2;
-  // ~42% mascot column — matches reference right-third dominance.
-  const mascotSlotWidth = Math.round(
-    Math.min(
-      DesignTokens.modeIllustrationWidth,
-      Math.max(140, cardInnerWidth * 0.42),
-    ),
-  );
-  // Portrait assets (≈2:3): render larger than the slot so the figure fills it.
-  const mascotImgWidth = Math.round(mascotSlotWidth * 1.28);
-  const mascotImgHeight = Math.round(mascotImgWidth * 1.38);
+  const cardH = DesignTokens.modeCardHeight;
+  const art = MASCOT_ART[modeId] ?? MASCOT_ART.classic;
+  const aH = artHeight(art);
+
+  // Fit full artwork (head → base) inside the card; slight bottom crop of the base.
+  // Openings: keep horse head + book together (full measured bounds).
+  const targetArtH = Math.round(cardH * 0.92);
+  const bottomCrop = 10;
+  const imgHeight = Math.round(targetArtH / aH);
+  const imgWidth = Math.round(imgHeight * (1024 / 1536));
+
+  // Anchor artwork bottom-right inside the card (not the raw PNG canvas).
+  const imageBottom = -Math.round((1 - art.bottom) * imgHeight) - bottomCrop;
+  const imageRight = -Math.round((1 - art.right) * imgWidth) - 6;
 
   return (
     <Pressable
@@ -89,17 +96,15 @@ export function ModeCard({
         </Text>
       </View>
 
-      <View
-        style={[styles.illustrationSlot, { width: mascotSlotWidth }]}
-        pointerEvents="none"
-      >
+      <View style={styles.illustrationSlot} pointerEvents="none">
         <Image
           source={illustration}
           style={{
-            width: mascotImgWidth,
-            height: mascotImgHeight,
-            marginRight: -16,
-            marginBottom: -28,
+            position: 'absolute',
+            right: imageRight,
+            bottom: imageBottom,
+            width: imgWidth,
+            height: imgHeight,
           }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
@@ -156,9 +161,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     top: 0,
+    width: '48%',
     zIndex: 1,
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
     overflow: 'hidden',
   },
   chevron: {

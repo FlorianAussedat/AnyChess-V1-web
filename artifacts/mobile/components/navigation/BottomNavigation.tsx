@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
+import { NAV_HOME_ART, artHeight } from '@/constants/brandArtBounds';
 
 export type BottomNavTabId = 'home' | 'records' | 'profil';
 
@@ -24,6 +25,43 @@ function resolveActiveTab(pathname: string): BottomNavTabId | null {
   if (pathname.startsWith('/records')) return 'records';
   if (pathname.startsWith('/profil')) return 'profil';
   return null;
+}
+
+function HomeNavIcon({ active }: { active: boolean }) {
+  // ~28–32px visible artwork; compensate for canvas padding (~44% × 28% content).
+  const visible = 30;
+  const aH = artHeight(NAV_HOME_ART);
+  const viewport = DesignTokens.bottomNavHomeIconWidth;
+  const imgHeight = Math.round(visible / aH);
+  const imgWidth = Math.round(imgHeight * (1024 / 1536));
+  const left = Math.round((viewport - visible) / 2 - NAV_HOME_ART.left * imgWidth);
+  const top = Math.round((viewport - visible) / 2 - NAV_HOME_ART.top * imgHeight);
+
+  return (
+    <View
+      style={[
+        styles.homeViewport,
+        {
+          width: viewport,
+          height: DesignTokens.bottomNavHomeIconHeight,
+          opacity: active ? 1 : 0.72,
+        },
+      ]}
+    >
+      <Image
+        source={BrandAssets.navHome}
+        style={{
+          position: 'absolute',
+          left,
+          top,
+          width: imgWidth,
+          height: imgHeight,
+        }}
+        resizeMode="stretch"
+        accessibilityIgnoresInvertColors
+      />
+    </View>
+  );
 }
 
 export function BottomNavigation() {
@@ -72,17 +110,7 @@ export function BottomNavigation() {
           active={active === 'home'}
           onPress={goHome}
           testID="nav-home"
-          renderIcon={() => (
-            <Image
-              source={BrandAssets.navHome}
-              style={[
-                styles.homeIcon,
-                { opacity: active === 'home' ? 1 : 0.72 },
-              ]}
-              resizeMode="contain"
-              accessibilityIgnoresInvertColors
-            />
-          )}
+          renderIcon={() => <HomeNavIcon active={active === 'home'} />}
           activeColor={colors.primary}
           inactiveColor={colors.mutedForeground}
         />
@@ -173,8 +201,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.2,
   },
-  homeIcon: {
-    width: DesignTokens.bottomNavHomeIconWidth,
-    height: DesignTokens.bottomNavHomeIconHeight,
+  homeViewport: {
+    overflow: 'hidden',
+    position: 'relative',
   },
 });

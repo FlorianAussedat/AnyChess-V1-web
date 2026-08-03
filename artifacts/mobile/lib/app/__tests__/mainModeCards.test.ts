@@ -36,6 +36,8 @@ describe('design tokens', () => {
     assert.ok(DesignTokens.modeCardHeight >= 150);
     assert.ok(DesignTokens.modeCardHeight <= 170);
     assert.ok(DesignTokens.modeIllustrationWidth >= 128);
-    assert.ok(DesignTokens.bottomNavHomeIconHeight >= 40);
+    // Accueil viewport is ~28–32px of visible art (padding cropped via layout).
+    assert.ok(DesignTokens.bottomNavHomeIconHeight >= 28);
+    assert.ok(DesignTokens.bottomNavHomeIconHeight <= 36);
   });
 });

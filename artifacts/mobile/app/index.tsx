@@ -2,8 +2,8 @@
  * AnyChess main home / menu — premium dark redesign (Major Update 0.0.4).
  * Layout/styling only; routes and modes unchanged.
  *
- * Header proportions match the reference mockup:
- * compact row — brand left, settings right (~1/8 viewport).
+ * Header: left-aligned horizontal logo (scaled for readable artwork despite
+ * canvas padding) + settings on the same row.
  */
 import React from 'react';
 import {
@@ -21,6 +21,11 @@ import { useColors } from '@/hooks/useColors';
 import { formatAppVersionLabel } from '@/lib/app/version';
 import { BrandAssets, modeCardIllustration } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
+import {
+  HORIZONTAL_LOGO_ART,
+  artHeight,
+  artWidth,
+} from '@/constants/brandArtBounds';
 import { MAIN_MODE_CARD_META } from '@/lib/app/mainModeCards';
 import { ModeCard } from '@/components/home/ModeCard';
 import { SettingsButton } from '@/components/navigation/SettingsButton';
@@ -34,13 +39,21 @@ export default function MainMenu() {
   const topPad = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : insets.bottom;
 
-  // Horizontal logo is 1536×1024 — keep header slim like the mockup.
-  const logoHeight = 52;
-  const logoMaxWidth = Math.round(logoHeight * (1536 / 1024));
-  const logoWidth = Math.min(
-    width - DesignTokens.spacing.screenX * 2 - DesignTokens.minTouchTarget - 12,
-    logoMaxWidth,
+  // Target ~190–230px of VISIBLE logo artwork (PNG has large black padding).
+  const logoArtW = artWidth(HORIZONTAL_LOGO_ART);
+  const logoArtH = artHeight(HORIZONTAL_LOGO_ART);
+  const logoVisibleWidth = Math.min(
+    220,
+    Math.max(
+      190,
+      width - DesignTokens.spacing.screenX * 2 - DesignTokens.minTouchTarget - 8,
+    ),
   );
+  const logoVisibleHeight = Math.round(logoVisibleWidth * (logoArtH / logoArtW));
+  const logoImgWidth = Math.round(logoVisibleWidth / logoArtW);
+  const logoImgHeight = Math.round(logoImgWidth * (1024 / 1536));
+  const logoImgLeft = -Math.round(HORIZONTAL_LOGO_ART.left * logoImgWidth);
+  const logoImgTop = -Math.round(HORIZONTAL_LOGO_ART.top * logoImgHeight);
 
   return (
     <ScrollView
@@ -58,14 +71,27 @@ export default function MainMenu() {
       <View style={styles.headerBlock}>
         <View style={styles.headerRow}>
           <View style={styles.brand}>
-            <Image
-              source={BrandAssets.horizontalLogo}
-              style={{ width: logoWidth, height: logoHeight }}
-              resizeMode="contain"
-              accessibilityIgnoresInvertColors
-              accessibilityLabel="AnyChess"
+            <View
+              style={[
+                styles.logoViewport,
+                { width: logoVisibleWidth, height: logoVisibleHeight },
+              ]}
               testID="home-horizontal-logo"
-            />
+              accessibilityLabel="AnyChess"
+            >
+              <Image
+                source={BrandAssets.horizontalLogo}
+                style={{
+                  position: 'absolute',
+                  left: logoImgLeft,
+                  top: logoImgTop,
+                  width: logoImgWidth,
+                  height: logoImgHeight,
+                }}
+                resizeMode="stretch"
+                accessibilityIgnoresInvertColors
+              />
+            </View>
             <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
               JOUER. APPRENDRE. VISUALISER.
             </Text>
@@ -78,6 +104,7 @@ export default function MainMenu() {
         {MAIN_MODE_CARD_META.map((mode) => (
           <ModeCard
             key={mode.id}
+            modeId={mode.id}
             title={mode.title}
             description={mode.description}
             iconName={mode.iconName}
@@ -118,6 +145,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 4,
     paddingTop: 2,
+  },
+  logoViewport: {
+    overflow: 'hidden',
+    position: 'relative',
   },
   tagline: {
     fontSize: DesignTokens.typography.tagline,
