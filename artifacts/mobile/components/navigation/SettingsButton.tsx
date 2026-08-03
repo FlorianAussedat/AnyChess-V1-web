@@ -6,7 +6,6 @@ import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
-import { DesignTokens } from '@/constants/designTokens';
 
 type Props = {
   testID?: string;
