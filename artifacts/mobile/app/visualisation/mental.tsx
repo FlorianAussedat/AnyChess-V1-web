@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { BackButton } from '@/components/BackButton';
+import { SoundToggle } from '@/components/SoundToggle';
 import { ChessBoard } from '@/components/ChessBoard';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
@@ -227,7 +228,10 @@ export default function MentalPositionScreen() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <BackButton onPress={() => router.back()} label="Retour" />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <BackButton onPress={() => router.back()} label="Retour" />
+        <SoundToggle />
+      </View>
 
       <Text style={[styles.title, { color: colors.foreground }]}>Suivi mental de position</Text>
 

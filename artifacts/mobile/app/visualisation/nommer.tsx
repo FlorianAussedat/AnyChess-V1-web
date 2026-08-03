@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { BackButton } from '@/components/BackButton';
+import { SoundToggle } from '@/components/SoundToggle';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
@@ -78,14 +79,17 @@ export default function NommerLeCoupScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}>
-      <BackButton
-        onPress={() => {
-          sessionRef.current.returnToIdle();
-          sync();
-          router.back();
-        }}
-        label="Retour"
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <BackButton
+          onPress={() => {
+            sessionRef.current.returnToIdle();
+            sync();
+            router.back();
+          }}
+          label="Retour"
+        />
+        <SoundToggle />
+      </View>
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: colors.foreground }]}>Nommer le coup</Text>
         <BoardCoordinatesToggle
