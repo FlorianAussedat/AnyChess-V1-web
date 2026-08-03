@@ -323,6 +323,9 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   );
 
   const backToHub = useCallback(() => {
+    if (phase === 'playing' && sessionRef.current.isLoaded && !streakRecordedRef.current) {
+      void recordStreak(false);
+    }
     speechService.stop();
     replayRef.current.cancel();
     resetPresentation();
@@ -341,7 +344,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setBoardVisible(true);
     setBoard(new Chess().board() as (BoardPiece | null)[][]);
     setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
-  }, [resetPresentation, ratingBandId, pieceCountBandId]);
+  }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
 
   const announceBlindPosition = useCallback((fen: string) => {
     const text = narratePosition(fen);
@@ -418,6 +421,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
   const beginPuzzle = useCallback(
     async (chosen: LocalPuzzle) => {
+      streakRecordedRef.current = false;
       speechService.stop();
       replayRef.current.cancel();
       resetPresentation();
@@ -471,7 +475,6 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       setLoadError('Aucun problème ne correspond à ces filtres.');
       return;
     }
-    streakRecordedRef.current = false;
     await beginPuzzle(chosen);
   }, [filters, beginPuzzle]);
 
@@ -482,6 +485,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const retry = useCallback(() => {
     const p = sessionRef.current.currentPuzzle;
     if (!p) return;
+    streakRecordedRef.current = false;
     speechService.stop();
     replayRef.current.cancel();
     resetPresentation();

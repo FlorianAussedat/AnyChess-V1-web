@@ -278,8 +278,6 @@ export function ClassicGameScreen() {
 
   const topPad    = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : insets.bottom;
-  const sideIcon =
-    playerColor === 'w' ? BrandAssets.sides.white : BrandAssets.sides.black;
 
   return (
     <View
@@ -310,7 +308,20 @@ export function ClassicGameScreen() {
 
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           {gameStarted && (
-            <Image source={sideIcon} style={styles.sideIndicator} accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'} />
+            <View
+              style={styles.sideIndicator}
+              accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
+            >
+              <Image source={BrandAssets.logoMark} style={styles.sideIndicatorMark} resizeMode="contain" />
+              <Text
+                style={[
+                  styles.sideIndicatorLetter,
+                  { color: playerColor === 'w' ? '#F5F5F5' : '#1A1A1A' },
+                ]}
+              >
+                {playerColor === 'w' ? 'B' : 'N'}
+              </Text>
+            </View>
           )}
           <SoundToggle />
           <BoardCoordinatesToggle
@@ -368,7 +379,7 @@ export function ClassicGameScreen() {
       {/* ── Pre-game setup (hidden once the game has started) ──────────── */}
       {!gameStarted ? (
         <View style={styles.setupBlock}>
-          <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>Camp</Text>
+          <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>Tu joues :</Text>
           <View style={styles.colorRow}>
             {(
               [
@@ -646,9 +657,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   sideIndicator: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  sideIndicatorMark: {
+    ...StyleSheet.absoluteFillObject,
+    width: 32,
+    height: 32,
+    opacity: 0.9,
+  },
+  sideIndicatorLetter: {
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   title: {
     fontSize: 18,
@@ -699,18 +726,19 @@ const styles = StyleSheet.create({
   },
   sidePill: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 64,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
+    flexDirection: 'column',
+    gap: 4,
     paddingHorizontal: 6,
+    paddingVertical: 8,
   },
   sidePillIcon: {
-    width: 22,
-    height: 22,
+    width: 48,
+    height: 48,
   },
   colorPillText: {
     fontSize: 12,

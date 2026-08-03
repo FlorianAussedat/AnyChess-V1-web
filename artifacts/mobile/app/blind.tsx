@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
@@ -16,7 +17,6 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
-import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { SoundToggle } from '@/components/SoundToggle';
 import {
   BlindSequenceProvider,
@@ -30,16 +30,11 @@ import {
   type BlindPerspective,
 } from '@/lib/blind';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
-import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { sfxService } from '@/services/SfxService';
 
 const FULL_MOVE_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
-const SPEED_OPTIONS = Array.from(
-  { length: BLIND_SPEED_MAX - BLIND_SPEED_MIN + 1 },
-  (_, i) => i + BLIND_SPEED_MIN,
-);
 
 export default function BlindRoute() {
   return (
@@ -198,7 +193,7 @@ function SettingsPhase() {
     <ScreenShell title={title} onBack={backToHub}>
       <ScrollView contentContainerStyle={styles.settingsBody}>
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-          Perspective
+          Perspective (bas de l’échiquier)
         </Text>
         <View style={styles.row}>
           {(
@@ -283,33 +278,30 @@ function SettingsPhase() {
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
           Vitesse ({BLIND_SPEED_MIN}–{BLIND_SPEED_MAX})
         </Text>
-        <View style={styles.chipRow}>
-          {SPEED_OPTIONS.map((n) => {
-            const active = speed === n;
-            return (
-              <Pressable
-                key={n}
-                onPress={() => setSpeed(n)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: active ? colors.primary : colors.card,
-                    borderColor: active ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontFamily: 'Inter_600SemiBold',
-                    fontSize: 12,
-                    color: active ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {n}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <View style={styles.sliderBlock}>
+          <View style={styles.sliderLabels}>
+            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+              Lent
+            </Text>
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+              {speed}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+              Rapide
+            </Text>
+          </View>
+          <Slider
+            style={{ width: '100%', height: 40 }}
+            minimumValue={BLIND_SPEED_MIN}
+            maximumValue={BLIND_SPEED_MAX}
+            step={1}
+            value={speed}
+            onValueChange={(v) => setSpeed(v)}
+            minimumTrackTintColor={colors.primary}
+            maximumTrackTintColor={colors.border}
+            thumbTintColor={colors.primary}
+            accessibilityLabel="Vitesse"
+          />
         </View>
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           {speed <= 3
@@ -430,6 +422,7 @@ function ObservingPhase() {
             board={board}
             lastMove={lastMove}
             isFlipped={orientation === 'b'}
+            showCoordinates={false}
           />
         </View>
         {observationDone && (
@@ -561,6 +554,7 @@ function RecitationPhase() {
     expectedIndex,
     lastFeedback,
     revealedHint,
+    recognizedText,
     isSpeaking,
     attemptSpoken,
     useHelp,
@@ -590,6 +584,11 @@ function RecitationPhase() {
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
             {lastFeedback ?? 'Dis le prochain coup à voix haute.'}
           </Text>
+          {!!recognizedText && (
+            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
+              Reconnu : {recognizedText}
+            </Text>
+          )}
           {!!revealedHint && (
             <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 13 }}>
               {revealedHint}
@@ -875,6 +874,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sliderBlock: { gap: 2 },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 2,
   },
   hint: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
   cta: {

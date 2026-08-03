@@ -316,11 +316,20 @@ export function OpeningGameScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           {gameStarted && (
-            <Image
-              source={playerColor === 'w' ? BrandAssets.sides.white : BrandAssets.sides.black}
+            <View
               style={styles.sideIndicator}
               accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
-            />
+            >
+              <Image source={BrandAssets.logoMark} style={styles.sideIndicatorMark} resizeMode="contain" />
+              <Text
+                style={[
+                  styles.sideIndicatorLetter,
+                  { color: playerColor === 'w' ? '#F5F5F5' : '#1A1A1A' },
+                ]}
+              >
+                {playerColor === 'w' ? 'B' : 'N'}
+              </Text>
+            </View>
           )}
           <SoundToggle />
           <BoardCoordinatesToggle
@@ -388,7 +397,9 @@ export function OpeningGameScreen() {
       </View>
 
       {!gameStarted ? (
-        <View style={styles.colorRow}>
+        <View style={styles.setupBlock}>
+          <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>Tu joues :</Text>
+          <View style={styles.colorRow}>
           {(
             [
               { id: 'w' as SideChoice, label: 'Blancs', icon: BrandAssets.sides.white },
@@ -421,6 +432,7 @@ export function OpeningGameScreen() {
               </Pressable>
             );
           })}
+          </View>
         </View>
       ) : null}
 
@@ -633,19 +645,47 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   colorRow: { flexDirection: 'row', gap: 8 },
+  setupBlock: { gap: 6 },
+  setupLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   sidePill: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 64,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
+    flexDirection: 'column',
+    gap: 4,
     paddingHorizontal: 6,
+    paddingVertical: 8,
   },
-  sidePillIcon: { width: 22, height: 22 },
-  sideIndicator: { width: 28, height: 28, borderRadius: 6 },
+  sidePillIcon: { width: 48, height: 48 },
+  sideIndicator: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  sideIndicatorMark: {
+    ...StyleSheet.absoluteFillObject,
+    width: 32,
+    height: 32,
+    opacity: 0.9,
+  },
+  sideIndicatorLetter: {
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   colorPillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   boardRow: { alignItems: 'center' },
   statusCard: {

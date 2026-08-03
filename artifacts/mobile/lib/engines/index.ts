@@ -19,9 +19,17 @@ import { StockfishEngine } from './stockfish';
  *           is added (see engines/stockfish/transport.ts), switch this to
  *           `new StockfishEngine()` for native too — no other code changes.
  */
-export function createOpponentEngine(options?: { elo?: number }): ChessEngine {
+export function createOpponentEngine(options?: {
+  elo?: number;
+  multiPv?: number;
+  varietyMarginCp?: number;
+}): ChessEngine {
   if (Platform.OS === 'web') {
-    return new StockfishEngine(options?.elo != null ? { elo: options.elo } : {});
+    const partial: { elo?: number; multiPv?: number; varietyMarginCp?: number } = {};
+    if (options?.elo != null) partial.elo = options.elo;
+    if (options?.multiPv != null) partial.multiPv = options.multiPv;
+    if (options?.varietyMarginCp != null) partial.varietyMarginCp = options.varietyMarginCp;
+    return new StockfishEngine(partial);
   }
   return randomEngine;
 }

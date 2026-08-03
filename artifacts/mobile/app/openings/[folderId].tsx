@@ -54,6 +54,7 @@ export default function FolderDetailScreen() {
     replacePgn,
     deletePgn,
     setFolderSide,
+    setFileEnabled,
   } = useRepertoireLibrary();
 
   const folder = folderId ? getFolder(folderId) : null;
@@ -374,6 +375,7 @@ export default function FolderDetailScreen() {
                   />
                   <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>
                     {item.filename}
+                    {item.enabled === false ? ' (désactivé)' : ''}
                   </Text>
                 </View>
                 <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
@@ -405,6 +407,26 @@ export default function FolderDetailScreen() {
                 </Text>
               </Pressable>
               <View style={styles.fileActions}>
+                <Pressable
+                  onPress={() => {
+                    const next = item.enabled === false;
+                    setFileEnabled(item.id, next).catch(() => {});
+                  }}
+                  hitSlop={8}
+                  style={styles.iconOnly}
+                  testID={`toggle-pgn-${item.id}`}
+                  accessibilityLabel={
+                    item.enabled === false ? 'Activer ce PGN' : 'Désactiver ce PGN'
+                  }
+                >
+                  <Ionicons
+                    name={item.enabled === false ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color={
+                      item.enabled === false ? colors.mutedForeground : colors.primary
+                    }
+                  />
+                </Pressable>
                 <Pressable
                   onPress={() => openReplace(item)}
                   hitSlop={8}

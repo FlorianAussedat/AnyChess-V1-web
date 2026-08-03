@@ -5,6 +5,7 @@ import { Chess } from 'chess.js';
 import { BackButton } from '@/components/BackButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
+import { SoundToggle } from '@/components/SoundToggle';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
@@ -238,12 +239,22 @@ export default function ConstruisOuvertureScreen() {
         backgroundColor: colors.background,
       }}
     >
-      <BackButton
-        onPress={() => {
-          replayHandle.current?.cancel();
-          router.back();
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
         }}
-      />
+      >
+        <BackButton
+          onPress={() => {
+            replayHandle.current?.cancel();
+            router.back();
+          }}
+        />
+        <SoundToggle />
+      </View>
       <Text style={{ color: colors.foreground, fontSize: 25, fontWeight: '700' }}>
         Construis l’ouverture
       </Text>
@@ -296,6 +307,16 @@ export default function ConstruisOuvertureScreen() {
           <Text style={{ color: colors.mutedForeground }}>
             Joué : {snap.playedSans.join(' ') || '—'}
           </Text>
+          {!!snap.feedback && snap.phase === 'playing' && (
+            <Text
+              style={{
+                color: snap.feedback === 'Correct.' ? '#398a55' : colors.mutedForeground,
+                fontWeight: snap.feedback === 'Correct.' ? '600' : '400',
+              }}
+            >
+              {snap.feedback}
+            </Text>
+          )}
           {snap.phase === 'playing' ? (
             <>
               <ChessAnswerInput

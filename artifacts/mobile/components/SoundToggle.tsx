@@ -1,13 +1,13 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
-import { BrandAssets } from '@/constants/BrandAssets';
 
 /**
  * Voice / speech mute toggle (TTS only).
  * Does NOT mute validation/error SFX or haptics.
+ * Uses speech-oriented Ionicons (chatbubbles), never volume/speaker glyphs.
  */
 export function SoundToggle() {
   const colors = useColors();
@@ -28,20 +28,15 @@ export function SoundToggle() {
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
-          opacity: pressed ? 0.6 : 1,
+          opacity: pressed ? 0.6 : voiceEnabled ? 1 : 0.55,
         },
       ]}
     >
-      {/* Prefer speech-oriented glyph overlay when muted for clarity */}
-      {voiceEnabled ? (
-        <Image
-          source={BrandAssets.toggles.soundOn}
-          style={styles.icon}
-          resizeMode="contain"
-        />
-      ) : (
-        <Ionicons name="chatbubbles-outline" size={22} color={colors.primary} />
-      )}
+      <Ionicons
+        name={voiceEnabled ? 'chatbubbles' : 'chatbubbles-outline'}
+        size={22}
+        color={voiceEnabled ? colors.primary : colors.mutedForeground}
+      />
     </Pressable>
   );
 }
@@ -54,9 +49,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    width: 30,
-    height: 30,
   },
 });

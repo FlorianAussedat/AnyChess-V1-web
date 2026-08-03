@@ -121,7 +121,7 @@ export class OpeningConstructionSession {
       this.phase = 'complete';
       this.feedback = 'Ouverture construite !';
     } else {
-      this.feedback = null;
+      this.feedback = 'Correct.';
     }
     return this.snapshot();
   }

@@ -98,6 +98,7 @@ describe('opening construction', () => {
     const ok = session.attemptMove({ from: played.from, to: played.to });
     assert.equal(ok.phase, 'playing');
     assert.deepEqual(ok.playedSans, [played.san]);
+    assert.equal(ok.feedback, 'Correct.');
     assert.equal('expectedSan' in session.snapshotForPlayer(), false);
 
     const wrongSession = new OpeningConstructionSession(target);

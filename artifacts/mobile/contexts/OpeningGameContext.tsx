@@ -272,6 +272,9 @@ export function OpeningGameProvider({
 
       const playerAnnouncement = gameStateAnnouncement(game, verbalMove(played));
 
+      // Stop mid-summary / leftover dictation before announcing the move.
+      speechService.cancel('move');
+
       if (theoryMsg) {
         speak(playerAnnouncement);
         speak(theoryMsg);
@@ -371,6 +374,10 @@ export function OpeningGameProvider({
         }
         return;
       }
+
+      // Non-command voice/text input: stop any mid-summary/dictation so a
+      // rejected attempt cannot leave stale TTS running.
+      speechService.cancel('move');
 
       if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
 

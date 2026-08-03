@@ -1,6 +1,10 @@
 /**
  * Classic-game Stockfish strength bands (approximate opponent Elo).
  * Uses UCI_LimitStrength + UCI_Elo — not search-speed throttling.
+ *
+ * Note: Stockfish clamps UCI_Elo to MIN_UCI_ELO (1320). Bands targeting below
+ * that still request the clamped floor; GameContext then raises multiPv /
+ * varietyMarginCp so those opponents still play with more variety / weaker feel.
  */
 
 export interface StockfishStrengthBand {

@@ -16,6 +16,7 @@ import {
 import { normalizeTranscript, parseChessVoice } from '@/lib/voice';
 import type { ChessEngine } from '@/lib/engine';
 import { createOpponentEngine } from '@/lib/engines';
+import { MIN_UCI_ELO } from '@/lib/engines/stockfish/uci';
 import {
   shouldEmitMoveRecognizedFeedback,
   type MoveInputSource,
@@ -109,9 +110,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // chosen by createOpponentEngine() and can be swapped without touching this
   // file. Recreated when the strength band changes / on new game (fresh Elo jitter).
   const engineRef = useRef<ChessEngine | null>(null);
+
+  /** Build Stockfish options; below MIN_UCI_ELO, clamp Elo and widen variety. */
+  const engineOptionsForBand = useCallback((bandId: string) => {
+    const targetElo = eloForBand(getStrengthBand(bandId));
+    if (targetElo < MIN_UCI_ELO) {
+      return { elo: MIN_UCI_ELO, multiPv: 8, varietyMarginCp: 120 };
+    }
+    return { elo: targetElo };
+  }, []);
+
   if (engineRef.current === null) {
-    const elo = eloForBand(getStrengthBand(DEFAULT_STRENGTH_BAND_ID));
-    engineRef.current = createOpponentEngine({ elo });
+    engineRef.current = createOpponentEngine(engineOptionsForBand(DEFAULT_STRENGTH_BAND_ID));
   }
 
   // Monotonic token that identifies the "current" engine turn. Bumping it
@@ -123,13 +133,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const prev = engineRef.current;
     prev?.cancel?.();
     prev?.destroy?.();
-    const elo = eloForBand(getStrengthBand(bandId));
-    const next = createOpponentEngine({ elo });
+    const next = createOpponentEngine(engineOptionsForBand(bandId));
     engineRef.current = next;
     next.init?.().catch(() => {
       /* engine failed to load — opponentMove will simply produce no move */
     });
-  }, []);
+  }, [engineOptionsForBand]);
 
   useEffect(() => {
     engineRef.current?.init?.().catch(() => {
@@ -317,6 +326,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // promotion; gameStateAnnouncement appends check / checkmate / draw.
       const playerAnnouncement = gameStateAnnouncement(game, verbalMove(played));
 
+      // Stop mid-summary / leftover dictation before announcing the move.
+      speechService.cancel('move');
+
       if (game.isGameOver()) {
         setWaitingForUser(false);
         setStatus(playerAnnouncement);
@@ -416,6 +428,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (parsed.command === 'undo') { undoMove(); return; }
         return;
       }
+
+      // Non-command voice/text input: stop any mid-summary/dictation so a
+      // rejected attempt cannot leave stale TTS running.
+      speechService.cancel('move');
 
       if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
 

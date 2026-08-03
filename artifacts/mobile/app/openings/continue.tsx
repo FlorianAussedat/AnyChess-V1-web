@@ -22,6 +22,7 @@ import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { SoundToggle } from '@/components/SoundToggle';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
@@ -435,6 +436,7 @@ export default function ContinueLineScreen() {
             {snap.trainingSide ? ` · ${sideLabel(snap.trainingSide)}` : ''}
           </Text>
         </View>
+        <SoundToggle />
       </View>
 
       {snap.preambleSans.length > 0 && (
