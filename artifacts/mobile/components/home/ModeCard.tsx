@@ -1,6 +1,8 @@
 /**
  * Reusable home menu mode card — premium dark card with integrated knight art.
  * Illustration sits in the card (no white square container).
+ * Portrait v1 mascot PNGs are oversized in a clipped right slot so the visible
+ * figure fills ~120–150px without editing the PNG files.
  */
 import React, { type ComponentProps } from 'react';
 import {
@@ -36,10 +38,17 @@ export function ModeCard({
 }: ModeCardProps) {
   const colors = useColors();
   const { width } = useWindowDimensions();
-  const narrow = width < 360;
-  const illustrationWidth = narrow
-    ? DesignTokens.modeIllustrationWidth - 16
-    : DesignTokens.modeIllustrationWidth;
+  const cardInnerWidth = width - DesignTokens.spacing.screenX * 2;
+  // ~38% for mascot column on typical phones; keep text from running under it.
+  const mascotSlotWidth = Math.round(
+    Math.min(
+      DesignTokens.modeIllustrationWidth,
+      Math.max(128, cardInnerWidth * 0.38),
+    ),
+  );
+  // Portrait assets (≈2:3): render taller than the card so visible content fills the slot.
+  const mascotImgWidth = Math.round(mascotSlotWidth * 1.15);
+  const mascotImgHeight = Math.round(mascotImgWidth * 1.35);
 
   return (
     <Pressable
@@ -57,7 +66,7 @@ export function ModeCard({
         },
       ]}
     >
-      <View style={[styles.textCol, { paddingRight: illustrationWidth - 8 }]}>
+      <View style={[styles.textCol, { maxWidth: '60%', paddingRight: 8 }]}>
         <View style={styles.titleRow}>
           <Ionicons
             name={iconName as ComponentProps<typeof Ionicons>['name']}
@@ -81,12 +90,17 @@ export function ModeCard({
       </View>
 
       <View
-        style={[styles.illustrationSlot, { width: illustrationWidth }]}
+        style={[styles.illustrationSlot, { width: mascotSlotWidth }]}
         pointerEvents="none"
       >
         <Image
           source={illustration}
-          style={styles.illustration}
+          style={{
+            width: mascotImgWidth,
+            height: mascotImgHeight,
+            marginRight: -10,
+            marginBottom: -18,
+          }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
@@ -101,6 +115,7 @@ export function ModeCard({
 
 const styles = StyleSheet.create({
   card: {
+    height: DesignTokens.modeCardHeight,
     minHeight: DesignTokens.modeCardMinHeight,
     borderRadius: DesignTokens.radius.card,
     borderWidth: 1,
@@ -112,8 +127,7 @@ const styles = StyleSheet.create({
   },
   textCol: {
     zIndex: 2,
-    gap: 6,
-    maxWidth: '72%',
+    gap: 8,
   },
   titleRow: {
     flexDirection: 'row',
@@ -124,30 +138,28 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   title: {
-    flex: 1,
+    flexShrink: 1,
     fontSize: DesignTokens.typography.cardTitle,
     fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
     textTransform: 'uppercase',
+    lineHeight: 28,
   },
   description: {
     fontSize: DesignTokens.typography.caption,
     fontFamily: 'Inter_400Regular',
-    lineHeight: 17,
+    lineHeight: 22,
     paddingRight: 4,
   },
   illustrationSlot: {
     position: 'absolute',
-    right: 4,
-    bottom: -6,
-    top: -4,
+    right: 0,
+    bottom: 0,
+    top: 0,
     zIndex: 1,
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
-  },
-  illustration: {
-    width: '100%',
-    height: '100%',
+    overflow: 'hidden',
   },
   chevron: {
     position: 'absolute',

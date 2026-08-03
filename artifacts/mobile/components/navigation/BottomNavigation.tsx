@@ -174,8 +174,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   homeIcon: {
-    width: DesignTokens.bottomNavIconSize + 10,
-    height: DesignTokens.bottomNavIconSize + 10,
-    borderRadius: 6,
+    width: DesignTokens.bottomNavHomeIconWidth,
+    height: DesignTokens.bottomNavHomeIconHeight,
   },
 });

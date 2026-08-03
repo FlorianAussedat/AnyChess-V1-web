@@ -1,6 +1,6 @@
 /**
  * AnyChess main home / menu — premium dark redesign (Major Update 0.0.4).
- * Routes and modes unchanged; presentation only.
+ * Layout/styling only; routes and modes unchanged.
  */
 import React from 'react';
 import {
@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,9 +26,17 @@ export default function MainMenu() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const topPad = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : insets.bottom;
+
+  // Horizontal logo is 1536×1024 — keep header compact (~110–135 with tagline/settings).
+  const logoHeight = 64;
+  const logoWidth = Math.min(
+    width - DesignTokens.spacing.screenX * 2 - 8,
+    Math.round(logoHeight * (1536 / 1024)),
+  );
 
   return (
     <ScrollView
@@ -35,32 +44,32 @@ export default function MainMenu() {
       contentContainerStyle={[
         styles.root,
         {
-          paddingTop: topPad + DesignTokens.spacing.md,
-          paddingBottom: bottomPad + DesignTokens.spacing.xl,
+          paddingTop: topPad + DesignTokens.spacing.sm,
+          paddingBottom: bottomPad + DesignTokens.spacing.lg,
         },
       ]}
       showsVerticalScrollIndicator={false}
       testID="home-scroll"
     >
-      <View style={styles.headerRow}>
-        <View style={styles.headerSpacer} />
-        <SettingsButton />
-      </View>
+      <View style={styles.headerBlock}>
+        <View style={styles.headerTop}>
+          <View style={styles.headerSpacer} />
+          <SettingsButton />
+        </View>
 
-      <View style={styles.brand}>
-        <Image
-          source={BrandAssets.logoMark}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-        />
-        <Text style={styles.titleRow} accessibilityRole="header">
-          <Text style={[styles.titleAny, { color: colors.foreground }]}>Any</Text>
-          <Text style={[styles.titleChess, { color: colors.primary }]}>Chess</Text>
-        </Text>
-        <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-          JOUER. APPRENDRE. VISUALISER.
-        </Text>
+        <View style={styles.brand}>
+          <Image
+            source={BrandAssets.horizontalLogo}
+            style={{ width: logoWidth, height: logoHeight }}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+            accessibilityLabel="AnyChess"
+            testID="home-horizontal-logo"
+          />
+          <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
+            JOUER. APPRENDRE. VISUALISER.
+          </Text>
+        </View>
       </View>
 
       <View style={styles.cards}>
@@ -91,37 +100,23 @@ export default function MainMenu() {
 const styles = StyleSheet.create({
   root: {
     paddingHorizontal: DesignTokens.spacing.screenX,
-    gap: DesignTokens.spacing.xxl,
+    gap: DesignTokens.spacing.lg,
   },
-  headerRow: {
+  headerBlock: {
+    gap: DesignTokens.spacing.xs,
+    marginBottom: DesignTokens.spacing.xs,
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    minHeight: DesignTokens.minTouchTarget,
+    minHeight: DesignTokens.minTouchTarget - 4,
   },
   headerSpacer: { flex: 1 },
   brand: {
     alignItems: 'center',
-    gap: DesignTokens.spacing.sm,
-    marginTop: -DesignTokens.spacing.sm,
-  },
-  logo: {
-    width: 72,
-    height: 72,
-    borderRadius: DesignTokens.radius.lg,
-  },
-  titleRow: {
-    marginTop: 2,
-  },
-  titleAny: {
-    fontSize: DesignTokens.typography.brand,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.4,
-  },
-  titleChess: {
-    fontSize: DesignTokens.typography.brand,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.4,
+    gap: 6,
+    marginTop: -4,
   },
   tagline: {
     fontSize: DesignTokens.typography.tagline,
@@ -130,12 +125,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   cards: {
-    gap: DesignTokens.spacing.lg,
+    gap: DesignTokens.spacing.cardGap,
   },
   version: {
     marginTop: DesignTokens.spacing.sm,
     textAlign: 'center',
-    fontSize: DesignTokens.typography.caption,
+    fontSize: 12,
     fontFamily: 'Inter_400Regular',
     letterSpacing: 0.2,
   },

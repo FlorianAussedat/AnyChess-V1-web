@@ -11,6 +11,8 @@ import type { MainModeId } from '@/lib/app/modes';
 export const BrandAssets = {
   logoMark: require('@/assets/brand/logo-mark.png'),
   splash: require('@/assets/brand/splash-brand.png'),
+  /** Home header — user horizontal wordmark + knight (exact filename). */
+  horizontalLogo: require('@/assets/brand/v1-anychess-horizontal-logo.png'),
   /** Bottom-nav Accueil — user original (`v1-home-nav.png`). */
   navHome: require('@/assets/brand/nav/v1-home-nav.png'),
   modes: {

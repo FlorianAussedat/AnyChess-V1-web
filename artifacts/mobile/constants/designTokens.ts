@@ -11,7 +11,9 @@ export const DesignTokens = {
     lg: 16,
     xl: 20,
     xxl: 28,
-    screenX: 18,
+    /** Home screen horizontal margin (~24–28). */
+    screenX: 26,
+    cardGap: 14,
   },
   radius: {
     sm: 10,
@@ -23,9 +25,9 @@ export const DesignTokens = {
   typography: {
     brand: 30,
     title: 24,
-    cardTitle: 16,
+    cardTitle: 24,
     body: 14,
-    caption: 12,
+    caption: 16,
     micro: 11,
     tagline: 11,
   },
@@ -35,10 +37,16 @@ export const DesignTokens = {
    */
   bottomNavContentHeight: 58,
   bottomNavIconSize: 22,
+  /** Rendered Home PNG box (portrait asset — sized so visible knight ≈ 26–32px). */
+  bottomNavHomeIconWidth: 34,
+  bottomNavHomeIconHeight: 48,
   minTouchTarget: 44,
-  modeCardMinHeight: 118,
-  modeIllustrationWidth: 108,
-  modeIllustrationHeight: 118,
+  /** Home ModeCard target density. */
+  modeCardMinHeight: 156,
+  modeCardHeight: 158,
+  /** Mascot slot ≈ 38% of card; image sized larger for portrait PNG content. */
+  modeIllustrationWidth: 148,
+  modeIllustrationHeight: 168,
 } as const;
 
 export type DesignTokensType = typeof DesignTokens;

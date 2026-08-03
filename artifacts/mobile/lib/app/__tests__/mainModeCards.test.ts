@@ -31,4 +31,11 @@ describe('design tokens', () => {
     assert.ok(DesignTokens.minTouchTarget >= 44);
     assert.ok(DesignTokens.radius.card >= 16);
   });
+
+  it('targets denser ModeCards with larger mascot slots', () => {
+    assert.ok(DesignTokens.modeCardHeight >= 150);
+    assert.ok(DesignTokens.modeCardHeight <= 170);
+    assert.ok(DesignTokens.modeIllustrationWidth >= 128);
+    assert.ok(DesignTokens.bottomNavHomeIconHeight >= 40);
+  });
 });
