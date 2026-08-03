@@ -42,6 +42,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Séquences à l’aveugle',
     description: 'Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.',
     iconName: 'eye-off-outline',
+    /** Supplied: assets/brand/mascots/mascot-blind-knight-blindfold.png */
     requiredMascotAsset: 'mascot-blind-knight-blindfold.png',
   },
   {
