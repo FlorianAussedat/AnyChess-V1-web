@@ -6,6 +6,8 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { BrandSplash } from '@/components/BrandSplash';
+import { BottomNavigation } from '@/components/navigation/BottomNavigation';
+import { DesignTokens } from '@/constants/designTokens';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -25,6 +27,10 @@ const queryClient = new QueryClient();
  * Root navigator. Each game mode is its own route with its own isolated
  * logic/state (GameProvider is scoped per-mode, not global), so modes never
  * accidentally share state.
+ *
+ * Persistent bottom navigation is rendered by the app shell (not a second
+ * router). Content is inset by `bottomNavContentHeight` so boards/controls
+ * are never hidden under the bar; per-screen safe-area padding is unchanged.
  */
 function RootLayoutNav() {
   return (
@@ -36,6 +42,9 @@ function RootLayoutNav() {
       <Stack.Screen name="puzzles" />
       <Stack.Screen name="visualisation" />
       <Stack.Screen name="quiz-ouverture" />
+      <Stack.Screen name="records" />
+      <Stack.Screen name="profil" />
+      <Stack.Screen name="settings" />
       {typeof __DEV__ !== 'undefined' && __DEV__ ? (
         <Stack.Screen name="dev/voice-parser" options={{ headerShown: true }} />
       ) : null}
@@ -72,7 +81,15 @@ export default function RootLayout() {
           <GestureHandlerRootView style={styles.root}>
             <KeyboardProvider>
               <View style={styles.root}>
-                <RootLayoutNav />
+                <View
+                  style={[
+                    styles.content,
+                    { paddingBottom: DesignTokens.bottomNavContentHeight },
+                  ]}
+                >
+                  <RootLayoutNav />
+                </View>
+                <BottomNavigation />
                 <BrandSplash ready={appReady} />
               </View>
             </KeyboardProvider>
@@ -85,4 +102,5 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  content: { flex: 1 },
 });

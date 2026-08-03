@@ -1,6 +1,10 @@
 /**
  * Central require() map for Major Update brand assets.
  * Keep paths relative so Metro can resolve them.
+ *
+ * Home ModeCard mascots currently reuse `modes/*` PNGs (often on light plates).
+ * Final transparent knight-family assets still required — see
+ * `MAIN_MODE_CARDS[].requiredMascotAsset` in `lib/app/mainModeCards.ts`.
  */
 export const BrandAssets = {
   logoMark: require('@/assets/brand/logo-mark.png'),
