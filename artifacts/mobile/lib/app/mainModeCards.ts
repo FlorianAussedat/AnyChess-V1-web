@@ -60,6 +60,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Visualisation',
     description: 'Suivi mental de position et reconnaissance rapide de coups.',
     iconName: 'eye-outline',
+    /** Supplied: assets/brand/mascots/mascot-visualisation-knight-binoculars.png */
     requiredMascotAsset: 'mascot-visualisation-knight-binoculars.png',
   },
   {

@@ -28,6 +28,7 @@ export const BrandAssets = {
     openings: require('@/assets/brand/mascots/mascot-openings-knight-reading.png'),
     blind: require('@/assets/brand/mascots/mascot-blind-knight-blindfold.png'),
     puzzles: require('@/assets/brand/mascots/mascot-tactics-knight-calculator.png'),
+    visualisation: require('@/assets/brand/mascots/mascot-visualisation-knight-binoculars.png'),
   } as Partial<Record<MainModeId, ImageSourcePropType>>,
   sides: {
     white: require('@/assets/brand/sides/white.png'),
