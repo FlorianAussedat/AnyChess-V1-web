@@ -10,6 +10,8 @@ import { pieceCountMatchesBand } from './puzzleBands.ts';
 /** Minimal source for selection — avoids pulling the JSON pack into unit tests. */
 export interface PuzzleSource {
   getAll(): LocalPuzzle[];
+  /** Optional indexed query (used by PuzzleRepository). */
+  query?: (filters: Partial<PuzzleFilters>) => LocalPuzzle[];
 }
 
 export interface SelectPuzzleOptions {
@@ -108,11 +110,15 @@ export function selectPuzzle(options: SelectPuzzleOptions): LocalPuzzle | null {
     ...DEFAULT_PUZZLE_FILTERS,
     ...options.filters,
   };
-  const all = filterPuzzles(repo.getAll(), filters);
+  const all =
+    typeof repo.query === 'function'
+      ? repo.query(filters)
+      : filterPuzzles(repo.getAll(), filters);
   if (all.length === 0) return null;
 
   const exclude = new Set(options.excludeIds ?? []);
   const fresh = all.filter((p) => !exclude.has(p.id));
+  // Prefer unseen puzzles when alternatives remain; otherwise allow repeats.
   const pool = fresh.length > 0 ? fresh : all;
 
   const rand =

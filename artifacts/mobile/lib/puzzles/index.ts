@@ -44,7 +44,11 @@ export type { PuzzleSolutionReplayCallbacks } from './PuzzleSolutionReplay.ts';
 export {
   PUZZLE_RATING_BANDS,
   PIECE_COUNT_BANDS,
+  DEFAULT_PUZZLE_RATING_BAND_ID,
+  DEFAULT_PIECE_COUNT_BAND_ID,
   pieceCountMatchesBand,
+  getPuzzleRatingBand,
+  puzzleBandForRating,
 } from './puzzleBands.ts';
 export type { PuzzleRatingBand, PieceCountBand } from './puzzleBands.ts';
 export {
