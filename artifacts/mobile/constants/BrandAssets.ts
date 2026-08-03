@@ -25,6 +25,7 @@ export const BrandAssets = {
   /** Transparent knight-family mascots for home ModeCards (supply gradually). */
   mascots: {
     classic: require('@/assets/brand/mascots/mascot-classic-knight-soundwave.png'),
+    openings: require('@/assets/brand/mascots/mascot-openings-knight-reading.png'),
   } as Partial<Record<MainModeId, ImageSourcePropType>>,
   sides: {
     white: require('@/assets/brand/sides/white.png'),

@@ -33,6 +33,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Ouvertures',
     description: 'Joue contre ton répertoire ou continue une ligne PGN importée.',
     iconName: 'book-outline',
+    /** Supplied: assets/brand/mascots/mascot-openings-knight-reading.png */
     requiredMascotAsset: 'mascot-openings-knight-reading.png',
   },
   {
