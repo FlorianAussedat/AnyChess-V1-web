@@ -51,6 +51,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Tactiques',
     description: 'Résous des problèmes Lichess à vue ou à l’aveugle, hors-ligne.',
     iconName: 'extension-puzzle-outline',
+    /** Supplied: assets/brand/mascots/mascot-tactics-knight-calculator.png */
     requiredMascotAsset: 'mascot-tactics-knight-calculator.png',
   },
   {
