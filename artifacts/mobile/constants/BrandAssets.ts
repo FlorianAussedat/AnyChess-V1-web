@@ -1,5 +1,5 @@
 /**
- * Central require() map for Major Update 0.0.3 brand assets.
+ * Central require() map for Major Update brand assets.
  * Keep paths relative so Metro can resolve them.
  */
 export const BrandAssets = {

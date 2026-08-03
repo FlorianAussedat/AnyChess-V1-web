@@ -11,10 +11,10 @@ import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 
 describe('app version', () => {
   it('formats the beta display label from one source of truth', () => {
-    assert.equal(formatAppVersionLabel(), 'AnyChess Beta 0.0.3');
+    assert.equal(formatAppVersionLabel(), 'AnyChess Beta 0.0.4');
     assert.equal(APP_NAME, 'AnyChess');
     assert.equal(APP_STAGE, 'Beta');
-    assert.equal(APP_VERSION, '0.0.3');
+    assert.equal(APP_VERSION, '0.0.4');
   });
 
   it('updates when constants change without hardcoding in the assertion of structure', () => {
