@@ -1,12 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, Pressable, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 /**
- * Global sound toggle (speaker / muted speaker).
- * Independent from board visibility and microphone state.
+ * Global sound toggle using Major Update brand artwork.
  */
 export function SoundToggle() {
   const colors = useColors();
@@ -25,16 +24,16 @@ export function SoundToggle() {
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: soundEnabled ? colors.card : colors.primary,
-          borderColor: soundEnabled ? colors.border : colors.primary,
+          backgroundColor: colors.card,
+          borderColor: colors.border,
           opacity: pressed ? 0.6 : 1,
         },
       ]}
     >
-      <Ionicons
-        name={soundEnabled ? 'volume-high-outline' : 'volume-mute-outline'}
-        size={20}
-        color={soundEnabled ? colors.foreground : colors.primaryForeground}
+      <Image
+        source={soundEnabled ? BrandAssets.toggles.soundOn : BrandAssets.toggles.soundOff}
+        style={styles.icon}
+        resizeMode="contain"
       />
     </Pressable>
   );
@@ -42,11 +41,15 @@ export function SoundToggle() {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  icon: {
+    width: 30,
+    height: 30,
   },
 });

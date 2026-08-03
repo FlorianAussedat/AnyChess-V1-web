@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { BrandSplash } from '@/components/BrandSplash';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -49,25 +51,30 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  const appReady = Boolean(fontsLoaded || fontError);
+
   useEffect(() => {
     audioSettings.ensureLoaded().catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    if (appReady) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [appReady]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!appReady) return null;
 
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
+          <GestureHandlerRootView style={styles.root}>
             <KeyboardProvider>
-              <RootLayoutNav />
+              <View style={styles.root}>
+                <RootLayoutNav />
+                <BrandSplash ready={appReady} />
+              </View>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
@@ -75,3 +82,7 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -37,6 +38,7 @@ import { useOpeningGame } from '@/contexts/OpeningGameContext';
 import type { PlayerColor } from '@/contexts/OpeningGameContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 type MoveRow = { key: string; num: number; white: string; black: string };
 
@@ -264,23 +266,18 @@ export function OpeningGameScreen() {
   }, [moveRows.length]);
 
   let micBg: string;
-  let micIconName: string;
   let micLabel: string;
   if (showRecognized) {
     micBg = '#27AE60';
-    micIconName = 'checkmark-circle';
     micLabel = 'Coup reconnu';
   } else if (isListening) {
     micBg = '#C0392B';
-    micIconName = 'mic';
     micLabel = "J'écoute…";
   } else if (micActive) {
     micBg = '#D4880A';
-    micIconName = 'mic-outline';
     micLabel = 'Micro actif';
   } else {
     micBg = colors.primary;
-    micIconName = 'mic-off-outline';
     micLabel = 'Parler';
   }
 
@@ -423,13 +420,18 @@ export function OpeningGameScreen() {
               onPress={() => onPickColor(c)}
               disabled={locked && !active}
             >
+              <Image
+                source={c === 'w' ? BrandAssets.sides.white : BrandAssets.sides.black}
+                style={styles.sideIcon}
+                resizeMode="contain"
+              />
               <Text
                 style={[
                   styles.colorPillText,
                   { color: active ? colors.primaryForeground : colors.mutedForeground },
                 ]}
               >
-                {c === 'w' ? '♔ Blancs' : '♚ Noirs'}
+                {c === 'w' ? 'Blancs' : 'Noirs'}
               </Text>
             </Pressable>
           );
@@ -485,7 +487,15 @@ export function OpeningGameScreen() {
             onPress={onMicPress}
             style={({ pressed }) => [styles.micBtn, { backgroundColor: micBg, opacity: pressed ? 0.82 : 1 }]}
           >
-            <Ionicons name={micIconName as any} size={22} color="#fff" />
+            {showRecognized ? (
+              <Ionicons name="checkmark-circle" size={22} color="#fff" />
+            ) : (
+              <Image
+                source={micActive || isListening ? BrandAssets.toggles.micOn : BrandAssets.toggles.micOff}
+                style={styles.micBrandIcon}
+                resizeMode="contain"
+              />
+            )}
             <Text style={styles.micLabel}>{micLabel}</Text>
           </Pressable>
         </Animated.View>
@@ -647,13 +657,18 @@ const styles = StyleSheet.create({
   colorRow: { flexDirection: 'row', gap: 8 },
   colorPill: {
     flex: 1,
-    height: 34,
-    borderRadius: 17,
+    minHeight: 44,
+    borderRadius: 14,
     borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
   },
   colorPillText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  sideIcon: { width: 28, height: 28 },
+  micBrandIcon: { width: 22, height: 22 },
   boardRow: { alignItems: 'center' },
   statusCard: {
     borderRadius: 12,

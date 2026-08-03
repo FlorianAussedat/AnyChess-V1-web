@@ -36,6 +36,7 @@ import type { PlayerColor } from '@/contexts/GameContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -264,24 +265,19 @@ export function ClassicGameScreen() {
   // ── Mic button — 4 visual states ──────────────────────────────────────────
 
   let micBg: string;
-  let micIconName: string;
   let micLabel: string;
 
   if (showRecognized) {
     micBg       = '#27AE60';
-    micIconName = 'checkmark-circle';
     micLabel    = 'Coup reconnu';
   } else if (isListening) {
     micBg       = '#C0392B';
-    micIconName = 'mic';
     micLabel    = "J'écoute…";
   } else if (micActive) {
     micBg       = '#D4880A';
-    micIconName = 'mic-outline';
     micLabel    = 'Micro actif';
   } else {
     micBg       = colors.primary;
-    micIconName = 'mic-off-outline';
     micLabel    = 'Parler';
   }
 
@@ -308,7 +304,7 @@ export function ClassicGameScreen() {
           >
             <Ionicons name="chevron-back" size={20} color={colors.foreground} />
           </Pressable>
-          <Image source={require('@/assets/images/icon.png')} style={styles.logoImg} />
+          <Image source={BrandAssets.logoMark} style={styles.logoImg} />
           <View>
             <Text style={[styles.title, { color: colors.foreground }]}>Partie classique</Text>
             <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
@@ -391,8 +387,13 @@ export function ClassicGameScreen() {
               disabled={locked && !active}
               testID={c === 'w' ? 'color-white' : 'color-black'}
             >
+              <Image
+                source={c === 'w' ? BrandAssets.sides.white : BrandAssets.sides.black}
+                style={styles.sideIcon}
+                resizeMode="contain"
+              />
               <Text style={[styles.colorPillText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
-                {c === 'w' ? '♔ Blancs' : '♚ Noirs'}
+                {c === 'w' ? 'Blancs' : 'Noirs'}
               </Text>
             </Pressable>
           );
@@ -448,7 +449,15 @@ export function ClassicGameScreen() {
             testID="mic-btn"
             style={({ pressed }) => [styles.micBtn, { backgroundColor: micBg, opacity: pressed ? 0.82 : 1 }]}
           >
-            <Ionicons name={micIconName as any} size={22} color="#fff" />
+            {showRecognized ? (
+              <Ionicons name="checkmark-circle" size={22} color="#fff" />
+            ) : (
+              <Image
+                source={micActive || isListening ? BrandAssets.toggles.micOn : BrandAssets.toggles.micOff}
+                style={styles.micBrandIcon}
+                resizeMode="contain"
+              />
+            )}
             <Text style={styles.micLabel}>{micLabel}</Text>
           </Pressable>
         </Animated.View>
@@ -595,6 +604,14 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 8,
   },
+  sideIcon: {
+    width: 28,
+    height: 28,
+  },
+  micBrandIcon: {
+    width: 22,
+    height: 22,
+  },
   title: {
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
@@ -635,11 +652,14 @@ const styles = StyleSheet.create({
   },
   colorPill: {
     flex: 1,
-    height: 34,
-    borderRadius: 17,
+    minHeight: 44,
+    borderRadius: 14,
     borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 8,
   },
   colorPillText: {
     fontSize: 13,

@@ -1,16 +1,18 @@
 import React from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { BrandAssets } from '@/constants/BrandAssets';
+import type { ImageSourcePropType } from 'react-native';
 
 type ExerciseCard = {
   id: string;
   route: Href;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: ImageSourcePropType;
 };
 
 const EXERCISES: ExerciseCard[] = [
@@ -19,14 +21,14 @@ const EXERCISES: ExerciseCard[] = [
     route: '/quiz-ouverture/quelle' as Href,
     title: 'Quelle ouverture ?',
     description: 'Reconnais le nom de l’ouverture à partir de la ligne jouée (base ECO).',
-    icon: 'help-circle-outline',
+    icon: BrandAssets.modes['quiz-ouverture'],
   },
   {
     id: 'construis',
     route: '/quiz-ouverture/construis' as Href,
     title: 'Construis l’ouverture',
     description: 'Dicte la ligne jusqu’à la position qui identifie l’ouverture demandée.',
-    icon: 'construct-outline',
+    icon: BrandAssets.modes.openings,
   },
 ];
 
@@ -82,8 +84,8 @@ export default function QuizOuvertureHub() {
               },
             ]}
           >
-            <View style={[styles.iconWrap, { backgroundColor: colors.primary }]}>
-              <Ionicons name={ex.icon} size={24} color={colors.primaryForeground} />
+            <View style={styles.iconWrap}>
+              <Image source={ex.icon} style={styles.modeIcon} resizeMode="contain" />
             </View>
             <View style={{ flex: 1, gap: 3 }}>
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>{ex.title}</Text>
@@ -125,11 +127,17 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
   iconWrap: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  modeIcon: {
+    width: 48,
+    height: 48,
   },
   cardTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
   cardDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
