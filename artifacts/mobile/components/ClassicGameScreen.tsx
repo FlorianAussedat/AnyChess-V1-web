@@ -5,6 +5,7 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -21,9 +22,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
-import { useAudioSettings } from '@/hooks/useAudioSettings';
+import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
+import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { ChessBoard } from '@/components/ChessBoard';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
@@ -34,12 +35,18 @@ import { OpeningIdentityBadge } from '@/components/OpeningIdentityBadge';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor } from '@/contexts/GameContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
+import { sfxService } from '@/services/SfxService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
-import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { BrandAssets } from '@/constants/BrandAssets';
+import {
+  DEFAULT_STRENGTH_BAND_ID,
+  STOCKFISH_STRENGTH_BANDS,
+} from '@/lib/difficulty/StockfishStrengthBands';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type MoveRow = { key: string; num: number; white: string; black: string };
+type SideChoice = 'w' | 'b' | 'random';
 
 // ── Screen ─────────────────────────────────────────────────────────────────
 
@@ -48,8 +55,8 @@ export function ClassicGameScreen() {
   const insets  = useSafeAreaInsets();
   const router  = useRouter();
   const isWeb   = Platform.OS === 'web';
-  const { soundEnabled } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  useCancelSpeechOnLeave('/classic');
 
   const {
     board,
@@ -63,6 +70,8 @@ export function ClassicGameScreen() {
     playerColor,
     moveEvent,
     isSpeaking,
+    strengthBandId,
+    setStrengthBandId,
     applyUserMove,
     movePieceBySquare,
     getLegalDestinations,
@@ -83,6 +92,10 @@ export function ClassicGameScreen() {
 
   const canAct     = waitingForUser && !isOpponentThinking && !isGameOver;
   const gameStarted = history.length > 0;
+  const [pendingSide, setPendingSide] = useState<SideChoice>(
+    () => (playerColor === 'b' ? 'b' : 'w'),
+  );
+  const [setupBandId, setSetupBandId] = useState(strengthBandId || DEFAULT_STRENGTH_BAND_ID);
 
   // ── Board visibility (eye toggle) ─────────────────────────────────────────
   const [boardVisible, setBoardVisible] = useState(true);
@@ -101,57 +114,7 @@ export function ClassicGameScreen() {
     onTranscript: (text) => applyRef.current(text),
   });
 
-  // ── Sound effects ─────────────────────────────────────────────────────────
-
-  const successSoundRef = useRef<Audio.Sound | null>(null);
-  const errorSoundRef   = useRef<Audio.Sound | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    async function loadSounds() {
-      try {
-        const { sound: s1 } = await Audio.Sound.createAsync(
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          require('@/assets/sounds/success.wav'),
-          { volume: 0.6 },
-        );
-        const { sound: s2 } = await Audio.Sound.createAsync(
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          require('@/assets/sounds/error.wav'),
-          { volume: 0.5 },
-        );
-        if (mounted) {
-          successSoundRef.current = s1;
-          errorSoundRef.current   = s2;
-        } else {
-          s1.unloadAsync().catch(() => {});
-          s2.unloadAsync().catch(() => {});
-        }
-      } catch {
-        /* sounds are non-critical — fail silently */
-      }
-    }
-    loadSounds();
-    return () => {
-      mounted = false;
-      successSoundRef.current?.unloadAsync().catch(() => {});
-      errorSoundRef.current?.unloadAsync().catch(() => {});
-    };
-  }, []);
-
-  // ── Audio session initialisation ──────────────────────────────────────────
-
-  useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: false,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false,
-    }).catch(() => {});
-  }, []);
-
-  // ── Haptics + sound on move success / error ───────────────────────────────
+  // ── Haptics + SFX on move success / error (SFX independent of voice mute) ──
 
   const [showRecognized, setShowRecognized] = useState(false);
   const recognizedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,15 +123,15 @@ export function ClassicGameScreen() {
     if (!moveEvent) return;
     if (moveEvent.kind === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (soundEnabled) successSoundRef.current?.replayAsync().catch(() => {});
+      void sfxService.playSuccess();
       setShowRecognized(true);
       if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
       recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (soundEnabled) errorSoundRef.current?.replayAsync().catch(() => {});
+      void sfxService.playError();
     }
-  }, [moveEvent?.id, soundEnabled]);
+  }, [moveEvent?.id]);
 
   // ── Touch move state ──────────────────────────────────────────────────────
 
@@ -230,16 +193,42 @@ export function ClassicGameScreen() {
     [canAct, touchSelected, legalDests, getLegalDestinations, movePieceBySquare],
   );
 
-  // ── Color picker — locked once game has started ───────────────────────────
+  // ── Pre-game setup: side + strength ───────────────────────────────────────
 
-  const onPickColor = useCallback(
-    (color: PlayerColor) => {
+  const onPickSetupBand = useCallback(
+    (id: string) => {
       if (gameStarted) return;
+      setSetupBandId(id);
+      setStrengthBandId(id);
+    },
+    [gameStarted, setStrengthBandId],
+  );
+
+  const onPickSide = useCallback(
+    (side: SideChoice) => {
+      if (gameStarted) return;
+      setPendingSide(side);
+      setStrengthBandId(setupBandId);
+      const color: PlayerColor =
+        side === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : side;
       if (color === playerColor) newGame();
       else changeColor(color);
     },
-    [gameStarted, playerColor, newGame, changeColor],
+    [gameStarted, setupBandId, setStrengthBandId, playerColor, newGame, changeColor],
   );
+
+  const onNewGamePress = useCallback(() => {
+    setStrengthBandId(setupBandId);
+    if (pendingSide === 'random') {
+      const color: PlayerColor = Math.random() < 0.5 ? 'w' : 'b';
+      if (color === playerColor) newGame();
+      else changeColor(color);
+    } else if (pendingSide !== playerColor) {
+      changeColor(pendingSide);
+    } else {
+      newGame();
+    }
+  }, [setupBandId, setStrengthBandId, pendingSide, playerColor, newGame, changeColor]);
 
   // ── Move history rows ─────────────────────────────────────────────────────
 
@@ -289,6 +278,8 @@ export function ClassicGameScreen() {
 
   const topPad    = isWeb ? 67 : insets.top;
   const bottomPad = isWeb ? 34 : insets.bottom;
+  const sideIcon =
+    playerColor === 'w' ? BrandAssets.sides.white : BrandAssets.sides.black;
 
   return (
     <View
@@ -318,6 +309,9 @@ export function ClassicGameScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          {gameStarted && (
+            <Image source={sideIcon} style={styles.sideIndicator} accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'} />
+          )}
           <SoundToggle />
           <BoardCoordinatesToggle
             visible={showCoordinates}
@@ -361,7 +355,7 @@ export function ClassicGameScreen() {
 
         <Pressable
           style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
-          onPress={newGame}
+          onPress={onNewGamePress}
           testID="new-game-btn"
         >
           <Ionicons name="refresh-outline" size={14} color={colors.foreground} />
@@ -371,33 +365,89 @@ export function ClassicGameScreen() {
         </Pressable>
       </View>
 
-      {/* ── Color picker — locked when game has started ──────────────── */}
-      <View style={styles.colorRow}>
-        {(['w', 'b'] as PlayerColor[]).map((c) => {
-          const active = playerColor === c;
-          const locked = gameStarted;
-          return (
-            <Pressable
-              key={c}
-              style={[
-                styles.colorPill,
-                {
-                  backgroundColor: active ? colors.primary : colors.card,
-                  borderColor:     active ? colors.primary : colors.border,
-                  opacity:         locked && !active ? 0.45 : 1,
-                },
-              ]}
-              onPress={() => onPickColor(c)}
-              disabled={locked && !active}
-              testID={c === 'w' ? 'color-white' : 'color-black'}
-            >
-              <Text style={[styles.colorPillText, { color: active ? colors.primaryForeground : colors.mutedForeground }]}>
-                {c === 'w' ? '♔ Blancs' : '♚ Noirs'}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* ── Pre-game setup (hidden once the game has started) ──────────── */}
+      {!gameStarted ? (
+        <View style={styles.setupBlock}>
+          <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>Camp</Text>
+          <View style={styles.colorRow}>
+            {(
+              [
+                { id: 'w' as SideChoice, label: 'Blancs', icon: BrandAssets.sides.white },
+                { id: 'b' as SideChoice, label: 'Noirs', icon: BrandAssets.sides.black },
+                { id: 'random' as SideChoice, label: 'Aléatoire', icon: BrandAssets.sides.random },
+              ] as const
+            ).map((opt) => {
+              const active = pendingSide === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  style={[
+                    styles.sidePill,
+                    {
+                      backgroundColor: active ? colors.primary : colors.card,
+                      borderColor: active ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => onPickSide(opt.id)}
+                  testID={
+                    opt.id === 'w'
+                      ? 'color-white'
+                      : opt.id === 'b'
+                        ? 'color-black'
+                        : 'color-random'
+                  }
+                >
+                  <Image source={opt.icon} style={styles.sidePillIcon} />
+                  <Text
+                    style={[
+                      styles.colorPillText,
+                      { color: active ? colors.primaryForeground : colors.mutedForeground },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>
+            Niveau adversaire
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.bandRow}
+          >
+            {STOCKFISH_STRENGTH_BANDS.map((band) => {
+              const active = setupBandId === band.id;
+              return (
+                <Pressable
+                  key={band.id}
+                  onPress={() => onPickSetupBand(band.id)}
+                  style={[
+                    styles.bandChip,
+                    {
+                      backgroundColor: active ? colors.primary : colors.card,
+                      borderColor: active ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      fontFamily: 'Inter_600SemiBold',
+                      fontSize: 11,
+                      color: active ? colors.primaryForeground : colors.foreground,
+                    }}
+                  >
+                    {band.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {/* ── Board (hidden by the eye toggle without touching game state) ── */}
       <View style={styles.boardRow}>
@@ -595,6 +645,11 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 8,
   },
+  sideIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+  },
   title: {
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
@@ -628,22 +683,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flexShrink: 1,
   },
-  // Color picker
+  setupBlock: {
+    gap: 6,
+  },
+  setupLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  // Color / side picker
   colorRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  colorPill: {
+  sidePill: {
     flex: 1,
-    height: 34,
-    borderRadius: 17,
+    minHeight: 42,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 6,
+  },
+  sidePillIcon: {
+    width: 22,
+    height: 22,
   },
   colorPillText: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Inter_600SemiBold',
+  },
+  bandRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  bandChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   // Board
   boardRow: {

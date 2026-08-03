@@ -20,9 +20,38 @@ export type MixedLinePick = {
   path: ContinueLinePath;
 };
 
+/** Review-all / review-white / review-black selection filter. */
+export type ReviewSideFilter = RepertoireSide | 'all';
+
 /** Stable key for recent-path history across a mixed selection. */
 export function mixedTrainingKey(folderIds: string[]): string {
   return [...folderIds].sort().join('|');
+}
+
+/**
+ * Filter folders for Review All / Review White / Review Black.
+ * Folders without a side are never included.
+ */
+export function filterFoldersByReviewSide(
+  folders: RepertoireFolder[],
+  side: ReviewSideFilter,
+): RepertoireFolder[] {
+  if (side === 'all') {
+    return folders.filter((f) => f.side === 'white' || f.side === 'black');
+  }
+  return folders.filter((f) => f.side === side);
+}
+
+/** Same filter applied to mixed training entries. */
+export function filterEntriesByReviewSide(
+  entries: MixedRepertoireEntry[],
+  side: ReviewSideFilter,
+): MixedRepertoireEntry[] {
+  return entries.filter((entry) => {
+    if (!entry.folder.side) return false;
+    if (side === 'all') return true;
+    return entry.folder.side === side;
+  });
 }
 
 export type MixedPickOptions = {

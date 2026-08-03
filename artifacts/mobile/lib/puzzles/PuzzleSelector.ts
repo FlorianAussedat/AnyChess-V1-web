@@ -3,9 +3,14 @@
  * and recent-ID avoidance.
  */
 import { Chess } from 'chess.js';
-import type { LocalPuzzle, PuzzleFilters } from './types';
-import { DEFAULT_PUZZLE_FILTERS } from './types';
-import { puzzleRepository, type PuzzleRepository } from './PuzzleRepository';
+import type { LocalPuzzle, PuzzleFilters } from './types.ts';
+import { DEFAULT_PUZZLE_FILTERS } from './types.ts';
+import { pieceCountMatchesBand } from './puzzleBands.ts';
+
+/** Minimal source for selection — avoids pulling the JSON pack into unit tests. */
+export interface PuzzleSource {
+  getAll(): LocalPuzzle[];
+}
 
 export interface SelectPuzzleOptions {
   filters?: Partial<PuzzleFilters>;
@@ -13,7 +18,8 @@ export interface SelectPuzzleOptions {
   excludeIds?: string[];
   /** Optional RNG seed for deterministic picks. */
   seed?: number;
-  repository?: PuzzleRepository;
+  /** Required in tests; app passes puzzleRepository. */
+  repository: PuzzleSource;
 }
 
 function mulberry32(seed: number): () => number {
@@ -26,7 +32,11 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function pieceCountOnBoard(fen: string, setupUci: string | undefined): number | null {
+/** Count pieces on the board after applying the puzzle setup UCI move. */
+export function countPiecesAfterSetup(
+  fen: string,
+  setupUci: string | undefined,
+): number | null {
   try {
     const game = new Chess(fen);
     if (setupUci && setupUci.length >= 4) {
@@ -56,6 +66,9 @@ export function filterPuzzles(
       ? new Set(filters.themes)
       : null;
 
+  const hasBand =
+    filters.pieceCountMin != null || filters.pieceCountMax != null;
+
   return all.filter((p) => {
     if (p.rating < filters.ratingMin || p.rating > filters.ratingMax) return false;
     if (p.moves.length < 2) return false;
@@ -63,9 +76,23 @@ export function filterPuzzles(
       const hit = p.themes.some((t) => themeSet.has(t));
       if (!hit) return false;
     }
-    if (filters.pieceCount != null) {
-      const count = pieceCountOnBoard(p.fen, p.moves[0]);
-      if (count !== filters.pieceCount) return false;
+
+    if (filters.pieceCount != null || hasBand) {
+      const count = countPiecesAfterSetup(p.fen, p.moves[0]);
+      if (count == null) return false;
+      if (filters.pieceCount != null && count !== filters.pieceCount) return false;
+      if (hasBand) {
+        if (
+          !pieceCountMatchesBand(count, {
+            id: 'filter',
+            label: '',
+            min: filters.pieceCountMin ?? null,
+            max: filters.pieceCountMax ?? null,
+          })
+        ) {
+          return false;
+        }
+      }
     }
     return true;
   });
@@ -75,8 +102,8 @@ export function filterPuzzles(
  * Pick a random puzzle matching filters, preferring ones not in excludeIds.
  * Falls back to the filtered pool (including recent) if everything was excluded.
  */
-export function selectPuzzle(options: SelectPuzzleOptions = {}): LocalPuzzle | null {
-  const repo = options.repository ?? puzzleRepository;
+export function selectPuzzle(options: SelectPuzzleOptions): LocalPuzzle | null {
+  const repo = options.repository;
   const filters: PuzzleFilters = {
     ...DEFAULT_PUZZLE_FILTERS,
     ...options.filters,

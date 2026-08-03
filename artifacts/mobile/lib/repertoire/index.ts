@@ -45,5 +45,13 @@ export {
   mixedTrainingKey,
   pickMixedLine,
   sideToPlayerColor,
+  filterFoldersByReviewSide,
+  filterEntriesByReviewSide,
 } from './MixedRepertoireTraining';
-export type { MixedRepertoireEntry, MixedLinePick } from './MixedRepertoireTraining';
+export type {
+  MixedRepertoireEntry,
+  MixedLinePick,
+  ReviewSideFilter,
+} from './MixedRepertoireTraining';
+export { pickPgnFile } from './pickPgnFile';
+export type { PickedPgnFile } from './pickPgnFile';

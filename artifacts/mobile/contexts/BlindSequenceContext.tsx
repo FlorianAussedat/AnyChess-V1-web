@@ -18,15 +18,18 @@ import {
   computeScore,
   generateBlindSequence,
   sequenceKey,
-  DICTATION_SPEEDS,
+  DEFAULT_BLIND_SPEED,
+  BLIND_SPEED_MIN,
+  BLIND_SPEED_MAX,
+  blindSpeedToDelayMs,
+  resolveBlindOrientation,
   type BlindAttemptRecord,
   type BlindOrientation,
+  type BlindPerspective,
   type BlindPhase,
   type BlindScore,
   type BlindSequenceMove,
   type BlindSubmode,
-  type DictationPace,
-  type ObservationPace,
 } from '@/lib/blind';
 import { replayLine, type ReplayLineHandle } from '@/lib/replay';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
@@ -37,9 +40,10 @@ interface BlindSequenceContextValue {
   phase: BlindPhase;
   submode: BlindSubmode | null;
   orientation: BlindOrientation;
+  perspective: BlindPerspective;
   fullMoves: number;
-  pace: ObservationPace;
-  dictationPace: DictationPace;
+  /** Shared speed level 1 (slow) → 10 (fast) for dictation + observation. */
+  speed: number;
   sequence: BlindSequenceMove[];
   expectedIndex: number;
   board: (BoardPiece | null)[][];
@@ -53,10 +57,9 @@ interface BlindSequenceContextValue {
   observationIndex: number;
   /** True while an automatic visual replay is running (observation or results). */
   isReplaying: boolean;
-  setOrientation: (o: BlindOrientation) => void;
+  setPerspective: (p: BlindPerspective) => void;
   setFullMoves: (n: number) => void;
-  setPace: (p: ObservationPace) => void;
-  setDictationPace: (p: DictationPace) => void;
+  setSpeed: (level: number) => void;
   selectSubmode: (m: BlindSubmode) => void;
   backToHub: () => void;
   startSession: () => Promise<void>;
@@ -92,16 +95,16 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const replayRef = useRef(new BoardReplayController());
   const resultReplayRef = useRef<ReplayLineHandle | null>(null);
   const dictationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const paceRef = useRef<ObservationPace>('normal');
-  const dictationPaceRef = useRef<DictationPace>('medium');
+  const speedRef = useRef(DEFAULT_BLIND_SPEED);
+  const perspectiveRef = useRef<BlindPerspective>('white');
   const submodeRef = useRef<BlindSubmode | null>(null);
 
   const [phase, setPhase] = useState<BlindPhase>('hub');
   const [submode, setSubmode] = useState<BlindSubmode | null>(null);
   const [orientation, setOrientation] = useState<BlindOrientation>('w');
+  const [perspective, setPerspectiveState] = useState<BlindPerspective>('white');
   const [fullMoves, setFullMovesState] = useState(3);
-  const [pace, setPaceState] = useState<ObservationPace>('normal');
-  const [dictationPace, setDictationPaceState] = useState<DictationPace>('medium');
+  const [speed, setSpeedState] = useState(DEFAULT_BLIND_SPEED);
   const [sequence, setSequence] = useState<BlindSequenceMove[]>([]);
   const [expectedIndex, setExpectedIndex] = useState(0);
   const [observationIndex, setObservationIndex] = useState(0);
@@ -121,14 +124,21 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setFullMovesState(Math.max(1, Math.min(20, Math.round(n))));
   }, []);
 
-  const setPace = useCallback((p: ObservationPace) => {
-    paceRef.current = p;
-    setPaceState(p);
+  const setSpeed = useCallback((level: number) => {
+    const clamped = Math.max(
+      BLIND_SPEED_MIN,
+      Math.min(BLIND_SPEED_MAX, Math.round(level)),
+    );
+    speedRef.current = clamped;
+    setSpeedState(clamped);
   }, []);
 
-  const setDictationPace = useCallback((p: DictationPace) => {
-    dictationPaceRef.current = p;
-    setDictationPaceState(p);
+  const setPerspective = useCallback((p: BlindPerspective) => {
+    perspectiveRef.current = p;
+    setPerspectiveState(p);
+    if (p !== 'random') {
+      setOrientation(resolveBlindOrientation(p));
+    }
   }, []);
 
   const clearDictationTimer = useCallback(() => {
@@ -163,8 +173,8 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
 
   const speakSequence = useCallback((moves: BlindSequenceMove[], flush = true) => {
     clearDictationTimer();
-    if (flush) speechService.stop();
-    const delay = DICTATION_SPEEDS[dictationPaceRef.current];
+    if (flush) speechService.cancel('dictation');
+    const delay = blindSpeedToDelayMs(speedRef.current);
     let i = 0;
     const step = () => {
       if (i >= moves.length) return;
@@ -200,7 +210,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       syncBoard();
       setIsReplaying(true);
 
-      replayRef.current.start(moves, paceRef.current, {
+      replayRef.current.start(moves, blindSpeedToDelayMs(speedRef.current), {
         onMove: (m, index) => {
           try {
             const played = gameRef.current.move({
@@ -330,7 +340,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const backToHub = useCallback(() => {
-    speechService.stop();
+    speechService.cancel('back-hub');
     replayRef.current.cancel();
     resultReplayRef.current?.cancel();
     clearDictationTimer();
@@ -346,11 +356,13 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setIsGenerating(true);
     setGenerateError(null);
     setPhase('generating');
-    speechService.stop();
+    speechService.cancel('start-session');
     replayRef.current.cancel();
     resultReplayRef.current?.cancel();
     clearDictationTimer();
     setIsReplaying(false);
+    const resolved = resolveBlindOrientation(perspectiveRef.current);
+    setOrientation(resolved);
     try {
       const moves = await generateBlindSequence({
         fullMoves,
@@ -376,13 +388,13 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   }, [speakSequence]);
 
   const startReconstruction = useCallback(() => {
-    speechService.stop();
+    speechService.cancel('reconstruction');
     resetBoard();
     setPhase('reconstruction');
   }, [resetBoard]);
 
   const startRecitation = useCallback(() => {
-    speechService.stop();
+    speechService.cancel('recitation');
     replayRef.current.cancel();
     setIsReplaying(false);
     resetBoard();
@@ -655,7 +667,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   }, [playVisualReplay]);
 
   const backToSettings = useCallback(() => {
-    speechService.stop();
+    speechService.cancel('back-settings');
     replayRef.current.cancel();
     resultReplayRef.current?.cancel();
     clearDictationTimer();
@@ -673,9 +685,9 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         phase,
         submode,
         orientation,
+        perspective,
         fullMoves,
-        pace,
-        dictationPace,
+        speed,
         sequence,
         expectedIndex,
         board,
@@ -688,10 +700,9 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         revealedHint,
         observationIndex,
         isReplaying,
-        setOrientation,
+        setPerspective,
         setFullMoves,
-        setPace,
-        setDictationPace,
+        setSpeed,
         selectSubmode,
         backToHub,
         startSession,

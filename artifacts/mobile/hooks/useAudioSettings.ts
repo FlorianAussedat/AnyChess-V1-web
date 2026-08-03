@@ -2,21 +2,21 @@ import { useCallback, useEffect, useState } from 'react';
 import { audioSettings } from '@/services/AudioSettings';
 import { speechService } from '@/services/SpeechService';
 
-/** React mirror of the global sound-enabled preference. */
+/** React mirror of the global TTS voice-mute preference (SFX unaffected). */
 export function useAudioSettings() {
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabledState] = useState(true);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     audioSettings.ensureLoaded().then(() => {
       if (!cancelled) {
-        setSoundEnabled(audioSettings.isSoundEnabled());
+        setVoiceEnabledState(audioSettings.isVoiceEnabled());
         setReady(true);
       }
     });
     const unsub = audioSettings.onChange((enabled) => {
-      setSoundEnabled(enabled);
+      setVoiceEnabledState(enabled);
       if (!enabled) speechService.stop();
     });
     return () => {
@@ -25,16 +25,29 @@ export function useAudioSettings() {
     };
   }, []);
 
-  const toggleSound = useCallback(async () => {
-    const next = await audioSettings.toggleSound();
+  const toggleVoice = useCallback(async () => {
+    const next = await audioSettings.toggleVoice();
     if (!next) speechService.stop();
     return next;
   }, []);
 
-  const setEnabled = useCallback(async (enabled: boolean) => {
-    await audioSettings.setSoundEnabled(enabled);
+  const setVoiceEnabled = useCallback(async (enabled: boolean) => {
+    await audioSettings.setVoiceEnabled(enabled);
     if (!enabled) speechService.stop();
   }, []);
 
-  return { soundEnabled, ready, toggleSound, setSoundEnabled: setEnabled };
+  // Back-compat aliases used by older screens during migration
+  const soundEnabled = voiceEnabled;
+  const toggleSound = toggleVoice;
+  const setSoundEnabled = setVoiceEnabled;
+
+  return {
+    voiceEnabled,
+    soundEnabled,
+    ready,
+    toggleVoice,
+    toggleSound,
+    setVoiceEnabled,
+    setSoundEnabled,
+  };
 }

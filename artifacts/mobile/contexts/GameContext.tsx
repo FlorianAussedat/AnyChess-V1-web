@@ -16,6 +16,15 @@ import {
 import { normalizeTranscript, parseChessVoice } from '@/lib/voice';
 import type { ChessEngine } from '@/lib/engine';
 import { createOpponentEngine } from '@/lib/engines';
+import {
+  shouldEmitMoveRecognizedFeedback,
+  type MoveInputSource,
+} from '@/lib/moveInput/canonicalMove';
+import {
+  DEFAULT_STRENGTH_BAND_ID,
+  eloForBand,
+  getStrengthBand,
+} from '@/lib/difficulty/StockfishStrengthBands';
 import { speechService } from '@/services/SpeechService';
 import {
   anyChessPgnFilename,
@@ -38,7 +47,11 @@ export type BoardPiece = {
 export type LastMove = { from: string; to: string };
 
 /** Emitted after every user-move attempt so the UI can trigger haptics/sounds. */
-export type MoveEvent = { kind: 'success' | 'error'; id: number };
+export type MoveEvent = {
+  kind: 'success' | 'error';
+  id: number;
+  source?: MoveInputSource;
+};
 
 interface GameContextValue {
   board: (BoardPiece | null)[][];
@@ -52,7 +65,9 @@ interface GameContextValue {
   playerColor: PlayerColor;
   moveEvent: MoveEvent | null;
   isSpeaking: boolean;
-  applyUserMove: (raw: string) => void;
+  strengthBandId: string;
+  setStrengthBandId: (id: string) => void;
+  applyUserMove: (raw: string, source?: MoveInputSource) => void;
   movePieceBySquare: (from: string, to: string) => boolean;
   getLegalDestinations: (square: string) => string[];
   newGame: () => void;
@@ -87,14 +102,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const gameRef         = useRef(new Chess());
   const lastSpokenRef   = useRef('');
   const playerColorRef  = useRef<PlayerColor>('w');
+  const strengthBandIdRef = useRef(DEFAULT_STRENGTH_BAND_ID);
 
   // ── Opponent engine (Stockfish on web, built-in fallback on native) ─────────
   // We only ever talk to the ChessEngine interface — the concrete engine is
   // chosen by createOpponentEngine() and can be swapped without touching this
-  // file. Created lazily once, warmed up on mount, torn down on unmount.
+  // file. Recreated when the strength band changes / on new game (fresh Elo jitter).
   const engineRef = useRef<ChessEngine | null>(null);
   if (engineRef.current === null) {
-    engineRef.current = createOpponentEngine();
+    const elo = eloForBand(getStrengthBand(DEFAULT_STRENGTH_BAND_ID));
+    engineRef.current = createOpponentEngine({ elo });
   }
 
   // Monotonic token that identifies the "current" engine turn. Bumping it
@@ -102,12 +119,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // change while the engine is thinking), so a late result is safely ignored.
   const moveGenerationRef = useRef(0);
 
-  useEffect(() => {
-    const engine = engineRef.current;
-    engine?.init?.().catch(() => {
+  const recreateEngine = useCallback((bandId: string) => {
+    const prev = engineRef.current;
+    prev?.cancel?.();
+    prev?.destroy?.();
+    const elo = eloForBand(getStrengthBand(bandId));
+    const next = createOpponentEngine({ elo });
+    engineRef.current = next;
+    next.init?.().catch(() => {
       /* engine failed to load — opponentMove will simply produce no move */
     });
-    return () => { engine?.destroy?.(); };
+  }, []);
+
+  useEffect(() => {
+    engineRef.current?.init?.().catch(() => {
+      /* engine failed to load — opponentMove will simply produce no move */
+    });
+    return () => {
+      engineRef.current?.destroy?.();
+    };
   }, []);
 
   // Mirror the shared SpeechService "speaking" signal into React state so the
@@ -117,7 +147,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = speechService.onSpeakingChange(setIsSpeaking);
     return () => {
       unsubscribe();
-      speechService.stop();
+      speechService.cancel('unmount');
     };
   }, []);
 
@@ -134,6 +164,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isOpponentThinking, setIsOpponentThinking] = useState(false);
   const [moveEvent, setMoveEvent]               = useState<MoveEvent | null>(null);
   const [isSpeaking, setIsSpeaking]             = useState(false);
+  const [strengthBandId, setStrengthBandIdState] = useState(DEFAULT_STRENGTH_BAND_ID);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -156,9 +187,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     speechService.speak(text, opts);
   }, []);
 
-  const emitEvent = useCallback((kind: 'success' | 'error') => {
-    setMoveEvent(prev => ({ kind, id: (prev?.id ?? 0) + 1 }));
+  const emitEvent = useCallback((kind: 'success' | 'error', source?: MoveInputSource) => {
+    setMoveEvent(prev => ({ kind, id: (prev?.id ?? 0) + 1, source }));
   }, []);
+
+  const setStrengthBandId = useCallback(
+    (id: string) => {
+      strengthBandIdRef.current = id;
+      setStrengthBandIdState(id);
+      recreateEngine(id);
+    },
+    [recreateEngine],
+  );
 
   const repeatLast = useCallback(() => {
     speak(lastSpokenRef.current || 'Aucun coup à répéter.', { flush: true });
@@ -174,7 +214,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
     // Flush anything playing, then queue each half-move; the SpeechService
     // plays them back-to-back and clears isSpeaking when finished.
-    speechService.stop();
+    speechService.cancel('summarize');
     moves.forEach((san, i) => {
       const pairNum = Math.floor(i / 2) + 1;
       const isWhite = i % 2 === 0;
@@ -263,11 +303,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    * stays paused for the whole sequence).
    */
   const finishPlayerMove = useCallback(
-    (played: Move) => {
+    (played: Move, source: MoveInputSource) => {
       setLastMove({ from: played.from, to: played.to });
       setHeardText('');
       syncState();
-      emitEvent('success');
+      if (shouldEmitMoveRecognizedFeedback(source)) {
+        emitEvent('success', source);
+      }
 
       const game = gameRef.current;
 
@@ -302,6 +344,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     // Abort any pending/in-flight engine turn first, so a late Stockfish
     // result cannot land on the restored position.
     cancelPendingOpponent();
+    speechService.cancel('undo');
 
     const allMoves = game.history({ verbose: true }) as Move[];
 
@@ -361,7 +404,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // ── applyUserMove (voice / text input) ────────────────────────────────────
 
   const applyUserMove = useCallback(
-    (raw: string) => {
+    (raw: string, source: MoveInputSource = 'voice') => {
       const input = normalizeTranscript(raw);
       const game = gameRef.current;
       const parsed = parseChessVoice(raw, game, { mode: 'classic' });
@@ -380,19 +423,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       if (parsed.type === 'unrecognized') {
         setStatus('Coup non reconnu. Répète.');
-        if (looksLikeChessMove(input)) emitEvent('error');
+        if (looksLikeChessMove(input)) emitEvent('error', source);
         return;
       }
 
       if (parsed.type === 'ambiguous') {
         setStatus('Coup ambigu. Précise la case de départ.');
-        emitEvent('error');
+        emitEvent('error', source);
         return;
       }
 
       if (parsed.type === 'illegal') {
         setStatus('Coup illégal. Répète.');
-        emitEvent('error');
+        emitEvent('error', source);
         return;
       }
 
@@ -402,10 +445,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           to: parsed.move.to,
           promotion: parsed.move.promotion ?? 'q',
         }) as Move;
-        finishPlayerMove(played);
+        finishPlayerMove(played, source);
       } catch {
         setStatus('Coup illégal. Répète.');
-        emitEvent('error');
+        emitEvent('error', source);
       }
     },
     [waitingForUser, isOpponentThinking, finishPlayerMove,
@@ -420,7 +463,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!waitingForUser || isOpponentThinking || game.isGameOver()) return false;
       try {
         const played = game.move({ from, to, promotion: 'q' }) as Move;
-        finishPlayerMove(played);
+        finishPlayerMove(played, 'touch');
         return true;
       } catch {
         return false;
@@ -452,8 +495,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const resetForColor = useCallback(
     (color: PlayerColor) => {
       cancelPendingOpponent();
-      engineRef.current?.newGame?.();
-      speechService.stop();
+      speechService.cancel('new-game');
+      // Fresh Elo jitter within the selected strength band for each new game.
+      recreateEngine(strengthBandIdRef.current);
       gameRef.current.reset();
       lastSpokenRef.current = '';
       setLastMove(null);
@@ -476,7 +520,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setStatus('À toi de jouer.');
       }
     },
-    [syncState, cancelPendingOpponent],
+    [syncState, cancelPendingOpponent, recreateEngine],
   );
 
   const newGame = useCallback(() => {
@@ -540,6 +584,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         playerColor,
         moveEvent,
         isSpeaking,
+        strengthBandId,
+        setStrengthBandId,
         applyUserMove,
         movePieceBySquare,
         getLegalDestinations,

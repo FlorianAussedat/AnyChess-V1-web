@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { Chess } from 'chess.js';
 import { normalizeOpeningName } from '../OpeningNameNormalizer.ts';
 import { validateOpeningAnswer } from '../OpeningAnswerValidator.ts';
 import {
@@ -85,6 +86,24 @@ describe('opening construction', () => {
     const fail = session.answer('zzzz nonsense');
     assert.equal(fail.phase, 'playing');
     assert.match(fail.feedback ?? '', /reconnu|Ambigu/i);
+  });
+
+  it('attemptMove uses the same exact-SAN matcher as text', () => {
+    const target = findOpeningTarget('Italian Game') ?? availableOpeningQuizLines()[0];
+    assert.ok(target);
+    const session = new OpeningConstructionSession(target);
+    const probe = new Chess();
+    const played = probe.move(target.sans[0]);
+    assert.ok(played);
+    const ok = session.attemptMove({ from: played.from, to: played.to });
+    assert.equal(ok.phase, 'playing');
+    assert.deepEqual(ok.playedSans, [played.san]);
+    assert.equal('expectedSan' in session.snapshotForPlayer(), false);
+
+    const wrongSession = new OpeningConstructionSession(target);
+    const bad = wrongSession.attemptMove({ from: 'a2', to: 'a4' });
+    assert.equal(bad.phase, 'wrong');
+    assert.match(bad.feedback ?? '', /Incorrect/);
   });
 
   it('cancels line replay cleanly', async () => {

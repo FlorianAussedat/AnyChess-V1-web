@@ -20,9 +20,11 @@ import type { Move } from 'chess.js';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
+import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { sideLabel } from '@/components/RepertoireSidePicker';
-import { repertoireService, mixedTrainingKey, pickMixedLine } from '@/lib/repertoire';
+import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
+import type { ReviewSideFilter } from '@/lib/repertoire';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
 import { sanToVerbal } from '@/lib/chessParser';
 import { parseChessVoice } from '@/lib/voice';
@@ -42,6 +44,7 @@ function formatLine(sans: string[], startPly = 0): string {
 }
 
 export default function ContinueLineScreen() {
+  useCancelSpeechOnLeave('/openings/continue');
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -50,18 +53,26 @@ export default function ContinueLineScreen() {
   const bottomPad = isWeb ? 34 : insets.bottom;
   const { soundEnabled } = useAudioSettings();
 
-  const { folderId, folderIds } = useLocalSearchParams<{
+  const { folderId, folderIds, side: sideParam } = useLocalSearchParams<{
     folderId?: string;
     folderIds?: string;
+    side?: string;
   }>();
+
+  const reviewSide: ReviewSideFilter | null =
+    sideParam === 'white' || sideParam === 'black' || sideParam === 'all'
+      ? sideParam
+      : null;
 
   const mixedFolderIds = folderIds
     ? folderIds.split(',').map((s) => s.trim()).filter(Boolean)
     : folderId
       ? [folderId]
       : [];
-  const isMixed = mixedFolderIds.length > 1;
-  const recentKey = isMixed ? mixedTrainingKey(mixedFolderIds) : mixedFolderIds[0] ?? '';
+  const isMixed = mixedFolderIds.length > 1 || reviewSide === 'all';
+  const recentKey = isMixed
+    ? mixedTrainingKey(mixedFolderIds.length > 0 ? mixedFolderIds : [reviewSide ?? 'all'])
+    : mixedFolderIds[0] ?? '';
 
   const sessionRef = useRef(new ContinueLineSession());
   const [snap, setSnap] = useState<ContinueLineSessionSnapshot>(
@@ -141,11 +152,27 @@ export default function ContinueLineScreen() {
         entries.push({ folder, repertoire: rep });
       }
 
+      const pool = reviewSide
+        ? filterEntriesByReviewSide(entries, reviewSide)
+        : entries;
+      if (pool.length === 0) {
+        setLoadError(
+          reviewSide === 'white'
+            ? 'Aucun répertoire Blancs à réviser.'
+            : reviewSide === 'black'
+              ? 'Aucun répertoire Noirs à réviser.'
+              : 'Aucun répertoire à réviser.',
+        );
+        setLoading(false);
+        return;
+      }
+
       const recent = await continueLineRecentStorage.getRecentPathIds(recentKey);
       const session = sessionRef.current;
+      const useMixed = isMixed || pool.length > 1;
 
-      if (isMixed) {
-        const pick = pickMixedLine(entries, { recentPathIds: recent });
+      if (useMixed) {
+        const pick = pickMixedLine(pool, { recentPathIds: recent });
         if (!pick) {
           setLoadError('Impossible de tirer une ligne dans la sélection mixte.');
           setLoading(false);
@@ -160,9 +187,9 @@ export default function ContinueLineScreen() {
           trainingSide: pick.side,
         });
       } else {
-        const folder = entries[0].folder;
+        const folder = pool[0].folder;
         activeFolderIdRef.current = folder.id;
-        session.start(entries[0].repertoire, folder.name, {
+        session.start(pool[0].repertoire, folder.name, {
           recentPathIds: recent,
           sourceLabel: null,
           folderId: folder.id,
@@ -185,7 +212,7 @@ export default function ContinueLineScreen() {
       const pathId = session.getPathId();
       const activeId = activeFolderIdRef.current;
       if (pathId && activeId) {
-        const storageId = isMixed ? `${activeId}:${pathId}` : pathId;
+        const storageId = useMixed ? `${activeId}:${pathId}` : pathId;
         await continueLineRecentStorage.pushRecentPathId(recentKey, storageId);
       }
 
@@ -208,7 +235,7 @@ export default function ContinueLineScreen() {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [mixedFolderIds, isMixed, recentKey, soundEnabled, speak]);
+  }, [mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak]);
 
   // Dedicated retry that keeps the current path if still available
   const retrySame = useCallback(async () => {

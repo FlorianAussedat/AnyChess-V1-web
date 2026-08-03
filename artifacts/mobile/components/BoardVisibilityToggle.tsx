@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, Pressable, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 interface Props {
   visible: boolean;
@@ -9,13 +9,7 @@ interface Props {
 }
 
 /**
- * Eye toggle that shows / hides the visual chessboard.
- *
- * Open eye  = board visible.
- * Closed eye = board hidden.
- *
- * This only controls presentation — hiding the board must never reset or
- * pause the game. Reused by Classic and Opening modes.
+ * Board show/hide control using Major Update brand artwork.
  */
 export function BoardVisibilityToggle({ visible, onToggle }: Props) {
   const colors = useColors();
@@ -30,16 +24,16 @@ export function BoardVisibilityToggle({ visible, onToggle }: Props) {
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: visible ? colors.card : colors.primary,
-          borderColor: visible ? colors.border : colors.primary,
+          backgroundColor: colors.card,
+          borderColor: colors.border,
           opacity: pressed ? 0.6 : 1,
         },
       ]}
     >
-      <Ionicons
-        name={visible ? 'eye-outline' : 'eye-off-outline'}
-        size={20}
-        color={visible ? colors.foreground : colors.primaryForeground}
+      <Image
+        source={visible ? BrandAssets.toggles.boardOn : BrandAssets.toggles.boardOff}
+        style={styles.icon}
+        resizeMode="contain"
       />
     </Pressable>
   );
@@ -47,11 +41,15 @@ export function BoardVisibilityToggle({ visible, onToggle }: Props) {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  icon: {
+    width: 30,
+    height: 30,
   },
 });

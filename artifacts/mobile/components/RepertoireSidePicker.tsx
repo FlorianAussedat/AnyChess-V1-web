@@ -36,7 +36,7 @@ export function RepertoireSidePicker({ value, onChange, disabled }: Props) {
                 color: active ? colors.primaryForeground : colors.foreground,
               }}
             >
-              {side === 'white' ? '♔ Blancs' : '♚ Noirs'}
+              {side === 'white' ? 'Je joue Blancs' : 'Je joue Noirs'}
             </Text>
           </Pressable>
         );
@@ -59,4 +59,9 @@ const styles = StyleSheet.create({
 
 export function sideLabel(side: RepertoireSide): string {
   return side === 'white' ? 'Blancs' : 'Noirs';
+}
+
+/** Short CTA labels for import / migration ("I play White/Black"). */
+export function sidePlayLabel(side: RepertoireSide): string {
+  return side === 'white' ? 'Je joue Blancs' : 'Je joue Noirs';
 }

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
@@ -22,7 +23,12 @@ import { PuzzleProvider, usePuzzle } from '@/contexts/PuzzleContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
-import { puzzleRepository, formatHelpsUsed } from '@/lib/puzzles';
+import {
+  PIECE_COUNT_BANDS,
+  PUZZLE_RATING_BANDS,
+  formatHelpsUsed,
+  puzzleRepository,
+} from '@/lib/puzzles';
 
 export default function PuzzlesRoute() {
   return (
@@ -33,6 +39,7 @@ export default function PuzzlesRoute() {
 }
 
 function PuzzlesScreen() {
+  useCancelSpeechOnLeave('/puzzles');
   const { phase } = usePuzzle();
   switch (phase) {
     case 'hub':
@@ -95,13 +102,49 @@ function ScreenShell({
   );
 }
 
+function FilterChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: active ? colors.primary : colors.card,
+          borderColor: active ? colors.primary : colors.border,
+        },
+      ]}
+    >
+      <Text
+        style={{
+          fontSize: 12,
+          fontFamily: 'Inter_600SemiBold',
+          color: active ? colors.primaryForeground : colors.foreground,
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function HubPhase() {
   const colors = useColors();
   const router = useRouter();
   const {
     selectSubmode,
-    setFilters,
-    filters,
+    setRatingBand,
+    setPieceCountBand,
+    ratingBandId,
+    pieceCountBandId,
     startPuzzle,
     loadError,
     submode,
@@ -110,8 +153,12 @@ function HubPhase() {
   const packCount = puzzleRepository.count();
   const manifest = puzzleRepository.getManifest();
 
-  const onStart = async (mode: 'visual' | 'blind') => {
+  const onPickMode = (mode: 'visual' | 'blind') => {
     selectSubmode(mode);
+  };
+
+  const onStart = async () => {
+    if (!submode) return;
     setStarting(true);
     try {
       await startPuzzle();
@@ -128,94 +175,95 @@ function HubPhase() {
           {manifest.ratingMin}–{manifest.ratingMax}). Pack local : {packCount} problèmes.
         </Text>
 
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>Mode</Text>
+        <View style={styles.row}>
+          <FilterChip
+            label="Visuel"
+            active={submode === 'visual'}
+            onPress={() => onPickMode('visual')}
+          />
+          <FilterChip
+            label="À l’aveugle"
+            active={submode === 'blind'}
+            onPress={() => onPickMode('blind')}
+          />
+        </View>
+
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
           Difficulté (cote puzzle Lichess)
         </Text>
         <View style={styles.row}>
-          {(
-            [
-              { min: 1600, max: 1800, label: '1600–1800' },
-              { min: 1800, max: 2000, label: '1800–2000' },
-              { min: 2000, max: 2200, label: '2000–2200' },
-              { min: 1600, max: 2200, label: 'Tout' },
-            ] as const
-          ).map((opt) => {
-            const active = filters.ratingMin === opt.min && filters.ratingMax === opt.max;
-            return (
-              <Pressable
-                key={opt.label}
-                onPress={() => setFilters({ ratingMin: opt.min, ratingMax: opt.max })}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: active ? colors.primary : colors.card,
-                    borderColor: active ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontFamily: 'Inter_600SemiBold',
-                    color: active ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {PUZZLE_RATING_BANDS.map((band) => (
+            <FilterChip
+              key={band.id}
+              label={band.label}
+              active={ratingBandId === band.id}
+              onPress={() => setRatingBand(band.id)}
+            />
+          ))}
         </View>
 
-        <Pressable
-          disabled={starting}
-          onPress={() => onStart('visual')}
-          style={({ pressed }) => [
-            styles.modeCard,
-            { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed || starting ? 0.7 : 1 },
-          ]}
-        >
-          <Ionicons name="eye-outline" size={28} color={colors.primary} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={[styles.modeTitle, { color: colors.foreground }]}>
-              Résolution visuelle
+        {submode === 'blind' && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+              Nombre de pièces
             </Text>
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-              Échiquier visible — voix ou doigt.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-        </Pressable>
+            <View style={styles.row}>
+              {PIECE_COUNT_BANDS.map((band) => (
+                <FilterChip
+                  key={band.id}
+                  label={band.label}
+                  active={pieceCountBandId === band.id}
+                  onPress={() => setPieceCountBand(band.id)}
+                />
+              ))}
+            </View>
+          </>
+        )}
 
         <Pressable
-          disabled={starting}
-          onPress={() => onStart('blind')}
+          disabled={starting || !submode}
+          onPress={() => onStart()}
           style={({ pressed }) => [
-            styles.modeCard,
-            { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed || starting ? 0.7 : 1 },
+            styles.cta,
+            {
+              backgroundColor: colors.primary,
+              opacity: starting || !submode || pressed ? 0.55 : 1,
+            },
           ]}
         >
-          <Ionicons name="ear-outline" size={28} color={colors.primary} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={[styles.modeTitle, { color: colors.foreground }]}>
-              Résolution à l’aveugle
-            </Text>
-            <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-              Position dictée — réponse à voix haute.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+          <Text style={[styles.ctaLabel, { color: colors.primaryForeground }]}>
+            {submode === 'blind'
+              ? 'Commencer à l’aveugle'
+              : submode === 'visual'
+                ? 'Commencer en visuel'
+                : 'Choisir un mode'}
+          </Text>
         </Pressable>
 
         {starting && <ActivityIndicator color={colors.primary} />}
         {!!loadError && (
-          <Text style={{ color: colors.destructive, fontFamily: 'Inter_400Regular' }}>{loadError}</Text>
+          <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={{ color: colors.destructive, fontFamily: 'Inter_500Medium' }}>
+              {loadError}
+            </Text>
+            <Text style={[styles.hint, { color: colors.mutedForeground, marginTop: 4 }]}>
+              Aucun problème ne correspond à ces filtres. Élargis la cote
+              {submode === 'blind' ? ' ou le nombre de pièces' : ''} puis réessaie.
+            </Text>
+          </View>
         )}
-        {!!submode && !starting && !!loadError && (
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            Ajuste les filtres ou réessaie.
+
+        <Pressable
+          onPress={() => router.push('/puzzles/records' as Href)}
+          hitSlop={8}
+          style={styles.recordsLink}
+          testID="puzzle-records-link"
+        >
+          <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+            Records
           </Text>
-        )}
+        </Pressable>
       </ScrollView>
     </ScreenShell>
   );
@@ -241,12 +289,15 @@ function PlayingPhase() {
     isSpeaking,
     lastFeedback,
     solutionLine,
+    nextMoveHint,
     positionNarration,
     sideToMove,
+    currentStreak,
     getLegalDestinations,
     attemptBoardMove,
     applySpokenMove,
     revealSolution,
+    revealNextMove,
     revealWhitePieces,
     revealBlackPieces,
     repeatPosition,
@@ -343,6 +394,8 @@ function PlayingPhase() {
           <Text style={[styles.meta, { color: colors.mutedForeground }]}>
             {puzzle.id} · cote {puzzle.rating} (Lichess) ·{' '}
             {sideToMove === 'w' ? 'Trait aux Blancs' : 'Trait aux Noirs'}
+            {' · '}
+            Série : {currentStreak}
           </Text>
         )}
 
@@ -350,6 +403,11 @@ function PlayingPhase() {
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
             {lastFeedback ?? (isReplaying ? 'Relecture…' : 'À toi de trouver le coup.')}
           </Text>
+          {!!nextMoveHint && !solutionLine && (
+            <Text style={{ color: colors.primary, fontFamily: 'Inter_400Regular', fontSize: 13, marginTop: 6 }}>
+              {nextMoveHint}
+            </Text>
+          )}
           {!!solutionLine && (
             <Text style={{ color: colors.primary, fontFamily: 'Inter_400Regular', fontSize: 13, marginTop: 6 }}>
               {solutionLine}
@@ -473,6 +531,19 @@ function PlayingPhase() {
             )}
 
             <Pressable
+              onPress={revealNextMove}
+              style={({ pressed }) => [
+                styles.secondaryCta,
+                { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Ionicons name="arrow-forward-outline" size={18} color={colors.foreground} />
+              <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+                Coup suivant
+              </Text>
+            </Pressable>
+
+            <Pressable
               onPress={revealSolution}
               style={({ pressed }) => [
                 styles.secondaryCta,
@@ -502,11 +573,11 @@ function ResultsPhase() {
   const {
     stats,
     solutionLine,
-    board,
     displayBoard,
     lastMove,
     orientation,
     isReplaying,
+    currentStreak,
     nextPuzzle,
     retry,
     revealSolution,
@@ -519,6 +590,9 @@ function ResultsPhase() {
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={[styles.scoreHero, { color: colors.primary }]}>
           {stats?.solutionRequested && !stats.solved ? 'Solution affichée' : 'Problème résolu'}
+        </Text>
+        <Text style={[styles.meta, { color: colors.mutedForeground, textAlign: 'center' }]}>
+          Série : {currentStreak}
         </Text>
         {!!stats && (
           <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -667,15 +741,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  modeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  modeTitle: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
   hint: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
   meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   statusCard: {
@@ -718,5 +783,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     gap: 8,
+  },
+  recordsLink: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 4,
   },
 });

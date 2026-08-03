@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -21,12 +22,24 @@ import {
   BlindSequenceProvider,
   useBlindSequence,
 } from '@/contexts/BlindSequenceContext';
-import { halfMoveCount, type BlindOrientation, type DictationPace, type ObservationPace } from '@/lib/blind';
+import { halfMoveCount } from '@/lib/blind';
+import {
+  BLIND_SPEED_MAX,
+  BLIND_SPEED_MIN,
+  DEFAULT_BLIND_SPEED,
+  type BlindPerspective,
+} from '@/lib/blind';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
-import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
+import { BrandAssets } from '@/constants/BrandAssets';
+import { sfxService } from '@/services/SfxService';
 
 const FULL_MOVE_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
+const SPEED_OPTIONS = Array.from(
+  { length: BLIND_SPEED_MAX - BLIND_SPEED_MIN + 1 },
+  (_, i) => i + BLIND_SPEED_MIN,
+);
 
 export default function BlindRoute() {
   return (
@@ -37,6 +50,7 @@ export default function BlindRoute() {
 }
 
 function BlindSequenceScreen() {
+  useCancelSpeechOnLeave('/blind');
   const { phase } = useBlindSequence();
   switch (phase) {
     case 'hub':
@@ -165,14 +179,12 @@ function SettingsPhase() {
   const colors = useColors();
   const {
     submode,
-    orientation,
+    perspective,
     fullMoves,
-    pace,
-    dictationPace,
-    setOrientation,
+    speed,
+    setPerspective,
     setFullMoves,
-    setPace,
-    setDictationPace,
+    setSpeed,
     startSession,
     isGenerating,
     generateError,
@@ -186,32 +198,38 @@ function SettingsPhase() {
     <ScreenShell title={title} onBack={backToHub}>
       <ScrollView contentContainerStyle={styles.settingsBody}>
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-          Orientation de l’échiquier
+          Perspective
         </Text>
         <View style={styles.row}>
           {(
             [
-              { id: 'w' as BlindOrientation, label: '♔ Blancs en bas' },
-              { id: 'b' as BlindOrientation, label: '♚ Noirs en bas' },
+              { id: 'white' as BlindPerspective, label: 'Blancs', icon: BrandAssets.sides.white },
+              { id: 'black' as BlindPerspective, label: 'Noirs', icon: BrandAssets.sides.black },
+              { id: 'random' as BlindPerspective, label: 'Aléatoire', icon: BrandAssets.sides.random },
             ] as const
           ).map((opt) => {
-            const active = orientation === opt.id;
+            const active = perspective === opt.id;
             return (
               <Pressable
                 key={opt.id}
-                onPress={() => setOrientation(opt.id)}
+                onPress={() => setPerspective(opt.id)}
                 style={[
                   styles.choice,
                   {
                     backgroundColor: active ? colors.primary : colors.card,
                     borderColor: active ? colors.primary : colors.border,
+                    flexDirection: 'row',
+                    gap: 6,
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   },
                 ]}
               >
+                <Image source={opt.icon} style={{ width: 20, height: 20 }} />
                 <Text
                   style={{
                     fontFamily: 'Inter_600SemiBold',
-                    fontSize: 13,
+                    fontSize: 12,
                     color: active ? colors.primaryForeground : colors.foreground,
                     textAlign: 'center',
                   }}
@@ -262,89 +280,47 @@ function SettingsPhase() {
           {fullMoves === 20 ? ' (maximum)' : ''}
         </Text>
 
-        {submode === 'watch-recite' && (
-          <>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              Vitesse d’observation
-            </Text>
-            <View style={styles.row}>
-              {(
-                [
-                  { id: 'slow' as ObservationPace, label: 'Lent' },
-                  { id: 'normal' as ObservationPace, label: 'Normal' },
-                  { id: 'fast' as ObservationPace, label: 'Rapide' },
-                ] as const
-              ).map((opt) => {
-                const active = pace === opt.id;
-                return (
-                  <Pressable
-                    key={opt.id}
-                    onPress={() => setPace(opt.id)}
-                    style={[
-                      styles.choice,
-                      {
-                        backgroundColor: active ? colors.primary : colors.card,
-                        borderColor: active ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: 'Inter_600SemiBold',
-                        fontSize: 13,
-                        color: active ? colors.primaryForeground : colors.foreground,
-                      }}
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-        {submode === 'listen-reconstruct' && (
-          <>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-              Vitesse de dictée
-            </Text>
-            <View style={styles.row}>
-              {(
-                [
-                  { id: 'slow' as DictationPace, label: 'Lent' },
-                  { id: 'medium' as DictationPace, label: 'Moyen' },
-                  { id: 'fast' as DictationPace, label: 'Rapide' },
-                ] as const
-              ).map((opt) => {
-                const active = dictationPace === opt.id;
-                return (
-                  <Pressable
-                    key={opt.id}
-                    onPress={() => setDictationPace(opt.id)}
-                    style={[
-                      styles.choice,
-                      {
-                        backgroundColor: active ? colors.primary : colors.card,
-                        borderColor: active ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        fontFamily: 'Inter_600SemiBold',
-                        fontSize: 13,
-                        color: active ? colors.primaryForeground : colors.foreground,
-                      }}
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
-        )}
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+          Vitesse ({BLIND_SPEED_MIN}–{BLIND_SPEED_MAX})
+        </Text>
+        <View style={styles.chipRow}>
+          {SPEED_OPTIONS.map((n) => {
+            const active = speed === n;
+            return (
+              <Pressable
+                key={n}
+                onPress={() => setSpeed(n)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: active ? colors.primary : colors.card,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    fontFamily: 'Inter_600SemiBold',
+                    fontSize: 12,
+                    color: active ? colors.primaryForeground : colors.foreground,
+                  }}
+                >
+                  {n}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+          {speed <= 3
+            ? 'Lent — plus de temps entre les coups'
+            : speed >= 8
+              ? 'Rapide — enchaînement serré'
+              : `Vitesse ${speed} (défaut ${DEFAULT_BLIND_SPEED})`}
+          {submode === 'listen-reconstruct'
+            ? ' · dictée orale'
+            : ' · observation visuelle'}
+        </Text>
 
         {!!generateError && (
           <Text style={{ color: colors.destructive, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
@@ -495,7 +471,6 @@ function ReconstructionPhase() {
     useHelp,
     backToSettings,
   } = useBlindSequence();
-  const { soundEnabled } = useAudioSettings();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
@@ -518,9 +493,8 @@ function ReconstructionPhase() {
         setLegalDests([]);
       } else if (legalDests.includes(square)) {
         const ok = attemptMove(selected, square);
-        if (!ok && soundEnabled) {
-          /* TTS already handled in context when unmuted */
-        }
+        if (!ok) void sfxService.playError();
+        else void sfxService.playSuccess();
         setSelected(null);
         setLegalDests([]);
       } else {
@@ -534,7 +508,7 @@ function ReconstructionPhase() {
         }
       }
     },
-    [selected, legalDests, getLegalDestinations, attemptMove, soundEnabled],
+    [selected, legalDests, getLegalDestinations, attemptMove],
   );
 
   return (

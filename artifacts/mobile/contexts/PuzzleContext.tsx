@@ -19,11 +19,15 @@ import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 import {
   DEFAULT_PUZZLE_FILTERS,
+  PIECE_COUNT_BANDS,
+  PUZZLE_RATING_BANDS,
   PuzzleSession,
   PuzzleSolutionReplay,
   narratePosition,
   narratePositionSpoken,
   puzzleHistoryStorage,
+  puzzleRepository,
+  puzzleStreakStore,
   selectPuzzle,
   filterBoardPieces,
   type LocalPuzzle,
@@ -37,16 +41,24 @@ import {
   type PuzzleSubmode,
   type PieceRevealFilter,
 } from '@/lib/puzzles';
+import { puzzleStreakBandId } from '@/lib/puzzles/streakBand';
 
 export type PuzzleSpokenResult =
   | PuzzleAttemptResult
   | 'command'
   | 'idle';
 
+const DEFAULT_RATING_BAND_ID = 'all';
+const DEFAULT_PIECE_BAND_ID = 'all';
+
 interface PuzzleContextValue {
   phase: PuzzlePhase;
   submode: PuzzleSubmode | null;
   filters: PuzzleFilters;
+  ratingBandId: string;
+  pieceCountBandId: string;
+  streakBandId: string;
+  currentStreak: number;
   puzzle: LocalPuzzle | null;
   stats: PuzzleAttemptStats | null;
   board: (BoardPiece | null)[][];
@@ -61,15 +73,19 @@ interface PuzzleContextValue {
   isSpeaking: boolean;
   lastFeedback: string | null;
   solutionLine: string | null;
+  nextMoveHint: string | null;
   positionNarration: string | null;
   loadError: string | null;
   setFilters: (partial: Partial<PuzzleFilters>) => void;
+  setRatingBand: (bandId: string) => void;
+  setPieceCountBand: (bandId: string) => void;
   selectSubmode: (m: PuzzleSubmode) => void;
   backToHub: () => void;
   startPuzzle: () => Promise<void>;
   nextPuzzle: () => Promise<void>;
   retry: () => void;
   revealSolution: () => void;
+  revealNextMove: () => void;
   revealWhitePieces: () => void;
   revealBlackPieces: () => void;
   repeatPosition: () => void;
@@ -83,16 +99,51 @@ const PuzzleContext = createContext<PuzzleContextValue | null>(null);
 const PREVIEW_WRONG_MS = 1000;
 const PIECE_REVEAL_MS = 5000;
 
+function filtersFromBands(
+  ratingBandId: string,
+  pieceCountBandId: string,
+  submode: PuzzleSubmode | null,
+): PuzzleFilters {
+  const rating =
+    PUZZLE_RATING_BANDS.find((b) => b.id === ratingBandId) ??
+    PUZZLE_RATING_BANDS.find((b) => b.id === DEFAULT_RATING_BAND_ID)!;
+  const piece =
+    PIECE_COUNT_BANDS.find((b) => b.id === pieceCountBandId) ??
+    PIECE_COUNT_BANDS.find((b) => b.id === DEFAULT_PIECE_BAND_ID)!;
+
+  const filters: PuzzleFilters = {
+    ...DEFAULT_PUZZLE_FILTERS,
+    ratingMin: rating.ratingMin,
+    ratingMax: rating.ratingMax,
+    pieceCountMin: null,
+    pieceCountMax: null,
+  };
+
+  if (submode === 'blind' && piece.id !== 'all') {
+    filters.pieceCountMin = piece.min;
+    filters.pieceCountMax = piece.max;
+  }
+
+  return filters;
+}
+
 export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const sessionRef = useRef(new PuzzleSession());
   const replayRef = useRef(new PuzzleSolutionReplay());
   const submodeRef = useRef<PuzzleSubmode | null>(null);
+  const streakBandRef = useRef(DEFAULT_RATING_BAND_ID);
+  const streakRecordedRef = useRef(false);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [phase, setPhase] = useState<PuzzlePhase>('hub');
   const [submode, setSubmode] = useState<PuzzleSubmode | null>(null);
-  const [filters, setFiltersState] = useState<PuzzleFilters>({ ...DEFAULT_PUZZLE_FILTERS });
+  const [ratingBandId, setRatingBandId] = useState(DEFAULT_RATING_BAND_ID);
+  const [pieceCountBandId, setPieceCountBandId] = useState(DEFAULT_PIECE_BAND_ID);
+  const [filters, setFiltersState] = useState<PuzzleFilters>(() =>
+    filtersFromBands(DEFAULT_RATING_BAND_ID, DEFAULT_PIECE_BAND_ID, null),
+  );
+  const [currentStreak, setCurrentStreak] = useState(0);
   const [puzzle, setPuzzle] = useState<LocalPuzzle | null>(null);
   const [stats, setStats] = useState<PuzzleAttemptStats | null>(null);
   const [board, setBoard] = useState<(BoardPiece | null)[][]>(() =>
@@ -108,8 +159,18 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
   const [solutionLine, setSolutionLine] = useState<string | null>(null);
+  const [nextMoveHint, setNextMoveHint] = useState<string | null>(null);
   const [positionNarration, setPositionNarration] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const streakBandId = useMemo(
+    () => puzzleStreakBandId(ratingBandId, pieceCountBandId, submode),
+    [ratingBandId, pieceCountBandId, submode],
+  );
+
+  useEffect(() => {
+    streakBandRef.current = streakBandId;
+  }, [streakBandId]);
 
   const clearPreviewTimer = useCallback(() => {
     if (previewTimerRef.current != null) {
@@ -158,6 +219,12 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     audioSettings.ensureLoaded().catch(() => {});
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
+    puzzleStreakStore
+      .getSnapshot()
+      .then((snap) => {
+        setCurrentStreak(snap.currentByBand[streakBandRef.current] ?? 0);
+      })
+      .catch(() => {});
     return () => {
       unsub();
       speechService.stop();
@@ -167,6 +234,15 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     };
   }, [clearPreviewTimer, clearRevealTimer]);
 
+  useEffect(() => {
+    puzzleStreakStore
+      .getSnapshot()
+      .then((snap) => {
+        setCurrentStreak(snap.currentByBand[streakBandId] ?? 0);
+      })
+      .catch(() => {});
+  }, [streakBandId]);
+
   const markHelp = useCallback((key: keyof PuzzleAttemptStats['helps']) => {
     const session = sessionRef.current;
     if (!session.isLoaded) return;
@@ -175,6 +251,17 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     next.helps[key] = true;
     session.setStats(next);
     setStats(session.getStats());
+  }, []);
+
+  const recordStreak = useCallback(async (solved: boolean) => {
+    if (streakRecordedRef.current) return;
+    streakRecordedRef.current = true;
+    try {
+      const result = await puzzleStreakStore.recordResult(streakBandRef.current, solved);
+      setCurrentStreak(result.current);
+    } catch {
+      /* ignore persistence errors */
+    }
   }, []);
 
   const showWrongMovePreview = useCallback(
@@ -205,13 +292,35 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setFiltersState((prev) => ({ ...prev, ...partial }));
   }, []);
 
-  const selectSubmode = useCallback((m: PuzzleSubmode) => {
-    submodeRef.current = m;
-    setSubmode(m);
-    setBoardVisible(m === 'visual');
-    setLastFeedback(null);
-    setLoadError(null);
-  }, []);
+  const setRatingBand = useCallback(
+    (bandId: string) => {
+      setRatingBandId(bandId);
+      setFiltersState(filtersFromBands(bandId, pieceCountBandId, submodeRef.current));
+      setLoadError(null);
+    },
+    [pieceCountBandId],
+  );
+
+  const setPieceCountBand = useCallback(
+    (bandId: string) => {
+      setPieceCountBandId(bandId);
+      setFiltersState(filtersFromBands(ratingBandId, bandId, submodeRef.current));
+      setLoadError(null);
+    },
+    [ratingBandId],
+  );
+
+  const selectSubmode = useCallback(
+    (m: PuzzleSubmode) => {
+      submodeRef.current = m;
+      setSubmode(m);
+      setBoardVisible(m === 'visual');
+      setLastFeedback(null);
+      setLoadError(null);
+      setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, m));
+    },
+    [ratingBandId, pieceCountBandId],
+  );
 
   const backToHub = useCallback(() => {
     speechService.stop();
@@ -219,17 +328,20 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     resetPresentation();
     setIsReplaying(false);
     setSubmode(null);
+    submodeRef.current = null;
     setPhase('hub');
     setPuzzle(null);
     setStats(null);
     setLastMove(null);
     setLastFeedback(null);
     setSolutionLine(null);
+    setNextMoveHint(null);
     setPositionNarration(null);
     setLoadError(null);
     setBoardVisible(true);
     setBoard(new Chess().board() as (BoardPiece | null)[][]);
-  }, [resetPresentation]);
+    setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
+  }, [resetPresentation, ratingBandId, pieceCountBandId]);
 
   const announceBlindPosition = useCallback((fen: string) => {
     const text = narratePosition(fen);
@@ -246,6 +358,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       `Problème résolu. Précision au premier essai : ${finalStats.accuracyPercent} pour cent.`,
       { flush: true },
     );
+    void recordStreak(true);
 
     const p = sessionRef.current.currentPuzzle;
     if (p) {
@@ -264,7 +377,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         })
         .catch(() => {});
     }
-  }, []);
+  }, [recordStreak]);
 
   const applyOutcome = useCallback(
     (outcome: PuzzleAttemptOutcome, preview?: { from: string; to: string }) => {
@@ -280,11 +393,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         const msg = 'Coup incorrect. Réessaie.';
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
-        if (
-          preview &&
-          submodeRef.current === 'visual' &&
-          !isPreviewing
-        ) {
+        if (preview && submodeRef.current === 'visual' && !isPreviewing) {
           showWrongMovePreview(preview.from, preview.to);
         } else {
           syncFromSession();
@@ -294,6 +403,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
       syncFromSession();
       if (result === 'correct' || result === 'complete') {
+        setNextMoveHint(null);
         if (userMove) setLastMove({ from: userMove.from, to: userMove.to });
         setLastFeedback(result === 'complete' ? 'Problème résolu' : 'Correct.');
         if (opponentMove) {
@@ -314,6 +424,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       setIsReplaying(false);
       setLoadError(null);
       setSolutionLine(null);
+      setNextMoveHint(null);
       setLastFeedback(null);
 
       try {
@@ -351,11 +462,16 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     if (!submodeRef.current) return;
     setLoadError(null);
     const recent = await puzzleHistoryStorage.getRecentIds();
-    const chosen = selectPuzzle({ filters, excludeIds: recent });
+    const chosen = selectPuzzle({
+      filters,
+      excludeIds: recent,
+      repository: puzzleRepository,
+    });
     if (!chosen) {
       setLoadError('Aucun problème ne correspond à ces filtres.');
       return;
     }
+    streakRecordedRef.current = false;
     await beginPuzzle(chosen);
   }, [filters, beginPuzzle]);
 
@@ -371,6 +487,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     resetPresentation();
     setIsReplaying(false);
     setSolutionLine(null);
+    setNextMoveHint(null);
     setLastFeedback(null);
     beginPuzzle(p).catch(() => {});
   }, [beginPuzzle, resetPresentation]);
@@ -406,6 +523,18 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const revealWhitePieces = useCallback(() => startPieceReveal('white'), [startPieceReveal]);
   const revealBlackPieces = useCallback(() => startPieceReveal('black'), [startPieceReveal]);
 
+  const revealNextMove = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session.isLoaded || phase !== 'playing') return;
+    const next = session.peekNextMove();
+    if (!next) return;
+    markHelp('nextMove');
+    const hint = `Coup suivant : ${next.san}`;
+    setNextMoveHint(hint);
+    setLastFeedback(hint);
+    speechService.speak(`Coup suivant : ${next.verbal}`, { flush: true });
+  }, [markHelp, phase]);
+
   const revealSolution = useCallback(() => {
     const session = sessionRef.current;
     if (!session.isLoaded) return;
@@ -415,6 +544,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     replayRef.current.cancel();
     resetPresentation();
     markHelp('solution');
+    setNextMoveHint(null);
 
     const line = session.requestSolution();
     const fullLine = session.getUserFacingSolutionLine();
@@ -454,6 +584,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         setPhase('results');
         setStats(session.getFinalStats());
         setLastFeedback('Solution affichée.');
+        void recordStreak(false);
         const p = session.currentPuzzle;
         if (p) {
           const finalStats = session.getFinalStats();
@@ -474,7 +605,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         }
       },
     });
-  }, [markHelp, phase, resetPresentation, syncFromSession]);
+  }, [markHelp, phase, recordStreak, resetPresentation, syncFromSession]);
 
   const attemptBoardMove = useCallback(
     (from: string, to: string): PuzzleAttemptResult | 'idle' => {
@@ -482,6 +613,8 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       const session = sessionRef.current;
       if (!session.isLoaded || session.isComplete()) return 'idle';
 
+      // Promotion hint is only used when from/to do not match the expected
+      // squares; attemptMove canonicalizes matching squares via expected UCI.
       const outcome = session.attemptMove(from, to, 'q');
       applyOutcome(outcome, { from, to });
       return outcome.result;
@@ -563,6 +696,10 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         phase,
         submode,
         filters,
+        ratingBandId,
+        pieceCountBandId,
+        streakBandId,
+        currentStreak,
         puzzle,
         stats,
         board,
@@ -577,15 +714,19 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         isSpeaking,
         lastFeedback,
         solutionLine,
+        nextMoveHint,
         positionNarration,
         loadError,
         setFilters,
+        setRatingBand,
+        setPieceCountBand,
         selectSubmode,
         backToHub,
         startPuzzle,
         nextPuzzle,
         retry,
         revealSolution,
+        revealNextMove,
         revealWhitePieces,
         revealBlackPieces,
         repeatPosition,

@@ -12,6 +12,8 @@ import {
   mixedTrainingKey,
   pickMixedLine,
   sideToPlayerColor,
+  filterFoldersByReviewSide,
+  filterEntriesByReviewSide,
 } from '../MixedRepertoireTraining.ts';
 import { buildRepertoire } from '../repertoireTree.ts';
 import { ContinueLineRecentStorage } from '../../continueLine/ContinueLineRecentStorage.ts';
@@ -132,6 +134,81 @@ describe('MixedRepertoireTraining', () => {
     });
     assert.ok(second);
     assert.notEqual(`${folder.id}:${second!.path.id}`, pathKey);
+  });
+
+  it('filters Review White / Black / All folder pools', () => {
+    const folders: RepertoireFolder[] = [
+      { id: 'w1', name: 'W1', side: 'white', createdAt: '', updatedAt: '' },
+      { id: 'w2', name: 'W2', side: 'white', createdAt: '', updatedAt: '' },
+      { id: 'b1', name: 'B1', side: 'black', createdAt: '', updatedAt: '' },
+      { id: 'x1', name: 'Unset', createdAt: '', updatedAt: '' },
+    ];
+
+    assert.deepEqual(
+      filterFoldersByReviewSide(folders, 'white').map((f) => f.id),
+      ['w1', 'w2'],
+    );
+    assert.deepEqual(
+      filterFoldersByReviewSide(folders, 'black').map((f) => f.id),
+      ['b1'],
+    );
+    assert.deepEqual(
+      filterFoldersByReviewSide(folders, 'all').map((f) => f.id),
+      ['w1', 'w2', 'b1'],
+    );
+  });
+
+  it('Review White / Black / All selection drives mixed picks to that side', () => {
+    const rep = buildRepertoire(MINI_PGN);
+    const whiteFolder: RepertoireFolder = {
+      id: 'w1',
+      name: 'White rep',
+      side: 'white',
+      createdAt: '',
+      updatedAt: '',
+    };
+    const blackFolder: RepertoireFolder = {
+      id: 'b1',
+      name: 'Black rep',
+      side: 'black',
+      createdAt: '',
+      updatedAt: '',
+    };
+    const allEntries = [
+      { folder: whiteFolder, repertoire: rep },
+      { folder: blackFolder, repertoire: rep },
+    ];
+
+    const whiteOnly = filterEntriesByReviewSide(allEntries, 'white');
+    assert.equal(whiteOnly.length, 1);
+    const whitePick = pickMixedLine(whiteOnly, { rng: () => 0.5 });
+    assert.ok(whitePick);
+    assert.equal(whitePick!.side, 'white');
+    assert.equal(sideToPlayerColor(whitePick!.side), 'w');
+
+    const blackOnly = filterEntriesByReviewSide(allEntries, 'black');
+    assert.equal(blackOnly.length, 1);
+    const blackPick = pickMixedLine(blackOnly, { rng: () => 0.5 });
+    assert.ok(blackPick);
+    assert.equal(blackPick!.side, 'black');
+    assert.equal(sideToPlayerColor(blackPick!.side), 'b');
+
+    const reviewAll = filterEntriesByReviewSide(allEntries, 'all');
+    assert.equal(reviewAll.length, 2);
+
+    const seen = new Set<string>();
+    let seq = 0;
+    const rng = () => {
+      seq += 1;
+      return seq % 2 === 0 ? 0.9 : 0.1;
+    };
+    for (let i = 0; i < 8; i++) {
+      const pick = pickMixedLine(reviewAll, { rng });
+      assert.ok(pick);
+      seen.add(pick!.side);
+    }
+    assert.ok(seen.has('white'));
+    assert.ok(seen.has('black'));
   });
 });
 

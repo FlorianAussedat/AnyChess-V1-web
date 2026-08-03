@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, Pressable, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 interface Props {
   visible: boolean;
@@ -9,12 +9,7 @@ interface Props {
 }
 
 /**
- * Toggle that shows / hides chessboard file (a–h) and rank (1–8) labels.
- *
- * Grid icon filled = coordinates visible.
- * Grid icon outline = coordinates hidden.
- *
- * Independent from BoardVisibilityToggle — never hides the board itself.
+ * Coordinates show/hide using Major Update brand artwork.
  */
 export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
   const colors = useColors();
@@ -31,16 +26,16 @@ export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: visible ? colors.card : colors.primary,
-          borderColor: visible ? colors.border : colors.primary,
+          backgroundColor: colors.card,
+          borderColor: colors.border,
           opacity: pressed ? 0.6 : 1,
         },
       ]}
     >
-      <Ionicons
-        name={visible ? 'grid-outline' : 'grid'}
-        size={18}
-        color={visible ? colors.foreground : colors.primaryForeground}
+      <Image
+        source={visible ? BrandAssets.toggles.coordsOn : BrandAssets.toggles.coordsOff}
+        style={styles.icon}
+        resizeMode="contain"
       />
     </Pressable>
   );
@@ -48,11 +43,15 @@ export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  icon: {
+    width: 30,
+    height: 30,
   },
 });

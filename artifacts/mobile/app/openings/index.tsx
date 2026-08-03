@@ -1,11 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import type { RepertoireFolder } from '@/lib/repertoire';
+import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
+import { filterFoldersByReviewSide } from '@/lib/repertoire';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 
 export default function OpeningsFolderList() {
@@ -47,6 +48,19 @@ export default function OpeningsFolderList() {
   const [nameDraft, setNameDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const whiteFolders = useMemo(
+    () => folders.filter((f) => f.side === 'white'),
+    [folders],
+  );
+  const blackFolders = useMemo(
+    () => folders.filter((f) => f.side === 'black'),
+    [folders],
+  );
+  const unassignedFolders = useMemo(
+    () => folders.filter((f) => !f.side),
+    [folders],
+  );
 
   const openCreate = useCallback(() => {
     setNameDraft('');
@@ -105,9 +119,21 @@ export default function OpeningsFolderList() {
     if (ids.length === 0) return;
     setMixedOpen(false);
     router.push(
-      `/openings/continue?folderIds=${encodeURIComponent(ids.join(','))}` as Href,
+      `/openings/continue?folderIds=${encodeURIComponent(ids.join(','))}&side=all` as Href,
     );
   }, [mixedSelect, router]);
+
+  const startReview = useCallback(
+    (side: ReviewSideFilter) => {
+      const pool = filterFoldersByReviewSide(trainable, side);
+      if (pool.length === 0) return;
+      const ids = pool.map((f) => f.id).join(',');
+      router.push(
+        `/openings/continue?folderIds=${encodeURIComponent(ids)}&side=${side}` as Href,
+      );
+    },
+    [trainable, router],
+  );
 
   const confirmDelete = useCallback(
     (folder: RepertoireFolder) => {
@@ -137,6 +163,61 @@ export default function OpeningsFolderList() {
     },
     [deleteFolder, getFiles],
   );
+
+  const renderFolderRow = useCallback(
+    (item: RepertoireFolder) => {
+      const files = getFiles(item.id);
+      return (
+        <Pressable
+          key={item.id}
+          onPress={() => router.push(`/openings/${item.id}` as Href)}
+          style={({ pressed }) => [
+            styles.card,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              opacity: pressed ? 0.75 : 1,
+            },
+          ]}
+          testID={`folder-${item.id}`}
+        >
+          <View style={[styles.folderIcon, { backgroundColor: colors.primary }]}>
+            <Ionicons name="folder" size={22} color={colors.primaryForeground} />
+          </View>
+          <View style={styles.cardBody}>
+            <Text style={[styles.cardTitle, { color: colors.foreground }]}>{item.name}</Text>
+            <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
+              {files.length === 0
+                ? 'Aucun fichier PGN'
+                : `${files.length} fichier${files.length > 1 ? 's' : ''} PGN`}
+              {item.side ? ` · ${sideLabel(item.side)}` : ''}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => openRename(item)}
+            hitSlop={8}
+            style={styles.iconOnly}
+            testID={`rename-folder-${item.id}`}
+          >
+            <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            onPress={() => confirmDelete(item)}
+            hitSlop={8}
+            style={styles.iconOnly}
+            testID={`delete-folder-${item.id}`}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.destructive} />
+          </Pressable>
+          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+        </Pressable>
+      );
+    },
+    [colors, confirmDelete, getFiles, openRename, router],
+  );
+
+  const reviewDisabled = (side: ReviewSideFilter) =>
+    filterFoldersByReviewSide(trainable, side).length === 0;
 
   return (
     <View
@@ -185,11 +266,65 @@ export default function OpeningsFolderList() {
       {trainable.length > 0 && (
         <View style={[styles.mixedBlock, { borderColor: colors.border, backgroundColor: colors.card }]}>
           <Text style={[styles.mixedTitle, { color: colors.foreground }]}>
-            Entraînement mixte
+            Révision
           </Text>
           <Text style={[styles.mixedHint, { color: colors.mutedForeground }]}>
-            Combine plusieurs répertoires — l’orientation change selon le côté de chaque ligne.
+            Continue la ligne sur un ou plusieurs répertoires — l’orientation suit le côté de chaque ligne.
           </Text>
+          <View style={styles.reviewRow}>
+            <Pressable
+              onPress={() => startReview('all')}
+              disabled={reviewDisabled('all')}
+              style={({ pressed }) => [
+                styles.reviewBtn,
+                {
+                  backgroundColor: colors.primary,
+                  opacity: reviewDisabled('all') ? 0.4 : pressed ? 0.75 : 1,
+                },
+              ]}
+              testID="review-all-btn"
+            >
+              <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+                Tout réviser
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => startReview('white')}
+              disabled={reviewDisabled('white')}
+              style={({ pressed }) => [
+                styles.reviewBtn,
+                {
+                  backgroundColor: colors.input,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  opacity: reviewDisabled('white') ? 0.4 : pressed ? 0.75 : 1,
+                },
+              ]}
+              testID="review-white-btn"
+            >
+              <Text style={[styles.reviewBtnLabelMuted, { color: colors.foreground }]}>
+                Réviser Blancs
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => startReview('black')}
+              disabled={reviewDisabled('black')}
+              style={({ pressed }) => [
+                styles.reviewBtn,
+                {
+                  backgroundColor: colors.input,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  opacity: reviewDisabled('black') ? 0.4 : pressed ? 0.75 : 1,
+                },
+              ]}
+              testID="review-black-btn"
+            >
+              <Text style={[styles.reviewBtnLabelMuted, { color: colors.foreground }]}>
+                Réviser Noirs
+              </Text>
+            </Pressable>
+          </View>
           <Pressable
             onPress={() => {
               if (mixedSelect.size === 0) selectAllTrainable();
@@ -197,13 +332,18 @@ export default function OpeningsFolderList() {
             }}
             style={({ pressed }) => [
               styles.mixedBtn,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderWidth: 1,
+                opacity: pressed ? 0.75 : 1,
+              },
             ]}
             testID="mixed-training-btn"
           >
-            <Ionicons name="shuffle-outline" size={18} color={colors.primaryForeground} />
-            <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              Continue la ligne (mixte)
+            <Ionicons name="shuffle-outline" size={18} color={colors.foreground} />
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+              Sélection personnalisée…
             </Text>
           </Pressable>
         </View>
@@ -228,58 +368,35 @@ export default function OpeningsFolderList() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={folders}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => {
-            const files = getFiles(item.id);
-            return (
-              <Pressable
-                onPress={() => router.push(`/openings/${item.id}` as Href)}
-                style={({ pressed }) => [
-                  styles.card,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    opacity: pressed ? 0.75 : 1,
-                  },
-                ]}
-                testID={`folder-${item.id}`}
-              >
-                <View style={[styles.folderIcon, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="folder" size={22} color={colors.primaryForeground} />
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{item.name}</Text>
-                  <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
-                    {files.length === 0
-                      ? 'Aucun fichier PGN'
-                      : `${files.length} fichier${files.length > 1 ? 's' : ''} PGN`}
-                    {item.side ? ` · ${sideLabel(item.side)}` : ''}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => openRename(item)}
-                  hitSlop={8}
-                  style={styles.iconOnly}
-                  testID={`rename-folder-${item.id}`}
-                >
-                  <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
-                </Pressable>
-                <Pressable
-                  onPress={() => confirmDelete(item)}
-                  hitSlop={8}
-                  style={styles.iconOnly}
-                  testID={`delete-folder-${item.id}`}
-                >
-                  <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-                </Pressable>
-                <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            );
-          }}
-        />
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+          {whiteFolders.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                RÉPERTOIRE BLANCS
+              </Text>
+              {whiteFolders.map(renderFolderRow)}
+            </View>
+          )}
+          {blackFolders.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                RÉPERTOIRE NOIRS
+              </Text>
+              {blackFolders.map(renderFolderRow)}
+            </View>
+          )}
+          {unassignedFolders.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                SANS CÔTÉ
+              </Text>
+              <Text style={[styles.sectionHint, { color: colors.mutedForeground }]}>
+                Ouvre chaque dossier et choisis « Je joue Blancs » ou « Je joue Noirs » à l’import.
+              </Text>
+              {unassignedFolders.map(renderFolderRow)}
+            </View>
+          )}
+        </ScrollView>
       )}
 
       <NameModal
@@ -515,8 +632,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
   },
   list: {
-    gap: 10,
+    gap: 16,
     paddingBottom: 20,
+  },
+  section: {
+    gap: 10,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.8,
+  },
+  sectionHint: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 17,
+    marginTop: -4,
   },
   card: {
     flexDirection: 'row',
@@ -623,7 +754,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     lineHeight: 17,
   },
-  mixedBtn: {
+  reviewRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reviewBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  reviewBtnLabelMuted: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+  },  mixedBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

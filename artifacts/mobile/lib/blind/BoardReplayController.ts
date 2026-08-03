@@ -2,8 +2,7 @@
  * Shared timed board-replay controller for Blind Sequence observation + review.
  * One active replay at a time; cancel() clears pending timers cleanly.
  */
-import type { BlindSequenceMove, ObservationPace } from './types';
-import { OBSERVATION_DELAY_MS } from './types';
+import type { BlindSequenceMove } from './types';
 
 export interface BoardReplayCallbacks {
   /** Called once before the first move (board should already be reset). */
@@ -27,18 +26,18 @@ export class BoardReplayController {
     this.generation += 1;
     if (this.timer != null) {
       clearTimeout(this.timer);
-      this.timer = null;
     }
+    this.timer = null;
     this.running = false;
   }
 
   /**
-   * Replay `moves` with `pace` delay BETWEEN moves.
-   * First move starts immediately (or after 0 ms); subsequent moves wait `delay`.
+   * Replay `moves` with `delayMs` BETWEEN moves.
+   * First move starts immediately; subsequent moves wait `delayMs`.
    */
   start(
     moves: BlindSequenceMove[],
-    pace: ObservationPace,
+    delayMs: number,
     callbacks: BoardReplayCallbacks,
   ): void {
     this.cancel();
@@ -48,7 +47,7 @@ export class BoardReplayController {
     }
 
     const myGen = this.generation;
-    const delay = OBSERVATION_DELAY_MS[pace];
+    const delay = Math.max(0, delayMs);
     this.running = true;
     callbacks.onStart?.();
 

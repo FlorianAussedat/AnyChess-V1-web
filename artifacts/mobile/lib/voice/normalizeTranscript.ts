@@ -102,7 +102,16 @@ export function normalizeTranscript(raw: string): string {
     .replace(/\bx\b/g, 'prend');
 
   // ── English piece names kept (bilingual resolver uses both) ─────────────
-  // Also map common typos after castling handling.
+  // STT often mangles piece names — recover before square joining.
+  n = n
+    .replace(/\bnight\b/g, 'knight')
+    .replace(/\bnite\b/g, 'knight')
+    .replace(/\bknite\b/g, 'knight')
+    .replace(/\bnil\b/g, 'knight')
+    .replace(/\bbishoppe?\b/g, 'bishop')
+    .replace(/\bwhich\s+shop\b/g, 'bishop')
+    .replace(/\bcav\b/g, 'cavalier')
+    .replace(/\bcavale?\b/g, 'cavalier');
 
   // ── Check / mate suffixes (strip later in intent; normalize spelling) ───
   n = n
@@ -130,6 +139,7 @@ export function normalizeTranscript(raw: string): string {
     .replace(/\b(une|un|one)\b/g, '1');
 
   // ── Promotion phrases / algebraic suffixes ──────────────────────────────
+  // Run before spoken-letter→piece recovery so "promotion en dame" keeps "en".
   n = n
     .replace(/\bpromoti(?:on|onne?)\s+(en\s+)?dame\b/g, 'promo dame')
     .replace(/\bpromoti(?:on|onne?)\s+(en\s+)?queen\b/g, 'promo queen')
@@ -168,11 +178,30 @@ export function normalizeTranscript(raw: string): string {
   // Compact letter + digit with space: "f 3" → "f3", "C f 3" handled via above
   n = n.replace(/\b([a-h])\s+([1-8])\b/g, '$1$2');
 
-  // Compact French/English SAN-like tokens with spaces: "C f3" → keep;
-  // "N f 3" already collapsed file+rank. Collapse "cf 3" style leftovers.
-  n = n.replace(/\b([nbrqkcdft]|NBRQKCDFT)\s+([a-h][1-8])\b/g, (_, p, sq) => {
-    return `${String(p).toLowerCase()}${sq}`;
+  // Spoken SAN letter names before a square → preserve piece letter.
+  // MUST run after "c 3" → "c3" so STT "en c 3" / "enne c3" becomes "nc3"
+  // (not bare "c3" → false pawn). Same for bee/ar/cue/kay letter names.
+  n = n
+    .replace(/\b(enne|en|an)\s+([a-h][1-8])\b/g, 'n$2')
+    .replace(/\b(bee|bé|be)\s+([a-h][1-8])\b/g, 'b$2')
+    .replace(/\b(ar|are)\s+([a-h][1-8])\b/g, 'r$2')
+    .replace(/\b(cue|kyu|queue)\s+([a-h][1-8])\b/g, 'q$2')
+    .replace(/\b(kay|kei)\s+([a-h][1-8])\b/g, 'k$2');
+
+  // Compact French/English SAN-like tokens with spaces: "N f3" / "C f3".
+  // MUST run after bare file+rank collapse so "N f 3" → "N f3" → "nf3".
+  // Never drop the piece letter — that caused pawn false-positives.
+  n = n.replace(/\b([nbrqkcdft])\s+([a-h][1-8])\b/gi, (_, p: string, sq: string) => {
+    return `${p.toLowerCase()}${sq}`;
   });
+
+  // "cavalier c3" / "knight b4" stay as spoken forms for extractMoveIntent.
+  // Also accept glued spoken+square without space after STT glitches:
+  // "cavalierc3" → "cavalier c3"
+  n = n.replace(
+    /\b(dame|cavalier|fou|tour|roi|pion|queen|knight|bishop|rook|king|pawn)([a-h][1-8])\b/g,
+    '$1 $2',
+  );
 
   return n.replace(/\s+/g, ' ').trim();
 }

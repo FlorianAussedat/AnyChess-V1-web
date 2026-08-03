@@ -2,7 +2,7 @@
  * Persist recent puzzle IDs + lightweight attempt history (AsyncStorage).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PuzzleHistoryRecord } from './types';
+import type { PuzzleHistoryRecord } from './types.ts';
 
 const RECENT_KEY = 'anychess.puzzles.recent.v1';
 const HISTORY_KEY = 'anychess.puzzles.history.v1';

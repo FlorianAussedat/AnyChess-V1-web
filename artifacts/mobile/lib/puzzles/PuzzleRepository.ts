@@ -1,7 +1,7 @@
 /**
  * Offline puzzle repository — imports the curated local JSON pack.
  */
-import type { LocalPuzzle, PuzzleManifest } from './types';
+import type { LocalPuzzle, PuzzleManifest } from './types.ts';
 import puzzlesJson from './data/puzzles.json';
 import manifestJson from './data/manifest.json';
 

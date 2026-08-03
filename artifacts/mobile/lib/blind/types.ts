@@ -76,8 +76,14 @@ export interface BlindSessionConfig {
   orientation: BlindOrientation;
   fullMoves: number;
   submode: BlindSubmode;
+  /** @deprecated Prefer `speed` (1–10). Kept for compat. */
   pace?: ObservationPace;
+  /** @deprecated Prefer `speed` (1–10). Kept for compat. */
   dictationPace?: DictationPace;
+  /** Shared speed level 1 (slow) → 10 (fast). */
+  speed?: number;
+  /** Board perspective preference (resolved at session start). */
+  perspective?: 'white' | 'black' | 'random';
 }
 
 export function halfMoveCount(fullMoves: number): number {

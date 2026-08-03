@@ -1,5 +1,6 @@
 /**
  * Rewrite main menu: Tactiques + Visualisation + Quiz Ouverture + version label.
+ * Brand icons from Major Update 0.0.2 visual pack.
  */
 import React from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,13 +9,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { formatAppVersionLabel } from '@/lib/app/version';
+import { BrandAssets } from '@/constants/BrandAssets';
+import type { ImageSourcePropType } from 'react-native';
 
 interface ModeCard {
-  id: string;
+  id: Exclude<keyof typeof BrandAssets.modes, 'target'>;
   route: Href;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: ImageSourcePropType;
 }
 
 const MODES: ModeCard[] = [
@@ -23,42 +26,42 @@ const MODES: ModeCard[] = [
     route: '/classic' as Href,
     title: 'Partie classique',
     description: 'Joue une partie complète contre Stockfish, à la voix ou au doigt.',
-    icon: 'game-controller-outline',
+    icon: BrandAssets.modes.classic,
   },
   {
     id: 'openings',
     route: '/openings' as Href,
     title: 'Ouvertures',
     description: 'Joue contre ton répertoire ou continue une ligne PGN importée.',
-    icon: 'book-outline',
+    icon: BrandAssets.modes.openings,
   },
   {
     id: 'blind',
     route: '/blind' as Href,
     title: 'Séquences à l’aveugle',
     description: 'Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.',
-    icon: 'eye-off-outline',
+    icon: BrandAssets.modes.blind,
   },
   {
     id: 'puzzles',
     route: '/puzzles' as Href,
     title: 'Tactiques',
     description: 'Résous des problèmes Lichess à vue ou à l’aveugle, hors-ligne.',
-    icon: 'extension-puzzle-outline',
+    icon: BrandAssets.modes.puzzles,
   },
   {
     id: 'visualisation',
     route: '/visualisation' as Href,
     title: 'Visualisation',
     description: 'Suivi mental de position et reconnaissance rapide de coups.',
-    icon: 'eye-outline',
+    icon: BrandAssets.modes.visualisation,
   },
   {
     id: 'quiz-ouverture',
     route: '/quiz-ouverture' as Href,
     title: 'Quiz Ouverture',
     description: 'Nomme ou construis des ouvertures à partir de la base ECO.',
-    icon: 'school-outline',
+    icon: BrandAssets.modes['quiz-ouverture'],
   },
 ];
 
@@ -80,10 +83,13 @@ export default function MainMenu() {
       ]}
     >
       <View style={styles.brand}>
-        <Image source={require('@/assets/images/icon.png')} style={styles.logo} />
-        <Text style={[styles.title, { color: colors.foreground }]}>AnyChess</Text>
+        <Image source={BrandAssets.logoMark} style={styles.logo} />
+        <Text style={styles.titleRow}>
+          <Text style={[styles.titleAny, { color: colors.foreground }]}>Any</Text>
+          <Text style={styles.titleChess}>Chess</Text>
+        </Text>
         <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-          Choisis un mode de jeu
+          Jouer. Apprendre. Visualiser.
         </Text>
       </View>
 
@@ -102,8 +108,8 @@ export default function MainMenu() {
               },
             ]}
           >
-            <View style={[styles.iconWrap, { backgroundColor: colors.primary }]}>
-              <Ionicons name={mode.icon} size={26} color={colors.primaryForeground} />
+            <View style={styles.iconWrap}>
+              <Image source={mode.icon} style={styles.modeIcon} resizeMode="contain" />
             </View>
             <View style={styles.cardText}>
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>{mode.title}</Text>
@@ -137,18 +143,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logo: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
+    width: 88,
+    height: 88,
+    borderRadius: 20,
   },
-  title: {
-    fontSize: 30,
+  titleRow: {
+    marginTop: 4,
+  },
+  titleAny: {
+    fontSize: 32,
     fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
+  },
+  titleChess: {
+    fontSize: 32,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.4,
+    color: '#F5A623',
   },
   tagline: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
   cards: {
     gap: 14,
@@ -157,17 +174,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    padding: 16,
+    padding: 14,
     borderRadius: 16,
     borderWidth: 1,
-    minHeight: 72,
+    minHeight: 76,
   },
   iconWrap: {
-    width: 52,
-    height: 52,
+    width: 58,
+    height: 58,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  modeIcon: {
+    width: 54,
+    height: 54,
   },
   cardText: {
     flex: 1,

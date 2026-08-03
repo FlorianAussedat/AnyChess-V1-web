@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { StoredPgnFile, RepertoireSide } from '@/lib/repertoire';
+import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
 import { RepertoireSidePicker, sideLabel } from '@/components/RepertoireSidePicker';
 import type { PlayerColor } from '@/contexts/GameContext';
 
@@ -138,8 +139,9 @@ export default function FolderDetailScreen() {
     setPgnText(file.pgnText);
     setFormError(null);
     setLastImportResult(null);
+    setImportSide(folder?.side ?? null);
     setImportOpen(true);
-  }, []);
+  }, [folder?.side]);
 
   const submitImport = useCallback(async () => {
     if (!folderId) return;
@@ -198,24 +200,16 @@ export default function FolderDetailScreen() {
     [deletePgn],
   );
 
-  const onPickFileWeb = useCallback(() => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pgn,text/plain,application/x-chess-pgn';
-    input.multiple = false;
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        setFilename(file.name);
-        setPgnText(text);
-      } catch {
-        setFormError('Impossible de lire le fichier.');
-      }
-    };
-    input.click();
+  const onPickFile = useCallback(async () => {
+    setFormError(null);
+    try {
+      const picked = await pickPgnFile();
+      if (!picked) return;
+      setFilename(picked.filename);
+      setPgnText(picked.text);
+    } catch {
+      setFormError('Impossible de lire le fichier.');
+    }
   }, []);
 
   if (!ready) {
@@ -474,13 +468,11 @@ export default function FolderDetailScreen() {
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                 Contenu PGN
               </Text>
-              {isWeb && (
-                <Pressable onPress={onPickFileWeb} hitSlop={6}>
-                  <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
-                    Choisir un fichier…
-                  </Text>
-                </Pressable>
-              )}
+              <Pressable onPress={onPickFile} hitSlop={6} testID="pick-pgn-file-btn">
+                <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
+                  Choisir un fichier…
+                </Text>
+              </Pressable>
             </View>
             <TextInput
               value={pgnText}
@@ -504,10 +496,10 @@ export default function FolderDetailScreen() {
               <Text style={[styles.modalError, { color: colors.destructive }]}>{formError}</Text>
             )}
 
-            {!folder?.side && !replaceTarget && (
+            {!folder?.side && (
               <>
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 4 }]}>
-                  De quel côté travaillez-vous ce répertoire ?
+                  De quel côté jouez-vous ce répertoire ?
                 </Text>
                 <RepertoireSidePicker
                   value={importSide}
@@ -562,13 +554,23 @@ export default function FolderDetailScreen() {
               </Pressable>
               <Pressable
                 onPress={submitImport}
-                disabled={busy || !pgnText.trim() || (!folder?.side && !importSide && !replaceTarget)}
+                disabled={
+                  busy ||
+                  !pgnText.trim() ||
+                  (!folder?.side && !importSide)
+                }
                 style={({ pressed }) => [
                   styles.modalBtn,
                   {
                     backgroundColor: colors.primary,
                     borderColor: colors.primary,
-                    opacity: pressed || busy || !pgnText.trim() ? 0.6 : 1,
+                    opacity:
+                      pressed ||
+                      busy ||
+                      !pgnText.trim() ||
+                      (!folder?.side && !importSide)
+                        ? 0.6
+                        : 1,
                   },
                 ]}
                 testID="confirm-import-btn"

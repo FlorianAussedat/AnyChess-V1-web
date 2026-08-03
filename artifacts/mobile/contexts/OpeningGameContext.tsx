@@ -26,6 +26,10 @@ import {
 import { identifyOpeningFromSans } from '@/lib/openings';
 import { speechService } from '@/services/SpeechService';
 import type { BoardPiece, LastMove, MoveEvent, PlayerColor } from '@/contexts/GameContext';
+import {
+  shouldEmitMoveRecognizedFeedback,
+  type MoveInputSource,
+} from '@/lib/moveInput/canonicalMove';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
@@ -46,7 +50,7 @@ interface OpeningGameContextValue {
   repertoireName: string;
   ready: boolean;
   loadError: string | null;
-  applyUserMove: (raw: string) => void;
+  applyUserMove: (raw: string, source?: MoveInputSource) => void;
   movePieceBySquare: (from: string, to: string) => boolean;
   getLegalDestinations: (square: string) => string[];
   newGame: () => void;
@@ -137,7 +141,7 @@ export function OpeningGameProvider({
     const unsubscribe = speechService.onSpeakingChange(setIsSpeaking);
     return () => {
       unsubscribe();
-      speechService.stop();
+      speechService.cancel('unmount');
     };
   }, []);
 
@@ -159,8 +163,8 @@ export function OpeningGameProvider({
     speechService.speak(text, opts);
   }, []);
 
-  const emitEvent = useCallback((kind: 'success' | 'error') => {
-    setMoveEvent((prev) => ({ kind, id: (prev?.id ?? 0) + 1 }));
+  const emitEvent = useCallback((kind: 'success' | 'error', source?: MoveInputSource) => {
+    setMoveEvent((prev) => ({ kind, id: (prev?.id ?? 0) + 1, source }));
   }, []);
 
   const repeatLast = useCallback(() => {
@@ -173,7 +177,7 @@ export function OpeningGameProvider({
       speak('Aucun coup joué pour le moment.', { flush: true });
       return;
     }
-    speechService.stop();
+    speechService.cancel('summarize');
     const exit = opponentRef.current?.getTheoryExit() ?? theoryExit;
     if (exit?.kind === 'player-deviation') {
       speechService.speak(`Rapport : ${exit.message}`);
@@ -253,11 +257,13 @@ export function OpeningGameProvider({
   opponentMoveRef.current = opponentMove;
 
   const finishPlayerMove = useCallback(
-    (played: Move, beforeFen: string) => {
+    (played: Move, beforeFen: string, source: MoveInputSource) => {
       setLastMove({ from: played.from, to: played.to });
       setHeardText('');
       syncState();
-      emitEvent('success');
+      if (shouldEmitMoveRecognizedFeedback(source)) {
+        emitEvent('success', source);
+      }
 
       const game = gameRef.current;
       const plyAfter = game.history().length;
@@ -288,6 +294,7 @@ export function OpeningGameProvider({
   const undoMove = useCallback(() => {
     const game = gameRef.current;
     cancelPendingOpponent();
+    speechService.cancel('undo');
 
     const allMoves = game.history({ verbose: true }) as Move[];
 
@@ -344,7 +351,7 @@ export function OpeningGameProvider({
   }, [syncState, speak, cancelPendingOpponent, syncTheoryUi]);
 
   const applyUserMove = useCallback(
-    (raw: string) => {
+    (raw: string, source: MoveInputSource = 'voice') => {
       const input = normalizeTranscript(raw);
       const game = gameRef.current;
       const parsed = parseChessVoice(raw, game, { mode: 'opening' });
@@ -371,19 +378,19 @@ export function OpeningGameProvider({
 
       if (parsed.type === 'unrecognized') {
         setStatus('Coup non reconnu. Répète.');
-        if (looksLikeChessMove(input)) emitEvent('error');
+        if (looksLikeChessMove(input)) emitEvent('error', source);
         return;
       }
 
       if (parsed.type === 'ambiguous') {
         setStatus('Coup ambigu. Précise la case de départ.');
-        emitEvent('error');
+        emitEvent('error', source);
         return;
       }
 
       if (parsed.type === 'illegal') {
         setStatus('Coup illégal. Répète.');
-        emitEvent('error');
+        emitEvent('error', source);
         return;
       }
 
@@ -395,10 +402,10 @@ export function OpeningGameProvider({
           to: parsed.move.to,
           promotion: parsed.move.promotion ?? 'q',
         }) as Move;
-        finishPlayerMove(played, beforeFen);
+        finishPlayerMove(played, beforeFen, source);
       } catch {
         setStatus('Coup illégal. Répète.');
-        emitEvent('error');
+        emitEvent('error', source);
       }
     },
     [
@@ -419,7 +426,7 @@ export function OpeningGameProvider({
       const beforeFen = game.fen();
       try {
         const played = game.move({ from, to, promotion: 'q' }) as Move;
-        finishPlayerMove(played, beforeFen);
+        finishPlayerMove(played, beforeFen, 'touch');
         return true;
       } catch {
         return false;
@@ -448,7 +455,7 @@ export function OpeningGameProvider({
     (color: PlayerColor) => {
       cancelPendingOpponent();
       opponentRef.current?.newGame();
-      speechService.stop();
+      speechService.cancel('new-game');
       gameRef.current.reset();
       lastSpokenRef.current = '';
       setLastMove(null);

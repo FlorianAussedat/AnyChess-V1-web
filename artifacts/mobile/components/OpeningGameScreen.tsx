@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -21,10 +22,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
-import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessBoard } from '@/components/ChessBoard';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
@@ -36,17 +36,20 @@ import { OpeningIdentityBadge } from '@/components/OpeningIdentityBadge';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
 import type { PlayerColor } from '@/contexts/OpeningGameContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
+import { sfxService } from '@/services/SfxService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 type MoveRow = { key: string; num: number; white: string; black: string };
+type SideChoice = 'w' | 'b' | 'random';
 
 export function OpeningGameScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const isWeb = Platform.OS === 'web';
-  const { soundEnabled } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  useCancelSpeechOnLeave('/openings/play');
 
   const {
     board,
@@ -86,6 +89,9 @@ export function OpeningGameScreen() {
 
   const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
   const gameStarted = history.length > 0;
+  const [pendingSide, setPendingSide] = useState<SideChoice>(
+    () => (playerColor === 'b' ? 'b' : 'w'),
+  );
   const [boardVisible, setBoardVisible] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
   const [theoryOpen, setTheoryOpen] = useState(false);
@@ -111,52 +117,6 @@ export function OpeningGameScreen() {
     onTranscript: (text) => applyRef.current(text),
   });
 
-  const successSoundRef = useRef<Audio.Sound | null>(null);
-  const errorSoundRef = useRef<Audio.Sound | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    async function loadSounds() {
-      try {
-        const { sound: s1 } = await Audio.Sound.createAsync(
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          require('@/assets/sounds/success.wav'),
-          { volume: 0.6 },
-        );
-        const { sound: s2 } = await Audio.Sound.createAsync(
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          require('@/assets/sounds/error.wav'),
-          { volume: 0.5 },
-        );
-        if (mounted) {
-          successSoundRef.current = s1;
-          errorSoundRef.current = s2;
-        } else {
-          s1.unloadAsync().catch(() => {});
-          s2.unloadAsync().catch(() => {});
-        }
-      } catch {
-        /* non-critical */
-      }
-    }
-    loadSounds();
-    return () => {
-      mounted = false;
-      successSoundRef.current?.unloadAsync().catch(() => {});
-      errorSoundRef.current?.unloadAsync().catch(() => {});
-    };
-  }, []);
-
-  useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: false,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: false,
-    }).catch(() => {});
-  }, []);
-
   const [showRecognized, setShowRecognized] = useState(false);
   const recognizedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -164,15 +124,15 @@ export function OpeningGameScreen() {
     if (!moveEvent) return;
     if (moveEvent.kind === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (soundEnabled) successSoundRef.current?.replayAsync().catch(() => {});
+      void sfxService.playSuccess();
       setShowRecognized(true);
       if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
       recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      if (soundEnabled) errorSoundRef.current?.replayAsync().catch(() => {});
+      void sfxService.playError();
     }
-  }, [moveEvent?.id, soundEnabled]);
+  }, [moveEvent?.id]);
 
   const [touchSelected, setTouchSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
@@ -237,14 +197,29 @@ export function OpeningGameScreen() {
     [canAct, touchSelected, legalDests, getLegalDestinations, movePieceBySquare],
   );
 
-  const onPickColor = useCallback(
-    (color: PlayerColor) => {
+  const onPickSide = useCallback(
+    (side: SideChoice) => {
       if (gameStarted) return;
+      setPendingSide(side);
+      const color: PlayerColor =
+        side === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : side;
       if (color === playerColor) newGame();
       else changeColor(color);
     },
     [gameStarted, playerColor, newGame, changeColor],
   );
+
+  const onNewGamePress = useCallback(() => {
+    if (pendingSide === 'random') {
+      const color: PlayerColor = Math.random() < 0.5 ? 'w' : 'b';
+      if (color === playerColor) newGame();
+      else changeColor(color);
+    } else if (pendingSide !== playerColor) {
+      changeColor(pendingSide);
+    } else {
+      newGame();
+    }
+  }, [pendingSide, playerColor, newGame, changeColor]);
 
   const moveRows: MoveRow[] = [];
   for (let i = 0; i < history.length; i += 2) {
@@ -340,6 +315,13 @@ export function OpeningGameScreen() {
           </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          {gameStarted && (
+            <Image
+              source={playerColor === 'w' ? BrandAssets.sides.white : BrandAssets.sides.black}
+              style={styles.sideIndicator}
+              accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
+            />
+          )}
           <SoundToggle />
           <BoardCoordinatesToggle
             visible={showCoordinates}
@@ -396,7 +378,7 @@ export function OpeningGameScreen() {
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 }]}
-          onPress={newGame}
+          onPress={onNewGamePress}
         >
           <Ionicons name="refresh-outline" size={14} color={colors.foreground} />
           <Text style={[styles.actionBtnLabel, { color: colors.foreground }]} numberOfLines={2}>
@@ -405,36 +387,42 @@ export function OpeningGameScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.colorRow}>
-        {(['w', 'b'] as PlayerColor[]).map((c) => {
-          const active = playerColor === c;
-          const locked = gameStarted;
-          return (
-            <Pressable
-              key={c}
-              style={[
-                styles.colorPill,
-                {
-                  backgroundColor: active ? colors.primary : colors.card,
-                  borderColor: active ? colors.primary : colors.border,
-                  opacity: locked && !active ? 0.45 : 1,
-                },
-              ]}
-              onPress={() => onPickColor(c)}
-              disabled={locked && !active}
-            >
-              <Text
+      {!gameStarted ? (
+        <View style={styles.colorRow}>
+          {(
+            [
+              { id: 'w' as SideChoice, label: 'Blancs', icon: BrandAssets.sides.white },
+              { id: 'b' as SideChoice, label: 'Noirs', icon: BrandAssets.sides.black },
+              { id: 'random' as SideChoice, label: 'Aléatoire', icon: BrandAssets.sides.random },
+            ] as const
+          ).map((opt) => {
+            const active = pendingSide === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
                 style={[
-                  styles.colorPillText,
-                  { color: active ? colors.primaryForeground : colors.mutedForeground },
+                  styles.sidePill,
+                  {
+                    backgroundColor: active ? colors.primary : colors.card,
+                    borderColor: active ? colors.primary : colors.border,
+                  },
                 ]}
+                onPress={() => onPickSide(opt.id)}
               >
-                {c === 'w' ? '♔ Blancs' : '♚ Noirs'}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+                <Image source={opt.icon} style={styles.sidePillIcon} />
+                <Text
+                  style={[
+                    styles.colorPillText,
+                    { color: active ? colors.primaryForeground : colors.mutedForeground },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
 
       <View style={styles.boardRow}>
         {boardVisible ? (
@@ -645,15 +633,20 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   colorRow: { flexDirection: 'row', gap: 8 },
-  colorPill: {
+  sidePill: {
     flex: 1,
-    height: 34,
-    borderRadius: 17,
+    minHeight: 42,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 6,
   },
-  colorPillText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  sidePillIcon: { width: 22, height: 22 },
+  sideIndicator: { width: 28, height: 28, borderRadius: 6 },
+  colorPillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   boardRow: { alignItems: 'center' },
   statusCard: {
     borderRadius: 12,
