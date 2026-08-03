@@ -2,10 +2,12 @@
  * Central require() map for Major Update brand assets.
  * Keep paths relative so Metro can resolve them.
  *
- * Home ModeCard mascots currently reuse `modes/*` PNGs (often on light plates).
- * Final transparent knight-family assets still required — see
- * `MAIN_MODE_CARDS[].requiredMascotAsset` in `lib/app/mainModeCards.ts`.
+ * ModeCard illustrations prefer `mascots/*` (transparent knight family) and
+ * fall back to legacy `modes/*` until every mascot is supplied.
  */
+import type { ImageSourcePropType } from 'react-native';
+import type { MainModeId } from '@/lib/app/modes';
+
 export const BrandAssets = {
   logoMark: require('@/assets/brand/logo-mark.png'),
   splash: require('@/assets/brand/splash-brand.png'),
@@ -20,6 +22,10 @@ export const BrandAssets = {
     'quiz-ouverture': require('@/assets/brand/modes/quiz-ouverture.png'),
     target: require('@/assets/brand/modes/target.png'),
   },
+  /** Transparent knight-family mascots for home ModeCards (supply gradually). */
+  mascots: {
+    classic: require('@/assets/brand/mascots/mascot-classic-knight-soundwave.png'),
+  } as Partial<Record<MainModeId, ImageSourcePropType>>,
   sides: {
     white: require('@/assets/brand/sides/white.png'),
     black: require('@/assets/brand/sides/black.png'),
@@ -36,3 +42,8 @@ export const BrandAssets = {
     soundOff: require('@/assets/brand/toggles/sound-off.png'),
   },
 } as const;
+
+/** Prefer final mascot art; fall back to legacy mode PNG. */
+export function modeCardIllustration(modeId: MainModeId): ImageSourcePropType {
+  return BrandAssets.mascots[modeId] ?? BrandAssets.modes[modeId];
+}

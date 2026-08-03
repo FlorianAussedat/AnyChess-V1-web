@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { formatAppVersionLabel } from '@/lib/app/version';
-import { BrandAssets } from '@/constants/BrandAssets';
+import { BrandAssets, modeCardIllustration } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import { MAIN_MODE_CARD_META } from '@/lib/app/mainModeCards';
 import { ModeCard } from '@/components/home/ModeCard';
@@ -70,7 +70,7 @@ export default function MainMenu() {
             title={mode.title}
             description={mode.description}
             iconName={mode.iconName}
-            illustration={BrandAssets.modes[mode.id]}
+            illustration={modeCardIllustration(mode.id)}
             onPress={() => router.push(mode.route)}
             testID={`menu-${mode.id}`}
           />

@@ -24,6 +24,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Partie classique',
     description: 'Joue une partie complète contre Stockfish, à la voix ou au doigt.',
     iconName: 'people-outline',
+    /** Supplied: assets/brand/mascots/mascot-classic-knight-soundwave.png */
     requiredMascotAsset: 'mascot-classic-knight-soundwave.png',
   },
   {
