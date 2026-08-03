@@ -2,7 +2,7 @@
  * Reusable home menu mode card — premium dark card with integrated knight art.
  * Illustration sits in the card (no white square container).
  * Portrait v1 mascot PNGs are oversized in a clipped right slot so the visible
- * figure fills ~120–150px without editing the PNG files.
+ * figure fills the right third (~40–42%) without editing the PNG files.
  */
 import React, { type ComponentProps } from 'react';
 import {
@@ -39,16 +39,16 @@ export function ModeCard({
   const colors = useColors();
   const { width } = useWindowDimensions();
   const cardInnerWidth = width - DesignTokens.spacing.screenX * 2;
-  // ~38% for mascot column on typical phones; keep text from running under it.
+  // ~42% mascot column — matches reference right-third dominance.
   const mascotSlotWidth = Math.round(
     Math.min(
       DesignTokens.modeIllustrationWidth,
-      Math.max(128, cardInnerWidth * 0.38),
+      Math.max(140, cardInnerWidth * 0.42),
     ),
   );
-  // Portrait assets (≈2:3): render taller than the card so visible content fills the slot.
-  const mascotImgWidth = Math.round(mascotSlotWidth * 1.15);
-  const mascotImgHeight = Math.round(mascotImgWidth * 1.35);
+  // Portrait assets (≈2:3): render larger than the slot so the figure fills it.
+  const mascotImgWidth = Math.round(mascotSlotWidth * 1.28);
+  const mascotImgHeight = Math.round(mascotImgWidth * 1.38);
 
   return (
     <Pressable
@@ -66,11 +66,11 @@ export function ModeCard({
         },
       ]}
     >
-      <View style={[styles.textCol, { maxWidth: '60%', paddingRight: 8 }]}>
+      <View style={[styles.textCol, { maxWidth: '56%', paddingRight: 6 }]}>
         <View style={styles.titleRow}>
           <Ionicons
             name={iconName as ComponentProps<typeof Ionicons>['name']}
-            size={18}
+            size={17}
             color={colors.primary}
             style={styles.thematicIcon}
           />
@@ -98,8 +98,8 @@ export function ModeCard({
           style={{
             width: mascotImgWidth,
             height: mascotImgHeight,
-            marginRight: -10,
-            marginBottom: -18,
+            marginRight: -16,
+            marginBottom: -28,
           }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
@@ -107,7 +107,7 @@ export function ModeCard({
       </View>
 
       <View style={styles.chevron} pointerEvents="none">
-        <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+        <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
       </View>
     </Pressable>
   );
@@ -120,19 +120,19 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.radius.card,
     borderWidth: 1,
     overflow: 'hidden',
-    paddingVertical: DesignTokens.spacing.md,
+    paddingVertical: DesignTokens.spacing.sm,
     paddingLeft: DesignTokens.spacing.lg,
     paddingRight: DesignTokens.spacing.sm,
     justifyContent: 'center',
   },
   textCol: {
     zIndex: 2,
-    gap: 8,
+    gap: 6,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 7,
   },
   thematicIcon: {
     marginTop: 1,
@@ -141,15 +141,15 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: DesignTokens.typography.cardTitle,
     fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
     textTransform: 'uppercase',
-    lineHeight: 28,
+    lineHeight: 26,
   },
   description: {
     fontSize: DesignTokens.typography.caption,
     fontFamily: 'Inter_400Regular',
-    lineHeight: 22,
-    paddingRight: 4,
+    lineHeight: 20,
+    paddingRight: 2,
   },
   illustrationSlot: {
     position: 'absolute',
@@ -163,9 +163,9 @@ const styles = StyleSheet.create({
   },
   chevron: {
     position: 'absolute',
-    right: 10,
+    right: 8,
     top: '50%',
-    marginTop: -9,
+    marginTop: -8,
     zIndex: 3,
   },
 });

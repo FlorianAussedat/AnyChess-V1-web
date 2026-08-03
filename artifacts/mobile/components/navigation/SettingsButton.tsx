@@ -31,19 +31,20 @@ export function SettingsButton({ testID = 'settings-btn' }: Props) {
         },
       ]}
     >
-      <Ionicons name="settings-outline" size={22} color={colors.foreground} />
+      <Ionicons name="settings-outline" size={20} color={colors.foreground} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   btn: {
-    width: DesignTokens.minTouchTarget,
-    height: DesignTokens.minTouchTarget,
-    borderRadius: DesignTokens.radius.md,
-    borderWidth: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
+    marginTop: 2,
   },
 });
