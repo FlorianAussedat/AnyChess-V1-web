@@ -158,7 +158,9 @@ export class RepertoireService {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
       if (!folder.side) return false;
-      return this.getFiles(folder.id).some((f) => f.summary.parseSucceeded);
+      return this.getFiles(folder.id).some(
+        (f) => f.summary.parseSucceeded && f.enabled !== false,
+      );
     });
   }
 
@@ -167,7 +169,9 @@ export class RepertoireService {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
       if (folder.side) return false;
-      return this.getFiles(folder.id).some((f) => f.summary.parseSucceeded);
+      return this.getFiles(folder.id).some(
+        (f) => f.summary.parseSucceeded && f.enabled !== false,
+      );
     });
   }
 
