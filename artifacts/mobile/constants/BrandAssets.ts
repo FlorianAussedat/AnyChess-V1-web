@@ -9,6 +9,8 @@
 export const BrandAssets = {
   logoMark: require('@/assets/brand/logo-mark.png'),
   splash: require('@/assets/brand/splash-brand.png'),
+  /** Bottom-nav Accueil: knight + gold roof + soundwave (not a generic house). */
+  navHome: require('@/assets/brand/nav/home.png'),
   modes: {
     classic: require('@/assets/brand/modes/classic.png'),
     openings: require('@/assets/brand/modes/openings.png'),

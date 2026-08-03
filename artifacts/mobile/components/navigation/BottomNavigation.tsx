@@ -74,8 +74,11 @@ export function BottomNavigation() {
           testID="nav-home"
           renderIcon={() => (
             <Image
-              source={BrandAssets.logoMark}
-              style={[styles.homeIcon, { opacity: active === 'home' ? 1 : 0.75 }]}
+              source={BrandAssets.navHome}
+              style={[
+                styles.homeIcon,
+                { opacity: active === 'home' ? 1 : 0.72 },
+              ]}
               resizeMode="contain"
               accessibilityIgnoresInvertColors
             />
@@ -171,8 +174,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   homeIcon: {
-    width: DesignTokens.bottomNavIconSize + 2,
-    height: DesignTokens.bottomNavIconSize + 2,
-    borderRadius: 5,
+    width: DesignTokens.bottomNavIconSize + 10,
+    height: DesignTokens.bottomNavIconSize + 10,
+    borderRadius: 6,
   },
 });
