@@ -7,9 +7,14 @@ import {
   countPiecesAfterSetup,
   type PuzzleSource,
 } from '../PuzzleSelector.ts';
-import { PUZZLE_RATING_BANDS, PIECE_COUNT_BANDS } from '../puzzleBands.ts';
+import {
+  PUZZLE_RATING_BANDS,
+  PIECE_COUNT_BANDS,
+  getPuzzleRatingBand,
+  puzzleBandForRating,
+} from '../puzzleBands.ts';
 
-/** 3 pieces after setup. rating 700 → lt800. */
+/** 3 pieces after setup. rating 700 → 600-799. */
 const THREE_PIECE: LocalPuzzle = {
   id: 'three',
   fen: '8/8/8/8/4P3/4k3/8/4K3 w - - 0 1',
@@ -19,7 +24,7 @@ const THREE_PIECE: LocalPuzzle = {
   themes: ['endgame'],
 };
 
-/** 6 pieces after setup. rating 950 → 800-1000. */
+/** 6 pieces after setup. rating 950 → 800-999. */
 const SIX_PIECE: LocalPuzzle = {
   id: 'six',
   fen: '8/8/2p5/8/1P1P4/3k4/8/2R1K3 w - - 0 1',
@@ -29,7 +34,7 @@ const SIX_PIECE: LocalPuzzle = {
   themes: ['endgame'],
 };
 
-/** 14 pieces after setup. rating 1700 → 1600-1800. */
+/** 14 pieces after setup. rating 1700 → 1600-1799. */
 const FOURTEEN: LocalPuzzle = {
   id: 'fourteen',
   fen: '4k3/ppp2ppp/8/8/8/8/PPP2PPP/4K3 w - - 0 1',
@@ -39,7 +44,7 @@ const FOURTEEN: LocalPuzzle = {
   themes: ['endgame'],
 };
 
-/** 3 pieces, high rating → gt2200. */
+/** 3 pieces, high rating → 2200+. */
 const HIGH_RATED: LocalPuzzle = {
   id: 'high',
   fen: '8/8/8/8/4P3/4k3/8/4K3 w - - 0 1',
@@ -64,18 +69,18 @@ describe('countPiecesAfterSetup', () => {
 });
 
 describe('rating band filters via PuzzleSelector', () => {
-  it('filters by PUZZLE_RATING_BANDS ranges', () => {
-    const lt800 = PUZZLE_RATING_BANDS.find((b) => b.id === 'lt800')!;
+  it('filters by PUZZLE_RATING_BANDS Elo ranges', () => {
+    const low = PUZZLE_RATING_BANDS.find((b) => b.id === '600-799')!;
     const hit = filterPuzzles(PACK, {
-      ratingMin: lt800.ratingMin,
-      ratingMax: lt800.ratingMax,
+      ratingMin: low.ratingMin,
+      ratingMax: low.ratingMax,
     });
     assert.deepEqual(
       hit.map((p) => p.id),
       ['three'],
     );
 
-    const band800 = PUZZLE_RATING_BANDS.find((b) => b.id === '800-1000')!;
+    const band800 = PUZZLE_RATING_BANDS.find((b) => b.id === '800-999')!;
     assert.deepEqual(
       filterPuzzles(PACK, {
         ratingMin: band800.ratingMin,
@@ -84,7 +89,7 @@ describe('rating band filters via PuzzleSelector', () => {
       ['six'],
     );
 
-    const mid = PUZZLE_RATING_BANDS.find((b) => b.id === '1600-1800')!;
+    const mid = PUZZLE_RATING_BANDS.find((b) => b.id === '1600-1799')!;
     assert.deepEqual(
       filterPuzzles(PACK, {
         ratingMin: mid.ratingMin,
@@ -93,11 +98,28 @@ describe('rating band filters via PuzzleSelector', () => {
       ['fourteen'],
     );
 
+    const top = PUZZLE_RATING_BANDS.find((b) => b.id === '2200+')!;
+    assert.deepEqual(
+      filterPuzzles(PACK, {
+        ratingMin: top.ratingMin,
+        ratingMax: top.ratingMax,
+      }).map((p) => p.id),
+      ['high'],
+    );
+
     const all = PUZZLE_RATING_BANDS.find((b) => b.id === 'all')!;
     assert.equal(
       filterPuzzles(PACK, { ratingMin: all.ratingMin, ratingMax: all.ratingMax }).length,
       PACK.length,
     );
+  });
+
+  it('getPuzzleRatingBand / puzzleBandForRating helpers', () => {
+    assert.equal(getPuzzleRatingBand('1200-1399').label, '1200–1399');
+    assert.equal(getPuzzleRatingBand('missing').id, 'all');
+    assert.equal(puzzleBandForRating(650)?.id, '600-799');
+    assert.equal(puzzleBandForRating(2200)?.id, '2200+');
+    assert.equal(puzzleBandForRating(100)?.id, undefined);
   });
 });
 
@@ -141,7 +163,7 @@ describe('piece-count band filters via PuzzleSelector', () => {
 
 describe('combined rating + piece-count filters', () => {
   it('intersects both filters for blind-mode style selection', () => {
-    const rating = PUZZLE_RATING_BANDS.find((b) => b.id === '800-1000')!;
+    const rating = PUZZLE_RATING_BANDS.find((b) => b.id === '800-999')!;
     const pieces = PIECE_COUNT_BANDS.find((b) => b.id === '6-7')!;
     const hit = filterPuzzles(PACK, {
       ratingMin: rating.ratingMin,
@@ -176,8 +198,8 @@ describe('combined rating + piece-count filters', () => {
     const chosen = selectPuzzle({
       repository: mockRepo(PACK),
       filters: {
-        ratingMin: 0,
-        ratingMax: 800,
+        ratingMin: 600,
+        ratingMax: 799,
         pieceCountMin: null,
         pieceCountMax: 5,
       },
@@ -185,5 +207,74 @@ describe('combined rating + piece-count filters', () => {
     });
     assert.ok(chosen);
     assert.equal(chosen!.id, 'three');
+  });
+});
+
+describe('Elo filtering + random selection', () => {
+  const many: LocalPuzzle[] = [];
+  for (let i = 0; i < 40; i++) {
+    many.push({
+      id: `r${i}`,
+      fen: THREE_PIECE.fen,
+      moves: THREE_PIECE.moves,
+      rating: 600 + (i % 10) * 20, // 600–780 → 600-799 only
+      popularity: 80,
+      themes: ['fork'],
+    });
+  }
+  for (let i = 0; i < 40; i++) {
+    many.push({
+      id: `h${i}`,
+      fen: HIGH_RATED.fen,
+      moves: HIGH_RATED.moves,
+      rating: 2200 + (i % 20) * 10,
+      popularity: 80,
+      themes: ['mate'],
+    });
+  }
+
+  it('never selects outside the requested Elo range', () => {
+    const band = PUZZLE_RATING_BANDS.find((b) => b.id === '600-799')!;
+    for (let seed = 0; seed < 30; seed++) {
+      const chosen = selectPuzzle({
+        repository: mockRepo(many),
+        filters: { ratingMin: band.ratingMin, ratingMax: band.ratingMax },
+        seed,
+      });
+      assert.ok(chosen);
+      assert.ok(chosen!.rating >= band.ratingMin && chosen!.rating <= band.ratingMax);
+      assert.ok(chosen!.id.startsWith('r'));
+    }
+  });
+
+  it('randomizes within the Elo range across seeds', () => {
+    const band = PUZZLE_RATING_BANDS.find((b) => b.id === '2200+')!;
+    const ids = new Set<string>();
+    for (let seed = 0; seed < 40; seed++) {
+      const chosen = selectPuzzle({
+        repository: mockRepo(many),
+        filters: { ratingMin: band.ratingMin, ratingMax: band.ratingMax },
+        seed,
+      });
+      assert.ok(chosen);
+      ids.add(chosen!.id);
+    }
+    assert.ok(ids.size > 5, `expected varied picks, got ${ids.size}`);
+  });
+
+  it('avoids recently played ids when alternatives remain', () => {
+    const band = PUZZLE_RATING_BANDS.find((b) => b.id === '600-799')!;
+    const pool = many.filter(
+      (p) => p.rating >= band.ratingMin && p.rating <= band.ratingMax,
+    );
+    const excludeIds = pool.slice(0, pool.length - 1).map((p) => p.id);
+    const chosen = selectPuzzle({
+      repository: mockRepo(many),
+      filters: { ratingMin: band.ratingMin, ratingMax: band.ratingMax },
+      excludeIds,
+      seed: 7,
+    });
+    assert.ok(chosen);
+    assert.equal(chosen!.id, pool[pool.length - 1]!.id);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Build a curated ≤10k Lichess puzzle package for offline AnyChess use.
+ * Build a curated multi-Elo Lichess puzzle package for offline AnyChess use.
  *
  * Source (CC0): https://database.lichess.org/#puzzles
  *   https://database.lichess.org/lichess_db_puzzle.csv.zst
@@ -9,22 +9,26 @@
  *   node scripts/build-puzzle-dataset.mjs --input path/to/lichess_db_puzzle.csv.zst
  *   node scripts/build-puzzle-dataset.mjs --input path/to/lichess_db_puzzle.csv
  *
- * Streams the CSV (optionally zstd-compressed). Never loads the full DB in RAM.
+ * Streams the CSV (zstd CLI preferred). Never loads the full DB in RAM.
  * Writes:
  *   lib/puzzles/data/manifest.json
- *   lib/puzzles/data/puzzles.json   (array of LocalPuzzle, ≤10_000)
+ *   lib/puzzles/data/puzzles.json
  *   lib/puzzles/data/build-report.json
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { createGunzip } from 'node:zlib';
-import { Readable } from 'node:stream';
+import { Readable, pipeline } from 'node:stream';
+import { promisify } from 'node:util';
 import { PUZZLE_BUILD_CONFIG as CFG } from './puzzle-config.mjs';
 
 const require = createRequire(import.meta.url);
+const { Chess } = require('chess.js');
+const pipelineAsync = promisify(pipeline);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, '..', 'lib', 'puzzles', 'data');
 const cacheDir = path.join(__dirname, '.cache');
@@ -58,10 +62,6 @@ function parseArgs(argv) {
 }
 
 function parseCsvLine(line) {
-  // Lichess puzzle CSV is simple: no embedded commas in quoted fields that matter
-  // for our used columns. OpeningTags may be empty. Themes are space-separated
-  // inside one field — fields themselves are comma-separated without quotes usually.
-  // Some FENs contain no commas. Moves are space-separated UCIs in one field.
   const parts = [];
   let cur = '';
   let inQuotes = false;
@@ -91,26 +91,34 @@ function pieceCount(fen) {
   return n;
 }
 
+function bandForRating(rating) {
+  for (const band of CFG.ratingBands) {
+    if (rating >= band.min && rating <= band.max) return band;
+  }
+  return null;
+}
+
+function identityKey(fen, moves) {
+  return `${fen}|${moves.join(' ')}`;
+}
+
 function isEligible(row) {
   const rating = Number(row.Rating);
   const rd = Number(row.RatingDeviation);
   const pop = Number(row.Popularity);
   const plays = Number(row.NbPlays);
-  if (!Number.isFinite(rating) || rating < CFG.minRating || rating > CFG.maxRating) return false;
+  if (!Number.isFinite(rating) || rating < CFG.minRating || rating > CFG.maxRating) {
+    return false;
+  }
+  if (!bandForRating(rating)) return false;
   if (!Number.isFinite(rd) || rd > CFG.ratingDeviationMax) return false;
   if (!Number.isFinite(pop) || pop < CFG.popularityMin) return false;
   if (!Number.isFinite(plays) || plays < CFG.nbPlaysMin) return false;
-  if (!row.FEN || !row.Moves) return false;
+  if (!row.PuzzleId || !row.FEN || !row.Moves) return false;
   const moves = row.Moves.trim().split(/\s+/).filter(Boolean);
   // Need setup move + at least one user move.
   if (moves.length < 2) return false;
-  // Reject odd-length? Lichess lines can end on user or opponent — OK as long as ≥2.
-  try {
-    // Light FEN sanity: 6 space-separated fields typical.
-    if (row.FEN.split(' ').length < 4) return false;
-  } catch {
-    return false;
-  }
+  if (row.FEN.split(' ').length < 4) return false;
   return true;
 }
 
@@ -127,6 +135,7 @@ function toLocal(row) {
     themes,
     ...(openingTags.length ? { openingTags } : {}),
     _pieceCount: pieceCount(row.FEN),
+    _identity: identityKey(row.FEN, moves),
   };
 }
 
@@ -135,6 +144,24 @@ function primaryBucket(themes) {
     if (themes.includes(t)) return t;
   }
   return '_other';
+}
+
+/** Validate FEN legality and that every UCI in the solution line is legal. */
+function validatePuzzleLine(fen, moves) {
+  try {
+    const game = new Chess(fen);
+    for (const uci of moves) {
+      if (!uci || uci.length < 4) return false;
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.slice(4) || undefined;
+      const played = game.move({ from, to, promotion });
+      if (!played) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function ensureInput(args) {
@@ -152,33 +179,58 @@ async function ensureInput(args) {
   console.log(`Downloading ${CFG.sourceUrl} …`);
   const res = await fetch(CFG.sourceUrl);
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(zstPath, buf);
-  console.log(`Saved ${zstPath} (${Math.round(buf.length / 1e6)} MB)`);
+  if (!res.body) throw new Error('Download failed: empty body');
+
+  const tmpPath = `${zstPath}.partial`;
+  const file = fs.createWriteStream(tmpPath);
+  await pipelineAsync(Readable.fromWeb(res.body), file);
+  fs.renameSync(tmpPath, zstPath);
+  console.log(`Saved ${zstPath} (${Math.round(fs.statSync(zstPath).size / 1e6)} MB)`);
   return zstPath;
+}
+
+function hasZstdCli() {
+  try {
+    const r = spawn('zstd', ['--version'], { stdio: 'ignore' });
+    return new Promise((resolve) => {
+      r.on('error', () => resolve(false));
+      r.on('close', (code) => resolve(code === 0));
+    });
+  } catch {
+    return Promise.resolve(false);
+  }
 }
 
 async function openLineStream(filePath) {
   const lower = filePath.toLowerCase();
   let stream;
   if (lower.endsWith('.zst')) {
-    let fzstd;
-    try {
-      fzstd = require('./vendor/fzstd/index.cjs');
-    } catch {
-      fzstd = require('./vendor/fzstd');
-    }
-    // fzstd decompresses whole buffer — for multi-GB files this is bad.
-    // Prefer streaming via fzstd.Decompress if available.
-    if (typeof fzstd.decompress === 'function' && fs.statSync(filePath).size < 800_000_000) {
-      console.log('Decompressing zst into memory (may take a while)…');
-      const compressed = fs.readFileSync(filePath);
-      const decompressed = Buffer.from(fzstd.decompress(compressed));
-      stream = Readable.from([decompressed]);
+    if (await hasZstdCli()) {
+      console.log('Streaming via zstd CLI…');
+      const proc = spawn('zstd', ['-dc', filePath], {
+        stdio: ['ignore', 'pipe', 'inherit'],
+      });
+      stream = proc.stdout;
+      proc.on('error', (err) => {
+        throw err;
+      });
     } else {
-      throw new Error(
-        'zstd streaming unavailable for this file size. Decompress externally with `zstd -d` and pass --input file.csv',
-      );
+      let fzstd;
+      try {
+        fzstd = require('./vendor/fzstd/index.cjs');
+      } catch {
+        fzstd = require('./vendor/fzstd');
+      }
+      if (typeof fzstd.decompress === 'function' && fs.statSync(filePath).size < 800_000_000) {
+        console.log('Decompressing zst into memory (may take a while)…');
+        const compressed = fs.readFileSync(filePath);
+        const decompressed = Buffer.from(fzstd.decompress(compressed));
+        stream = Readable.from([decompressed]);
+      } else {
+        throw new Error(
+          'zstd streaming unavailable. Install `zstd` or decompress externally and pass --input file.csv',
+        );
+      }
     }
   } else if (lower.endsWith('.gz')) {
     stream = fs.createReadStream(filePath).pipe(createGunzip());
@@ -188,17 +240,102 @@ async function openLineStream(filePath) {
   return readline.createInterface({ input: stream, crlfDelay: Infinity });
 }
 
+/**
+ * Select up to `target` puzzles from a band's theme-bucketed candidates,
+ * balancing themes and validating FEN + solution lines.
+ */
+function selectForBand(band, themeLists, rng, globalSeenIds, globalSeenIdentity) {
+  const softCap = Math.max(
+    20,
+    Math.floor(band.target * CFG.maxSharePerTheme),
+  );
+  const selected = [];
+  const themeCounts = {};
+  let rejectedInvalid = 0;
+  let rejectedDup = 0;
+
+  const tryTake = (p) => {
+    if (globalSeenIds.has(p.id)) {
+      rejectedDup += 1;
+      return false;
+    }
+    if (globalSeenIdentity.has(p._identity)) {
+      rejectedDup += 1;
+      return false;
+    }
+    if (!validatePuzzleLine(p.fen, p.moves)) {
+      rejectedInvalid += 1;
+      return false;
+    }
+    globalSeenIds.add(p.id);
+    globalSeenIdentity.add(p._identity);
+    selected.push(p);
+    return true;
+  };
+
+  // First pass: soft per-theme caps.
+  for (const [theme, list] of themeLists) {
+    shuffleInPlace(list, rng);
+    let taken = 0;
+    for (const p of list) {
+      if (selected.length >= band.target) break;
+      if (taken >= softCap) break;
+      if (tryTake(p)) {
+        taken += 1;
+        themeCounts[theme] = (themeCounts[theme] || 0) + 1;
+      }
+    }
+  }
+
+  // Second pass: fill remaining from any not-yet-selected candidates.
+  if (selected.length < band.target) {
+    const leftovers = [];
+    for (const [, list] of themeLists) {
+      for (const p of list) {
+        if (!globalSeenIds.has(p.id)) leftovers.push(p);
+      }
+    }
+    shuffleInPlace(leftovers, rng);
+    for (const p of leftovers) {
+      if (selected.length >= band.target) break;
+      tryTake(p);
+    }
+  }
+
+  return {
+    selected: selected.slice(0, band.target),
+    rejectedInvalid,
+    rejectedDup,
+  };
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const inputPath = await ensureInput(args);
   const rng = mulberry32(CFG.selectionSeed);
 
-  /** @type {Map<string, any[]>} */
-  const buckets = new Map();
-  for (const t of [...CFG.themeBuckets, '_other']) buckets.set(t, []);
+  /** @type {Map<string, Map<string, any[]>>} bandId → theme → candidates */
+  const bandThemePools = new Map();
+  /** @type {Map<string, number>} */
+  const bandCandidateCounts = new Map();
+  for (const band of CFG.ratingBands) {
+    const themes = new Map();
+    for (const t of [...CFG.themeBuckets, '_other']) themes.set(t, []);
+    bandThemePools.set(band.id, themes);
+    bandCandidateCounts.set(band.id, 0);
+  }
+
+  const maxCandidatesPerBand = Math.max(
+    ...CFG.ratingBands.map((b) => b.target * CFG.candidateMultiplier),
+  );
+
+  // Global scan-level dedupe so candidates themselves are unique.
+  const scanSeenIds = new Set();
+  const scanSeenIdentity = new Set();
 
   let scanned = 0;
   let eligible = 0;
+  let scanDupes = 0;
   let header = null;
 
   const rl = await openLineStream(inputPath);
@@ -209,79 +346,121 @@ async function main() {
       continue;
     }
     scanned += 1;
-    if (scanned % 200_000 === 0) console.log(`… scanned ${scanned} rows, eligible ${eligible}`);
+    if (scanned % 500_000 === 0) {
+      const filled = [...bandCandidateCounts.entries()]
+        .map(([id, n]) => `${id}:${n}`)
+        .join(' ');
+      console.log(`… scanned ${scanned}, eligible ${eligible} | ${filled}`);
+    }
 
     const cols = parseCsvLine(line);
     if (cols.length < 8) continue;
     const row = {};
     for (let i = 0; i < header.length; i++) row[header[i]] = cols[i] ?? '';
     if (!isEligible(row)) continue;
-    eligible += 1;
 
     const local = toLocal(row);
-    const bucket = primaryBucket(local.themes);
-    buckets.get(bucket).push(local);
-  }
-
-  console.log(`Scanned ${scanned}, eligible ${eligible}`);
-
-  // Soft per-theme cap.
-  const softCap = Math.max(50, Math.floor(CFG.maxPuzzles * CFG.maxSharePerTheme));
-  const selected = [];
-  const themeCounts = {};
-
-  for (const [theme, list] of buckets) {
-    shuffleInPlace(list, rng);
-    const take = Math.min(list.length, softCap);
-    for (let i = 0; i < take; i++) selected.push(list[i]);
-    themeCounts[theme] = take;
-  }
-
-  // If under max, fill from remaining eligible across buckets.
-  if (selected.length < CFG.maxPuzzles) {
-    const leftovers = [];
-    for (const [theme, list] of buckets) {
-      for (let i = themeCounts[theme] || 0; i < list.length; i++) leftovers.push(list[i]);
+    if (scanSeenIds.has(local.id) || scanSeenIdentity.has(local._identity)) {
+      scanDupes += 1;
+      continue;
     }
-    shuffleInPlace(leftovers, rng);
-    for (const p of leftovers) {
-      if (selected.length >= CFG.maxPuzzles) break;
-      selected.push(p);
-    }
+
+    const band = bandForRating(local.rating);
+    if (!band) continue;
+
+    const count = bandCandidateCounts.get(band.id) || 0;
+    if (count >= maxCandidatesPerBand) continue;
+
+    eligible += 1;
+    scanSeenIds.add(local.id);
+    scanSeenIdentity.add(local._identity);
+
+    const theme = primaryBucket(local.themes);
+    const themeMap = bandThemePools.get(band.id);
+    themeMap.get(theme).push(local);
+    bandCandidateCounts.set(band.id, count + 1);
   }
 
-  shuffleInPlace(selected, rng);
-  const finalList = selected.slice(0, CFG.maxPuzzles).map(({ _pieceCount, ...rest }) => rest);
+  console.log(`Scanned ${scanned}, eligible candidates ${eligible}, scan dupes skipped ${scanDupes}`);
 
-  // Theme distribution (count puzzles that include each theme).
+  const globalSeenIds = new Set();
+  const globalSeenIdentity = new Set();
+  const finalList = [];
+  const perBandCounts = {};
+  const perBandThemes = {};
+  let totalRejectedInvalid = 0;
+  let totalRejectedDup = 0;
+
+  for (const band of CFG.ratingBands) {
+    const themeMap = bandThemePools.get(band.id);
+    const { selected, rejectedInvalid, rejectedDup } = selectForBand(
+      band,
+      themeMap,
+      rng,
+      globalSeenIds,
+      globalSeenIdentity,
+    );
+    totalRejectedInvalid += rejectedInvalid;
+    totalRejectedDup += rejectedDup;
+    perBandCounts[band.id] = selected.length;
+
+    const themeDist = {};
+    for (const p of selected) {
+      for (const t of p.themes) themeDist[t] = (themeDist[t] || 0) + 1;
+      const { _pieceCount, _identity, ...rest } = p;
+      finalList.push(rest);
+    }
+    perBandThemes[band.id] = Object.fromEntries(
+      Object.entries(themeDist).sort((a, b) => b[1] - a[1]).slice(0, 25),
+    );
+    console.log(
+      `Band ${band.id}: ${selected.length}/${band.target} (invalid ${rejectedInvalid}, dup ${rejectedDup})`,
+    );
+  }
+
+  shuffleInPlace(finalList, rng);
+
+  // Cap hard ceiling if somehow over.
+  const capped = finalList.slice(0, CFG.maxPuzzles);
+
   const dist = {};
-  for (const p of finalList) {
-    for (const t of p.themes) {
-      dist[t] = (dist[t] || 0) + 1;
-    }
+  for (const p of capped) {
+    for (const t of p.themes) dist[t] = (dist[t] || 0) + 1;
   }
 
   fs.mkdirSync(outDir, { recursive: true });
   const puzzlesPath = path.join(outDir, 'puzzles.json');
-  fs.writeFileSync(puzzlesPath, JSON.stringify(finalList));
+  fs.writeFileSync(puzzlesPath, JSON.stringify(capped));
   const sizeBytes = fs.statSync(puzzlesPath).size;
 
+  const ratings = capped.map((p) => p.rating);
+  const ratingMin = ratings.length ? Math.min(...ratings) : CFG.minRating;
+  const ratingMax = ratings.length ? Math.max(...ratings) : CFG.maxRating;
+
   const manifest = {
-    version: 1,
+    version: 2,
     sourceUrl: CFG.sourceUrl,
     license: CFG.sourceLicense,
     seed: CFG.selectionSeed,
     selectionSeed: CFG.selectionSeed,
-    ratingMin: CFG.minRating,
-    ratingMax: CFG.maxRating,
-    minRating: CFG.minRating,
-    maxRating: CFG.maxRating,
+    ratingMin,
+    ratingMax,
+    minRating: ratingMin,
+    maxRating: ratingMax,
     filters: {
       popularityMin: CFG.popularityMin,
       nbPlaysMin: CFG.nbPlaysMin,
       ratingDeviationMax: CFG.ratingDeviationMax,
     },
-    count: finalList.length,
+    bands: CFG.ratingBands.map((b) => ({
+      id: b.id,
+      label: b.label,
+      min: b.min,
+      max: b.max,
+      target: b.target,
+      count: perBandCounts[b.id] || 0,
+    })),
+    count: capped.length,
     generatedAt: new Date().toISOString(),
   };
   fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
@@ -290,15 +469,22 @@ async function main() {
     ...manifest,
     scanned,
     eligible,
+    scanDuplicatesSkipped: scanDupes,
+    selectionDuplicatesRejected: totalRejectedDup,
+    invalidLinesRejected: totalRejectedInvalid,
+    duplicatesRemoved: scanDupes + totalRejectedDup,
     sizeBytes,
     sizeKB: Math.round(sizeBytes / 1024),
+    perBandCounts,
+    perBandThemes,
     themeDistribution: Object.fromEntries(
-      Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 40),
+      Object.entries(dist).sort((a, b) => b[1] - a[1]).slice(0, 50),
     ),
   };
   fs.writeFileSync(path.join(outDir, 'build-report.json'), JSON.stringify(report, null, 2));
 
-  console.log(`Wrote ${finalList.length} puzzles → ${puzzlesPath} (${report.sizeKB} KB)`);
+  console.log(`Wrote ${capped.length} puzzles → ${puzzlesPath} (${report.sizeKB} KB)`);
+  console.log('Per-band counts:', perBandCounts);
   console.log('Top themes:', report.themeDistribution);
 }
 

@@ -1,29 +1,57 @@
 /**
  * Puzzle difficulty bands based on Lichess ratings (no Chess.com conversion).
  *
- * Filter ranges are half-open / non-overlapping so a puzzle rating maps to
- * exactly one band (except `all`). Display labels keep friendly closed ranges
- * (e.g. "800–1000") while filters use 800–999, etc.
+ * Ranges are closed and non-overlapping so a puzzle rating maps to exactly one
+ * band (except `all`). Labels match the Elo ranges offered in the tactics UI.
+ *
+ * Keep this list data-driven so we can later:
+ * - add/remove bands
+ * - change DEFAULT_PUZZLE_RATING_BAND_ID
+ * - map a profile Elo onto a default band
+ * - add adaptive difficulty without redesigning selection
  */
 export interface PuzzleRatingBand {
   id: string;
   label: string;
+  /** Inclusive lower bound (Lichess puzzle rating). */
   ratingMin: number;
+  /** Inclusive upper bound (Lichess puzzle rating). */
   ratingMax: number;
 }
 
+/**
+ * Default hub selection. Prefer `all` until profile Elo / adaptive difficulty
+ * lands; swap this constant without touching selection logic.
+ */
+export const DEFAULT_PUZZLE_RATING_BAND_ID = 'all';
+
 export const PUZZLE_RATING_BANDS: PuzzleRatingBand[] = [
-  { id: 'lt800', label: '<800', ratingMin: 0, ratingMax: 799 },
-  { id: '800-1000', label: '800–1000', ratingMin: 800, ratingMax: 999 },
-  { id: '1000-1200', label: '1000–1200', ratingMin: 1000, ratingMax: 1199 },
-  { id: '1200-1400', label: '1200–1400', ratingMin: 1200, ratingMax: 1399 },
-  { id: '1400-1600', label: '1400–1600', ratingMin: 1400, ratingMax: 1599 },
-  { id: '1600-1800', label: '1600–1800', ratingMin: 1600, ratingMax: 1799 },
-  { id: '1800-2000', label: '1800–2000', ratingMin: 1800, ratingMax: 1999 },
-  { id: '2000-2200', label: '2000–2200', ratingMin: 2000, ratingMax: 2200 },
-  { id: 'gt2200', label: '>2200', ratingMin: 2201, ratingMax: 4000 },
+  { id: '600-799', label: '600–799', ratingMin: 600, ratingMax: 799 },
+  { id: '800-999', label: '800–999', ratingMin: 800, ratingMax: 999 },
+  { id: '1000-1199', label: '1000–1199', ratingMin: 1000, ratingMax: 1199 },
+  { id: '1200-1399', label: '1200–1399', ratingMin: 1200, ratingMax: 1399 },
+  { id: '1400-1599', label: '1400–1599', ratingMin: 1400, ratingMax: 1599 },
+  { id: '1600-1799', label: '1600–1799', ratingMin: 1600, ratingMax: 1799 },
+  { id: '1800-1999', label: '1800–1999', ratingMin: 1800, ratingMax: 1999 },
+  { id: '2000-2199', label: '2000–2199', ratingMin: 2000, ratingMax: 2199 },
+  { id: '2200+', label: '2200+', ratingMin: 2200, ratingMax: 4000 },
   { id: 'all', label: 'Aléatoire / Tous', ratingMin: 0, ratingMax: 4000 },
 ];
+
+/** Resolve a band id; falls back to the configured default. */
+export function getPuzzleRatingBand(bandId: string): PuzzleRatingBand {
+  return (
+    PUZZLE_RATING_BANDS.find((b) => b.id === bandId) ??
+    PUZZLE_RATING_BANDS.find((b) => b.id === DEFAULT_PUZZLE_RATING_BAND_ID)!
+  );
+}
+
+/** Map a Lichess puzzle rating onto a concrete Elo band (never `all`). */
+export function puzzleBandForRating(rating: number): PuzzleRatingBand | undefined {
+  return PUZZLE_RATING_BANDS.find(
+    (b) => b.id !== 'all' && rating >= b.ratingMin && rating <= b.ratingMax,
+  );
+}
 
 export interface PieceCountBand {
   id: string;
@@ -33,6 +61,8 @@ export interface PieceCountBand {
   /** Inclusive max; null = open. */
   max: number | null;
 }
+
+export const DEFAULT_PIECE_COUNT_BAND_ID = 'all';
 
 export const PIECE_COUNT_BANDS: PieceCountBand[] = [
   { id: 'le5', label: '≤5', min: null, max: 5 },

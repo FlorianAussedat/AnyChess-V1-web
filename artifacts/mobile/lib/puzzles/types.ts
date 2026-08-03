@@ -23,6 +23,16 @@ export interface PuzzleManifest {
   ratingMax: number;
   seed?: number;
   notes?: string;
+  sourceUrl?: string;
+  license?: string;
+  bands?: Array<{
+    id: string;
+    label: string;
+    min: number;
+    max: number;
+    target: number;
+    count: number;
+  }>;
 }
 
 export type PuzzleSubmode = 'visual' | 'blind';
@@ -46,7 +56,7 @@ export interface PuzzleFilters {
 }
 
 export const DEFAULT_PUZZLE_FILTERS: PuzzleFilters = {
-  // "Aléatoire / Tous" band — pack itself is curated ~1600–2200.
+  // "Aléatoire / Tous" — pack spans the curated multi-Elo bands.
   ratingMin: 0,
   ratingMax: 4000,
   pieceCountMin: null,

@@ -19,6 +19,8 @@ import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 import {
   DEFAULT_PUZZLE_FILTERS,
+  DEFAULT_PUZZLE_RATING_BAND_ID,
+  DEFAULT_PIECE_COUNT_BAND_ID,
   PIECE_COUNT_BANDS,
   PUZZLE_RATING_BANDS,
   PuzzleSession,
@@ -48,8 +50,8 @@ export type PuzzleSpokenResult =
   | 'command'
   | 'idle';
 
-const DEFAULT_RATING_BAND_ID = 'all';
-const DEFAULT_PIECE_BAND_ID = 'all';
+const DEFAULT_RATING_BAND_ID = DEFAULT_PUZZLE_RATING_BAND_ID;
+const DEFAULT_PIECE_BAND_ID = DEFAULT_PIECE_COUNT_BAND_ID;
 
 interface PuzzleContextValue {
   phase: PuzzlePhase;
