@@ -69,6 +69,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Quiz Ouverture',
     description: 'Nomme ou construis des ouvertures à partir de la base ECO.',
     iconName: 'help-circle-outline',
+    /** Supplied: assets/brand/mascots/mascot-quiz-knight-detective.png */
     requiredMascotAsset: 'mascot-quiz-knight-detective.png',
   },
 ];
