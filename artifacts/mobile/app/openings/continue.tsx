@@ -435,14 +435,14 @@ export default function ContinueLineScreen() {
         <SoundToggle />
       </View>
 
-      {snap.preambleSans.length > 0 && (
+      {snap.reachedSans.length > 0 ? (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>Position atteinte</Text>
           <Text style={[styles.mono, { color: colors.foreground }]}>
-            {formatLine(snap.preambleSans, 0)}
+            {formatLine(snap.reachedSans, 0)}
           </Text>
         </View>
-      )}
+      ) : null}
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>Statut</Text>

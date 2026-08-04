@@ -25,7 +25,75 @@ function pathId(sans: string[]): string {
 }
 
 /**
+ * Enumerate every root-to-leaf repertoire path (deduped by id).
+ * Used for fair line pools and reachability tests.
+ */
+export function enumerateRepertoirePaths(
+  rep: ParsedRepertoire,
+  startFen: string = DEFAULT_FEN,
+): ContinueLinePath[] {
+  const results: ContinueLinePath[] = [];
+
+  function walk(
+    fen: string,
+    sans: string[],
+    fensBefore: string[],
+    choices: RepertoireMoveChoice[],
+    seen: Set<string>,
+  ): void {
+    const key = positionKey(fen);
+    if (seen.has(key)) {
+      if (sans.length > 0) {
+        results.push({
+          id: pathId(sans),
+          sans: [...sans],
+          fensBefore: [...fensBefore],
+          choices: [...choices],
+        });
+      }
+      return;
+    }
+    const moves = movesForPosition(rep, fen);
+    if (moves.length === 0) {
+      if (sans.length > 0) {
+        results.push({
+          id: pathId(sans),
+          sans: [...sans],
+          fensBefore: [...fensBefore],
+          choices: [...choices],
+        });
+      }
+      return;
+    }
+    const nextSeen = new Set(seen);
+    nextSeen.add(key);
+    for (const choice of moves) {
+      const chess = new Chess(fen);
+      const played = chess.move({
+        from: choice.from,
+        to: choice.to,
+        promotion: choice.promotion || 'q',
+      });
+      if (!played) continue;
+      walk(
+        chess.fen(),
+        [...sans, choice.san],
+        [...fensBefore, fen],
+        [...choices, choice],
+        nextSeen,
+      );
+    }
+  }
+
+  walk(startFen, [], [], [], new Set());
+  const byId = new Map<string, ContinueLinePath>();
+  for (const p of results) byId.set(p.id, p);
+  return [...byId.values()];
+}
+
+/**
  * Walk the repertoire with uniform-random edge choice until a leaf.
+ * Prefer paths not in recentPathIds; never returns null if any path exists.
  */
 export function sampleRandomPath(
   rep: ParsedRepertoire,
@@ -36,10 +104,22 @@ export function sampleRandomPath(
   const recent = new Set(options.recentPathIds ?? []);
   const maxAttempts = options.maxAttempts ?? 12;
 
-  let best: ContinueLinePath | null = null;
+  const all = enumerateRepertoirePaths(rep, startFen);
+  if (all.length > 0) {
+    const blocked =
+      (options.recentPathIds?.length ?? 0) >= 2 &&
+      options.recentPathIds![0] === options.recentPathIds![1]
+        ? options.recentPathIds![0]
+        : null;
+    let candidates = blocked ? all.filter((p) => p.id !== blocked) : all;
+    if (candidates.length === 0) candidates = all;
+    const fresh = candidates.filter((p) => !recent.has(p.id));
+    const preferred = fresh.length > 0 ? fresh : candidates;
+    return preferred[Math.floor(rng() * preferred.length)] ?? null;
+  }
 
+  let best: ContinueLinePath | null = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    // Diversify stuck RNGs across attempts so recent-path avoidance can explore forks.
     const attemptRng = () => (rng() + attempt * 0.6180339887) % 1;
     const chess = new Chess(startFen);
     const sans: string[] = [];
@@ -53,7 +133,10 @@ export function sampleRandomPath(
       if (seen.has(key)) break;
       seen.add(key);
 
-      const choice = chooseRepertoireMove(rep, fen, { mode: 'uniform-random', rng: attemptRng });
+      const choice = chooseRepertoireMove(rep, fen, {
+        mode: 'uniform-random',
+        rng: attemptRng,
+      });
       if (!choice) break;
 
       fensBefore.push(fen);

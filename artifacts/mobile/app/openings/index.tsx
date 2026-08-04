@@ -14,12 +14,26 @@ import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
-import { filterFoldersByReviewSide } from '@/lib/repertoire';
+import type {
+  RepertoireFolder,
+  ReviewSideFilter,
+  ReviewTrainingMode,
+} from '@/lib/repertoire';
+import {
+  filterFoldersByReviewSide,
+  buildReviewHref,
+  resolveReviewFolderIds,
+} from '@/lib/repertoire';
 import { FolderListRow } from '@/components/openings/FolderListRow';
 import { NameModal } from '@/components/openings/NameModal';
 import { OpeningsReviewBlock } from '@/components/openings/OpeningsReviewBlock';
 import { MixedTrainingModal } from '@/components/openings/MixedTrainingModal';
+import { ReviewModeModal } from '@/components/openings/ReviewModeModal';
+
+type PendingReview = {
+  folderIds: string[];
+  side: ReviewSideFilter;
+};
 
 export default function OpeningsFolderList() {
   const colors = useColors();
@@ -40,6 +54,7 @@ export default function OpeningsFolderList() {
   const trainable = getTrainableFolders();
   const [mixedSelect, setMixedSelect] = useState<Set<string>>(new Set());
   const [mixedOpen, setMixedOpen] = useState(false);
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RepertoireFolder | null>(null);
@@ -112,25 +127,34 @@ export default function OpeningsFolderList() {
     setMixedSelect(new Set(trainable.map((f) => f.id)));
   }, [trainable]);
 
-  const startMixedContinue = useCallback(() => {
+  const openModeForScope = useCallback((folderIds: string[], side: ReviewSideFilter) => {
+    if (folderIds.length === 0) return;
+    setPendingReview({ folderIds, side });
+  }, []);
+
+  const startMixedNext = useCallback(() => {
     const ids = [...mixedSelect];
     if (ids.length === 0) return;
     setMixedOpen(false);
-    router.push(
-      `/openings/continue?folderIds=${encodeURIComponent(ids.join(','))}&side=all` as Href,
-    );
-  }, [mixedSelect, router]);
+    openModeForScope(ids, 'all');
+  }, [mixedSelect, openModeForScope]);
 
   const startReview = useCallback(
     (side: ReviewSideFilter) => {
-      const pool = filterFoldersByReviewSide(trainable, side);
-      if (pool.length === 0) return;
-      const ids = pool.map((f) => f.id).join(',');
-      router.push(
-        `/openings/continue?folderIds=${encodeURIComponent(ids)}&side=${side}` as Href,
-      );
+      const ids = resolveReviewFolderIds(trainable, side);
+      openModeForScope(ids, side);
     },
-    [trainable, router],
+    [trainable, openModeForScope],
+  );
+
+  const chooseReviewMode = useCallback(
+    (mode: ReviewTrainingMode) => {
+      if (!pendingReview) return;
+      const href = buildReviewHref(pendingReview, mode);
+      setPendingReview(null);
+      router.push(href as Href);
+    },
+    [pendingReview, router],
   );
 
   const confirmDelete = useCallback(
@@ -317,7 +341,13 @@ export default function OpeningsFolderList() {
         onClose={() => setMixedOpen(false)}
         onSelectAll={selectAllTrainable}
         onToggleFolder={toggleMixedFolder}
-        onStart={startMixedContinue}
+        onStart={startMixedNext}
+      />
+
+      <ReviewModeModal
+        visible={pendingReview != null}
+        onClose={() => setPendingReview(null)}
+        onChoose={chooseReviewMode}
       />
     </View>
   );

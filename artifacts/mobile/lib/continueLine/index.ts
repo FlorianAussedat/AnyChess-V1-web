@@ -7,6 +7,7 @@ export type {
 } from './types.ts';
 export {
   sampleRandomPath,
+  enumerateRepertoirePaths,
   pickStartPly,
   fenAfterSans,
   isBookUci,

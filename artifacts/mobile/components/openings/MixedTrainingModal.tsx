@@ -92,7 +92,7 @@ export function MixedTrainingModal({
               ]}
             >
               <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                Commencer
+                Suivant
               </Text>
             </Pressable>
           </View>

@@ -47,11 +47,24 @@ export {
   sideToPlayerColor,
   filterFoldersByReviewSide,
   filterEntriesByReviewSide,
+  buildMixedLinePool,
+  consecutiveRepeatBlock,
+  mixedLineKey,
 } from './MixedRepertoireTraining';
 export type {
   MixedRepertoireEntry,
   MixedLinePick,
   ReviewSideFilter,
+  ReviewTrainingMode,
 } from './MixedRepertoireTraining';
+export {
+  resolveReviewFolderIds,
+  canonicalizeFolderIds,
+  buildContinueReviewHref,
+  buildBoardReviewHref,
+  buildReviewHref,
+  buildFolderPlayHref,
+} from './reviewNavigation';
+export type { ReviewLaunchScope } from './reviewNavigation';
 export { pickPgnFile } from './pickPgnFile';
 export type { PickedPgnFile } from './pickPgnFile';

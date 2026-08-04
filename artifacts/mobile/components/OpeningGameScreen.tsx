@@ -37,7 +37,17 @@ import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { BrandAssets } from '@/constants/BrandAssets';
 
-export function OpeningGameScreen() {
+type OpeningGameScreenProps = {
+  /** When true, repertoire side is known — hide the side picker. */
+  sideLocked?: boolean;
+  /** Optional override for « Nouvelle partie » (e.g. mixed review re-pick). */
+  onNewGameOverride?: () => void;
+};
+
+export function OpeningGameScreen({
+  sideLocked = false,
+  onNewGameOverride,
+}: OpeningGameScreenProps = {}) {
   const colors = useColors();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
@@ -134,10 +144,31 @@ export function OpeningGameScreen() {
   );
 
   const onNewGamePress = useCallback(() => {
+    if (onNewGameOverride) {
+      onNewGameOverride();
+      return;
+    }
+    if (sideLocked) {
+      newGame();
+      return;
+    }
     if (pendingSide === 'random') applySide(resolveSideChoice('random'));
     else if (pendingSide !== playerColor) changeColor(pendingSide);
     else newGame();
-  }, [pendingSide, playerColor, applySide, changeColor, newGame]);
+  }, [
+    onNewGameOverride,
+    sideLocked,
+    pendingSide,
+    playerColor,
+    applySide,
+    changeColor,
+    newGame,
+  ]);
+
+  useEffect(() => {
+    if (!sideLocked) return;
+    setPendingSide(playerColor === 'b' ? 'b' : 'w');
+  }, [sideLocked, playerColor]);
 
   const moveRows = pairMoveHistory(history);
 
@@ -215,7 +246,7 @@ export function OpeningGameScreen() {
           </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          {gameStarted && (
+          {(gameStarted || sideLocked) && (
             <View
               style={styles.sideIndicator}
               accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
@@ -286,7 +317,7 @@ export function OpeningGameScreen() {
         onNewGame={onNewGamePress}
       />
 
-      {!gameStarted ? (
+      {!gameStarted && !sideLocked ? (
         <GameSidePicker pendingSide={pendingSide} onPickSide={onPickSide} />
       ) : null}
 

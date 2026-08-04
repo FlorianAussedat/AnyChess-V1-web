@@ -12,6 +12,7 @@ import {
   pickStartPly,
   proposedContinuationSans,
   sampleRandomPath,
+  enumerateRepertoirePaths,
 } from '../index.ts';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { ContinueLineRecentStorage } from '../ContinueLineRecentStorage.ts';
@@ -216,5 +217,133 @@ describe('ContinueLineRecentStorage', () => {
     await store.pushRecentPathId('f1', 'd e');
     const ids = await store.getRecentPathIds('f1');
     assert.deepEqual(ids, ['d e', 'a b c']);
+  });
+
+  it('keeps a short consecutive streak for anti-repeat', async () => {
+    const mem = new MemoryKeyValueStorage();
+    const store = new ContinueLineRecentStorage(mem);
+    await store.pushRecentPathId('f1', 'lineA');
+    await store.pushRecentPathId('f1', 'lineA');
+    assert.deepEqual(await store.getRecentPathIds('f1'), ['lineA', 'lineA']);
+    await store.pushRecentPathId('f1', 'lineA');
+    assert.deepEqual(await store.getRecentPathIds('f1'), ['lineA', 'lineA']);
+  });
+});
+
+describe('enumerateRepertoirePaths + reachability', () => {
+  it('enumerates every leaf path', () => {
+    const rep = buildRepertoire(TWO_BRANCHES);
+    const paths = enumerateRepertoirePaths(rep);
+    const ids = paths.map((p) => p.id).sort();
+    assert.ok(ids.some((id) => id.includes('Bc4')));
+    assert.ok(ids.some((id) => id.includes('Bb5')));
+  });
+});
+
+describe('sampleRandomPath anti-repeat', () => {
+  it('can eventually select every valid path', () => {
+    const rep = buildRepertoire(TWO_BRANCHES);
+    const all = enumerateRepertoirePaths(rep);
+    assert.ok(all.length >= 2);
+    const seen = new Set<string>();
+    let cursor = 0;
+    const rng = () => {
+      const v = (cursor % all.length) / all.length;
+      cursor += 1;
+      return v;
+    };
+    for (let i = 0; i < 40; i++) {
+      const path = sampleRandomPath(rep, { rng, recentPathIds: [...seen].slice(-2) });
+      assert.ok(path);
+      seen.add(path!.id);
+    }
+    for (const p of all) {
+      assert.ok(seen.has(p.id), `unreachable path: ${p.id}`);
+    }
+  });
+
+  it('never allows a third consecutive duplicate when alternatives exist', () => {
+    const rep = buildRepertoire(TWO_BRANCHES);
+    const all = enumerateRepertoirePaths(rep);
+    assert.ok(all.length >= 2);
+    const a = all[0]!.id;
+    const recent = [a, a];
+    for (let i = 0; i < 20; i++) {
+      const path = sampleRandomPath(rep, { rng: () => i / 20, recentPathIds: recent });
+      assert.ok(path);
+      assert.notEqual(path!.id, a);
+    }
+  });
+
+  it('allows repeating the only available line', () => {
+    const rep = buildRepertoire(ITALIAN);
+    const path = sampleRandomPath(rep, { rng: () => 0 })!;
+    const again = sampleRandomPath(rep, {
+      rng: () => 0,
+      recentPathIds: [path.id, path.id],
+    });
+    assert.ok(again);
+    assert.equal(again!.id, path.id);
+  });
+
+  it('prefers alternatives over immediate repeat', () => {
+    const rep = buildRepertoire(TWO_BRANCHES);
+    const all = enumerateRepertoirePaths(rep);
+    const a = all[0]!.id;
+    const path = sampleRandomPath(rep, { rng: () => 0, recentPathIds: [a] });
+    assert.ok(path);
+    assert.notEqual(path!.id, a);
+  });
+});
+
+describe('ContinueLineSession reachedSans', () => {
+  it('hides Position atteinte until the first correct continuation', () => {
+    const session = new ContinueLineSession();
+    const path = {
+      id: 'e4-e5-Nf3',
+      sans: ['e4', 'e5', 'Nf3'],
+      fensBefore: [] as string[],
+      choices: [] as never[],
+    };
+    const tmp = new Chess();
+    for (const san of path.sans) {
+      path.fensBefore.push(tmp.fen());
+      tmp.move(san);
+    }
+    session.start(buildRepertoire(ITALIAN), 'Test', { path, startPly: 2 });
+    session.beginRecitation();
+    assert.deepEqual(session.snapshot().preambleSans, ['e4', 'e5']);
+    assert.deepEqual(session.snapshot().reachedSans, []);
+
+    const fen = session.snapshot().currentFen;
+    const probe = new Chess(fen);
+    const nf3 = probe.move('Nf3')!;
+    const result = session.applyChessMove(nf3);
+    assert.equal(result.kind, 'correct');
+    assert.deepEqual(session.snapshot().reachedSans, ['e4', 'e5', 'Nf3']);
+  });
+
+  it('does not include a rejected move in reachedSans', () => {
+    const session = new ContinueLineSession();
+    const path = {
+      id: 'fixed',
+      sans: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'],
+      fensBefore: [] as string[],
+      choices: [] as never[],
+    };
+    const tmp = new Chess();
+    for (const san of path.sans) {
+      path.fensBefore.push(tmp.fen());
+      tmp.move(san);
+    }
+    const rep = buildRepertoire(TWO_BRANCHES);
+    session.start(rep, 'Test', { path, startPly: 4 });
+    session.beginRecitation();
+    const fen = session.snapshot().currentFen;
+    const probe = new Chess(fen);
+    const wrong = probe.move('a3')!;
+    session.applyChessMove(wrong);
+    assert.deepEqual(session.snapshot().reachedSans, []);
+    assert.equal(session.snapshot().incorrectSan, 'a3');
   });
 });
