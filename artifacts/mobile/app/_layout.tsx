@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { BrandSplash } from '@/components/BrandSplash';
+import { AnyChessSplashScreen } from '@/components/AnyChessSplashScreen';
 import { BottomNavigation } from '@/components/navigation/BottomNavigation';
 import { DesignTokens } from '@/constants/designTokens';
+import { ANYCHESS_NAVY } from '@/lib/brand/splashTiming';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -16,6 +17,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/inter';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { audioSettings } from '@/services/AudioSettings';
 
@@ -31,6 +33,9 @@ const queryClient = new QueryClient();
  * Persistent bottom navigation is rendered by the app shell (not a second
  * router). Content is inset by `bottomNavContentHeight` so boards/controls
  * are never hidden under the bar; per-screen safe-area padding is unchanged.
+ *
+ * Launch intro (`AnyChessSplashScreen`) is mounted once here — never on the
+ * Home route — so Accueil / Back / bottom-nav Home do not replay it.
  */
 function RootLayoutNav() {
   return (
@@ -61,18 +66,19 @@ export default function RootLayout() {
   });
 
   const appReady = Boolean(fontsLoaded || fontError);
+  const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     audioSettings.ensureLoaded().catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (appReady) {
-      SplashScreen.hideAsync();
-    }
-  }, [appReady]);
+  const hideNativeSplash = useCallback(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
-  if (!appReady) return null;
+  const onIntroFinished = useCallback(() => {
+    setIntroDone(true);
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -81,16 +87,34 @@ export default function RootLayout() {
           <GestureHandlerRootView style={styles.root}>
             <KeyboardProvider>
               <View style={styles.root}>
-                <View
-                  style={[
-                    styles.content,
-                    { paddingBottom: DesignTokens.bottomNavContentHeight },
-                  ]}
-                >
-                  <RootLayoutNav />
-                </View>
-                <BottomNavigation />
-                <BrandSplash ready={appReady} />
+                <StatusBar style="light" backgroundColor={ANYCHESS_NAVY} />
+                {appReady ? (
+                  <View
+                    style={[
+                      styles.content,
+                      {
+                        paddingBottom: introDone
+                          ? DesignTokens.bottomNavContentHeight
+                          : 0,
+                      },
+                    ]}
+                  >
+                    <RootLayoutNav />
+                  </View>
+                ) : (
+                  <View style={styles.bootBridge} testID="anychess-boot-bridge" />
+                )}
+
+                {/* Nav only after launch intro — never drawn over the splash. */}
+                {appReady && introDone ? <BottomNavigation /> : null}
+
+                {!introDone ? (
+                  <AnyChessSplashScreen
+                    appReady={appReady}
+                    onPainted={hideNativeSplash}
+                    onFinished={onIntroFinished}
+                  />
+                ) : null}
               </View>
             </KeyboardProvider>
           </GestureHandlerRootView>
@@ -101,6 +125,16 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  content: { flex: 1 },
+  root: {
+    flex: 1,
+    backgroundColor: ANYCHESS_NAVY,
+  },
+  content: {
+    flex: 1,
+    backgroundColor: ANYCHESS_NAVY,
+  },
+  bootBridge: {
+    flex: 1,
+    backgroundColor: ANYCHESS_NAVY,
+  },
 });
