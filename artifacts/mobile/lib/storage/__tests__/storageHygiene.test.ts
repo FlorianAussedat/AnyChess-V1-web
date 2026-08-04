@@ -41,6 +41,10 @@ describe('StorageKeys registry', () => {
     assert.equal(StorageKeys.voiceEnabled.key, 'anychess.audio.voiceEnabled.v1');
     assert.equal(StorageKeys.voiceEnabledLegacy.key, 'anychess.audio.soundEnabled.v1');
     assert.equal(StorageKeys.schemaVersion.key, 'anychess.storage.schemaVersion');
+    assert.equal(
+      StorageKeys.chessCultureFeedback.key,
+      'anychess.chess-culture.feedback.v1',
+    );
   });
 });
 

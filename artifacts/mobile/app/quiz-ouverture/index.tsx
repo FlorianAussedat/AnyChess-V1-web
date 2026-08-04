@@ -30,6 +30,14 @@ const EXERCISES: ExerciseCard[] = [
     description: 'Dicte la ligne jusqu’à la position qui identifie l’ouverture demandée.',
     icon: BrandAssets.modes.openings,
   },
+  {
+    id: 'culture',
+    route: '/quiz-ouverture/culture' as Href,
+    title: 'Quiz',
+    description:
+      'Teste ta culture échiquéenne avec des questions variées sur l’histoire, les champions, les règles, les tournois et le monde des échecs.',
+    icon: BrandAssets.modes.target,
+  },
 ];
 
 export default function QuizOuvertureHub() {
@@ -61,7 +69,7 @@ export default function QuizOuvertureHub() {
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Menu</Text>
       </Pressable>
 
-      <Text style={[styles.title, { color: colors.foreground }]}>Quiz Ouverture</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>Culture générale</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Utilise la base d’ouvertures ECO locale — indépendante de tes répertoires PGN.
       </Text>

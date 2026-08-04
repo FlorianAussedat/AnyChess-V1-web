@@ -114,6 +114,14 @@ export const StorageKeys = {
     shape: "'0' | '1' | 'true' | 'false' (legacy)",
     documentVersion: 1,
   },
+  /** Local device quality feedback for Culture générale quiz questions. */
+  chessCultureFeedback: {
+    key: 'anychess.chess-culture.feedback.v1',
+    feature: 'chess-culture',
+    shape:
+      'ChessCultureFeedbackSnapshot { version: 1, questions: Record<questionId, feedback> }',
+    documentVersion: 1,
+  },
 } as const satisfies Record<string, StorageKeyMeta>;
 
 export type StorageKeyId = keyof typeof StorageKeys;
