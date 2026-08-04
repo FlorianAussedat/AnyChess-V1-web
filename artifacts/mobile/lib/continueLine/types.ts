@@ -46,6 +46,11 @@ export interface ContinueLineSessionSnapshot {
   currentFen: string;
   /** How many correct user half-moves so far. */
   correctCount: number;
+  /**
+   * Moves reached on the board for display: preamble + successful continuation.
+   * Empty while the user has not yet entered a continuation move.
+   */
+  reachedSans: string[];
   /** Book moves still available at the current node (SAN). */
   availableSans: string[];
   /** First wrong attempt, if any. */

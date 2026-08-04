@@ -104,7 +104,7 @@ export default function FolderDetailScreen() {
     setPlayOpen(false);
     const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
     router.push(
-      `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}` as Href,
+      `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}&sideLocked=1` as Href,
     );
   }, [folderId, canPlay, folder?.side, router]);
 

@@ -20,8 +20,8 @@ export function OpeningsReviewBlock({
     <View style={[styles.mixedBlock, { borderColor: colors.border, backgroundColor: colors.card }]}>
       <Text style={[styles.mixedTitle, { color: colors.foreground }]}>Révision</Text>
       <Text style={[styles.mixedHint, { color: colors.mutedForeground }]}>
-        Continue la ligne sur un ou plusieurs répertoires — l’orientation suit le côté de chaque
-        ligne.
+        Choisis un mode (Continue la ligne ou Échiquier). L’orientation suit le côté de chaque
+        répertoire.
       </Text>
       <View style={styles.reviewRow}>
         <Pressable

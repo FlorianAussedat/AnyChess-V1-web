@@ -30,7 +30,14 @@ export class ContinueLineRecentStorage {
   async pushRecentPathId(folderId: string, pathId: string): Promise<void> {
     const all = await this.readAll();
     const prev = all[folderId] ?? [];
-    all[folderId] = [pathId, ...prev.filter((x) => x !== pathId)].slice(0, MAX_RECENT);
+    // Prepend; keep a short consecutive streak at the front so anti-repeat
+    // can detect A,A (max 2) and block a third when alternatives exist.
+    // Older copies of the same id are removed to keep history useful.
+    const leadingStreak = prev[0] === pathId ? 1 : 0;
+    const head =
+      leadingStreak === 1 ? [pathId, pathId] : [pathId];
+    const rest = prev.filter((x) => x !== pathId);
+    all[folderId] = [...head, ...rest].slice(0, MAX_RECENT);
     await this.storage.setItem(KEY, JSON.stringify(all));
   }
 

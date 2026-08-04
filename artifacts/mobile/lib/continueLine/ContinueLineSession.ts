@@ -37,6 +37,7 @@ export class ContinueLineSession {
   private startPly = 0;
   private board = new Chess();
   private correctCount = 0;
+  private playedSans: string[] = [];
   private incorrectSan: string | null = null;
   private validAlternatives: string[] = [];
   private proposedContinuation: string[] = [];
@@ -75,6 +76,7 @@ export class ContinueLineSession {
     this.proposedContinuation = [];
     this.lineCompleted = false;
     this.correctCount = 0;
+    this.playedSans = [];
     this.errorMessage = null;
 
     const path =
@@ -145,6 +147,7 @@ export class ContinueLineSession {
     }
 
     this.correctCount += 1;
+    this.playedSans.push(played.san);
     if (this.preferTail[0] === played.san) {
       this.preferTail = this.preferTail.slice(1);
     } else {
@@ -192,6 +195,10 @@ export class ContinueLineSession {
       startPly: this.startPly,
       currentFen: fen,
       correctCount: this.correctCount,
+      reachedSans:
+        this.playedSans.length > 0
+          ? [...this.preambleSans, ...this.playedSans]
+          : [],
       availableSans: available,
       incorrectSan: this.incorrectSan,
       validAlternatives: this.validAlternatives,

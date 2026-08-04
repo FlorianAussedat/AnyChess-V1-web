@@ -14,9 +14,14 @@ import {
   sideToPlayerColor,
   filterFoldersByReviewSide,
   filterEntriesByReviewSide,
+  buildMixedLinePool,
+  consecutiveRepeatBlock,
+  mixedLineKey,
 } from '../MixedRepertoireTraining.ts';
 import { buildRepertoire } from '../repertoireTree.ts';
 import { ContinueLineRecentStorage } from '../../continueLine/ContinueLineRecentStorage.ts';
+import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
+import { enumerateRepertoirePaths } from '../../continueLine/RepertoireBranchSelector.ts';
 
 const MINI_PGN = `[Event "test"]
 1. e4 e5 2. Nf3 Nc6 *`;
@@ -214,21 +219,189 @@ describe('MixedRepertoireTraining', () => {
 
 describe('ContinueLineRecentStorage mixed keys', () => {
   it('tracks recent paths per mixed selection', async () => {
-    const mem = new Map<string, string>();
-    const kv = {
-      getItem: async (k: string) => mem.get(k) ?? null,
-      setItem: async (k: string, v: string) => {
-        mem.set(k, v);
-      },
-      removeItem: async (k: string) => {
-        mem.delete(k);
-      },
-    };
-    const store = new ContinueLineRecentStorage(kv);
+    const mem = new MemoryKeyValueStorage();
+    const store = new ContinueLineRecentStorage(mem);
     const mixKey = mixedTrainingKey(['a', 'b']);
     await store.pushRecentPathId(mixKey, 'a:e4 e5');
     await store.pushRecentPathId(mixKey, 'b:e4 c5');
     const recent = await store.getRecentPathIds(mixKey);
     assert.deepEqual(recent, ['b:e4 c5', 'a:e4 e5']);
+  });
+});
+
+describe('line-based mixed pool fairness', () => {
+  it('builds a pool sized by total eligible lines not folders', () => {
+    const many = buildRepertoire(`
+[Event "a"]
+1. e4 e5 2. Nf3 Nc6 3. Bc4 *
+[Event "b"]
+1. e4 e5 2. Nf3 Nc6 3. Bb5 *
+[Event "c"]
+1. d4 d5 2. c4 e6 *
+`);
+    const few = buildRepertoire(`[Event "d"]
+1. c4 e5 *`);
+    const folderA = {
+      id: 'a',
+      name: 'A',
+      side: 'white' as const,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const folderB = {
+      id: 'b',
+      name: 'B',
+      side: 'black' as const,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const pool = buildMixedLinePool([
+      { folder: folderA, repertoire: many },
+      { folder: folderB, repertoire: few },
+    ]);
+    const pathsA = enumerateRepertoirePaths(many).filter((p) => p.sans.length > 0).length;
+    const pathsB = enumerateRepertoirePaths(few).filter((p) => p.sans.length > 0).length;
+    assert.equal(pool.length, pathsA + pathsB);
+    assert.ok(pathsA >= 2);
+    assert.ok(pathsB >= 1);
+    assert.ok(pathsA > pathsB);
+    assert.equal(pool.filter((p) => p.folderId === 'a').length, pathsA);
+    assert.equal(pool.filter((p) => p.folderId === 'b').length, pathsB);
+    // Not 50/50 folder-first: larger repertoire contributes more pool entries.
+    assert.ok(pool.filter((p) => p.folderId === 'a').length > pool.filter((p) => p.folderId === 'b').length);
+  });
+
+  it('makes every mixed line reachable', () => {
+    const rep = buildRepertoire(BRANCHED_PGN);
+    const folder = {
+      id: 'f1',
+      name: 'Rep',
+      side: 'white' as const,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const entries = [{ folder, repertoire: rep }];
+    const pool = buildMixedLinePool(entries);
+    assert.ok(pool.length >= 2);
+    const seen = new Set<string>();
+    let i = 0;
+    const rng = () => {
+      const v = (i % pool.length) / pool.length;
+      i += 1;
+      return v;
+    };
+    for (let n = 0; n < 50; n++) {
+      const pick = pickMixedLine(entries, { rng });
+      assert.ok(pick);
+      seen.add(mixedLineKey(pick!));
+    }
+    for (const line of pool) {
+      assert.ok(seen.has(mixedLineKey(line)), `unreachable ${mixedLineKey(line)}`);
+    }
+  });
+
+  it('blocks a third consecutive identical mixed pick', () => {
+    const rep = buildRepertoire(BRANCHED_PGN);
+    const folder = {
+      id: 'f1',
+      name: 'Rep',
+      side: 'white' as const,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const entries = [{ folder, repertoire: rep }];
+    const first = pickMixedLine(entries, { rng: () => 0 })!;
+    const key = mixedLineKey(first);
+    assert.equal(consecutiveRepeatBlock([key, key]), key);
+    for (let i = 0; i < 15; i++) {
+      const pick = pickMixedLine(entries, {
+        rng: () => i / 15,
+        recentPathIds: [key, key],
+      });
+      assert.ok(pick);
+      assert.notEqual(mixedLineKey(pick!), key);
+    }
+  });
+
+  it('works with a two-line pool without deadlock', () => {
+    const rep = buildRepertoire(BRANCHED_PGN);
+    const folder = {
+      id: 'f1',
+      name: 'Rep',
+      side: 'white' as const,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const entries = [{ folder, repertoire: rep }];
+    const pool = buildMixedLinePool(entries);
+    assert.ok(pool.length >= 2);
+    const a = mixedLineKey(pool[0]!);
+    const b = mixedLineKey(pool[1]!);
+    const pick = pickMixedLine(entries, {
+      rng: () => 0,
+      recentPathIds: [a],
+    });
+    assert.ok(pick);
+    assert.notEqual(mixedLineKey(pick!), a);
+    const pick2 = pickMixedLine(entries, {
+      rng: () => 0,
+      recentPathIds: [b, a],
+    });
+    assert.ok(pick2);
+  });
+});
+
+describe('side / orientation mapping', () => {
+  it('maps repertoire side to board player color without guessing unset', () => {
+    assert.equal(sideToPlayerColor('white'), 'w');
+    assert.equal(sideToPlayerColor('black'), 'b');
+    const unset: RepertoireFolder = {
+      id: 'x',
+      name: 'Legacy',
+      createdAt: '',
+      updatedAt: '',
+    };
+    assert.equal(unset.side, undefined);
+    assert.deepEqual(filterFoldersByReviewSide([unset], 'all'), []);
+    assert.deepEqual(filterFoldersByReviewSide([unset], 'white'), []);
+  });
+
+  it('mixed review orientation follows each line side', () => {
+    const rep = buildRepertoire(MINI_PGN);
+    const entries = [
+      {
+        folder: {
+          id: 'w1',
+          name: 'W',
+          side: 'white' as const,
+          createdAt: '',
+          updatedAt: '',
+        },
+        repertoire: rep,
+      },
+      {
+        folder: {
+          id: 'b1',
+          name: 'B',
+          side: 'black' as const,
+          createdAt: '',
+          updatedAt: '',
+        },
+        repertoire: rep,
+      },
+    ];
+    const whitePick = pickMixedLine(filterEntriesByReviewSide(entries, 'white'), {
+      rng: () => 0,
+    });
+    const blackPick = pickMixedLine(filterEntriesByReviewSide(entries, 'black'), {
+      rng: () => 0,
+    });
+    assert.equal(whitePick?.side, 'white');
+    assert.equal(blackPick?.side, 'black');
+    assert.equal(sideToPlayerColor(whitePick!.side), 'w');
+    assert.equal(sideToPlayerColor(blackPick!.side), 'b');
+    // Board convention: white at bottom => not flipped; black at bottom => flipped
+    assert.equal(sideToPlayerColor(whitePick!.side) === 'b', false);
+    assert.equal(sideToPlayerColor(blackPick!.side) === 'b', true);
   });
 });
