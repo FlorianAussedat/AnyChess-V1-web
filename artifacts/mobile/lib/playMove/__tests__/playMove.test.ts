@@ -10,6 +10,8 @@ import {
   SESSION_SECONDS,
   isCorrectPlayMove,
   isReliablePlayMoveChallenge,
+  sideToMoveLabel,
+  isFlippedForSideToMove,
   type PlayMoveChallenge,
 } from '../index.ts';
 import type { TimedChallengeScheduler } from '../../timedChallenge/index.ts';
@@ -26,6 +28,7 @@ function sampleChallenge(id: string, setupSan: string): PlayMoveChallenge {
     setupSan: move.san,
     setupMove: { from: move.from, to: move.to, promotion: move.promotion },
     expectedSan: move.san,
+    boardPerspective: 'w',
     promptVerbal: sanToVerbal(move.san),
   };
 }
@@ -93,6 +96,7 @@ describe('play move challenge validity', () => {
       setupSan: move.san,
       setupMove: { from: move.from, to: move.to, promotion: move.promotion },
       expectedSan: move.san,
+      boardPerspective: 'w',
       promptVerbal: sanToVerbal(move.san),
     };
     assert.equal(isReliablePlayMoveChallenge(challenge), false);
@@ -181,5 +185,33 @@ describe('play move session', () => {
     session.dispose();
     scheduler.tick(COUNTDOWN_STEP_MS * 4);
     assert.equal(session.snapshot().phase, 'idle');
+  });
+});
+
+describe('side to move label and board orientation', () => {
+  it('labels White/Black to move and keeps flip in sync', () => {
+    assert.equal(sideToMoveLabel('w'), 'Trait aux Blancs');
+    assert.equal(sideToMoveLabel('b'), 'Trait aux Noirs');
+    assert.equal(isFlippedForSideToMove('w'), false);
+    assert.equal(isFlippedForSideToMove('b'), true);
+  });
+
+  it('derives label from challenge initialFen turn and matches isFlipped', () => {
+    const whiteToMove = sampleChallenge('wtm', 'e4');
+    const whiteTurn = new Chess(whiteToMove.initialFen).turn();
+    assert.equal(whiteTurn, 'w');
+    assert.equal(sideToMoveLabel(whiteTurn), 'Trait aux Blancs');
+    assert.equal(isFlippedForSideToMove(whiteTurn), false);
+
+    // After 1.e4, Black to move — build a challenge starting mid-game.
+    const mid = new Chess();
+    mid.move('e4');
+    const blackFen = mid.fen();
+    assert.equal(new Chess(blackFen).turn(), 'b');
+    const blackTurn = new Chess(blackFen).turn();
+    assert.equal(sideToMoveLabel(blackTurn), 'Trait aux Noirs');
+    assert.equal(isFlippedForSideToMove(blackTurn), true);
+    // Prevent Trait aux Noirs while board is shown from White perspective.
+    assert.notEqual(sideToMoveLabel(blackTurn) === 'Trait aux Noirs' && !isFlippedForSideToMove(blackTurn), true);
   });
 });

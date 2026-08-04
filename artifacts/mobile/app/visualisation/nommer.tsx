@@ -16,6 +16,8 @@ import {
   MoveNamingRecordsStore,
   MoveNamingSession,
   pickMoveNamingChallenge,
+  boardPerspectiveLabel,
+  isFlippedForPerspective,
   type MoveNamingSnapshot,
 } from '@/lib/moveNaming';
 
@@ -25,7 +27,12 @@ export default function NommerLeCoupScreen() {
   const colors = useColors();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
-  const sessionRef = useRef(new MoveNamingSession({ pickChallenge: pickMoveNamingChallenge }));
+  const sessionRef = useRef(
+    new MoveNamingSession({
+      pickChallenge: (previousId, previousPerspective) =>
+        pickMoveNamingChallenge(previousId, Math.random, previousPerspective),
+    }),
+  );
   const micPrimedRef = useRef(false);
   const [snap, setSnap] = useState<MoveNamingSnapshot>(() => sessionRef.current.snapshot());
 
@@ -89,7 +96,9 @@ export default function NommerLeCoupScreen() {
 
   const display =
     snap.phase === 'playing' && snap.challenge ? new Chess(snap.challenge.positionFen) : null;
-
+  const perspective = snap.challenge?.boardPerspective ?? 'w';
+  const perspectiveLabel = boardPerspectiveLabel(perspective);
+  const boardFlipped = isFlippedForPerspective(perspective);
   return (
     <ScrollView
       contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}
@@ -168,11 +177,18 @@ export default function NommerLeCoupScreen() {
               Score : {snap.score.score}
             </Text>
           </View>
+          <Text
+            style={[styles.perspectiveHint, { color: colors.mutedForeground }]}
+            testID="nommer-board-perspective"
+          >
+            {perspectiveLabel}
+          </Text>
           {display && (
             <ChessBoard
               board={display.board() as (BoardPiece | null)[][]}
               lastMove={snap.challenge?.setupMove ?? null}
               showCoordinates={showCoordinates}
+              isFlipped={boardFlipped}
             />
           )}
           <Text style={{ color: colors.mutedForeground }}>Quel était le dernier coup ?</Text>
@@ -285,7 +301,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hudValue: { fontSize: 22, fontWeight: '700' },
-  scoreLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 2, textAlign: 'center' },
-  scoreValue: { fontSize: 64, fontWeight: '800', textAlign: 'center' },
+  perspectiveHint: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  scoreLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 2, textAlign: 'center' },  scoreValue: { fontSize: 64, fontWeight: '800', textAlign: 'center' },
   newRecord: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
 });

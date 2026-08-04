@@ -18,3 +18,4 @@ export type {
   PlayMoveOutcome,
   PlayMoveScore,
 } from './types.ts';
+export { sideToMoveLabel, isFlippedForSideToMove } from './sideToMoveLabel.ts';
