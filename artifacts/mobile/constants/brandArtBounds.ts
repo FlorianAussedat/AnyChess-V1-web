@@ -34,9 +34,10 @@ export const NAV_HOME_ART: ArtBounds = {
 };
 
 /**
- * ModeCard mascot artwork. Subjects sit in the upper-middle of each 1024×1536
- * canvas with large empty black padding below — bottom-aligning the raw Image
+ * ModeCard mascot artwork. Subjects sit in the upper-middle of each portrait
+ * 2:3 canvas with large empty black padding below — bottom-aligning the raw Image
  * crops heads. Layout must align these art bounds to the card bottom-right.
+ * Bounds are fractions of canvas size (stable across proportional resizes).
  */
 export const MASCOT_ART: Record<MainModeId, ArtBounds> = {
   classic: {
