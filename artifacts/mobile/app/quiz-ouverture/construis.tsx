@@ -15,6 +15,8 @@ import {
   openingFamilyNames,
   openingTargetsForFamily,
   pickRandomVariation,
+  constructionReplayIntervalMs,
+  type ConstructionReplayKind,
   type OpeningTarget,
   type PlayerConstructionSnapshot,
 } from '@/lib/openingQuiz';
@@ -163,13 +165,16 @@ export default function ConstruisOuvertureScreen() {
     resetSession(nextTarget);
   }
 
-  function startReplay(line: string[]) {
+  function startReplay(line: string[], kind: ConstructionReplayKind) {
     replayHandle.current?.cancel();
     setIsReplaying(true);
     clearTouch();
+    const start = new Chess();
+    setReplayBoard(start.board() as (BoardPiece | null)[][]);
+    setReplayLastMove(null);
     replayHandle.current = replayLine({
       moves: line,
-      intervalMs: 1000,
+      intervalMs: constructionReplayIntervalMs(kind),
       onPosition: (fen) => {
         const game = new Chess(fen);
         setReplayBoard(game.board() as (BoardPiece | null)[][]);
@@ -181,14 +186,20 @@ export default function ConstruisOuvertureScreen() {
     });
   }
 
+  function reviewOpening() {
+    if (!target) return;
+    startReplay(target.sans, 'review');
+  }
+
   function applySnapshot(next: ReturnType<OpeningConstructionSession['answer']>) {
     setSnap(session.current?.snapshotForPlayer() ?? null);
     clearTouch();
-    if (next.phase === 'wrong' || next.phase === 'complete') {
-      startReplay(next.target.sans);
+    if (next.phase === 'wrong') {
+      startReplay(next.target.sans, 'wrong');
+    } else if (next.phase === 'complete') {
+      startReplay(next.target.sans, 'complete');
     }
   }
-
   function answer(raw: string) {
     if (!session.current) return;
     applySnapshot(session.current.answer(raw));
@@ -340,9 +351,31 @@ export default function ConstruisOuvertureScreen() {
               </Pressable>
             </>
           ) : (
-            <Text style={{ color: snap.phase === 'complete' ? '#398a55' : '#c44' }}>
-              {snap.feedback}
-            </Text>
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: snap.phase === 'complete' ? '#398a55' : '#c44' }}>
+                {snap.feedback}
+              </Text>
+              {snap.phase === 'wrong' && (
+                <Pressable
+                  onPress={reviewOpening}
+                  disabled={isReplaying}
+                  testID="review-opening-btn"
+                  style={{
+                    padding: 13,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                    alignItems: 'center',
+                    opacity: isReplaying ? 0.5 : 1,
+                  }}
+                >
+                  <Text style={{ color: colors.foreground, fontWeight: '600' }}>
+                    Revoir l’ouverture
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           )}
           {isReplaying && (
             <Text style={{ color: colors.mutedForeground }}>Relecture de la ligne attendue…</Text>

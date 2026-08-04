@@ -29,3 +29,11 @@ export type {
   ConstructionPhase,
   PlayerConstructionSnapshot,
 } from './OpeningConstructionSession.ts';
+export { groupOpeningSans } from './groupOpeningSans.ts';
+export type { OpeningMoveRow } from './groupOpeningSans.ts';
+export {
+  NORMAL_REPLAY_INTERVAL_MS,
+  LEARNING_REPLAY_INTERVAL_MS,
+  constructionReplayIntervalMs,
+} from './constructionReplay.ts';
+export type { ConstructionReplayKind } from './constructionReplay.ts';
