@@ -1,5 +1,5 @@
 /**
- * Artwork bounds inside v1 brand PNGs (non-black content), as fractions of
+ * Artwork bounds inside brand PNGs (non-black content), as fractions of
  * the full canvas. Used only for layout positioning/scaling — PNGs are never edited.
  *
  * Measured from opaque, non-near-black pixels in the source files.

@@ -24,8 +24,8 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Partie classique',
     description: 'Joue une partie complète contre Stockfish, à la voix ou au doigt.',
     iconName: 'people-outline',
-    /** User original: V1-mascot-classic-knight-soundwave.png */
-    requiredMascotAsset: 'V1-mascot-classic-knight-soundwave.png',
+    /** Production transparent mascot PNG still required. */
+    requiredMascotAsset: 'mascot-classic-knight-soundwave.png',
   },
   {
     id: 'openings',
@@ -33,8 +33,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Ouvertures',
     description: 'Joue contre ton répertoire ou continue une ligne PGN importée.',
     iconName: 'book-outline',
-    /** User original (exact filename includes double .png): V1-mascot-openings-knight-reading.png.png */
-    requiredMascotAsset: 'V1-mascot-openings-knight-reading.png.png',
+    requiredMascotAsset: 'mascot-openings-knight-reading.png',
   },
   {
     id: 'blind',
@@ -42,8 +41,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Séquences à l’aveugle',
     description: 'Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.',
     iconName: 'eye-off-outline',
-    /** User original: v1-mascot-blind-knight-blindfold.png */
-    requiredMascotAsset: 'v1-mascot-blind-knight-blindfold.png',
+    requiredMascotAsset: 'mascot-blind-knight-blindfold.png',
   },
   {
     id: 'puzzles',
@@ -51,8 +49,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Tactiques',
     description: 'Résous des problèmes Lichess à vue ou à l’aveugle, hors-ligne.',
     iconName: 'extension-puzzle-outline',
-    /** User original: v1-mascot-tactics-knight-calculator.png */
-    requiredMascotAsset: 'v1-mascot-tactics-knight-calculator.png',
+    requiredMascotAsset: 'mascot-tactics-knight-calculator.png',
   },
   {
     id: 'visualisation',
@@ -60,8 +57,7 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Visualisation',
     description: 'Suivi mental de position et reconnaissance rapide de coups.',
     iconName: 'eye-outline',
-    /** User original: v1-mascot-visualisation-knight-binoculars.png */
-    requiredMascotAsset: 'v1-mascot-visualisation-knight-binoculars.png',
+    requiredMascotAsset: 'mascot-visualisation-knight-binoculars.png',
   },
   {
     id: 'quiz-ouverture',
@@ -69,7 +65,6 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     title: 'Quiz Ouverture',
     description: 'Nomme ou construis des ouvertures à partir de la base ECO.',
     iconName: 'help-circle-outline',
-    /** User original: V1-mascot-quiz-knight-detective.png */
-    requiredMascotAsset: 'V1-mascot-quiz-knight-detective.png',
+    requiredMascotAsset: 'mascot-quiz-knight-detective.png',
   },
 ];

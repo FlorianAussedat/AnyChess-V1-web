@@ -25,6 +25,7 @@ import {
 } from 'expo-speech-recognition';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHESS_CONTEXT_STRINGS } from '@/lib/voice';
+import { shouldRestartRecognition } from '@/lib/speech/micLifecycle';
 
 export type MicStatusCode =
   | 'idle'
@@ -169,6 +170,10 @@ export function useSpeechInput(options: {
 
   const micActiveRef = useRef(false);
   const isSpeakingRef = useRef(false);
+  const isListeningRef = useRef(false);
+  const enabledRef = useRef(enabled);
+  /** False after unmount — blocks restart / late async starts. */
+  const aliveRef = useRef(true);
   const onTranscriptRef = useRef(onTranscript);
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
@@ -179,19 +184,35 @@ export function useSpeechInput(options: {
   useEffect(() => {
     isSpeakingRef.current = isSpeaking;
   }, [isSpeaking]);
+  useEffect(() => {
+    isListeningRef.current = isListening;
+  }, [isListening]);
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
 
   const startListening = useCallback(async () => {
-    if (!enabled) return;
+    if (!enabledRef.current || !aliveRef.current) return;
     try {
       const prep = await prepareSpeechRecognition();
+      if (!aliveRef.current || !micActiveRef.current) {
+        // Unmounted or toggled off while awaiting permissions.
+        stopSpeechRecognition();
+        return;
+      }
       if (prep.code !== 'idle') {
         setStatus(prep);
         setMicActive(false);
         return;
       }
+      if (!aliveRef.current || !micActiveRef.current) {
+        stopSpeechRecognition();
+        return;
+      }
       startSpeechRecognition();
       setStatus({ code: 'listening', message: null });
     } catch (err) {
+      if (!aliveRef.current) return;
       logMic('start-failed', err);
       setStatus({
         code: 'start-failed',
@@ -201,20 +222,38 @@ export function useSpeechInput(options: {
       setIsListening(false);
       setMicActive(false);
     }
-  }, [enabled]);
+  }, []);
 
   const stopListening = useCallback(() => {
     stopSpeechRecognition();
-    setIsListening(false);
+    if (aliveRef.current) {
+      setIsListening(false);
+    } else {
+      isListeningRef.current = false;
+    }
+  }, []);
+
+  // Hard stop on leave — Expo Stack may keep the screen mounted briefly, and
+  // continuous-mode restarts must not fire after the user navigates away.
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      micActiveRef.current = false;
+      stopSpeechRecognition();
+      logMic('unmount-stop');
+    };
   }, []);
 
   useSpeechRecognitionEvent('start', () => {
+    if (!aliveRef.current) return;
     setIsListening(true);
     setStatus({ code: 'listening', message: null });
     logMic('event-start');
   });
 
   useSpeechRecognitionEvent('end', () => {
+    if (!aliveRef.current) return;
     setIsListening(false);
     logMic('event-end');
     if (micActiveRef.current && !isSpeakingRef.current) {
@@ -230,6 +269,7 @@ export function useSpeechInput(options: {
   });
 
   useSpeechRecognitionEvent('error', (event: any) => {
+    if (!aliveRef.current) return;
     const code = String(event?.error ?? 'unknown');
     const message = String(event?.message ?? '');
     logMic('event-error', { code, message });
@@ -265,6 +305,7 @@ export function useSpeechInput(options: {
   });
 
   useSpeechRecognitionEvent('result', (event: any) => {
+    if (!aliveRef.current) return;
     if (!event?.isFinal) return;
     const transcript: string = event.results?.[0]?.transcript ?? '';
     if (!transcript.trim()) {
@@ -288,11 +329,31 @@ export function useSpeechInput(options: {
     }
   }, [isSpeaking, micActive, isListening, stopListening]);
 
-  // Resume / restart after TTS or unexpected end.
+  // Resume / restart after TTS or unexpected end (never after unmount).
   useEffect(() => {
-    if (!micActive || isListening || isSpeaking || !enabled) return;
+    if (
+      !shouldRestartRecognition({
+        alive: aliveRef.current,
+        enabled,
+        micActive,
+        isListening,
+        isSpeaking,
+      })
+    ) {
+      return;
+    }
     const t = setTimeout(() => {
-      if (micActiveRef.current && !isSpeakingRef.current) startListening();
+      if (
+        shouldRestartRecognition({
+          alive: aliveRef.current,
+          enabled: enabledRef.current,
+          micActive: micActiveRef.current,
+          isListening: isListeningRef.current,
+          isSpeaking: isSpeakingRef.current,
+        })
+      ) {
+        startListening();
+      }
     }, 100);
     return () => clearTimeout(t);
   }, [micActive, isListening, isSpeaking, enabled, startListening]);

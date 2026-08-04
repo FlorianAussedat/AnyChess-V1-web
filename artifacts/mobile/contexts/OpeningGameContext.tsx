@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import {
@@ -109,33 +110,37 @@ export function OpeningGameProvider({
   const [theoryExit, setTheoryExit] = useState<TheoryExit | null>(null);
   const [ready, setReady] = useState(false);
 
-  // Build / rebuild opponent when repertoire becomes available.
-  useEffect(() => {
-    if (!repertoire) {
+  // Build / rebuild opponent when repertoire is available AND the route is
+  // focused. Blur destroys the Worker even if Expo Stack keeps the screen mounted.
+  useFocusEffect(
+    useCallback(() => {
+      if (!repertoire) {
+        setReady(false);
+        return () => {};
+      }
+
+      const engine = createOpponentEngine();
+      const opponent = new OpeningOpponent(repertoire, engine);
+      opponentRef.current = opponent;
       setReady(false);
-      return;
-    }
 
-    const engine = createOpponentEngine();
-    const opponent = new OpeningOpponent(repertoire, engine);
-    opponentRef.current = opponent;
-    setReady(false);
+      let cancelled = false;
+      opponent
+        .init()
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setReady(true);
+        });
 
-    let cancelled = false;
-    opponent
-      .init()
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setReady(true);
-      });
-
-    return () => {
-      cancelled = true;
-      opponent.cancel();
-      opponent.destroy();
-      if (opponentRef.current === opponent) opponentRef.current = null;
-    };
-  }, [repertoire]);
+      return () => {
+        cancelled = true;
+        opponent.cancel();
+        opponent.destroy();
+        if (opponentRef.current === opponent) opponentRef.current = null;
+        setReady(false);
+      };
+    }, [repertoire]),
+  );
 
   useEffect(() => {
     const unsubscribe = speechService.onSpeakingChange(setIsSpeaking);

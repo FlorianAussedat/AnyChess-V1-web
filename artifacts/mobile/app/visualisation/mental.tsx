@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { BackButton } from '@/components/BackButton';
@@ -27,7 +27,7 @@ import {
   MentalPositionSession,
   type MentalSnapshot,
 } from '@/lib/mentalPosition';
-import { createOpponentEngine } from '@/lib/engines';
+import { OwnedEngine, createOpponentEngine } from '@/lib/engines';
 import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
@@ -51,6 +51,7 @@ export default function MentalPositionScreen() {
   const { soundEnabled } = useAudioSettings();
 
   const sessionRef = useRef(new MentalPositionSession());
+  const engineOwnerRef = useRef(new OwnedEngine(() => createOpponentEngine()));
   const replayRef = useRef<ReturnType<typeof replayLine> | null>(null);
   const presentationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [snap, setSnap] = useState<MentalSnapshot>(() => sessionRef.current.snapshot());
@@ -80,8 +81,18 @@ export default function MentalPositionScreen() {
       speechService.stop();
       replayRef.current?.cancel();
       if (presentationTimerRef.current) clearTimeout(presentationTimerRef.current);
+      engineOwnerRef.current.destroy();
     };
   }, []);
+
+  // Stack may keep this screen mounted — tear down Stockfish when leaving.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        engineOwnerRef.current.destroy();
+      };
+    }, []),
+  );
 
   const dictateSequence = useCallback(
     async (sans: string[]) => {
@@ -133,7 +144,7 @@ export default function MentalPositionScreen() {
         previousKey = null;
       }
 
-      const engine = createOpponentEngine();
+      const engine = engineOwnerRef.current.ensure();
       const { sans, key } = await generateMentalSequenceWithQuestions({
         fullMoves,
         engine,

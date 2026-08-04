@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import { createOpponentEngine } from '@/lib/engines';
@@ -84,10 +85,9 @@ const BlindSequenceContext = createContext<BlindSequenceContextValue | null>(nul
 const previousKeyRefGlobal = { current: null as string | null };
 
 export function BlindSequenceProvider({ children }: { children: React.ReactNode }) {
+  // Created on focus / cleared on blur — avoid orphan Workers when Stack keeps
+  // this route mounted after the user leaves Blind mode.
   const engineRef = useRef<ChessEngine | null>(null);
-  if (engineRef.current === null) {
-    engineRef.current = createOpponentEngine();
-  }
 
   const gameRef = useRef(new Chess());
   const sequenceRef = useRef<BlindSequenceMove[]>([]);
@@ -179,9 +179,22 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     submodeRef.current = submode;
   }, [submode]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!engineRef.current) {
+        engineRef.current = createOpponentEngine();
+      }
+      engineRef.current.init?.().catch(() => {});
+      return () => {
+        const engine = engineRef.current;
+        engineRef.current = null;
+        engine?.cancel?.();
+        engine?.destroy?.();
+      };
+    }, []),
+  );
+
   useEffect(() => {
-    const engine = engineRef.current;
-    engine?.init?.().catch(() => {});
     audioSettings.ensureLoaded().catch(() => {});
     const unsubSpeaking = speechService.onSpeakingChange(setIsSpeaking);
     const unsubCancel = speechService.onCancel(() => clearDictationTimer());
@@ -193,7 +206,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       resultReplayRef.current?.cancel();
       clearDictationTimer();
       clearRecognizedTimer();
-      engine?.destroy?.();
     };
   }, [clearDictationTimer, clearRecognizedTimer]);
 

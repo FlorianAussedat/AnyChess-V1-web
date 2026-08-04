@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import {
@@ -105,10 +106,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const playerColorRef  = useRef<PlayerColor>('w');
   const strengthBandIdRef = useRef(DEFAULT_STRENGTH_BAND_ID);
 
-  // ── Opponent engine (Stockfish on web, built-in fallback on native) ─────────
-  // We only ever talk to the ChessEngine interface — the concrete engine is
-  // chosen by createOpponentEngine() and can be swapped without touching this
-  // file. Recreated when the strength band changes / on new game (fresh Elo jitter).
+  // Engine is created in useFocusEffect / recreateEngine — not during render —
+  // so a Stack-kept blurred route cannot spawn an orphan Worker.
   const engineRef = useRef<ChessEngine | null>(null);
 
   /** Build Stockfish options; below MIN_UCI_ELO, clamp Elo and widen variety. */
@@ -119,10 +118,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
     return { elo: targetElo };
   }, []);
-
-  if (engineRef.current === null) {
-    engineRef.current = createOpponentEngine(engineOptionsForBand(DEFAULT_STRENGTH_BAND_ID));
-  }
 
   // Monotonic token that identifies the "current" engine turn. Bumping it
   // invalidates any in-flight engine computation (undo / new game / colour
@@ -140,14 +135,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     });
   }, [engineOptionsForBand]);
 
-  useEffect(() => {
-    engineRef.current?.init?.().catch(() => {
-      /* engine failed to load — opponentMove will simply produce no move */
-    });
-    return () => {
-      engineRef.current?.destroy?.();
-    };
-  }, []);
+  // Expo Stack can keep this route mounted after leave — tear down the Worker
+  // on blur and recreate on focus (unmount-only cleanup is not enough).
+  useFocusEffect(
+    useCallback(() => {
+      if (!engineRef.current) {
+        engineRef.current = createOpponentEngine(
+          engineOptionsForBand(strengthBandIdRef.current),
+        );
+      }
+      engineRef.current.init?.().catch(() => {
+        /* engine failed to load — opponentMove will simply produce no move */
+      });
+      return () => {
+        moveGenerationRef.current += 1;
+        const engine = engineRef.current;
+        engineRef.current = null;
+        engine?.cancel?.();
+        engine?.destroy?.();
+      };
+    }, [engineOptionsForBand]),
+  );
 
   // Mirror the shared SpeechService "speaking" signal into React state so the
   // mic layer can pause recognition while TTS (player move + engine reply) is
