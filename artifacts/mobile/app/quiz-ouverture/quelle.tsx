@@ -1,10 +1,11 @@
-import React, { useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BackButton } from '@/components/BackButton';
 import { useColors } from '@/hooks/useColors';
 import {
   OpeningIdentificationSession,
+  groupOpeningSans,
   type OpeningIdentificationSnapshot,
 } from '@/lib/openingQuiz';
 
@@ -14,6 +15,11 @@ export default function QuelleOuvertureScreen() {
   const session = useRef(new OpeningIdentificationSession());
   const [snap, setSnap] = useState<OpeningIdentificationSnapshot>(() => session.current.start());
   const [input, setInput] = useState('');
+  const moveRows = useMemo(
+    () => groupOpeningSans(snap.line?.sans ?? []),
+    [snap.line?.sans],
+  );
+
   const answer = () => {
     setSnap(session.current.answer(input));
     setInput('');
@@ -35,7 +41,23 @@ export default function QuelleOuvertureScreen() {
         Quelle ouverture ?
       </Text>
       <Text style={{ color: colors.mutedForeground }}>Identifie l’ouverture après cette ligne :</Text>
-      <Text style={{ color: colors.foreground, fontSize: 20 }}>{snap.line?.sans.join(' ')}</Text>
+
+      <View style={styles.lineBlock}>
+        {moveRows.map((row) => (
+          <View key={row.moveNumber} style={styles.moveRow}>
+            <Text style={[styles.moveNum, { color: colors.mutedForeground }]}>
+              {row.moveNumber}.
+            </Text>
+            <Text style={[styles.moveCell, { color: colors.foreground }]} numberOfLines={1}>
+              {row.white ?? ''}
+            </Text>
+            <Text style={[styles.moveCell, { color: colors.foreground }]} numberOfLines={1}>
+              {row.black ? `...${row.black}` : ''}
+            </Text>
+          </View>
+        ))}
+      </View>
+
       {!snap.answered ? (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TextInput
@@ -85,3 +107,25 @@ export default function QuelleOuvertureScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  lineBlock: {
+    gap: 4,
+    alignSelf: 'stretch',
+  },
+  moveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  moveNum: {
+    width: 28,
+    fontSize: 18,
+    fontFamily: 'Inter_500Medium',
+  },
+  moveCell: {
+    flex: 1,
+    fontSize: 18,
+    fontFamily: 'Inter_500Medium',
+  },
+});

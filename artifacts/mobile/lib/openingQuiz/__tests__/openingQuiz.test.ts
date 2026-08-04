@@ -15,6 +15,12 @@ import { OpeningIdentificationSession } from '../OpeningIdentificationSession.ts
 import { findOpeningTarget } from '../OpeningLineBuilder.ts';
 import { OpeningConstructionSession } from '../OpeningConstructionSession.ts';
 import { replayLine } from '../../replay/replayLine.ts';
+import { groupOpeningSans } from '../groupOpeningSans.ts';
+import {
+  constructionReplayIntervalMs,
+  LEARNING_REPLAY_INTERVAL_MS,
+  NORMAL_REPLAY_INTERVAL_MS,
+} from '../constructionReplay.ts';
 
 describe('opening answer normalization and hierarchy', () => {
   it('normalizes accents and accepts a family for variations', () => {
@@ -121,5 +127,82 @@ describe('opening construction', () => {
     handle.cancel();
     await new Promise((r) => setTimeout(r, 120));
     assert.equal(completed, false);
+  });
+});
+
+describe('groupOpeningSans', () => {
+  it('pairs full moves with white and black columns', () => {
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Nf3', 'Nc6']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Nf3', black: 'Nc6' },
+    ]);
+  });
+
+  it('leaves black empty on an odd ply count', () => {
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Nf3']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Nf3' },
+    ]);
+  });
+
+  it('preserves castling, captures and check symbols unchanged', () => {
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Nf3', 'Nc6', 'Bb5', 'a6', 'Bxc6', 'dxc6', 'O-O', 'Nf6']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Nf3', black: 'Nc6' },
+      { moveNumber: 3, white: 'Bb5', black: 'a6' },
+      { moveNumber: 4, white: 'Bxc6', black: 'dxc6' },
+      { moveNumber: 5, white: 'O-O', black: 'Nf6' },
+    ]);
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Qh5', 'Nc6', 'Bc4', 'Nf6', 'Qxf7+']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Qh5', black: 'Nc6' },
+      { moveNumber: 3, white: 'Bc4', black: 'Nf6' },
+      { moveNumber: 4, white: 'Qxf7+' },
+    ]);
+  });
+});
+
+describe('construction replay intervals', () => {
+  it('uses 2000 ms for wrong/review and 1000 ms for complete', () => {
+    assert.equal(NORMAL_REPLAY_INTERVAL_MS, 1000);
+    assert.equal(LEARNING_REPLAY_INTERVAL_MS, 2000);
+    assert.equal(constructionReplayIntervalMs('wrong'), 2000);
+    assert.equal(constructionReplayIntervalMs('review'), 2000);
+    assert.equal(constructionReplayIntervalMs('complete'), 1000);
+  });
+
+  it('manual review cancels prior replay and does not mutate the session target', async () => {
+    const target = findOpeningTarget('Italian Game') ?? availableOpeningQuizLines()[0];
+    assert.ok(target);
+    const session = new OpeningConstructionSession(target);
+    const before = session.snapshot();
+    const originalSans = [...before.target.sans];
+
+    let firstCompleted = false;
+    const first = replayLine({
+      moves: originalSans,
+      intervalMs: constructionReplayIntervalMs('wrong'),
+      onComplete: () => {
+        firstCompleted = true;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    first.cancel();
+
+    let secondMoves = 0;
+    const second = replayLine({
+      moves: originalSans,
+      intervalMs: constructionReplayIntervalMs('review'),
+      onMove: () => {
+        secondMoves += 1;
+      },
+    });
+    await new Promise((r) => setTimeout(r, 30));
+    second.cancel();
+
+    assert.equal(firstCompleted, false);
+    assert.ok(secondMoves >= 1);
+    assert.deepEqual(session.snapshot().target.sans, originalSans);
+    assert.equal(session.snapshot().phase, before.phase);
   });
 });
