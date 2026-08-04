@@ -3,13 +3,13 @@
  */
 import React from 'react';
 import {
-  Image,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { usePathname, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +57,9 @@ function HomeNavIcon({ active }: { active: boolean }) {
           width: imgWidth,
           height: imgHeight,
         }}
-        resizeMode="stretch"
+        contentFit="fill"
+        cachePolicy="memory-disk"
+        recyclingKey="nav-home"
         accessibilityIgnoresInvertColors
       />
     </View>

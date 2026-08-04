@@ -8,13 +8,13 @@
  */
 import React, { type ComponentProps } from 'react';
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View,
   type ImageSourcePropType,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
@@ -106,7 +106,9 @@ export function ModeCard({
             width: imgWidth,
             height: imgHeight,
           }}
-          resizeMode="contain"
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          recyclingKey={`mode-${modeId}`}
           accessibilityIgnoresInvertColors
         />
       </View>

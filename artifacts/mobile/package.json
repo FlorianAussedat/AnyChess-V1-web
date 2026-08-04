@@ -9,9 +9,10 @@
     "build:openings": "node scripts/build-openings-index.mjs",
     "build:opening-quiz": "node scripts/build-opening-quiz-lines.mjs",
     "build:puzzles": "node scripts/build-puzzle-dataset.mjs",
+    "optimize:brand-display": "node scripts/optimize-brand-display-assets.mjs",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts lib/moveInput/__tests__/canonicalMove.test.ts lib/speech/__tests__/speechCancel.test.ts lib/app/__tests__/stage1Architecture.test.ts lib/app/__tests__/stage1SharedUx.test.ts lib/app/__tests__/mainModeCards.test.ts lib/continueLine/__tests__/continueLine.test.ts lib/repertoire/__tests__/repertoireSide.test.ts lib/mentalPosition/__tests__/mentalPosition.test.ts lib/moveNaming/__tests__/moveNaming.test.ts lib/openingQuiz/__tests__/openingQuiz.test.ts lib/puzzles/__tests__/puzzlesFeedback.test.ts lib/puzzles/__tests__/puzzleStreaks.test.ts lib/puzzles/__tests__/puzzleFilters.test.ts lib/puzzles/__tests__/puzzleTouchAttempt.test.ts lib/puzzles/__tests__/puzzlePackElo.test.ts lib/blind/__tests__/blindDictationSpeeds.test.ts lib/records/__tests__/anyChessRecords.test.ts",
+    "test": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts lib/moveInput/__tests__/canonicalMove.test.ts lib/speech/__tests__/speechCancel.test.ts lib/app/__tests__/stage1Architecture.test.ts lib/app/__tests__/stage1SharedUx.test.ts lib/app/__tests__/mainModeCards.test.ts lib/continueLine/__tests__/continueLine.test.ts lib/repertoire/__tests__/repertoireSide.test.ts lib/mentalPosition/__tests__/mentalPosition.test.ts lib/moveNaming/__tests__/moveNaming.test.ts lib/openingQuiz/__tests__/openingQuiz.test.ts lib/puzzles/__tests__/puzzlesFeedback.test.ts lib/puzzles/__tests__/puzzleStreaks.test.ts lib/puzzles/__tests__/puzzleFilters.test.ts lib/puzzles/__tests__/puzzleTouchAttempt.test.ts lib/puzzles/__tests__/puzzlePackElo.test.ts lib/blind/__tests__/blindDictationSpeeds.test.ts lib/records/__tests__/anyChessRecords.test.ts lib/brand/__tests__/brandDisplayAssets.test.ts",
     "test:voice": "node --experimental-strip-types --test lib/voice/__tests__/parseChessVoice.test.ts"
   },
   "devDependencies": {
@@ -59,6 +60,7 @@
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0",
     "react-native-worklets": "0.5.1",
+    "sharp": "^0.35.3",
     "typescript": "~5.9.2",
     "zod": "catalog:",
     "zod-validation-error": "^3.4.0"
