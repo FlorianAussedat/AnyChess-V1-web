@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, View } from 'react-native';
 import { BrandAssets } from '@/constants/BrandAssets';
+import { preloadHomeBrandImages } from '@/lib/brand/preloadHomeBrandImages';
 
 const SPLASH_HOLD_MS = 750;
 const SPLASH_FADE_MS = 700;
@@ -13,11 +14,17 @@ type Props = {
 
 /**
  * Full-screen branded intro: logo + wordmark for ~750ms, then gentle fade to the app.
+ * Also warms home brand WebPs so ModeCards/nav are ready when splash ends.
  */
 export function BrandSplash({ ready, onFinished }: Props) {
   const [visible, setVisible] = useState(true);
   const opacity = useRef(new Animated.Value(1)).current;
   const started = useRef(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    void preloadHomeBrandImages();
+  }, [ready]);
 
   useEffect(() => {
     if (!ready || started.current) return;

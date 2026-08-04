@@ -7,7 +7,6 @@
  */
 import React from 'react';
 import {
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -88,7 +88,9 @@ export default function MainMenu() {
                   width: logoImgWidth,
                   height: logoImgHeight,
                 }}
-                resizeMode="stretch"
+                contentFit="fill"
+                cachePolicy="memory-disk"
+                recyclingKey="home-horizontal-logo"
                 accessibilityIgnoresInvertColors
               />
             </View>
