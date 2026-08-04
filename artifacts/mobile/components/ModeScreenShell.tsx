@@ -1,10 +1,11 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { SoundToggle } from '@/components/SoundToggle';
+import { AnyChessAppShell } from '@/components/AnyChessAppShell';
+import { DesignTokens } from '@/constants/designTokens';
 
 export function ModeScreenShell({
   title,
@@ -16,23 +17,10 @@ export function ModeScreenShell({
   onBack?: () => void;
 }) {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   return (
-    <View
-      style={[
-        styles.root,
-        {
-          backgroundColor: colors.background,
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
-        },
-      ]}
-    >
+    <AnyChessAppShell style={styles.root}>
       <View style={styles.header}>
         <Pressable
           onPress={onBack ?? (() => router.back())}
@@ -50,20 +38,24 @@ export function ModeScreenShell({
         <SoundToggle />
       </View>
       {children}
-    </View>
+    </AnyChessAppShell>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 14, gap: 12 },
+  root: { paddingHorizontal: 14, gap: DesignTokens.spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: DesignTokens.headerIconButton,
+    height: DesignTokens.headerIconButton,
+    borderRadius: DesignTokens.radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 17, fontFamily: 'Inter_700Bold', flex: 1 },
+  title: {
+    fontSize: DesignTokens.typography.modeTitle,
+    fontFamily: DesignTokens.typography.weightBold,
+    flex: 1,
+  },
 });

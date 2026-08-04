@@ -8,16 +8,15 @@
 import React from 'react';
 import {
   Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { formatAppVersionLabel } from '@/lib/app/version';
 import { BrandAssets, modeCardIllustration } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
@@ -32,12 +31,9 @@ import { SettingsButton } from '@/components/navigation/SettingsButton';
 
 export default function MainMenu() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   // Target ~190–230px of VISIBLE logo artwork (PNG has large black padding).
   const logoArtW = artWidth(HORIZONTAL_LOGO_ART);

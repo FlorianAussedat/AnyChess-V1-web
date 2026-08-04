@@ -9,10 +9,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { StoredPgnFile, RepertoireSide } from '@/lib/repertoire';
 import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
@@ -26,12 +26,9 @@ import { PgnFileDetailModal } from '@/components/openings/PgnFileDetailModal';
 
 export default function FolderDetailScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { folderId } = useLocalSearchParams<{ folderId: string }>();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   const {
     ready,

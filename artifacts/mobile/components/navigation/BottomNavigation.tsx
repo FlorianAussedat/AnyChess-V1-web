@@ -4,16 +4,15 @@
 import React from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { usePathname, useRouter, type Href } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import { NAV_HOME_ART, artHeight } from '@/constants/brandArtBounds';
@@ -66,12 +65,10 @@ function HomeNavIcon({ active }: { active: boolean }) {
 
 export function BottomNavigation() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { bottom: safeBottom } = useAppSafeInsets();
   const router = useRouter();
   const pathname = usePathname();
   const active = resolveActiveTab(pathname);
-  const isWeb = Platform.OS === 'web';
-  const safeBottom = isWeb ? 34 : insets.bottom;
 
   const goHome = () => {
     if (pathname === '/' || pathname === '/index') return;

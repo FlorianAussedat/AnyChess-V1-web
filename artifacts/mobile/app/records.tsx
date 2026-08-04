@@ -4,15 +4,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
 import {
   PIECE_COUNT_BANDS,
@@ -42,10 +41,7 @@ function pieceLabel(id: string): string {
 
 export default function RecordsHubScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
 
   const [category, setCategory] = useState<RecordsCategoryId>('tactics');
   const [tactics, setTactics] = useState<PuzzleStreakState>(emptyStreakState());

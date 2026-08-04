@@ -4,11 +4,12 @@
  * Voice mute (TTS) is independent from UI validation / error sound effects.
  * Speech recognition is never blocked by voice mute.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { defaultKeyValueStorage } from '@/lib/storage/AsyncKeyValueStorage.ts';
+import { StorageKeys } from '@/lib/storage/StorageKeys.ts';
 
-const VOICE_KEY = 'anychess.audio.voiceEnabled.v1';
+const VOICE_KEY = StorageKeys.voiceEnabled.key;
 /** Legacy key — migrated once into voiceEnabled. */
-const LEGACY_SOUND_KEY = 'anychess.audio.soundEnabled.v1';
+const LEGACY_SOUND_KEY = StorageKeys.voiceEnabledLegacy.key;
 
 type VoiceListener = (enabled: boolean) => void;
 
@@ -24,8 +25,8 @@ class AudioSettings {
       this.loadPromise = (async () => {
         try {
           const raw =
-            (await AsyncStorage.getItem(VOICE_KEY)) ??
-            (await AsyncStorage.getItem(LEGACY_SOUND_KEY));
+            (await defaultKeyValueStorage.getItem(VOICE_KEY)) ??
+            (await defaultKeyValueStorage.getItem(LEGACY_SOUND_KEY));
           if (raw === '0' || raw === 'false') this.voiceEnabled = false;
           else if (raw === '1' || raw === 'true') this.voiceEnabled = true;
         } catch {
@@ -57,7 +58,7 @@ class AudioSettings {
     this.voiceEnabled = enabled;
     this.listeners.forEach((l) => l(enabled));
     try {
-      await AsyncStorage.setItem(VOICE_KEY, enabled ? '1' : '0');
+      await defaultKeyValueStorage.setItem(VOICE_KEY, enabled ? '1' : '0');
     } catch {
       /* non-critical */
     }

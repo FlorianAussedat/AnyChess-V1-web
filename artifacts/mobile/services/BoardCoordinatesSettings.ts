@@ -4,9 +4,10 @@
  * Independent from board visibility (eye toggle). Hiding coordinates must
  * never hide the board itself.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { defaultKeyValueStorage } from '@/lib/storage/AsyncKeyValueStorage.ts';
+import { StorageKeys } from '@/lib/storage/StorageKeys.ts';
 
-const STORAGE_KEY = 'anychess.board.coordinatesVisible.v1';
+const STORAGE_KEY = StorageKeys.boardCoordinatesVisible.key;
 
 type CoordinatesListener = (visible: boolean) => void;
 
@@ -21,7 +22,7 @@ class BoardCoordinatesSettings {
     if (!this.loadPromise) {
       this.loadPromise = (async () => {
         try {
-          const raw = await AsyncStorage.getItem(STORAGE_KEY);
+          const raw = await defaultKeyValueStorage.getItem(STORAGE_KEY);
           if (raw === '0' || raw === 'false') this.coordinatesVisible = false;
           else if (raw === '1' || raw === 'true') this.coordinatesVisible = true;
         } catch {
@@ -44,7 +45,7 @@ class BoardCoordinatesSettings {
     this.coordinatesVisible = visible;
     this.listeners.forEach((l) => l(visible));
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, visible ? '1' : '0');
+      await defaultKeyValueStorage.setItem(STORAGE_KEY, visible ? '1' : '0');
     } catch {
       /* non-critical */
     }

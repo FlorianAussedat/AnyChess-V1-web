@@ -1,17 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import {
@@ -44,9 +43,8 @@ import {
 
 export function ClassicGameScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   useCancelSpeechOnLeave('/classic');
 
@@ -145,8 +143,6 @@ export function ClassicGameScreen() {
   }, [setupBandId, setStrengthBandId, pendingSide, playerColor, applySide, changeColor, newGame]);
 
   const moveRows = pairMoveHistory(history);
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   return (
     <View

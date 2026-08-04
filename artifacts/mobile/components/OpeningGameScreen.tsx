@@ -2,16 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import {
@@ -40,9 +39,8 @@ import { BrandAssets } from '@/constants/BrandAssets';
 
 export function OpeningGameScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   useCancelSpeechOnLeave('/openings/play');
 
@@ -142,8 +140,6 @@ export function OpeningGameScreen() {
   }, [pendingSide, playerColor, applySide, changeColor, newGame]);
 
   const moveRows = pairMoveHistory(history);
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   if (loadError) {
     return (

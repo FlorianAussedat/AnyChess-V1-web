@@ -20,6 +20,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { audioSettings } from '@/services/AudioSettings';
+import { runStorageMigrations } from '@/lib/storage';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -69,6 +70,7 @@ export default function RootLayout() {
   const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
+    runStorageMigrations().catch(() => {});
     audioSettings.ensureLoaded().catch(() => {});
   }, []);
 

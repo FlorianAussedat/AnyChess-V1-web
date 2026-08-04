@@ -4,7 +4,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,11 +11,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { BackButton } from '@/components/BackButton';
 import { SoundToggle } from '@/components/SoundToggle';
 import { ChessBoard } from '@/components/ChessBoard';
@@ -32,10 +31,10 @@ import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
-import { defaultKeyValueStorage } from '@/lib/storage';
+import { defaultKeyValueStorage, StorageKeys } from '@/lib/storage';
 import { replayLine } from '@/lib/replay/replayLine';
 
-const RECENT_KEY = 'anychess.mental.recent.v1';
+const RECENT_KEY = StorageKeys.mentalRecent.key;
 
 function fenToBoard(fen: string): (BoardPiece | null)[][] {
   return new Chess(fen).board() as (BoardPiece | null)[][];
@@ -43,11 +42,8 @@ function fenToBoard(fen: string): (BoardPiece | null)[][] {
 
 export default function MentalPositionScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
   const { soundEnabled } = useAudioSettings();
 
   const sessionRef = useRef(new MentalPositionSession());

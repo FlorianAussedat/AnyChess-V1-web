@@ -9,6 +9,7 @@ import { Chess } from 'chess.js';
 import { parseChessVoice } from '../../voice/parseChessVoice.ts';
 import { replayLine } from '../../replay/replayLine.ts';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
+import { StorageKeys } from '../../storage/StorageKeys.ts';
 
 describe('shared chess answer input (parser equivalence)', () => {
   it('resolves the same move from voice-like and written transcripts', () => {
@@ -38,7 +39,7 @@ describe('board coordinates preference independence', () => {
    * Board visibility is a separate local UI flag — never stored together.
    */
   async function coordinatesStore(storage: MemoryKeyValueStorage) {
-    const KEY = 'anychess.board.coordinatesVisible.v1';
+    const KEY = StorageKeys.boardCoordinatesVisible.key;
     return {
       async get(): Promise<boolean> {
         const raw = await storage.getItem(KEY);

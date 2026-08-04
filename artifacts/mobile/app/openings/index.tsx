@@ -9,10 +9,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
 import { filterFoldersByReviewSide } from '@/lib/repertoire';
@@ -23,11 +23,8 @@ import { MixedTrainingModal } from '@/components/openings/MixedTrainingModal';
 
 export default function OpeningsFolderList() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   const {
     ready,

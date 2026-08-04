@@ -1,10 +1,17 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
+import { StorageKeys } from '../storage/StorageKeys.ts';
+import { loadStoredJson } from '../storage/safeParse.ts';
 
-const KEY = 'anychess.move-naming.records.v1';
+const KEY = StorageKeys.moveNamingRecords.key;
 export type MoveNamingRecords = Record<number, number>;
 
 function defaults(): MoveNamingRecords {
   return Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i + 1, 0]));
+}
+
+function validateRecords(parsed: unknown): MoveNamingRecords | null {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  return { ...defaults(), ...(parsed as MoveNamingRecords) };
 }
 
 export class MoveNamingRecordsStore {
@@ -15,13 +22,13 @@ export class MoveNamingRecordsStore {
   }
 
   async load(): Promise<MoveNamingRecords> {
-    const raw = await this.storage.getItem(KEY);
-    if (!raw) return defaults();
-    try {
-      return { ...defaults(), ...JSON.parse(raw) };
-    } catch {
-      return defaults();
-    }
+    const result = await loadStoredJson(
+      this.storage,
+      KEY,
+      defaults(),
+      validateRecords,
+    );
+    return result.value;
   }
 
   async saveScore(responseSeconds: number, score: number): Promise<MoveNamingRecords> {

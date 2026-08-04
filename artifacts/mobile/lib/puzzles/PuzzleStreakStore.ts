@@ -3,8 +3,10 @@
  */
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
+import { StorageKeys } from '../storage/StorageKeys.ts';
+import { loadStoredJson } from '../storage/safeParse.ts';
 
-export const PUZZLE_STREAK_STORAGE_KEY = 'anychess.puzzles.streaks.v1';
+export const PUZZLE_STREAK_STORAGE_KEY = StorageKeys.puzzleStreaks.key;
 
 export interface PuzzleStreakState {
   currentByBand: Record<string, number>;
@@ -42,23 +44,19 @@ export function applyStreakResult(
   return { currentByBand, bestByBand };
 }
 
-function parseState(raw: string | null): PuzzleStreakState {
-  if (!raw) return emptyStreakState();
-  try {
-    const parsed = JSON.parse(raw) as Partial<PuzzleStreakState>;
-    return {
-      currentByBand:
-        parsed.currentByBand && typeof parsed.currentByBand === 'object'
-          ? { ...parsed.currentByBand }
-          : {},
-      bestByBand:
-        parsed.bestByBand && typeof parsed.bestByBand === 'object'
-          ? { ...parsed.bestByBand }
-          : {},
-    };
-  } catch {
-    return emptyStreakState();
-  }
+function validateStreakState(parsed: unknown): PuzzleStreakState | null {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const p = parsed as Partial<PuzzleStreakState>;
+  return {
+    currentByBand:
+      p.currentByBand && typeof p.currentByBand === 'object' && !Array.isArray(p.currentByBand)
+        ? { ...p.currentByBand }
+        : {},
+    bestByBand:
+      p.bestByBand && typeof p.bestByBand === 'object' && !Array.isArray(p.bestByBand)
+        ? { ...p.bestByBand }
+        : {},
+  };
 }
 
 export class PuzzleStreakStore {
@@ -74,8 +72,13 @@ export class PuzzleStreakStore {
   }
 
   async getSnapshot(): Promise<PuzzleStreakState> {
-    const raw = await this.storage.getItem(this.key);
-    return parseState(raw);
+    const result = await loadStoredJson(
+      this.storage,
+      this.key,
+      emptyStreakState(),
+      validateStreakState,
+    );
+    return result.value;
   }
 
   async recordResult(
