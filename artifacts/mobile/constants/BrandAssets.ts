@@ -2,7 +2,12 @@
  * Central require() map for Major Update brand assets.
  * Keep paths relative so Metro can resolve them.
  *
- * Filenames are lowercase kebab-case for Windows/Android/Linux case-safety.
+ * Filenames under assets/brand are lowercase kebab-case for
+ * Windows/Android/Linux case-safety where possible.
+ *
+ * ModeCard / Accueil illustrations use lightweight `display/` WebP copies
+ * derived from the user-supplied `v1-` / `V1-` PNGs (originals untouched).
+ * Regenerate with: `pnpm run optimize:brand-display`
  */
 import type { ImageSourcePropType } from 'react-native';
 import type { MainModeId } from '@/lib/app/modes';
@@ -10,10 +15,10 @@ import type { MainModeId } from '@/lib/app/modes';
 export const BrandAssets = {
   logoMark: require('@/assets/brand/logo-mark.png'),
   splash: require('@/assets/brand/splash-brand.png'),
-  /** Home header — horizontal wordmark + knight. */
-  horizontalLogo: require('@/assets/brand/anychess-horizontal-logo.png'),
-  /** Bottom-nav Accueil. */
-  navHome: require('@/assets/brand/nav/home-nav.png'),
+  /** Home header — optimized display WebP (source: v1-anychess-horizontal-logo.png). */
+  horizontalLogo: require('@/assets/brand/display/v1-anychess-horizontal-logo.webp'),
+  /** Bottom-nav Accueil — optimized display WebP (source: v1-home-nav.png). */
+  navHome: require('@/assets/brand/display/nav/v1-home-nav.webp'),
   modes: {
     classic: require('@/assets/brand/modes/classic.png'),
     openings: require('@/assets/brand/modes/openings.png'),
@@ -23,13 +28,17 @@ export const BrandAssets = {
     'quiz-ouverture': require('@/assets/brand/modes/quiz-ouverture.png'),
     target: require('@/assets/brand/modes/target.png'),
   },
+  /**
+   * Home ModeCard mascots — optimized display WebPs from user v1 originals.
+   * Filenames mirror sources (double .png collapsed to single stem).
+   */
   mascots: {
-    classic: require('@/assets/brand/mascots/mascot-classic-knight-soundwave.png'),
-    openings: require('@/assets/brand/mascots/mascot-openings-knight-reading.png'),
-    blind: require('@/assets/brand/mascots/mascot-blind-knight-blindfold.png'),
-    puzzles: require('@/assets/brand/mascots/mascot-tactics-knight-calculator.png'),
-    visualisation: require('@/assets/brand/mascots/mascot-visualisation-knight-binoculars.png'),
-    'quiz-ouverture': require('@/assets/brand/mascots/mascot-quiz-knight-detective.png'),
+    classic: require('@/assets/brand/display/mascots/V1-mascot-classic-knight-soundwave.webp'),
+    openings: require('@/assets/brand/display/mascots/V1-mascot-openings-knight-reading.webp'),
+    blind: require('@/assets/brand/display/mascots/v1-mascot-blind-knight-blindfold.webp'),
+    puzzles: require('@/assets/brand/display/mascots/v1-mascot-tactics-knight-calculator.webp'),
+    visualisation: require('@/assets/brand/display/mascots/v1-mascot-visualisation-knight-binoculars.webp'),
+    'quiz-ouverture': require('@/assets/brand/display/mascots/V1-mascot-quiz-knight-detective.webp'),
   } as Partial<Record<MainModeId, ImageSourcePropType>>,
   sides: {
     white: require('@/assets/brand/sides/white.png'),
@@ -51,4 +60,13 @@ export const BrandAssets = {
 /** Prefer mascot art; fall back to mode PNG only if missing. */
 export function modeCardIllustration(modeId: MainModeId): ImageSourcePropType {
   return BrandAssets.mascots[modeId] ?? BrandAssets.modes[modeId];
+}
+
+/** Home-critical brand modules to warm during splash (logo + nav + mode mascots). */
+export function homeBrandImageModules(): ImageSourcePropType[] {
+  return [
+    BrandAssets.horizontalLogo,
+    BrandAssets.navHome,
+    ...Object.values(BrandAssets.mascots).filter(Boolean),
+  ] as ImageSourcePropType[];
 }

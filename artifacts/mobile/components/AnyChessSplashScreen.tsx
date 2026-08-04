@@ -19,6 +19,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { BrandAssets } from '@/constants/BrandAssets';
+import { preloadHomeBrandImages } from '@/lib/brand/preloadHomeBrandImages';
 import {
   ANYCHESS_NAVY,
   ANYCHESS_TAGLINE,
@@ -62,6 +63,12 @@ export function AnyChessSplashScreen({
   const taglineOpacity = useRef(new Animated.Value(0)).current;
 
   const logoSize = Math.min(200, Math.max(140, Math.round(width * 0.42)));
+
+  // Warm home WebP brand art while the intro plays (from 0.0.4 display-asset work).
+  useEffect(() => {
+    if (!appReady) return;
+    void preloadHomeBrandImages();
+  }, [appReady]);
 
   useEffect(() => {
     Animated.parallel([
