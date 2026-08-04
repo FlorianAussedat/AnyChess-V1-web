@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { BackButton } from '@/components/BackButton';
 import { ChessBoard } from '@/components/ChessBoard';
+import { ChessCultureVisual } from '@/components/chessCulture/ChessCultureVisual';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
@@ -158,6 +159,8 @@ export default function CultureGeneraleQuizScreen() {
           <Text style={[styles.progress, { color: colors.mutedForeground }]}>
             Question {index + 1} / {total}
           </Text>
+
+          <ChessCultureVisual presentation={current.question.presentation} />
 
           <Text style={[styles.question, { color: colors.foreground }]}>
             {current.question.question}

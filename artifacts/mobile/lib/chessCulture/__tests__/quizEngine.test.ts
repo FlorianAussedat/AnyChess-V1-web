@@ -14,6 +14,7 @@ import {
   reconcileFeedbackWithQuestionRevision,
   replacePresentationFeedback,
   shouldBlacklistQuestion,
+  validateChessCultureQuestion,
   validateChessCultureQuestionBank,
 } from '../quizEngine.ts';
 import {
@@ -23,6 +24,10 @@ import {
   reconcileFeedbackSnapshotWithQuestions,
   validateChessCultureFeedbackSnapshot,
 } from '../QuestionFeedbackStore.ts';
+import {
+  listChessCultureImageIds,
+  resolveChessCultureImageSource,
+} from '../visualRegistry.ts';
 import type { ChessCultureQuestion } from '../types.ts';
 
 function sampleQuestion(
@@ -51,8 +56,25 @@ describe('chessCulture question bank', () => {
   });
 
   it('passes schema validation including FEN questions', () => {
-    const errors = validateChessCultureQuestionBank(CHESS_CULTURE_QUESTIONS);
+    const errors = validateChessCultureQuestionBank(CHESS_CULTURE_QUESTIONS, {
+      knownImageIds: new Set(listChessCultureImageIds()),
+    });
     assert.deepEqual(errors, []);
+  });
+
+  it('keeps existing FEN presentation questions valid', () => {
+    const fenQs = CHESS_CULTURE_QUESTIONS.filter((q) => q.presentation?.boardFen);
+    assert.ok(fenQs.length >= 1);
+    for (const q of fenQs) {
+      assert.deepEqual(validateChessCultureQuestion(q), []);
+      assert.equal(isValidChessFen(q.presentation!.boardFen!), true);
+    }
+  });
+
+  it('keeps text-only questions valid without presentation', () => {
+    const textOnly = CHESS_CULTURE_QUESTIONS.filter((q) => !q.presentation);
+    assert.ok(textOnly.length >= 1);
+    assert.deepEqual(validateChessCultureQuestion(textOnly[0]!), []);
   });
 
   it('does not mutate source question objects when building a session', () => {
@@ -287,5 +309,110 @@ describe('chessCulture FEN helpers', () => {
     const board = boardFromFen(fen);
     assert.equal(board.length, 8);
     assert.equal(board[7]![4]?.type, 'k');
+  });
+});
+
+describe('chessCulture optional visuals', () => {
+  it('accepts a known registered imageId', () => {
+    const q = sampleQuestion({
+      id: 'players-050',
+      presentation: {
+        imageId: 'player-bobby-fischer',
+        imageAlt: 'Portrait du joueur à identifier',
+        imageFit: 'contain',
+      },
+    });
+    const errors = validateChessCultureQuestion(q, 0, {
+      knownImageIds: new Set(['player-bobby-fischer']),
+    });
+    assert.deepEqual(errors, []);
+  });
+
+  it('rejects an unknown imageId with question id in the message', () => {
+    const q = sampleQuestion({
+      id: 'players-050',
+      presentation: {
+        imageId: 'player-bobby-fischer',
+        imageAlt: 'Portrait du joueur à identifier',
+      },
+    });
+    const errors = validateChessCultureQuestion(q, 0, {
+      knownImageIds: new Set(['player-garry-kasparov']),
+    });
+    assert.ok(
+      errors.some(
+        (e) =>
+          e.id === 'players-050' &&
+          e.message.includes('unknown imageId') &&
+          e.message.includes('player-bobby-fischer'),
+      ),
+      JSON.stringify(errors),
+    );
+  });
+
+  it('rejects invalid imageFit values', () => {
+    const q = {
+      ...sampleQuestion({ id: 'fit-1' }),
+      presentation: {
+        imageId: 'object-mechanical-chess-clock',
+        imageFit: 'stretch',
+      },
+    };
+    const errors = validateChessCultureQuestion(q, 0, {
+      knownImageIds: new Set(['object-mechanical-chess-clock']),
+    });
+    assert.ok(errors.some((e) => e.message.includes('imageFit')));
+  });
+
+  it('does not let image metadata change answer randomization or mutate source', () => {
+    const q = sampleQuestion({
+      id: 'img-shuffle',
+      answers: ['Right', 'W1', 'W2', 'W3'],
+      correctAnswer: 0,
+      presentation: {
+        imageId: 'player-bobby-fischer',
+        imageAlt: 'Portrait du joueur à identifier',
+        imageCaption: 'Ne doit pas spoiler',
+        imageFit: 'contain',
+      },
+    });
+    const before = JSON.stringify(q);
+    let n = 0;
+    const random = () => {
+      n += 1;
+      return (n % 7) / 7;
+    };
+    const [sessionQ] = createChessCultureQuizSession([q], 1, random);
+    assert.ok(sessionQ);
+    assert.equal(sessionQ.displayAnswers[sessionQ.correctDisplayIndex], 'Right');
+    assert.equal(JSON.stringify(q), before);
+    assert.equal(q.presentation?.imageId, 'player-bobby-fischer');
+  });
+
+  it('does not let image metadata affect feedback or blacklist', () => {
+    const q = sampleQuestion({
+      id: 'img-fb',
+      presentation: { imageId: 'player-bobby-fischer' },
+    });
+    let snap = emptyChessCultureFeedbackSnapshot();
+    snap = applyQuestionFeedback(snap, q, 'down');
+    snap = applyQuestionFeedback(snap, q, 'down');
+    snap = applyQuestionFeedback(snap, q, 'down');
+    assert.equal(snap.questions['img-fb']!.status, 'blacklisted');
+    assert.equal(snap.questions['img-fb']!.downVotes, 3);
+    const eligible = getEligibleChessCultureQuestions([q], snap);
+    assert.deepEqual(eligible, []);
+  });
+
+  it('resolves missing images safely without throwing', () => {
+    assert.equal(resolveChessCultureImageSource(undefined), null);
+    assert.equal(resolveChessCultureImageSource(''), null);
+    assert.equal(resolveChessCultureImageSource('does-not-exist'), null);
+    assert.equal(
+      resolveChessCultureImageSource('x', () => {
+        throw new Error('boom');
+      }),
+      null,
+    );
   });
 });

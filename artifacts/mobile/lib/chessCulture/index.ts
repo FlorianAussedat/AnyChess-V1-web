@@ -2,11 +2,13 @@
  * Culture générale — chess culture quiz module.
  *
  * Canonical question database: ./questions.ts
+ * Visual registry: ./visualRegistry.ts
  */
 export type {
   ChessCultureCategory,
   ChessCultureSourceType,
   ChessCultureDifficulty,
+  ChessCultureImageFit,
   ChessCulturePresentation,
   ChessCultureQuestion,
   ChessCultureFeedbackStatus,
@@ -41,7 +43,20 @@ export {
   isChessCultureSourceType,
 } from './quizEngine.ts';
 
-export type { ChessCultureQuestionValidationError } from './quizEngine.ts';
+export type {
+  ChessCultureQuestionValidationError,
+  ChessCultureQuestionValidationOptions,
+} from './quizEngine.ts';
+
+export {
+  CHESS_CULTURE_IMAGE_REGISTRY,
+  listChessCultureImageIds,
+  hasChessCultureImage,
+  getChessCultureImage,
+  resolveChessCultureImageSource,
+} from './visualRegistry.ts';
+
+export type { ChessCultureRegisteredImageId } from './visualRegistry.ts';
 
 export {
   QuestionFeedbackStore,

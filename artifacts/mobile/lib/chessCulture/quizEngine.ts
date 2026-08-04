@@ -257,9 +257,20 @@ export type ChessCultureQuestionValidationError = {
   message: string;
 };
 
+export type ChessCultureQuestionValidationOptions = {
+  /**
+   * Registered semantic image IDs (from visualRegistry).
+   * When provided, presentation.imageId must be in this set.
+   */
+  knownImageIds?: ReadonlySet<string>;
+};
+
+const IMAGE_FITS: ReadonlySet<string> = new Set(['cover', 'contain']);
+
 export function validateChessCultureQuestion(
   question: unknown,
   index?: number,
+  options?: ChessCultureQuestionValidationOptions,
 ): ChessCultureQuestionValidationError[] {
   const label = typeof index === 'number' ? `index ${index}` : 'question';
   const errors: ChessCultureQuestionValidationError[] = [];
@@ -325,12 +336,67 @@ export function validateChessCultureQuestion(
       Array.isArray(q.presentation)
     ) {
       errors.push({ id, message: `${id ?? label}: presentation must be an object` });
-    } else if (q.presentation.boardFen !== undefined) {
+    } else {
+      const presentation = q.presentation;
+      if (presentation.boardFen !== undefined) {
+        if (
+          typeof presentation.boardFen !== 'string' ||
+          !isValidChessFen(presentation.boardFen)
+        ) {
+          errors.push({ id, message: `${id ?? label}: presentation.boardFen is invalid` });
+        }
+      }
+      if (presentation.imageId !== undefined) {
+        if (typeof presentation.imageId !== 'string' || presentation.imageId.trim().length === 0) {
+          errors.push({
+            id,
+            message: `${id ?? label}: presentation.imageId must be a non-empty string`,
+          });
+        } else if (
+          options?.knownImageIds &&
+          !options.knownImageIds.has(presentation.imageId)
+        ) {
+          errors.push({
+            id,
+            message: `Question ${id ?? label} references unknown imageId: ${presentation.imageId}`,
+          });
+        }
+      }
+      if (presentation.imageAlt !== undefined && typeof presentation.imageAlt !== 'string') {
+        errors.push({ id, message: `${id ?? label}: presentation.imageAlt must be a string` });
+      }
       if (
-        typeof q.presentation.boardFen !== 'string' ||
-        !isValidChessFen(q.presentation.boardFen)
+        presentation.imageCaption !== undefined &&
+        typeof presentation.imageCaption !== 'string'
       ) {
-        errors.push({ id, message: `${id ?? label}: presentation.boardFen is invalid` });
+        errors.push({
+          id,
+          message: `${id ?? label}: presentation.imageCaption must be a string`,
+        });
+      }
+      if (presentation.imageFit !== undefined && !IMAGE_FITS.has(presentation.imageFit)) {
+        errors.push({
+          id,
+          message: `${id ?? label}: presentation.imageFit must be 'cover' | 'contain'`,
+        });
+      }
+      if (
+        presentation.boardFlipped !== undefined &&
+        typeof presentation.boardFlipped !== 'boolean'
+      ) {
+        errors.push({
+          id,
+          message: `${id ?? label}: presentation.boardFlipped must be boolean`,
+        });
+      }
+      if (
+        presentation.showCoordinates !== undefined &&
+        typeof presentation.showCoordinates !== 'boolean'
+      ) {
+        errors.push({
+          id,
+          message: `${id ?? label}: presentation.showCoordinates must be boolean`,
+        });
       }
     }
   }
@@ -340,12 +406,13 @@ export function validateChessCultureQuestion(
 
 export function validateChessCultureQuestionBank(
   questions: readonly unknown[],
+  options?: ChessCultureQuestionValidationOptions,
 ): ChessCultureQuestionValidationError[] {
   const errors: ChessCultureQuestionValidationError[] = [];
   const seen = new Set<string>();
 
   questions.forEach((q, index) => {
-    const local = validateChessCultureQuestion(q, index);
+    const local = validateChessCultureQuestion(q, index, options);
     errors.push(...local);
     if (q && typeof q === 'object' && !Array.isArray(q)) {
       const id = (q as { id?: unknown }).id;

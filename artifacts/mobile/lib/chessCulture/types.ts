@@ -22,10 +22,19 @@ export type ChessCultureSourceType =
 
 export type ChessCultureDifficulty = 1 | 2 | 3 | 4 | 5;
 
+export type ChessCultureImageFit = 'cover' | 'contain';
+
 export type ChessCulturePresentation = {
+  /** Existing board presentation — prefer FEN + ChessBoard for positions. */
   boardFen?: string;
   boardFlipped?: boolean;
   showCoordinates?: boolean;
+
+  /** Optional bundled visual asset (see visualRegistry.ts). Offline only. */
+  imageId?: string;
+  imageAlt?: string;
+  imageCaption?: string;
+  imageFit?: ChessCultureImageFit;
 };
 
 export type ChessCultureQuestion = {
