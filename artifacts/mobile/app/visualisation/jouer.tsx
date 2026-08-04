@@ -17,6 +17,8 @@ import {
   PlayMoveRecordsStore,
   PlayMoveSession,
   pickPlayMoveChallenge,
+  sideToMoveLabel,
+  isFlippedForSideToMove,
   type PlayMoveSnapshot,
 } from '@/lib/playMove';
 import { speechService } from '@/services/SpeechService';
@@ -99,7 +101,8 @@ export default function JouerLeCoupScreen() {
 
   const game = useMemo(() => (boardFen ? new Chess(boardFen) : null), [boardFen]);
   const sideToMove = game?.turn() ?? 'w';
-
+  const sideLabel = sideToMoveLabel(sideToMove);
+  const boardFlipped = isFlippedForSideToMove(sideToMove);
   const { touchSelected, legalDests, onSquarePress } = useBoardTouchSelection({
     canAct: snap.phase === 'playing' && !!snap.challenge,
     getLegalDestinations: (square) => {
@@ -178,6 +181,12 @@ export default function JouerLeCoupScreen() {
               Score : {snap.score.score}
             </Text>
           </View>
+          <Text
+            style={[styles.sideHint, { color: colors.mutedForeground }]}
+            testID="jouer-side-to-move"
+          >
+            {sideLabel}
+          </Text>
           <Text style={[styles.prompt, { color: colors.primary }]} testID="jouer-prompt">
             {snap.challenge.promptVerbal}
           </Text>
@@ -193,7 +202,7 @@ export default function JouerLeCoupScreen() {
             legalDots={legalDests}
             onSquarePress={onSquarePress}
             showCoordinates={showCoordinates}
-            isFlipped={sideToMove === 'b'}
+            isFlipped={boardFlipped}
           />
         </View>
       )}
@@ -265,8 +274,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   hudValue: { fontSize: 22, fontWeight: '700' },
-  prompt: { fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  scoreLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 2, textAlign: 'center' },
+  sideHint: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  prompt: { fontSize: 28, fontWeight: '800', textAlign: 'center' },  scoreLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 2, textAlign: 'center' },
   scoreValue: { fontSize: 64, fontWeight: '800', textAlign: 'center' },
   newRecord: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
 });
