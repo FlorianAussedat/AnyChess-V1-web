@@ -55,6 +55,12 @@ describe('chessCulture question bank', () => {
     assert.equal(new Set(ids).size, ids.length);
   });
 
+  it('has exactly 100 active valid questions', () => {
+    const active = CHESS_CULTURE_QUESTIONS.filter((q) => q.active === true);
+    assert.equal(active.length, 100);
+    assert.equal(CHESS_CULTURE_QUESTIONS.length, 100);
+  });
+
   it('passes schema validation including FEN questions', () => {
     const errors = validateChessCultureQuestionBank(CHESS_CULTURE_QUESTIONS, {
       knownImageIds: new Set(listChessCultureImageIds()),
