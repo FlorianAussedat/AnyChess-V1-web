@@ -13,7 +13,6 @@ import { createOpponentEngine } from '@/lib/engines';
 import type { ChessEngine } from '@/lib/engine';
 import { parseChessVoice } from '@/lib/voice';
 import {
-  BoardReplayController,
   classifyAttempt,
   classifySpokenAttempt,
   computeScore,
@@ -22,7 +21,6 @@ import {
   DEFAULT_BLIND_SPEED,
   BLIND_SPEED_MIN,
   BLIND_SPEED_MAX,
-  blindSpeedToDelayMs,
   resolveBlindOrientation,
   type BlindAttemptRecord,
   type BlindOrientation,
@@ -32,8 +30,9 @@ import {
   type BlindSequenceMove,
   type BlindSubmode,
 } from '@/lib/blind';
-import { replayLine, type ReplayLineHandle } from '@/lib/replay';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
+import { useBlindDictation } from '@/hooks/useBlindDictation';
+import { useBlindVisualReplay } from '@/hooks/useBlindVisualReplay';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 
@@ -94,9 +93,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const firstAttemptOkRef = useRef<boolean[]>([]);
   const attemptsRef = useRef<BlindAttemptRecord[]>([]);
   const triedCurrentRef = useRef(false);
-  const replayRef = useRef(new BoardReplayController());
-  const resultReplayRef = useRef<ReplayLineHandle | null>(null);
-  const dictationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recognizedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speedRef = useRef(DEFAULT_BLIND_SPEED);
   const perspectiveRef = useRef<BlindPerspective>('white');
@@ -122,7 +118,8 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
   const [revealedHint, setRevealedHint] = useState<string | null>(null);
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
-  const [isReplaying, setIsReplaying] = useState(false);
+
+  const { speakSequence, clearDictationTimer } = useBlindDictation(speedRef);
 
   const setFullMoves = useCallback((n: number) => {
     setFullMovesState(Math.max(1, Math.min(20, Math.round(n))));
@@ -142,13 +139,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setPerspectiveState(p);
     if (p !== 'random') {
       setOrientation(resolveBlindOrientation(p));
-    }
-  }, []);
-
-  const clearDictationTimer = useCallback(() => {
-    if (dictationTimerRef.current != null) {
-      clearTimeout(dictationTimerRef.current);
-      dictationTimerRef.current = null;
     }
   }, []);
 
@@ -194,6 +184,29 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     }, []),
   );
 
+  const syncBoard = useCallback(() => {
+    setBoard(gameRef.current.board() as (BoardPiece | null)[][]);
+  }, []);
+
+  const {
+    isReplaying,
+    setIsReplaying,
+    playVisualReplay,
+    playResultReplay,
+    playVisualReplayRef,
+    replayRef,
+    resultReplayRef,
+  } = useBlindVisualReplay({
+    gameRef,
+    speedRef,
+    syncBoard,
+    setLastMove,
+    setObservationIndex,
+    setExpectedIndex,
+    setPhase,
+    setLastFeedback,
+  });
+
   useEffect(() => {
     audioSettings.ensureLoaded().catch(() => {});
     const unsubSpeaking = speechService.onSpeakingChange(setIsSpeaking);
@@ -207,32 +220,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       clearDictationTimer();
       clearRecognizedTimer();
     };
-  }, [clearDictationTimer, clearRecognizedTimer]);
-
-  const syncBoard = useCallback(() => {
-    setBoard(gameRef.current.board() as (BoardPiece | null)[][]);
-  }, []);
-
-  const speakSequence = useCallback((moves: BlindSequenceMove[], flush = true) => {
-    clearDictationTimer();
-    // Cancel first (bumps generation), then capture token so stale setTimeouts no-op.
-    if (flush) speechService.cancel('dictation');
-    const myGen = speechService.generation;
-    const delay = blindSpeedToDelayMs(speedRef.current);
-    let i = 0;
-    const step = () => {
-      if (speechService.generation !== myGen) return;
-      if (i >= moves.length) return;
-      // Already cancelled above when flush; avoid a second hardStop that would
-      // bump generation and invalidate myGen.
-      speechService.speak(moves[i].verbal, { rate: 0.92, flush: false });
-      i += 1;
-      if (i < moves.length) {
-        dictationTimerRef.current = setTimeout(step, delay);
-      }
-    };
-    step();
-  }, [clearDictationTimer]);
+  }, [clearDictationTimer, clearRecognizedTimer, replayRef, resultReplayRef]);
 
   const resetBoard = useCallback(() => {
     gameRef.current.reset();
@@ -244,94 +232,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     triedCurrentRef.current = false;
     syncBoard();
   }, [syncBoard]);
-
-  const playVisualReplay = useCallback(
-    (
-      moves: BlindSequenceMove[],
-      options: { after: 'recitation' | 'keep-final' },
-    ) => {
-      replayRef.current.cancel();
-      gameRef.current.reset();
-      setLastMove(null);
-      setObservationIndex(0);
-      syncBoard();
-      setIsReplaying(true);
-
-      replayRef.current.start(moves, blindSpeedToDelayMs(speedRef.current), {
-        onMove: (m, index) => {
-          try {
-            const played = gameRef.current.move({
-              from: m.from,
-              to: m.to,
-              promotion: m.promotion || 'q',
-            }) as Move;
-            setLastMove({ from: played.from, to: played.to });
-            syncBoard();
-            setObservationIndex(index + 1);
-          } catch {
-            /* ignore */
-          }
-        },
-        onComplete: () => {
-          setIsReplaying(false);
-          if (options.after === 'recitation') {
-            gameRef.current.reset();
-            setLastMove(null);
-            syncBoard();
-            setExpectedIndex(0);
-            setPhase('recitation');
-            setLastFeedback('Récite la séquence à voix haute, coup par coup.');
-          }
-          // keep-final: leave the board on the last position (observation or results)
-        },
-      });
-    },
-    [syncBoard],
-  );
-
-  const playVisualReplayRef = useRef(playVisualReplay);
-  useEffect(() => {
-    playVisualReplayRef.current = playVisualReplay;
-  }, [playVisualReplay]);
-
-  const playResultReplay = useCallback(
-    (moves: BlindSequenceMove[]) => {
-      resultReplayRef.current?.cancel();
-      gameRef.current.reset();
-      setLastMove(null);
-      setObservationIndex(0);
-      syncBoard();
-      setIsReplaying(true);
-
-      resultReplayRef.current = replayLine({
-        moves: moves.map((m) => ({
-          from: m.from,
-          to: m.to,
-          promotion: m.promotion,
-          san: m.san,
-        })),
-        intervalMs: 1000,
-        onMove: (m, index) => {
-          try {
-            const played = gameRef.current.move({
-              from: m.from,
-              to: m.to,
-              promotion: m.promotion || 'q',
-            }) as Move;
-            setLastMove({ from: played.from, to: played.to });
-            syncBoard();
-            setObservationIndex(index + 1);
-          } catch {
-            /* ignore */
-          }
-        },
-        onComplete: () => {
-          setIsReplaying(false);
-        },
-      });
-    },
-    [syncBoard],
-  );
 
   const finishSession = useCallback(() => {
     const s = computeScore(
@@ -350,7 +250,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     } else if (submodeRef.current === 'listen-reconstruct') {
       playResultReplay(sequenceRef.current);
     }
-  }, [playResultReplay]);
+  }, [playResultReplay, playVisualReplayRef]);
 
   const beginListenPath = useCallback(
     (moves: BlindSequenceMove[]) => {
@@ -397,7 +297,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setPhase('hub');
     setScore(null);
     resetBoard();
-  }, [resetBoard, clearDictationTimer, showRecognized]);
+  }, [resetBoard, clearDictationTimer, showRecognized, replayRef, resultReplayRef, setIsReplaying]);
 
   const startSession = useCallback(async () => {
     if (!submode) return;
@@ -428,7 +328,16 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     } finally {
       setIsGenerating(false);
     }
-  }, [submode, fullMoves, beginListenPath, runObservation, clearDictationTimer]);
+  }, [
+    submode,
+    fullMoves,
+    beginListenPath,
+    runObservation,
+    clearDictationTimer,
+    replayRef,
+    resultReplayRef,
+    setIsReplaying,
+  ]);
 
   const replayDictation = useCallback(() => {
     if (sequenceRef.current.length === 0) return;
@@ -452,7 +361,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     resetBoard();
     setPhase('recitation');
     setLastFeedback('Récite la séquence à voix haute, coup par coup.');
-  }, [resetBoard, clearDictationTimer, showRecognized]);
+  }, [resetBoard, clearDictationTimer, showRecognized, replayRef, setIsReplaying]);
 
   const skipExpectedMove = useCallback(() => {
     if (phase !== 'recitation') return;
@@ -751,7 +660,15 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       setPhase('observing');
       playVisualReplay(sequenceRef.current, { after: 'keep-final' });
     }
-  }, [submode, speakSequence, playVisualReplay, clearDictationTimer, showRecognized]);
+  }, [
+    submode,
+    speakSequence,
+    playVisualReplay,
+    clearDictationTimer,
+    showRecognized,
+    replayRef,
+    setIsReplaying,
+  ]);
 
   const generateNewSequence = useCallback(async () => {
     await startSession();
@@ -776,7 +693,14 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setLastFeedback(null);
     setRevealedHint(null);
     resetBoard();
-  }, [resetBoard, clearDictationTimer, showRecognized]);
+  }, [
+    resetBoard,
+    clearDictationTimer,
+    showRecognized,
+    replayRef,
+    resultReplayRef,
+    setIsReplaying,
+  ]);
 
   return (
     <BlindSequenceContext.Provider
