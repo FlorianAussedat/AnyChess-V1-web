@@ -1,0 +1,532 @@
+{
+  "generatedAt": "2026-08-04T05:05:27.703Z",
+  "stage": "resize",
+  "beforeTotal": 29023938,
+  "afterTotal": 3899845,
+  "rows": [
+    {
+      "file": "logo-mark.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 640,
+      "afterHeight": 640,
+      "hasAlpha": false,
+      "beforeBytes": 759399,
+      "afterBytes": 339011,
+      "savedBytes": 420388,
+      "savedPct": 55.4,
+      "action": "resized",
+      "target": {
+        "maxWidth": 640,
+        "maxHeight": 640,
+        "reason": "splash ≤200px; side mark 32px"
+      },
+      "reason": "splash ≤200px; side mark 32px"
+    },
+    {
+      "file": "splash-brand.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 640,
+      "afterHeight": 960,
+      "hasAlpha": false,
+      "beforeBytes": 838167,
+      "afterBytes": 421153,
+      "savedBytes": 417014,
+      "savedPct": 49.8,
+      "action": "resized",
+      "target": {
+        "maxWidth": 640,
+        "maxHeight": 960,
+        "reason": "unused in UI today; reserve half-res 2:3"
+      },
+      "reason": "unused in UI today; reserve half-res 2:3"
+    },
+    {
+      "file": "anychess-horizontal-logo.png",
+      "beforeWidth": 1536,
+      "beforeHeight": 1024,
+      "afterWidth": 1200,
+      "afterHeight": 800,
+      "hasAlpha": true,
+      "beforeBytes": 1916524,
+      "afterBytes": 135258,
+      "savedBytes": 1781266,
+      "savedPct": 92.9,
+      "action": "resized",
+      "target": {
+        "maxWidth": 1200,
+        "maxHeight": 800,
+        "reason": "home header full-canvas draw ≈402×268 @1x"
+      },
+      "reason": "home header full-canvas draw ≈402×268 @1x"
+    },
+    {
+      "file": "nav/home-nav.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 256,
+      "afterHeight": 384,
+      "hasAlpha": true,
+      "beforeBytes": 1948435,
+      "afterBytes": 22379,
+      "savedBytes": 1926056,
+      "savedPct": 98.9,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 384,
+        "reason": "bottom-nav full-canvas draw ≈70×105 for 30px visible art"
+      },
+      "reason": "bottom-nav full-canvas draw ≈70×105 for 30px visible art"
+    },
+    {
+      "file": "modes/classic.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 288,
+      "afterHeight": 288,
+      "hasAlpha": false,
+      "beforeBytes": 659547,
+      "afterBytes": 70956,
+      "savedBytes": 588591,
+      "savedPct": 89.2,
+      "action": "resized",
+      "target": {
+        "maxWidth": 288,
+        "maxHeight": 288,
+        "reason": "48×48 mode list icons"
+      },
+      "reason": "48×48 mode list icons"
+    },
+    {
+      "file": "modes/openings.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 288,
+      "afterHeight": 288,
+      "hasAlpha": false,
+      "beforeBytes": 960425,
+      "afterBytes": 83917,
+      "savedBytes": 876508,
+      "savedPct": 91.3,
+      "action": "resized",
+      "target": {
+        "maxWidth": 288,
+        "maxHeight": 288,
+        "reason": "48×48 mode list icons"
+      },
+      "reason": "48×48 mode list icons"
+    },
+    {
+      "file": "modes/blind.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 288,
+      "afterHeight": 288,
+      "hasAlpha": false,
+      "beforeBytes": 770964,
+      "afterBytes": 73593,
+      "savedBytes": 697371,
+      "savedPct": 90.5,
+      "action": "resized",
+      "target": {
+        "maxWidth": 288,
+        "maxHeight": 288,
+        "reason": "48×48 mode list icons"
+      },
+      "reason": "48×48 mode list icons"
+    },
+    {
+      "file": "modes/tactics.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 288,
+      "afterHeight": 288,
+      "hasAlpha": false,
+      "beforeBytes": 689462,
+      "afterBytes": 75814,
+      "savedBytes": 613648,
+      "savedPct": 89,
+      "action": "resized",
+      "target": {
+        "maxWidth": 288,
+        "maxHeight": 288,
+        "reason": "48×48 mode list icons"
+      },
+      "reason": "48×48 mode list icons"
+    },
+    {
+      "file": "modes/visualisation.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 288,
+      "afterHeight": 288,
+      "hasAlpha": false,
+      "beforeBytes": 694496,
+      "afterBytes": 75825,
+      "savedBytes": 618671,
+      "savedPct": 89.1,
+      "action": "resized",
+      "target": {
+        "maxWidth": 288,
+        "maxHeight": 288,
+        "reason": "48×48 mode list icons"
+      },
+      "reason": "48×48 mode list icons"
+    },
+    {
+      "file": "modes/quiz-ouverture.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 288,
+      "afterHeight": 288,
+      "hasAlpha": false,
+      "beforeBytes": 994704,
+      "afterBytes": 87207,
+      "savedBytes": 907497,
+      "savedPct": 91.2,
+      "action": "resized",
+      "target": {
+        "maxWidth": 288,
+        "maxHeight": 288,
+        "reason": "48×48 mode list icons"
+      },
+      "reason": "48×48 mode list icons"
+    },
+    {
+      "file": "modes/target.png",
+      "beforeWidth": 160,
+      "beforeHeight": 180,
+      "afterWidth": 160,
+      "afterHeight": 180,
+      "hasAlpha": true,
+      "beforeBytes": 32816,
+      "afterBytes": 32816,
+      "savedBytes": 0,
+      "savedPct": 0,
+      "action": "skipped-no-target",
+      "target": null,
+      "reason": "already within target / no target"
+    },
+    {
+      "file": "mascots/mascot-classic-knight-soundwave.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 864,
+      "afterHeight": 1296,
+      "hasAlpha": true,
+      "beforeBytes": 1994665,
+      "afterBytes": 244070,
+      "savedBytes": 1750595,
+      "savedPct": 87.8,
+      "action": "resized",
+      "target": {
+        "maxWidth": 864,
+        "maxHeight": 1296,
+        "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+      },
+      "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+    },
+    {
+      "file": "mascots/mascot-openings-knight-reading.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 864,
+      "afterHeight": 1296,
+      "hasAlpha": true,
+      "beforeBytes": 2050925,
+      "afterBytes": 375849,
+      "savedBytes": 1675076,
+      "savedPct": 81.7,
+      "action": "resized",
+      "target": {
+        "maxWidth": 864,
+        "maxHeight": 1296,
+        "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+      },
+      "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+    },
+    {
+      "file": "mascots/mascot-blind-knight-blindfold.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 864,
+      "afterHeight": 1296,
+      "hasAlpha": true,
+      "beforeBytes": 1995602,
+      "afterBytes": 307615,
+      "savedBytes": 1687987,
+      "savedPct": 84.6,
+      "action": "resized",
+      "target": {
+        "maxWidth": 864,
+        "maxHeight": 1296,
+        "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+      },
+      "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+    },
+    {
+      "file": "mascots/mascot-tactics-knight-calculator.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 864,
+      "afterHeight": 1296,
+      "hasAlpha": true,
+      "beforeBytes": 2060203,
+      "afterBytes": 352725,
+      "savedBytes": 1707478,
+      "savedPct": 82.9,
+      "action": "resized",
+      "target": {
+        "maxWidth": 864,
+        "maxHeight": 1296,
+        "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+      },
+      "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+    },
+    {
+      "file": "mascots/mascot-visualisation-knight-binoculars.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 864,
+      "afterHeight": 1296,
+      "hasAlpha": true,
+      "beforeBytes": 2006407,
+      "afterBytes": 272134,
+      "savedBytes": 1734273,
+      "savedPct": 86.4,
+      "action": "resized",
+      "target": {
+        "maxWidth": 864,
+        "maxHeight": 1296,
+        "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+      },
+      "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+    },
+    {
+      "file": "mascots/mascot-quiz-knight-detective.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1536,
+      "afterWidth": 864,
+      "afterHeight": 1296,
+      "hasAlpha": true,
+      "beforeBytes": 2108624,
+      "afterBytes": 397860,
+      "savedBytes": 1710764,
+      "savedPct": 81.1,
+      "action": "resized",
+      "target": {
+        "maxWidth": 864,
+        "maxHeight": 1296,
+        "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+      },
+      "reason": "ModeCard full-canvas ≈276×414 @1x; keep detail"
+    },
+    {
+      "file": "sides/white.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 216,
+      "afterHeight": 216,
+      "hasAlpha": false,
+      "beforeBytes": 812205,
+      "afterBytes": 44323,
+      "savedBytes": 767882,
+      "savedPct": 94.5,
+      "action": "resized",
+      "target": {
+        "maxWidth": 216,
+        "maxHeight": 216,
+        "reason": "48×48 side pills"
+      },
+      "reason": "48×48 side pills"
+    },
+    {
+      "file": "sides/black.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 216,
+      "afterHeight": 216,
+      "hasAlpha": false,
+      "beforeBytes": 870807,
+      "afterBytes": 48304,
+      "savedBytes": 822503,
+      "savedPct": 94.5,
+      "action": "resized",
+      "target": {
+        "maxWidth": 216,
+        "maxHeight": 216,
+        "reason": "48×48 side pills"
+      },
+      "reason": "48×48 side pills"
+    },
+    {
+      "file": "sides/random.png",
+      "beforeWidth": 160,
+      "beforeHeight": 180,
+      "afterWidth": 160,
+      "afterHeight": 180,
+      "hasAlpha": true,
+      "beforeBytes": 23257,
+      "afterBytes": 23257,
+      "savedBytes": 0,
+      "savedPct": 0,
+      "action": "skipped-no-target",
+      "target": null,
+      "reason": "already within target / no target"
+    },
+    {
+      "file": "toggles/board-on.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 480101,
+      "afterBytes": 41296,
+      "savedBytes": 438805,
+      "savedPct": 91.4,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "30–72px toggle glyphs"
+      },
+      "reason": "30–72px toggle glyphs"
+    },
+    {
+      "file": "toggles/board-off.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 617632,
+      "afterBytes": 50521,
+      "savedBytes": 567111,
+      "savedPct": 91.8,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "30–72px toggle glyphs"
+      },
+      "reason": "30–72px toggle glyphs"
+    },
+    {
+      "file": "toggles/mic-on.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 690273,
+      "afterBytes": 54678,
+      "savedBytes": 635595,
+      "savedPct": 92.1,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "30–72px toggle glyphs"
+      },
+      "reason": "30–72px toggle glyphs"
+    },
+    {
+      "file": "toggles/mic-off.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 689093,
+      "afterBytes": 56830,
+      "savedBytes": 632263,
+      "savedPct": 91.8,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "30–72px toggle glyphs"
+      },
+      "reason": "30–72px toggle glyphs"
+    },
+    {
+      "file": "toggles/coords-on.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 643620,
+      "afterBytes": 58485,
+      "savedBytes": 585135,
+      "savedPct": 90.9,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "30–72px toggle glyphs"
+      },
+      "reason": "30–72px toggle glyphs"
+    },
+    {
+      "file": "toggles/coords-off.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 616684,
+      "afterBytes": 59164,
+      "savedBytes": 557520,
+      "savedPct": 90.4,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "30–72px toggle glyphs"
+      },
+      "reason": "30–72px toggle glyphs"
+    },
+    {
+      "file": "toggles/sound-on.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 584456,
+      "afterBytes": 49932,
+      "savedBytes": 534524,
+      "savedPct": 91.5,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "BrandAssets reserve"
+      },
+      "reason": "BrandAssets reserve"
+    },
+    {
+      "file": "toggles/sound-off.png",
+      "beforeWidth": 1024,
+      "beforeHeight": 1024,
+      "afterWidth": 256,
+      "afterHeight": 256,
+      "hasAlpha": false,
+      "beforeBytes": 514445,
+      "afterBytes": 44873,
+      "savedBytes": 469572,
+      "savedPct": 91.3,
+      "action": "resized",
+      "target": {
+        "maxWidth": 256,
+        "maxHeight": 256,
+        "reason": "BrandAssets reserve"
+      },
+      "reason": "BrandAssets reserve"
+    }
+  ]
+}

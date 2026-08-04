@@ -10,6 +10,9 @@ import type { ChessEngine } from '../engine';
 import { randomEngine } from './random';
 import { StockfishEngine } from './stockfish';
 
+export { OwnedEngine } from './OwnedEngine';
+export type { EngineFactory } from './OwnedEngine';
+
 /**
  * Build the opponent engine for the current platform.
  *

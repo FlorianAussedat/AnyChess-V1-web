@@ -6,6 +6,7 @@ export default function QuizOuvertureLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="quelle" />
       <Stack.Screen name="construis" />
+      <Stack.Screen name="culture" />
     </Stack>
   );
 }

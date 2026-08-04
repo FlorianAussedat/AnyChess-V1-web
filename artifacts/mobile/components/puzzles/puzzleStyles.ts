@@ -1,0 +1,68 @@
+import { StyleSheet } from 'react-native';
+
+export const puzzleStyles = StyleSheet.create({
+  body: { gap: 14, paddingBottom: 28 },
+  lead: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  hint: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
+  meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  statusCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 48,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+  },
+  ctaLabel: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
+  secondaryCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+  },
+  listCard: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 4 },
+  scoreHero: {
+    fontSize: 20,
+    fontFamily: 'Inter_700Bold',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    gap: 8,
+  },
+  recordsLink: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+});

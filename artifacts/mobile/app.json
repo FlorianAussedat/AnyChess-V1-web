@@ -2,11 +2,11 @@
   "expo": {
     "name": "AnyChess",
     "slug": "mobile",
-    "version": "1.0.0",
+    "version": "0.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "mobile",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
@@ -16,7 +16,9 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "userInterfaceStyle": "dark"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },

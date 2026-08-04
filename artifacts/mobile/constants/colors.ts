@@ -1,49 +1,41 @@
 /**
- * AnyChess theme — deep navy from logo background + gold accent from waves.
- * Single palette (same light/dark) so the board always looks correct.
+ * AnyChess theme palette.
+ *
+ * Product is dark-only. `light` and `dark` both point at the same palette so
+ * React Native's useColorScheme / theme plumbing keeps working without
+ * pretending we ship distinct light and dark appearances.
  */
+import { DesignTokens } from '@/constants/designTokens';
+
+const palette = {
+  text: DesignTokens.color.text,
+  tint: DesignTokens.color.tint,
+  background: DesignTokens.color.background,
+  foreground: DesignTokens.color.foreground,
+  card: DesignTokens.color.card,
+  cardForeground: DesignTokens.color.cardForeground,
+  primary: DesignTokens.color.primary,
+  primaryForeground: DesignTokens.color.primaryForeground,
+  secondary: DesignTokens.color.secondary,
+  secondaryForeground: DesignTokens.color.secondaryForeground,
+  muted: DesignTokens.color.muted,
+  mutedForeground: DesignTokens.color.mutedForeground,
+  accent: DesignTokens.color.accent,
+  accentForeground: DesignTokens.color.accentForeground,
+  destructive: DesignTokens.color.destructive,
+  destructiveForeground: DesignTokens.color.destructiveForeground,
+  border: DesignTokens.color.border,
+  input: DesignTokens.color.input,
+} as const;
+
 const colors = {
-  light: {
-    text: '#DCE8F5',
-    tint: '#F5A623',
-    background: '#0B1728',
-    foreground: '#DCE8F5',
-    card: '#102040',
-    cardForeground: '#DCE8F5',
-    primary: '#F5A623',        // gold — mic / accent buttons
-    primaryForeground: '#0B1728',
-    secondary: '#1C3558',
-    secondaryForeground: '#DCE8F5',
-    muted: '#0E1C34',
-    mutedForeground: '#5B7FA0',
-    accent: '#1F4080',         // knight blue — send button
-    accentForeground: '#ffffff',
-    destructive: '#BE3030',
-    destructiveForeground: '#ffffff',
-    border: '#1C3558',
-    input: '#070F1E',
-  },
-  dark: {
-    text: '#DCE8F5',
-    tint: '#F5A623',
-    background: '#0B1728',
-    foreground: '#DCE8F5',
-    card: '#102040',
-    cardForeground: '#DCE8F5',
-    primary: '#F5A623',
-    primaryForeground: '#0B1728',
-    secondary: '#1C3558',
-    secondaryForeground: '#DCE8F5',
-    muted: '#0E1C34',
-    mutedForeground: '#5B7FA0',
-    accent: '#1F4080',
-    accentForeground: '#ffffff',
-    destructive: '#BE3030',
-    destructiveForeground: '#ffffff',
-    border: '#1C3558',
-    input: '#070F1E',
-  },
-  radius: 12,
+  /** Shared dark palette (also used when system scheme is "light"). */
+  light: palette,
+  /** Same as light — AnyChess does not implement a separate light mode. */
+  dark: palette,
+  /** Canonical alias — prefer this when not dealing with RN ColorScheme. */
+  palette,
+  radius: DesignTokens.radius.control,
 };
 
 export default colors;

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import {
   OpeningGameProvider,
   useOpeningGame,
@@ -22,10 +22,8 @@ import { repertoireService, type ParsedRepertoire } from '@/lib/repertoire';
  */
 export default function OpeningPlayRoute() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
 
   const { folderId, color } = useLocalSearchParams<{
     folderId: string;

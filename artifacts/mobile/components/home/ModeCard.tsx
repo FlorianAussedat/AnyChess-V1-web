@@ -22,6 +22,9 @@ import { MASCOT_ART, artHeight } from '@/constants/brandArtBounds';
 import type { ModeIconName } from '@/lib/app/mainModeCards';
 import type { MainModeId } from '@/lib/app/modes';
 
+/** ~2× previous thematic icon size (was 17). */
+const THEMATIC_ICON_SIZE = 34;
+
 export interface ModeCardProps {
   modeId: MainModeId;
   title: string;
@@ -73,27 +76,28 @@ export function ModeCard({
         },
       ]}
     >
-      <View style={[styles.textCol, { maxWidth: '56%', paddingRight: 6 }]}>
-        <View style={styles.titleRow}>
-          <Ionicons
-            name={iconName as ComponentProps<typeof Ionicons>['name']}
-            size={17}
-            color={colors.primary}
-            style={styles.thematicIcon}
-          />
+      <View style={styles.contentRow}>
+        <Ionicons
+          name={iconName as ComponentProps<typeof Ionicons>['name']}
+          size={THEMATIC_ICON_SIZE}
+          color={colors.primary}
+          style={styles.thematicIcon}
+          testID={testID ? `${testID}-icon` : undefined}
+        />
+        <View style={[styles.textCol, { maxWidth: '56%', paddingRight: 6 }]}>
           <Text
             style={[styles.title, { color: colors.foreground }]}
             numberOfLines={2}
           >
             {title}
           </Text>
+          <Text
+            style={[styles.description, { color: colors.mutedForeground }]}
+            numberOfLines={3}
+          >
+            {description}
+          </Text>
         </View>
-        <Text
-          style={[styles.description, { color: colors.mutedForeground }]}
-          numberOfLines={3}
-        >
-          {description}
-        </Text>
       </View>
 
       <View style={styles.illustrationSlot} pointerEvents="none">
@@ -132,17 +136,18 @@ const styles = StyleSheet.create({
     paddingRight: DesignTokens.spacing.sm,
     justifyContent: 'center',
   },
-  textCol: {
+  contentRow: {
     zIndex: 2,
-    gap: 6,
-  },
-  titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
+    alignItems: 'flex-start',
+    gap: 10,
   },
   thematicIcon: {
-    marginTop: 1,
+    marginTop: 2,
+  },
+  textCol: {
+    flexShrink: 1,
+    gap: 6,
   },
   title: {
     flexShrink: 1,

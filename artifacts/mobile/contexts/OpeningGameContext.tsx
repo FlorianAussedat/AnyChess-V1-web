@@ -4,16 +4,10 @@ import React, {
   useContext,
   useEffect,
   useRef,
-  useState,
 } from 'react';
-import { Chess } from 'chess.js';
-import type { Move, Square } from 'chess.js';
-import {
-  gameStateAnnouncement,
-  sanToVerbal,
-  verbalMove,
-} from '@/lib/chessParser';
-import { normalizeTranscript, parseChessVoice } from '@/lib/voice';
+import { useFocusEffect } from 'expo-router';
+import type { Move } from 'chess.js';
+import { gameStateAnnouncement, verbalMove } from '@/lib/chessParser';
 import { createOpponentEngine } from '@/lib/engines';
 import { OpeningOpponent, type TheoryExit } from '@/lib/moves/OpeningOpponent';
 import type { ParsedRepertoire } from '@/lib/repertoire';
@@ -25,11 +19,21 @@ import {
 } from '@/lib/pgn/PgnExporter';
 import { identifyOpeningFromSans } from '@/lib/openings';
 import { speechService } from '@/services/SpeechService';
-import type { BoardPiece, LastMove, MoveEvent, PlayerColor } from '@/contexts/GameContext';
 import {
   shouldEmitMoveRecognizedFeedback,
   type MoveInputSource,
 } from '@/lib/moveInput/canonicalMove';
+import {
+  applyUserMoveInput,
+  legalDestinationsForSquare,
+  speakMoveHistorySummary,
+  undoPlayerTurn,
+  type BoardPiece,
+  type LastMove,
+  type MoveEvent,
+  type PlayerColor,
+} from '@/lib/game';
+import { useSharedPlayState } from '@/hooks/useSharedPlayState';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
@@ -64,13 +68,6 @@ interface OpeningGameContextValue {
 
 const OpeningGameContext = createContext<OpeningGameContextValue | null>(null);
 
-function looksLikeChessMove(normalized: string): boolean {
-  if (/\b[a-h][1-8]\b/.test(normalized)) return true;
-  if (/\b(pion|cavalier|fou|tour|dame|roi|pawn|knight|bishop|rook|queen|king|roque|castle|petit|grand)\b/.test(normalized)) return true;
-  if (/\bprend|takes|captures\b/.test(normalized)) return true;
-  return false;
-}
-
 interface ProviderProps {
   children: React.ReactNode;
   repertoire: ParsedRepertoire | null;
@@ -84,92 +81,78 @@ export function OpeningGameProvider({
   repertoireName,
   loadError = null,
 }: ProviderProps) {
-  const gameRef = useRef(new Chess());
-  const lastSpokenRef = useRef('');
-  const playerColorRef = useRef<PlayerColor>('w');
   const opponentRef = useRef<OpeningOpponent | null>(null);
-  const moveGenerationRef = useRef(0);
-  const opponentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const opponentMoveRef = useRef<() => void>(() => {});
+  const [phase, setPhase] = React.useState<'book' | 'engine'>('book');
+  const [theoryExit, setTheoryExit] = React.useState<TheoryExit | null>(null);
+  const [ready, setReady] = React.useState(false);
 
-  const [playerColor, setPlayerColor] = useState<PlayerColor>('w');
-  const [board, setBoard] = useState<(BoardPiece | null)[][]>(
-    () => gameRef.current.board() as (BoardPiece | null)[][],
-  );
-  const [history, setHistory] = useState<string[]>([]);
-  const [status, setStatus] = useState('À toi de jouer.');
-  const [heardText, setHeardText] = useState('');
-  const [lastMove, setLastMove] = useState<LastMove | null>(null);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [waitingForUser, setWaitingForUser] = useState(true);
-  const [isOpponentThinking, setIsOpponentThinking] = useState(false);
-  const [moveEvent, setMoveEvent] = useState<MoveEvent | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [phase, setPhase] = useState<'book' | 'engine'>('book');
-  const [theoryExit, setTheoryExit] = useState<TheoryExit | null>(null);
-  const [ready, setReady] = useState(false);
+  const play = useSharedPlayState();
+  const {
+    gameRef,
+    playerColorRef,
+    moveGenerationRef,
+    opponentMoveRef,
+    playerColor,
+    setPlayerColor,
+    board,
+    history,
+    status,
+    setStatus,
+    heardText,
+    setHeardText,
+    lastMove,
+    setLastMove,
+    isGameOver,
+    waitingForUser,
+    setWaitingForUser,
+    isOpponentThinking,
+    setIsOpponentThinking,
+    moveEvent,
+    isSpeaking,
+    syncState,
+    speak,
+    emitEvent,
+    repeatLast,
+    cancelPendingOpponent,
+    resetUiForNewGame,
+    scheduleOpponentKickoff,
+  } = play;
 
-  // Build / rebuild opponent when repertoire becomes available.
-  useEffect(() => {
-    if (!repertoire) {
+  useFocusEffect(
+    useCallback(() => {
+      if (!repertoire) {
+        setReady(false);
+        return () => {};
+      }
+
+      const engine = createOpponentEngine();
+      const opponent = new OpeningOpponent(repertoire, engine);
+      opponentRef.current = opponent;
       setReady(false);
-      return;
-    }
 
-    const engine = createOpponentEngine();
-    const opponent = new OpeningOpponent(repertoire, engine);
-    opponentRef.current = opponent;
-    setReady(false);
+      let cancelled = false;
+      opponent
+        .init()
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setReady(true);
+        });
 
-    let cancelled = false;
-    opponent
-      .init()
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setReady(true);
-      });
-
-    return () => {
-      cancelled = true;
-      opponent.cancel();
-      opponent.destroy();
-      if (opponentRef.current === opponent) opponentRef.current = null;
-    };
-  }, [repertoire]);
-
-  useEffect(() => {
-    const unsubscribe = speechService.onSpeakingChange(setIsSpeaking);
-    return () => {
-      unsubscribe();
-      speechService.cancel('unmount');
-    };
-  }, []);
-
-  const syncState = useCallback(() => {
-    const g = gameRef.current;
-    setBoard(g.board() as (BoardPiece | null)[][]);
-    setHistory(g.history());
-    setIsGameOver(g.isGameOver());
-  }, []);
+      return () => {
+        cancelled = true;
+        opponent.cancel();
+        opponent.destroy();
+        if (opponentRef.current === opponent) opponentRef.current = null;
+        setReady(false);
+      };
+    }, [repertoire]),
+  );
 
   const syncTheoryUi = useCallback(() => {
     const opp = opponentRef.current;
     setPhase(opp?.getPhase() ?? 'book');
     setTheoryExit(opp?.getTheoryExit() ?? null);
   }, []);
-
-  const speak = useCallback((text: string, opts?: { flush?: boolean }) => {
-    lastSpokenRef.current = text;
-    speechService.speak(text, opts);
-  }, []);
-
-  const emitEvent = useCallback((kind: 'success' | 'error', source?: MoveInputSource) => {
-    setMoveEvent((prev) => ({ kind, id: (prev?.id ?? 0) + 1, source }));
-  }, []);
-
-  const repeatLast = useCallback(() => {
-    speak(lastSpokenRef.current || 'Aucun coup à répéter.', { flush: true });
-  }, [speak]);
 
   const summarizeGameHistory = useCallback(() => {
     const moves = gameRef.current.history();
@@ -184,22 +167,12 @@ export function OpeningGameProvider({
     } else if (exit?.kind === 'repertoire-end') {
       speechService.speak('Rapport : ligne théorique importée suivie jusqu’à son terme.');
     }
-    moves.forEach((san, i) => {
-      const pairNum = Math.floor(i / 2) + 1;
-      const isWhite = i % 2 === 0;
-      const verbal = sanToVerbal(san);
-      speechService.speak(isWhite ? `${pairNum}. ${verbal}` : verbal, { rate: 0.9 });
-    });
-  }, [speak, theoryExit]);
+    speakMoveHistorySummary(moves, { skipCancel: true });
+  }, [gameRef, speak, theoryExit]);
 
-  const cancelPendingOpponent = useCallback(() => {
-    moveGenerationRef.current += 1;
-    if (opponentTimeoutRef.current != null) {
-      clearTimeout(opponentTimeoutRef.current);
-      opponentTimeoutRef.current = null;
-    }
-    opponentRef.current?.cancel();
-  }, []);
+  const cancelPending = useCallback(() => {
+    cancelPendingOpponent(() => opponentRef.current?.cancel());
+  }, [cancelPendingOpponent]);
 
   const opponentMove = useCallback(async () => {
     const game = gameRef.current;
@@ -252,7 +225,17 @@ export function OpeningGameProvider({
       setIsOpponentThinking(false);
       setWaitingForUser(true);
     }
-  }, [syncState, speak, syncTheoryUi]);
+  }, [
+    gameRef,
+    moveGenerationRef,
+    setIsOpponentThinking,
+    syncTheoryUi,
+    speak,
+    setStatus,
+    setWaitingForUser,
+    setLastMove,
+    syncState,
+  ]);
 
   opponentMoveRef.current = opponentMove;
 
@@ -271,8 +254,6 @@ export function OpeningGameProvider({
       syncTheoryUi();
 
       const playerAnnouncement = gameStateAnnouncement(game, verbalMove(played));
-
-      // Stop mid-summary / leftover dictation before announcing the move.
       speechService.cancel('move');
 
       if (theoryMsg) {
@@ -291,138 +272,115 @@ export function OpeningGameProvider({
         opponentMoveRef.current();
       }
     },
-    [syncState, emitEvent, speak, syncTheoryUi],
+    [
+      setLastMove,
+      setHeardText,
+      syncState,
+      emitEvent,
+      gameRef,
+      syncTheoryUi,
+      speak,
+      setStatus,
+      setWaitingForUser,
+      opponentMoveRef,
+    ],
   );
 
   const undoMove = useCallback(() => {
-    const game = gameRef.current;
-    cancelPendingOpponent();
+    cancelPending();
     speechService.cancel('undo');
 
-    const allMoves = game.history({ verbose: true }) as Move[];
+    const result = undoPlayerTurn(gameRef.current, playerColorRef.current);
+    if (result.kind === 'noop') return;
 
-    if (allMoves.length < 2) {
-      if (allMoves.length === 1 && allMoves[0].color === playerColorRef.current) {
-        game.undo();
-        opponentRef.current?.onUndo(0);
-        syncTheoryUi();
-        syncState();
-        setLastMove(null);
-        setWaitingForUser(true);
-        setIsOpponentThinking(false);
-        setIsGameOver(false);
-        setHeardText('');
-        setStatus('À toi de jouer.');
-        speak('Coup annulé. Début de la partie.');
-      }
+    if (result.kind === 'undone-to-start') {
+      opponentRef.current?.onUndo(0);
+      syncTheoryUi();
+      syncState();
+      setLastMove(null);
+      setWaitingForUser(true);
+      setIsOpponentThinking(false);
+      setHeardText('');
+      setStatus(result.status);
+      speak(result.speak);
       return;
     }
 
-    game.undo();
-    game.undo();
-    opponentRef.current?.onUndo(game.history().length);
+    opponentRef.current?.onUndo(result.plyAfter);
     syncTheoryUi();
     syncState();
     setIsOpponentThinking(false);
-    setIsGameOver(false);
     setHeardText('');
     setWaitingForUser(true);
-
-    const remaining = game.history({ verbose: true }) as Move[];
-    if (remaining.length > 0) {
-      const lm = remaining[remaining.length - 1];
-      setLastMove({ from: lm.from, to: lm.to });
-    } else {
-      setLastMove(null);
-    }
-
-    const engineColor: PlayerColor = playerColorRef.current === 'w' ? 'b' : 'w';
-    const lastEngineMove =
-      remaining
-        .slice()
-        .reverse()
-        .find((m) => m.color === engineColor) ?? null;
-
-    if (lastEngineMove) {
-      const announcement = verbalMove(lastEngineMove);
-      setStatus(announcement);
-      speak(`Coup annulé. Dernier coup de l'adversaire : ${announcement}`);
-    } else {
-      setStatus('À toi de jouer.');
-      speak('Coup annulé. Début de la partie.');
-    }
-  }, [syncState, speak, cancelPendingOpponent, syncTheoryUi]);
+    setLastMove(result.lastMove);
+    setStatus(result.status);
+    speak(result.speak);
+  }, [
+    cancelPending,
+    gameRef,
+    playerColorRef,
+    syncTheoryUi,
+    syncState,
+    setLastMove,
+    setWaitingForUser,
+    setIsOpponentThinking,
+    setHeardText,
+    setStatus,
+    speak,
+  ]);
 
   const applyUserMove = useCallback(
     (raw: string, source: MoveInputSource = 'voice') => {
-      const input = normalizeTranscript(raw);
-      const game = gameRef.current;
-      const parsed = parseChessVoice(raw, game, { mode: 'opening' });
+      const result = applyUserMoveInput({
+        raw,
+        game: gameRef.current,
+        mode: 'opening',
+        waitingForUser,
+        isOpponentThinking,
+        source,
+      });
 
-      if (parsed.type === 'command') {
-        if (parsed.command === 'repeat') {
-          repeatLast();
-          return;
-        }
-        if (parsed.command === 'summarize') {
-          summarizeGameHistory();
-          return;
-        }
-        if (parsed.command === 'undo') {
-          undoMove();
-          return;
-        }
+      if (result.kind === 'command') {
+        if (result.command === 'repeat') repeatLast();
+        else if (result.command === 'summarize') summarizeGameHistory();
+        else if (result.command === 'undo') undoMove();
         return;
       }
 
-      // Non-command voice/text input: stop any mid-summary/dictation so a
-      // rejected attempt cannot leave stale TTS running.
       speechService.cancel('move');
+      if (result.kind === 'ignored-busy') return;
 
-      if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
+      setHeardText(result.heardText);
 
-      setHeardText(raw ? `« ${raw} »` : '');
-
-      if (parsed.type === 'unrecognized') {
+      if (result.kind === 'unrecognized') {
         setStatus('Coup non reconnu. Répète.');
-        if (looksLikeChessMove(input)) emitEvent('error', source);
+        if (result.emitError) emitEvent('error', source);
         return;
       }
-
-      if (parsed.type === 'ambiguous') {
+      if (result.kind === 'ambiguous') {
         setStatus('Coup ambigu. Précise la case de départ.');
         emitEvent('error', source);
         return;
       }
-
-      if (parsed.type === 'illegal') {
+      if (result.kind === 'illegal') {
         setStatus('Coup illégal. Répète.');
         emitEvent('error', source);
         return;
       }
 
-      const beforeFen = game.fen();
-
-      try {
-        const played = game.move({
-          from: parsed.move.from,
-          to: parsed.move.to,
-          promotion: parsed.move.promotion ?? 'q',
-        }) as Move;
-        finishPlayerMove(played, beforeFen, source);
-      } catch {
-        setStatus('Coup illégal. Répète.');
-        emitEvent('error', source);
-      }
+      finishPlayerMove(result.played, result.beforeFen, source);
     },
     [
+      gameRef,
       waitingForUser,
       isOpponentThinking,
-      finishPlayerMove,
-      emitEvent,
       repeatLast,
       summarizeGameHistory,
       undoMove,
+      setHeardText,
+      setStatus,
+      emitEvent,
+      finishPlayerMove,
     ],
   );
 
@@ -439,38 +397,24 @@ export function OpeningGameProvider({
         return false;
       }
     },
-    [waitingForUser, isOpponentThinking, finishPlayerMove],
+    [gameRef, waitingForUser, isOpponentThinking, finishPlayerMove],
   );
 
   const getLegalDestinations = useCallback(
-    (square: string): string[] => {
-      const game = gameRef.current;
-      if (!waitingForUser || game.isGameOver()) return [];
-      const piece = game.get(square as Square);
-      if (!piece || piece.color !== playerColorRef.current) return [];
-      try {
-        const moves = game.moves({ verbose: true, square: square as Square }) as Move[];
-        return [...new Set(moves.map((m) => m.to))];
-      } catch {
-        return [];
-      }
-    },
-    [waitingForUser],
+    (square: string): string[] =>
+      legalDestinationsForSquare(gameRef.current, square, playerColorRef.current, {
+        waitingForUser,
+      }),
+    [gameRef, playerColorRef, waitingForUser],
   );
 
   const resetForColor = useCallback(
     (color: PlayerColor) => {
-      cancelPendingOpponent();
+      cancelPending();
       opponentRef.current?.newGame();
       speechService.cancel('new-game');
       gameRef.current.reset();
-      lastSpokenRef.current = '';
-      setLastMove(null);
-      setHeardText('');
-      setIsGameOver(false);
-      setIsOpponentThinking(false);
-      setMoveEvent(null);
-      setIsSpeaking(false);
+      resetUiForNewGame();
       setPhase('book');
       setTheoryExit(null);
       syncState();
@@ -478,21 +422,26 @@ export function OpeningGameProvider({
       if (color === 'b') {
         setWaitingForUser(false);
         setStatus("L'adversaire prépare son coup…");
-        opponentTimeoutRef.current = setTimeout(() => {
-          opponentTimeoutRef.current = null;
-          opponentMoveRef.current();
-        }, 1200);
+        scheduleOpponentKickoff(1200);
       } else {
         setWaitingForUser(true);
         setStatus('À toi de jouer.');
       }
     },
-    [syncState, cancelPendingOpponent],
+    [
+      cancelPending,
+      gameRef,
+      resetUiForNewGame,
+      syncState,
+      setWaitingForUser,
+      setStatus,
+      scheduleOpponentKickoff,
+    ],
   );
 
   const newGame = useCallback(() => {
     resetForColor(playerColorRef.current);
-  }, [resetForColor]);
+  }, [resetForColor, playerColorRef]);
 
   const changeColor = useCallback(
     (color: PlayerColor) => {
@@ -500,7 +449,7 @@ export function OpeningGameProvider({
       setPlayerColor(color);
       resetForColor(color);
     },
-    [resetForColor],
+    [playerColorRef, setPlayerColor, resetForColor],
   );
 
   const buildPgn = useCallback(() => {
@@ -529,24 +478,19 @@ export function OpeningGameProvider({
         Repertoire: repertoireName,
       },
       moves,
-      commentAfterPly: exit
-        ? { ply: exit.ply, text: exit.pgnComment }
-        : undefined,
+      commentAfterPly: exit ? { ply: exit.ply, text: exit.pgnComment } : undefined,
     });
-  }, [repertoireName]);
+  }, [gameRef, playerColorRef, repertoireName]);
 
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
-
   const downloadPgn = useCallback(() => {
     downloadPgnFile(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
 
-  // Kick off first game once ready (White to move by default).
   useEffect(() => {
     if (ready && repertoire) {
       resetForColor(playerColorRef.current);
     }
-    // Only when ready flips true for a repertoire — not on every resetForColor identity change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, repertoire]);
 

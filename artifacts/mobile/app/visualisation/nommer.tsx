@@ -35,7 +35,17 @@ export default function NommerLeCoupScreen() {
 
   useEffect(() => () => sessionRef.current.dispose(), []);
 
-  // Poll during countdown (3-2-1-GO labels) and play (session clock + challenge timeouts).
+  useEffect(() => {
+    records
+      .loadBest()
+      .then((best) => {
+        sessionRef.current.configure({ previousRecord: best });
+        sync();
+      })
+      .catch(() => undefined);
+  }, [sync]);
+
+  // Poll during countdown (3-2-1-GO labels) and play (session clock).
   useEffect(() => {
     if (snap.phase !== 'countdown' && snap.phase !== 'playing') return;
     const id = setInterval(sync, snap.phase === 'countdown' ? 100 : 250);
@@ -44,16 +54,19 @@ export default function NommerLeCoupScreen() {
 
   useEffect(() => {
     if (snap.phase !== 'completed') return;
-    records.saveScore(snap.responseSeconds, snap.score.score).catch(() => undefined);
-  }, [snap.phase, snap.responseSeconds, snap.score.score]);
+    records
+      .saveScore(snap.score.score)
+      .then((best) => {
+        sessionRef.current.markRecordSaved(best);
+        sync();
+      })
+      .catch(() => undefined);
+  }, [snap.phase, snap.score.score, sync]);
 
   const beginSession = useCallback(async () => {
     micPrimedRef.current = false;
-    const current = sessionRef.current.snapshot();
-    const loaded = await records.load().catch(() => ({} as Record<number, number>));
-    sessionRef.current.configure({
-      previousRecord: loaded[current.responseSeconds] ?? 0,
-    });
+    const best = await records.loadBest().catch(() => 0);
+    sessionRef.current.configure({ previousRecord: best });
     sessionRef.current.startCountdown();
     sync();
   }, [sync]);
@@ -78,7 +91,11 @@ export default function NommerLeCoupScreen() {
     snap.phase === 'playing' && snap.challenge ? new Chess(snap.challenge.positionFen) : null;
 
   return (
-    <ScrollView contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}>
+    <ScrollView
+      contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}
+      keyboardShouldPersistTaps="handled"
+      testID="nommer-screen"
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <BackButton
           onPress={() => {
@@ -103,35 +120,12 @@ export default function NommerLeCoupScreen() {
       {snap.phase === 'idle' && (
         <View style={styles.gap}>
           <Text style={{ color: colors.mutedForeground }}>
-            Réponse par coup : {snap.responseSeconds} s · partie : 60 s
+            Identifie autant de coups que possible en 60 secondes. Pas de limite de temps par
+            question.
           </Text>
-          <View style={styles.row}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <Pressable
-                key={n}
-                onPress={() => {
-                  sessionRef.current.configure({ responseSeconds: n });
-                  sync();
-                }}
-                style={[
-                  styles.chip,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: n === snap.responseSeconds ? colors.primary : colors.card,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color:
-                      n === snap.responseSeconds ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {n}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <Text style={{ color: colors.foreground }}>
+            Record actuel : {snap.previousRecord}
+          </Text>
           <Pressable
             onPress={() => {
               sessionRef.current.configure({ voiceEnabled: !snap.voiceEnabled });
@@ -146,6 +140,7 @@ export default function NommerLeCoupScreen() {
           <Pressable
             onPress={() => void beginSession()}
             style={[styles.button, { backgroundColor: colors.primary }]}
+            testID="nommer-start"
           >
             <Text style={{ color: colors.primaryForeground }}>Commencer</Text>
           </Pressable>
@@ -156,7 +151,7 @@ export default function NommerLeCoupScreen() {
       )}
 
       {snap.phase === 'countdown' && (
-        <View style={styles.countdownWrap}>
+        <View style={styles.countdownWrap} testID="nommer-countdown">
           <Text style={[styles.countdown, { color: colors.foreground }]}>
             {snap.countdownLabel}
           </Text>
@@ -165,9 +160,14 @@ export default function NommerLeCoupScreen() {
 
       {snap.phase === 'playing' && (
         <View style={styles.gap}>
-          <Text style={{ color: colors.foreground }}>
-            Temps : {snap.remainingSeconds}s · Score : {snap.score.score}
-          </Text>
+          <View style={styles.hudRow}>
+            <Text style={[styles.hudValue, { color: colors.foreground }]} testID="nommer-timer">
+              {snap.remainingSeconds}s
+            </Text>
+            <Text style={[styles.hudValue, { color: colors.foreground }]} testID="nommer-score">
+              Score : {snap.score.score}
+            </Text>
+          </View>
           {display && (
             <ChessBoard
               board={display.board() as (BoardPiece | null)[][]}
@@ -176,6 +176,12 @@ export default function NommerLeCoupScreen() {
             />
           )}
           <Text style={{ color: colors.mutedForeground }}>Quel était le dernier coup ?</Text>
+          {snap.lastFeedback === 'wrong' ? (
+            <Text style={{ color: '#BE3030' }}>Incorrect — réessaie</Text>
+          ) : null}
+          {snap.lastFeedback === 'recognition-failure' ? (
+            <Text style={{ color: colors.mutedForeground }}>Coup non reconnu — réessaie</Text>
+          ) : null}
           <ChessAnswerInput
             onSubmit={(raw) => {
               sessionRef.current.answer(raw);
@@ -211,17 +217,20 @@ export default function NommerLeCoupScreen() {
       )}
 
       {snap.phase === 'completed' && (
-        <View style={styles.gap}>
+        <View style={styles.gap} testID="nommer-results">
           <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>SCORE</Text>
           <Text style={[styles.scoreValue, { color: colors.foreground }]}>{snap.score.score}</Text>
           {snap.isNewRecord ? (
-            <Text style={[styles.newRecord, { color: colors.primary }]}>Nouveau record !</Text>
+            <Text style={[styles.newRecord, { color: colors.primary }]} testID="nommer-new-record">
+              Nouveau record !
+            </Text>
           ) : null}
-          <Text style={{ color: colors.foreground }}>Correct : {snap.score.correct}</Text>
-          <Text style={{ color: colors.foreground }}>Incorrect : {snap.score.wrong}</Text>
-          <Text style={{ color: colors.foreground }}>Temps écoulés : {snap.score.timeouts}</Text>
           <Text style={{ color: colors.foreground }}>
-            Échecs de reconnaissance : {snap.score.recognitionFailures}
+            Coups correctement nommés : {snap.score.correct}
+          </Text>
+          <Text style={{ color: colors.foreground }}>Incorrect : {snap.score.wrong}</Text>
+          <Text style={{ color: colors.mutedForeground }}>
+            Record : {Math.max(snap.previousRecord, snap.score.score)}
           </Text>
           <Pressable
             onPress={() => {
@@ -235,16 +244,23 @@ export default function NommerLeCoupScreen() {
           </Pressable>
           <Pressable
             onPress={() => router.push('/visualisation/records')}
-            style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+            style={[
+              styles.button,
+              { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+            ]}
           >
             <Text style={{ color: colors.foreground }}>Voir les records</Text>
           </Pressable>
           <Pressable
             onPress={() => {
               stopListening();
+              sessionRef.current.replay();
               void beginSession();
             }}
-            style={[styles.button, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+            style={[
+              styles.button,
+              { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+            ]}
           >
             <Text style={{ color: colors.foreground }}>Rejouer</Text>
           </Pressable>
@@ -259,12 +275,16 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   title: { fontSize: 25, fontWeight: '700', flex: 1 },
   gap: { gap: 14 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { padding: 10, borderWidth: 1, borderRadius: 8 },
-  button: { padding: 14, borderRadius: 10, alignItems: 'center' },
+  button: { padding: 14, borderRadius: 10, alignItems: 'center', minHeight: 48 },
   toggleRow: { padding: 14, borderRadius: 10, borderWidth: 1 },
   countdownWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 220 },
   countdown: { fontSize: 96, fontWeight: '800' },
+  hudRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  hudValue: { fontSize: 22, fontWeight: '700' },
   scoreLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 2, textAlign: 'center' },
   scoreValue: { fontSize: 64, fontWeight: '800', textAlign: 'center' },
   newRecord: { fontSize: 20, fontWeight: '700', textAlign: 'center' },

@@ -5,7 +5,7 @@ import { parseChessVoice } from '../../voice/parseChessVoice.ts';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { emptyMoveNamingScore, scoreMoveNamingAttempt } from '../MoveNamingScorer.ts';
 import { MoveNamingRecordsStore } from '../MoveNamingRecords.ts';
-import { MoveNamingTimer } from '../MoveNamingTimer.ts';
+import { TimedChallengeTimer } from '../../timedChallenge/TimedChallengeTimer.ts';
 import {
   COUNTDOWN_STEP_MS,
   MoveNamingSession,
@@ -81,14 +81,14 @@ function testSession(scheduler: FakeScheduler): MoveNamingSession {
 }
 
 describe('move naming scoring', () => {
-  it('applies correct, wrong, timeout, and recognition scoring', () => {
+  it('increments score only on correct; wrong/recognition do not change score', () => {
     let score = emptyMoveNamingScore();
     score = scoreMoveNamingAttempt(score, 'correct');
     score = scoreMoveNamingAttempt(score, 'wrong');
     score = scoreMoveNamingAttempt(score, 'timeout');
     score = scoreMoveNamingAttempt(score, 'recognition-failure');
     assert.deepEqual(score, {
-      score: 0,
+      score: 1,
       correct: 1,
       wrong: 1,
       timeouts: 1,
@@ -114,23 +114,29 @@ describe('voice move names', () => {
 });
 
 describe('records and timers', () => {
-  it('persists best records and resets them', async () => {
+  it('persists 60s best and only updates when higher', async () => {
     const records = new MoveNamingRecordsStore(new MemoryKeyValueStorage());
-    await records.saveScore(3, 4);
-    await records.saveScore(3, 2);
-    assert.equal((await records.load())[3], 4);
+    assert.equal(await records.saveScore(4), 4);
+    assert.equal(await records.saveScore(2), 4);
+    assert.equal(await records.loadBest(), 4);
     await records.reset();
-    assert.equal((await records.load())[3], 0);
+    assert.equal(await records.loadBest(), 0);
   });
 
-  it('resets one timing category', async () => {
-    const records = new MoveNamingRecordsStore(new MemoryKeyValueStorage());
-    await records.saveScore(2, 5);
-    await records.saveScore(4, 7);
+  it('preserves legacy per-second buckets without using them for new saves', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const records = new MoveNamingRecordsStore(storage);
+    await records.saveScoreLegacy(2, 5);
+    await records.saveScoreLegacy(4, 7);
     await records.resetCategory(2);
     const loaded = await records.load();
     assert.equal(loaded[2], 0);
     assert.equal(loaded[4], 7);
+    // New model key is independent
+    assert.equal(await records.loadBest(), 0);
+    await records.saveScore(9);
+    assert.equal(await records.loadBest(), 9);
+    assert.equal((await records.load())[4], 7);
   });
 
   it('detects a new record beat', () => {
@@ -139,21 +145,20 @@ describe('records and timers', () => {
     assert.equal(isMoveNamingRecordBeat(4, 5), false);
   });
 
-  it('cleans up challenge callbacks', async () => {
-    const timer = new MoveNamingTimer();
+  it('cleans up session callbacks', async () => {
+    const timer = new TimedChallengeTimer();
     let called = false;
-    timer.startChallenge(0.01, () => {
+    timer.startSession(0.01, () => {
       called = true;
     });
-    timer.clearChallenge();
+    timer.dispose();
     await new Promise((resolve) => setTimeout(resolve, 25));
     assert.equal(called, false);
-    timer.dispose();
   });
 });
 
-describe('move naming session', () => {
-  it('runs countdown then starts the session at GO', () => {
+describe('move naming session — 60s model', () => {
+  it('starts with 60 seconds after countdown', () => {
     const scheduler = new FakeScheduler();
     const session = testSession(scheduler);
     session.startCountdown();
@@ -173,18 +178,21 @@ describe('move naming session', () => {
     session.dispose();
   });
 
-  it('times out challenge 1 with the selected duration', async () => {
+  it('does not auto-advance a challenge while the player thinks', async () => {
     const scheduler = new FakeScheduler();
     const session = testSession(scheduler);
-    session.configure({ responseSeconds: 1 });
     runCountdownToPlaying(session, scheduler);
+    const firstId = session.snapshot().challenge?.puzzleId;
+    assert.ok(firstId);
+    // Wait longer than any old per-question window (1–10s)
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    assert.equal(session.snapshot().challenge?.puzzleId, firstId);
     assert.equal(session.snapshot().score.timeouts, 0);
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-    assert.equal(session.snapshot().score.timeouts, 1);
+    assert.equal(session.snapshot().phase, 'playing');
     session.dispose();
   });
 
-  it('scores answers and advances to the next challenge', () => {
+  it('increments score on correct and advances to the next challenge', () => {
     const scheduler = new FakeScheduler();
     const session = testSession(scheduler);
     runCountdownToPlaying(session, scheduler);
@@ -198,7 +206,23 @@ describe('move naming session', () => {
     session.dispose();
   });
 
-  it('ends the session and flags a new record on completion', async () => {
+  it('keeps the same challenge after a wrong answer', () => {
+    const scheduler = new FakeScheduler();
+    const session = testSession(scheduler);
+    runCountdownToPlaying(session, scheduler);
+    const first = session.snapshot().challenge;
+    assert.ok(first);
+    const wrongSan = first.expectedSan === 'e4' ? 'd4' : 'e4';
+    session.answer(wrongSan);
+    const snap = session.snapshot();
+    assert.equal(snap.score.wrong, 1);
+    assert.equal(snap.score.score, 0);
+    assert.equal(snap.challenge?.puzzleId, first.puzzleId);
+    assert.equal(snap.lastFeedback, 'wrong');
+    session.dispose();
+  });
+
+  it('ends the session on global timer and flags a new record', async () => {
     const scheduler = new FakeScheduler();
     const session = testSession(scheduler);
     session.configure({ previousRecord: 1, sessionSeconds: 0.05 });
