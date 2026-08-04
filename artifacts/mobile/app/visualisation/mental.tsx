@@ -441,7 +441,7 @@ export default function MentalPositionScreen() {
             style={[styles.btn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
           >
             <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-              Retour Visualisation
+              Retour
             </Text>
           </Pressable>
         </View>
