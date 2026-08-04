@@ -20,15 +20,23 @@ const EXERCISES: ExerciseCard[] = [
     id: 'mental',
     route: '/visualisation/mental' as Href,
     title: 'Suivi mental de position',
-    description: 'Suis une séquence, puis réponds à des questions sur la position.',
+    description:
+      'Suis une séquence de coups, puis réponds à des questions sur la position obtenue.',
     icon: BrandAssets.modes.visualisation,
   },
   {
     id: 'nommer',
     route: '/visualisation/nommer' as Href,
     title: 'Nommer le coup',
-    description: 'Jeu chronométré : nomme le coup que tu vois sur l’échiquier.',
+    description: 'Identifie le plus rapidement possible le coup joué sur l’échiquier.',
     icon: BrandAssets.modes.target,
+  },
+  {
+    id: 'jouer',
+    route: '/visualisation/jouer' as Href,
+    title: 'Jouer le coup',
+    description: 'Joue le plus rapidement possible le coup donné.',
+    icon: BrandAssets.modes.classic,
   },
 ];
 
@@ -61,10 +69,9 @@ export default function VisualisationHub() {
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Menu</Text>
       </Pressable>
 
-      <Text style={[styles.title, { color: colors.foreground }]}>Visualisation</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>Vision de l’échiquier</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Deux exercices pour entraîner le suivi mental et la reconnaissance de coups.
-        Les records de Nommer le coup restent accessibles depuis cet exercice.
+        Trois exercices pour entraîner le suivi mental et la reconnaissance rapide de coups.
       </Text>
 
       <View style={styles.cards}>

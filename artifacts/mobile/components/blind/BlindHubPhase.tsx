@@ -13,7 +13,7 @@ export function BlindHubPhase() {
   const router = useRouter();
 
   return (
-    <ModeScreenShell title="Séquences à l’aveugle" onBack={() => router.back()}>
+    <ModeScreenShell title="Mémorisation" onBack={() => router.back()}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
         <Text style={[blindStyles.lead, { color: colors.mutedForeground }]}>
           Choisis un exercice. Les séquences sont générées par Stockfish (1 à 20 coups complets).
@@ -32,7 +32,7 @@ export function BlindHubPhase() {
               Écouter puis reconstruire
             </Text>
             <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-              Dictée orale, puis reproduction sur l’échiquier.
+              Écoute une séquence, puis rejoue les coups sur l’échiquier.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
@@ -51,7 +51,7 @@ export function BlindHubPhase() {
               Regarder puis réciter
             </Text>
             <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-              Observation visuelle silencieuse, puis récitation à voix haute.
+              Observe une séquence, puis récite les coups de mémoire.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />

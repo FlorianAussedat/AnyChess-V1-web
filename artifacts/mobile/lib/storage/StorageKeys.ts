@@ -59,10 +59,28 @@ export const StorageKeys = {
     shape: 'PuzzleStreakState { currentByBand, bestByBand }',
     documentVersion: 1,
   },
+  /**
+   * Legacy Nommer le coup buckets by per-question response seconds.
+   * Preserved read-only for migration safety; new sessions use moveNamingSession60.
+   */
   moveNamingRecords: {
     key: 'anychess.move-naming.records.v1',
     feature: 'visualisation/move-naming',
-    shape: 'Record<1..10, number> best scores by response seconds',
+    shape: 'Record<1..10, number> best scores by response seconds (LEGACY)',
+    documentVersion: 1,
+  },
+  /** Principal Nommer le coup record — best correct answers in 60 seconds. */
+  moveNamingSession60: {
+    key: 'anychess.move-naming.session60.v1',
+    feature: 'visualisation/move-naming',
+    shape: '{ best: number }',
+    documentVersion: 1,
+  },
+  /** Principal Jouer le coup record — best correct board moves in 60 seconds. */
+  playMoveSession60: {
+    key: 'anychess.play-move.session60.v1',
+    feature: 'visualisation/play-move',
+    shape: '{ best: number }',
     documentVersion: 1,
   },
   continueLineRecent: {

@@ -1,13 +1,6 @@
 /**
- * Platform-independent session controller for Nommer le coup (60-second mode).
- *
- * Rules:
- * - Global 60s timer; no per-question timeout
- * - Wrong / unrecognized answers keep the same challenge
- * - Correct answers +1 and load the next challenge
+ * Jouer le coup — 60-second session controller (inverse of Nommer le coup).
  */
-import { Chess } from 'chess.js';
-import { parseChessVoice } from '../voice/parseChessVoice.ts';
 import {
   COUNTDOWN_LABELS,
   COUNTDOWN_STEP_MS,
@@ -18,55 +11,45 @@ import {
   type TimedChallengePhase,
   type TimedChallengeScheduler,
 } from '../timedChallenge/index.ts';
-import { emptyMoveNamingScore, scoreMoveNamingAttempt } from './MoveNamingScorer.ts';
-import type { MoveNamingChallenge, MoveNamingOutcome, MoveNamingScore } from './types.ts';
+import { emptyPlayMoveScore, scorePlayMoveAttempt } from './PlayMoveScorer.ts';
+import { isCorrectPlayMove } from './PlayMoveChallenge.ts';
+import type { PlayMoveChallenge, PlayMoveOutcome, PlayMoveScore } from './types.ts';
 
-export type MoveNamingPhase = TimedChallengePhase;
+export type PlayMovePhase = TimedChallengePhase;
 
-export { COUNTDOWN_LABELS, COUNTDOWN_STEP_MS, SESSION_SECONDS };
-
-export type MoveNamingSnapshot = {
-  phase: MoveNamingPhase;
-  /** @deprecated Per-question response window removed; always unused (0). */
-  responseSeconds: number;
-  voiceEnabled: boolean;
-  challenge: MoveNamingChallenge | null;
-  score: MoveNamingScore;
+export type PlayMoveSnapshot = {
+  phase: PlayMovePhase;
+  challenge: PlayMoveChallenge | null;
+  score: PlayMoveScore;
   remainingSeconds: number;
   countdownLabel: string | null;
   previousRecord: number;
   isNewRecord: boolean;
-  /** Brief feedback after a wrong / recognition failure (cleared on next correct). */
-  lastFeedback: 'wrong' | 'recognition-failure' | null;
+  lastFeedback: 'wrong' | null;
+  /** Bumped when board must reset to the challenge position after a wrong try. */
+  boardResetToken: number;
 };
 
-export type MoveNamingScheduler = TimedChallengeScheduler;
-
-/** @deprecated Prefer isRecordBeat from timedChallenge. */
-export function isMoveNamingRecordBeat(score: number, previousRecord: number): boolean {
-  return isRecordBeat(score, previousRecord);
-}
-
-export class MoveNamingSession {
-  private phase: MoveNamingPhase = 'idle';
-  private voiceEnabled = true;
-  private challenge: MoveNamingChallenge | null = null;
-  private score: MoveNamingScore = emptyMoveNamingScore();
+export class PlayMoveSession {
+  private phase: PlayMovePhase = 'idle';
+  private challenge: PlayMoveChallenge | null = null;
+  private score: PlayMoveScore = emptyPlayMoveScore();
   private countdownLabel: string | null = null;
   private countdownIndex = 0;
   private countdownHandle: ReturnType<typeof setTimeout> | null = null;
   private previousRecord = 0;
   private isNewRecord = false;
-  private lastFeedback: 'wrong' | 'recognition-failure' | null = null;
+  private lastFeedback: 'wrong' | null = null;
+  private boardResetToken = 0;
   private sessionSeconds = SESSION_SECONDS;
   private readonly timer: TimedChallengeTimer;
-  private readonly scheduler: MoveNamingScheduler;
-  private readonly pickChallenge: (previousId?: string) => MoveNamingChallenge | null;
+  private readonly scheduler: TimedChallengeScheduler;
+  private readonly pickChallenge: (previousId?: string) => PlayMoveChallenge | null;
 
   constructor(options: {
     timer?: TimedChallengeTimer;
-    scheduler?: MoveNamingScheduler;
-    pickChallenge: (previousId?: string) => MoveNamingChallenge | null;
+    scheduler?: TimedChallengeScheduler;
+    pickChallenge: (previousId?: string) => PlayMoveChallenge | null;
   }) {
     this.timer = options.timer ?? new TimedChallengeTimer();
     this.scheduler = options.scheduler ?? defaultTimedChallengeScheduler;
@@ -74,15 +57,9 @@ export class MoveNamingSession {
   }
 
   configure(options: {
-    voiceEnabled?: boolean;
     previousRecord?: number;
     sessionSeconds?: number;
-    /** @deprecated Ignored — per-question timeout removed. */
-    responseSeconds?: number;
-  }): MoveNamingSnapshot {
-    if (options.voiceEnabled !== undefined) {
-      this.voiceEnabled = options.voiceEnabled;
-    }
+  }): PlayMoveSnapshot {
     if (options.previousRecord !== undefined) {
       this.previousRecord = options.previousRecord;
     }
@@ -92,45 +69,31 @@ export class MoveNamingSession {
     return this.snapshot();
   }
 
-  startCountdown(): MoveNamingSnapshot {
+  startCountdown(): PlayMoveSnapshot {
     if (this.phase !== 'idle') return this.snapshot();
     this.disposeTimers();
     this.phase = 'countdown';
-    this.score = emptyMoveNamingScore();
+    this.score = emptyPlayMoveScore();
     this.challenge = null;
     this.isNewRecord = false;
     this.lastFeedback = null;
+    this.boardResetToken = 0;
     this.countdownIndex = 0;
     this.countdownLabel = COUNTDOWN_LABELS[0] ?? null;
     this.scheduleCountdownAdvance();
     return this.snapshot();
   }
 
-  answer(raw: string): MoveNamingSnapshot {
+  /** Attempt a board move against the active challenge. */
+  attemptBoardMove(from: string, to: string, promotion?: string | null): PlayMoveSnapshot {
     if (this.phase !== 'playing' || !this.challenge) return this.snapshot();
-    const game = new Chess(this.challenge.initialFen);
-    const result = parseChessVoice(raw, game);
-    if (result.type === 'unrecognized' || result.type === 'ambiguous') {
-      return this.submitOutcome('recognition-failure');
-    }
-    if (result.type === 'move') {
-      const ok =
-        result.move.from === this.challenge.setupMove.from &&
-        result.move.to === this.challenge.setupMove.to;
-      return this.submitOutcome(ok ? 'correct' : 'wrong');
-    }
-    return this.submitOutcome('wrong');
+    const ok = isCorrectPlayMove(this.challenge, from, to, promotion);
+    return this.submitOutcome(ok ? 'correct' : 'wrong');
   }
 
-  submitOutcome(outcome: MoveNamingOutcome): MoveNamingSnapshot {
+  submitOutcome(outcome: PlayMoveOutcome): PlayMoveSnapshot {
     if (this.phase !== 'playing' || !this.challenge) return this.snapshot();
-
-    if (outcome === 'timeout') {
-      // Deprecated path — ignore if somehow called; never advance.
-      return this.snapshot();
-    }
-
-    this.score = scoreMoveNamingAttempt(this.score, outcome);
+    this.score = scorePlayMoveAttempt(this.score, outcome);
 
     if (outcome === 'correct') {
       this.lastFeedback = null;
@@ -139,23 +102,25 @@ export class MoveNamingSession {
       return this.snapshot();
     }
 
-    this.lastFeedback = outcome === 'recognition-failure' ? 'recognition-failure' : 'wrong';
+    this.lastFeedback = 'wrong';
+    this.boardResetToken += 1;
     return this.snapshot();
   }
 
-  replay(): MoveNamingSnapshot {
+  replay(): PlayMoveSnapshot {
     this.disposeTimers();
     this.phase = 'idle';
     this.challenge = null;
-    this.score = emptyMoveNamingScore();
+    this.score = emptyPlayMoveScore();
     this.countdownLabel = null;
     this.isNewRecord = false;
     this.lastFeedback = null;
+    this.boardResetToken = 0;
     this.sessionSeconds = SESSION_SECONDS;
     return this.snapshot();
   }
 
-  returnToIdle(): MoveNamingSnapshot {
+  returnToIdle(): PlayMoveSnapshot {
     this.disposeTimers();
     this.phase = 'idle';
     this.challenge = null;
@@ -164,17 +129,9 @@ export class MoveNamingSession {
     return this.snapshot();
   }
 
-  markRecordSaved(savedScore: number): MoveNamingSnapshot {
-    this.isNewRecord = isRecordBeat(savedScore, this.previousRecord);
-    this.previousRecord = Math.max(this.previousRecord, savedScore);
-    return this.snapshot();
-  }
-
-  snapshot(): MoveNamingSnapshot {
+  snapshot(): PlayMoveSnapshot {
     return {
       phase: this.phase,
-      responseSeconds: 0,
-      voiceEnabled: this.voiceEnabled,
       challenge: this.challenge,
       score: { ...this.score },
       remainingSeconds:
@@ -185,6 +142,7 @@ export class MoveNamingSession {
       previousRecord: this.previousRecord,
       isNewRecord: this.isNewRecord,
       lastFeedback: this.lastFeedback,
+      boardResetToken: this.boardResetToken,
     };
   }
 
@@ -234,3 +192,5 @@ export class MoveNamingSession {
     this.timer.dispose();
   }
 }
+
+export { COUNTDOWN_LABELS, COUNTDOWN_STEP_MS, SESSION_SECONDS };

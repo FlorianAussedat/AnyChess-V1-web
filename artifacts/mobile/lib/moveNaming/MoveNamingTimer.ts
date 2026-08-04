@@ -1,31 +1,14 @@
-type Clock = () => number;
+/**
+ * Compatibility shim — challenge-level timeouts were removed.
+ * Prefer TimedChallengeTimer from lib/timedChallenge.
+ */
+import { TimedChallengeTimer } from '../timedChallenge/TimedChallengeTimer.ts';
 
-function monotonicNow(): number {
-  return typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
-}
-
-/** Owns the two game timers and always clears prior handles before replacement. */
-export class MoveNamingTimer {
-  private readonly now: Clock;
+/** @deprecated Use TimedChallengeTimer. Kept for existing imports/tests. */
+export class MoveNamingTimer extends TimedChallengeTimer {
   private challengeHandle: ReturnType<typeof setTimeout> | null = null;
-  private sessionHandle: ReturnType<typeof setTimeout> | null = null;
-  private startedAt = 0;
 
-  constructor(now: Clock = monotonicNow) {
-    this.now = now;
-  }
-
-  startSession(seconds: number, onEnd: () => void): void {
-    this.clearSession();
-    this.startedAt = this.now();
-    this.sessionHandle = setTimeout(() => {
-      this.sessionHandle = null;
-      onEnd();
-    }, seconds * 1000);
-  }
-
+  /** @deprecated Per-question timeouts are no longer used by Nommer le coup. */
   startChallenge(seconds: number, onTimeout: () => void): void {
     this.clearChallenge();
     this.challengeHandle = setTimeout(() => {
@@ -34,23 +17,13 @@ export class MoveNamingTimer {
     }, seconds * 1000);
   }
 
-  elapsedSeconds(): number {
-    return this.startedAt ? Math.max(0, (this.now() - this.startedAt) / 1000) : 0;
-  }
-
   clearChallenge(): void {
     if (this.challengeHandle !== null) clearTimeout(this.challengeHandle);
     this.challengeHandle = null;
   }
 
-  clearSession(): void {
-    if (this.sessionHandle !== null) clearTimeout(this.sessionHandle);
-    this.sessionHandle = null;
-  }
-
-  dispose(): void {
+  override dispose(): void {
     this.clearChallenge();
-    this.clearSession();
-    this.startedAt = 0;
+    super.dispose();
   }
 }

@@ -20,14 +20,14 @@ import {
   type PuzzleStreakState,
 } from '@/lib/puzzles';
 import { formatStreakBandLabel } from '@/lib/puzzles/streakBand';
-import type { MoveNamingRecords } from '@/lib/moveNaming/MoveNamingRecords';
 import {
   RECORDS_CATEGORIES,
   type RecordsCategoryId,
-  loadMoveNamingRecords,
+  loadMoveNamingBest,
+  loadPlayMoveBest,
   loadTacticsRecords,
-  resetMoveNamingCategory,
   resetMoveNamingRecords,
+  resetPlayMoveRecords,
   resetTacticsRecords,
 } from '@/lib/records/AnyChessRecords';
 
@@ -45,12 +45,18 @@ export default function RecordsHubScreen() {
 
   const [category, setCategory] = useState<RecordsCategoryId>('tactics');
   const [tactics, setTactics] = useState<PuzzleStreakState>(emptyStreakState());
-  const [moveNaming, setMoveNaming] = useState<MoveNamingRecords>({});
+  const [moveNamingBest, setMoveNamingBest] = useState(0);
+  const [playMoveBest, setPlayMoveBest] = useState(0);
 
   const reload = useCallback(async () => {
-    const [t, m] = await Promise.all([loadTacticsRecords(), loadMoveNamingRecords()]);
+    const [t, mn, pm] = await Promise.all([
+      loadTacticsRecords(),
+      loadMoveNamingBest(),
+      loadPlayMoveBest(),
+    ]);
     setTactics(t);
-    setMoveNaming(m);
+    setMoveNamingBest(mn);
+    setPlayMoveBest(pm);
   }, []);
 
   useEffect(() => {
@@ -110,15 +116,21 @@ export default function RecordsHubScreen() {
       </Text>
 
       {category === 'tactics' ? (
-        <TacticsRecordsPanel
-          snapshot={tactics}
-          onReload={reload}
+        <TacticsRecordsPanel snapshot={tactics} onReload={reload} colors={colors} />
+      ) : category === 'play-move' ? (
+        <Session60RecordsPanel
+          label="Jouer le coup"
+          best={playMoveBest}
+          onReset={() => resetPlayMoveRecords().then(reload)}
+          resetTestID="reset-hub-play-move-records"
           colors={colors}
         />
       ) : (
-        <MoveNamingRecordsPanel
-          records={moveNaming}
-          onReload={reload}
+        <Session60RecordsPanel
+          label="Nommer le coup"
+          best={moveNamingBest}
+          onReset={() => resetMoveNamingRecords().then(reload)}
+          resetTestID="reset-hub-move-naming-records"
           colors={colors}
         />
       )}
@@ -183,72 +195,46 @@ function TacticsRecordsPanel({
   );
 }
 
-function MoveNamingRecordsPanel({
-  records,
-  onReload,
+function Session60RecordsPanel({
+  label,
+  best,
+  onReset,
+  resetTestID,
   colors,
 }: {
-  records: MoveNamingRecords;
-  onReload: () => Promise<void>;
+  label: string;
+  best: number;
+  onReset: () => void;
+  resetTestID: string;
   colors: ReturnType<typeof useColors>;
 }) {
   const resetAll = () =>
     Alert.alert(
-      'Réinitialiser tous les records ?',
-      'Cette action supprimera tous les meilleurs scores enregistrés.',
+      'Réinitialiser le record ?',
+      `Cette action remettra à zéro le meilleur score 60 secondes de ${label}.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Réinitialiser',
           style: 'destructive',
-          onPress: () => resetMoveNamingRecords().then(onReload),
-        },
-      ],
-    );
-
-  const resetOne = (seconds: number) =>
-    Alert.alert(
-      `Réinitialiser le record ${seconds} s ?`,
-      `Le meilleur score pour ${seconds} seconde${seconds > 1 ? 's' : ''} par coup sera remis à zéro.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Réinitialiser',
-          style: 'destructive',
-          onPress: () => resetMoveNamingCategory(seconds).then(onReload),
+          onPress: onReset,
         },
       ],
     );
 
   return (
     <View style={styles.panel}>
-      {Array.from({ length: 10 }, (_, i) => i + 1).map((seconds) => (
-        <View
-          key={seconds}
-          style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}
-        >
-          <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-            {seconds} s par coup
-          </Text>
-          <View style={styles.rowRight}>
-            <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold' }}>
-              {records[seconds] ?? 0}
-            </Text>
-            {(records[seconds] ?? 0) > 0 ? (
-              <Pressable
-                onPress={() => resetOne(seconds)}
-                hitSlop={8}
-                testID={`reset-hub-record-${seconds}`}
-              >
-                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Réinit.</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-      ))}
-      <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-hub-move-naming-records">
+      <View style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', flex: 1 }}>
+          Meilleur score / 60 s
+        </Text>
+        <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 22 }}>
+          {best}
+        </Text>
+      </View>
+      <Pressable onPress={resetAll} style={styles.resetBtn} testID={resetTestID}>
         <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
-          Réinitialiser les scores
+          Réinitialiser
         </Text>
       </Pressable>
     </View>
@@ -298,7 +284,6 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.radius.sm,
     gap: 10,
   },
-  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   resetBtn: {
     marginTop: 8,
     padding: 12,

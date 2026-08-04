@@ -6,6 +6,7 @@ export default function VisualisationLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="mental" />
       <Stack.Screen name="nommer" />
+      <Stack.Screen name="jouer" />
       <Stack.Screen name="records" />
     </Stack>
   );

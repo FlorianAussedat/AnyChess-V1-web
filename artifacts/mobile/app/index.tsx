@@ -4,6 +4,7 @@
  *
  * Header: left-aligned horizontal logo (scaled for readable artwork despite
  * canvas padding) + settings on the same row.
+ * Tagline text is omitted — the horizontal logo artwork already carries it.
  */
 import React from 'react';
 import {
@@ -35,13 +36,13 @@ export default function MainMenu() {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
-  // Target ~190–230px of VISIBLE logo artwork (PNG has large black padding).
+  // More prominent logo (~240–290px of VISIBLE artwork).
   const logoArtW = artWidth(HORIZONTAL_LOGO_ART);
   const logoArtH = artHeight(HORIZONTAL_LOGO_ART);
   const logoVisibleWidth = Math.min(
-    220,
+    290,
     Math.max(
-      190,
+      240,
       width - DesignTokens.spacing.screenX * 2 - DesignTokens.minTouchTarget - 8,
     ),
   );
@@ -88,9 +89,6 @@ export default function MainMenu() {
                 accessibilityIgnoresInvertColors
               />
             </View>
-            <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-              JOUER. APPRENDRE. VISUALISER.
-            </Text>
           </View>
           <SettingsButton />
         </View>
@@ -139,19 +137,11 @@ const styles = StyleSheet.create({
   brand: {
     flex: 1,
     alignItems: 'flex-start',
-    gap: 4,
     paddingTop: 2,
   },
   logoViewport: {
     overflow: 'hidden',
     position: 'relative',
-  },
-  tagline: {
-    fontSize: DesignTokens.typography.tagline,
-    fontFamily: 'Inter_500Medium',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginLeft: 2,
   },
   cards: {
     gap: DesignTokens.spacing.cardGap,

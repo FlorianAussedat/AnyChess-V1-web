@@ -19,6 +19,7 @@ import { AsyncStorageRepertoireStorage } from '../../repertoire/storage/AsyncSto
 import { PuzzleHistoryStorage } from '../../puzzles/PuzzleHistoryStorage.ts';
 import { PuzzleStreakStore } from '../../puzzles/PuzzleStreakStore.ts';
 import { MoveNamingRecordsStore } from '../../moveNaming/MoveNamingRecords.ts';
+import { PlayMoveRecordsStore } from '../../playMove/PlayMoveRecords.ts';
 
 beforeEach(() => {
   clearStorageCorruptionReports();
@@ -32,6 +33,8 @@ describe('StorageKeys registry', () => {
     assert.equal(StorageKeys.puzzleHistory.key, 'anychess.puzzles.history.v1');
     assert.equal(StorageKeys.puzzleStreaks.key, 'anychess.puzzles.streaks.v1');
     assert.equal(StorageKeys.moveNamingRecords.key, 'anychess.move-naming.records.v1');
+    assert.equal(StorageKeys.moveNamingSession60.key, 'anychess.move-naming.session60.v1');
+    assert.equal(StorageKeys.playMoveSession60.key, 'anychess.play-move.session60.v1');
     assert.equal(StorageKeys.continueLineRecent.key, 'anychess.continueLine.recent.v1');
     assert.equal(StorageKeys.mentalRecent.key, 'anychess.mental.recent.v1');
     assert.equal(StorageKeys.boardCoordinatesVisible.key, 'anychess.board.coordinatesVisible.v1');
@@ -225,5 +228,18 @@ describe('puzzle / move-naming stores', () => {
     const fallback = await records.load();
     assert.equal(fallback[1], 0);
     assert.equal(await storage.getItem(StorageKeys.moveNamingRecords.key), '[]');
+  });
+
+  it('loads session60 best defaults for move-naming and play-move', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const moveNaming = new MoveNamingRecordsStore(storage);
+    assert.equal(await moveNaming.loadBest(), 0);
+    await moveNaming.saveScore(6);
+    assert.equal(await moveNaming.loadBest(), 6);
+
+    const playMove = new PlayMoveRecordsStore(storage);
+    assert.equal(await playMove.loadBest(), 0);
+    await playMove.saveScore(4);
+    assert.equal(await playMove.loadBest(), 4);
   });
 });
