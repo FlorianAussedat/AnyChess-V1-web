@@ -1,7 +1,7 @@
 /**
  * Catalog of real persisted record categories (no storage I/O).
  */
-export type RecordsCategoryId = 'tactics' | 'move-naming';
+export type RecordsCategoryId = 'tactics' | 'move-naming' | 'play-move';
 
 export interface RecordsCategoryMeta {
   id: RecordsCategoryId;
@@ -22,7 +22,13 @@ export const RECORDS_CATEGORIES: RecordsCategoryMeta[] = [
   {
     id: 'move-naming',
     label: 'Nommer le coup',
-    description: 'Meilleurs scores sur 60 secondes (Visualisation)',
+    description: 'Meilleur score en 60 secondes (Vision de l’échiquier)',
+    legacyRoute: '/visualisation/records',
+  },
+  {
+    id: 'play-move',
+    label: 'Jouer le coup',
+    description: 'Meilleur score en 60 secondes (Vision de l’échiquier)',
     legacyRoute: '/visualisation/records',
   },
 ];

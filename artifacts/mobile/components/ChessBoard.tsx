@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
+import { BoardTheme } from '@/constants/boardTheme';
 import { PieceSvg } from './PieceSvg';
 import type { PType, PColor } from './PieceSvg';
 
@@ -14,16 +15,15 @@ import type { PType, PColor } from './PieceSvg';
 
 const FILES = 'abcdefgh';
 
-// AnyChess board — navy blue palette matching the logo
-const LIGHT_SQ   = '#738FA8';
-const DARK_SQ    = '#3D5472';
-const LIGHT_LAST = 'rgba(245,166,35,0.60)';   // gold — from logo waves
-const DARK_LAST  = 'rgba(200,120,0,0.60)';
-const LIGHT_SEL  = 'rgba(80,160,255,0.70)';
-const DARK_SEL   = 'rgba(40,120,220,0.70)';
-const COORD_ON_LIGHT = 'rgba(255,255,255,0.70)';
-const COORD_ON_DARK  = 'rgba(180,210,240,0.80)';
-const BORDER_COLOR   = '#1C3558';
+const LIGHT_SQ = BoardTheme.lightSquare;
+const DARK_SQ = BoardTheme.darkSquare;
+const LIGHT_LAST = BoardTheme.lightLastMove;
+const DARK_LAST = BoardTheme.darkLastMove;
+const LIGHT_SEL = BoardTheme.lightSelected;
+const DARK_SEL = BoardTheme.darkSelected;
+const COORD_ON_LIGHT = BoardTheme.coordOnLight;
+const COORD_ON_DARK = BoardTheme.coordOnDark;
+const BORDER_COLOR = BoardTheme.border;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

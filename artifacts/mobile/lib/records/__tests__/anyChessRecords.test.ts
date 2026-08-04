@@ -7,8 +7,8 @@ import {
 
 describe('AnyChessRecords catalog', () => {
   it('only lists categories that already persist scores in the app', () => {
-    assert.deepEqual(listRecordsCategoryIds(), ['tactics', 'move-naming']);
-    assert.equal(RECORDS_CATEGORIES.length, 2);
+    assert.deepEqual(listRecordsCategoryIds(), ['tactics', 'move-naming', 'play-move']);
+    assert.equal(RECORDS_CATEGORIES.length, 3);
     for (const cat of RECORDS_CATEGORIES) {
       assert.ok(cat.label.trim());
       assert.ok(cat.description.trim());

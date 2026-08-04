@@ -4,10 +4,10 @@
  *
  * Header: left-aligned horizontal logo (scaled for readable artwork despite
  * canvas padding) + settings on the same row.
+ * Tagline text is omitted — the horizontal logo artwork already carries it.
  */
 import React from 'react';
 import {
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,9 +15,9 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { formatAppVersionLabel } from '@/lib/app/version';
 import { BrandAssets, modeCardIllustration } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
@@ -32,20 +32,17 @@ import { SettingsButton } from '@/components/navigation/SettingsButton';
 
 export default function MainMenu() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
-  // Target ~190–230px of VISIBLE logo artwork (PNG has large black padding).
+  // More prominent logo (~240–290px of VISIBLE artwork).
   const logoArtW = artWidth(HORIZONTAL_LOGO_ART);
   const logoArtH = artHeight(HORIZONTAL_LOGO_ART);
   const logoVisibleWidth = Math.min(
-    220,
+    290,
     Math.max(
-      190,
+      240,
       width - DesignTokens.spacing.screenX * 2 - DesignTokens.minTouchTarget - 8,
     ),
   );
@@ -94,9 +91,6 @@ export default function MainMenu() {
                 accessibilityIgnoresInvertColors
               />
             </View>
-            <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-              JOUER. APPRENDRE. VISUALISER.
-            </Text>
           </View>
           <SettingsButton />
         </View>
@@ -145,19 +139,11 @@ const styles = StyleSheet.create({
   brand: {
     flex: 1,
     alignItems: 'flex-start',
-    gap: 4,
     paddingTop: 2,
   },
   logoViewport: {
     overflow: 'hidden',
     position: 'relative',
-  },
-  tagline: {
-    fontSize: DesignTokens.typography.tagline,
-    fontFamily: 'Inter_500Medium',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginLeft: 2,
   },
   cards: {
     gap: DesignTokens.spacing.cardGap,

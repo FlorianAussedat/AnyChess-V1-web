@@ -2,18 +2,12 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useRef,
   useState,
 } from 'react';
-import { Chess } from 'chess.js';
-import type { Move, Square } from 'chess.js';
-import {
-  gameStateAnnouncement,
-  sanToVerbal,
-  verbalMove,
-} from '@/lib/chessParser';
-import { normalizeTranscript, parseChessVoice } from '@/lib/voice';
+import { useFocusEffect } from 'expo-router';
+import type { Move } from 'chess.js';
+import { gameStateAnnouncement, verbalMove } from '@/lib/chessParser';
 import type { ChessEngine } from '@/lib/engine';
 import { createOpponentEngine } from '@/lib/engines';
 import { MIN_UCI_ELO } from '@/lib/engines/stockfish/uci';
@@ -34,25 +28,19 @@ import {
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
 import { identifyOpeningFromSans } from '@/lib/openings';
+import {
+  applyUserMoveInput,
+  legalDestinationsForSquare,
+  speakMoveHistorySummary,
+  undoPlayerTurn,
+  type BoardPiece,
+  type LastMove,
+  type MoveEvent,
+  type PlayerColor,
+} from '@/lib/game';
+import { useSharedPlayState } from '@/hooks/useSharedPlayState';
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export type PlayerColor = 'w' | 'b';
-
-export type BoardPiece = {
-  square: string;
-  type: string;
-  color: 'w' | 'b';
-};
-
-export type LastMove = { from: string; to: string };
-
-/** Emitted after every user-move attempt so the UI can trigger haptics/sounds. */
-export type MoveEvent = {
-  kind: 'success' | 'error';
-  id: number;
-  source?: MoveInputSource;
-};
+export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
 interface GameContextValue {
   board: (BoardPiece | null)[][];
@@ -76,42 +64,49 @@ interface GameContextValue {
   repeatLast: () => void;
   summarizeGame: () => void;
   undoMove: () => void;
-  /** Build current game as PGN text (in progress or finished). */
   exportPgn: () => string;
-  /** Download/share the current game as a .pgn file. */
   downloadPgn: () => void;
 }
 
-// ── Context ────────────────────────────────────────────────────────────────
-
 const GameContext = createContext<GameContextValue | null>(null);
 
-// ── Chess-relevance heuristic ─────────────────────────────────────────────
-// Only emit an error event when the input looks like a genuine move attempt.
-// Prevents buzzing on random ambient noise or unrelated speech.
-
-function looksLikeChessMove(normalized: string): boolean {
-  if (/\b[a-h][1-8]\b/.test(normalized)) return true;
-  if (/\b(pion|cavalier|fou|tour|dame|roi|pawn|knight|bishop|rook|queen|king|roque|castle|petit|grand)\b/.test(normalized)) return true;
-  if (/\bprend|takes|captures\b/.test(normalized)) return true;
-  return false;
-}
-
-// ── Provider ───────────────────────────────────────────────────────────────
-
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const gameRef         = useRef(new Chess());
-  const lastSpokenRef   = useRef('');
-  const playerColorRef  = useRef<PlayerColor>('w');
   const strengthBandIdRef = useRef(DEFAULT_STRENGTH_BAND_ID);
-
-  // ── Opponent engine (Stockfish on web, built-in fallback on native) ─────────
-  // We only ever talk to the ChessEngine interface — the concrete engine is
-  // chosen by createOpponentEngine() and can be swapped without touching this
-  // file. Recreated when the strength band changes / on new game (fresh Elo jitter).
   const engineRef = useRef<ChessEngine | null>(null);
+  const [strengthBandId, setStrengthBandIdState] = useState(DEFAULT_STRENGTH_BAND_ID);
 
-  /** Build Stockfish options; below MIN_UCI_ELO, clamp Elo and widen variety. */
+  const play = useSharedPlayState();
+  const {
+    gameRef,
+    playerColorRef,
+    moveGenerationRef,
+    opponentMoveRef,
+    playerColor,
+    setPlayerColor,
+    board,
+    history,
+    status,
+    setStatus,
+    heardText,
+    setHeardText,
+    lastMove,
+    setLastMove,
+    isGameOver,
+    waitingForUser,
+    setWaitingForUser,
+    isOpponentThinking,
+    setIsOpponentThinking,
+    moveEvent,
+    isSpeaking,
+    syncState,
+    speak,
+    emitEvent,
+    repeatLast,
+    cancelPendingOpponent,
+    resetUiForNewGame,
+    scheduleOpponentKickoff,
+  } = play;
+
   const engineOptionsForBand = useCallback((bandId: string) => {
     const targetElo = eloForBand(getStrengthBand(bandId));
     if (targetElo < MIN_UCI_ELO) {
@@ -120,85 +115,35 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return { elo: targetElo };
   }, []);
 
-  if (engineRef.current === null) {
-    engineRef.current = createOpponentEngine(engineOptionsForBand(DEFAULT_STRENGTH_BAND_ID));
-  }
-
-  // Monotonic token that identifies the "current" engine turn. Bumping it
-  // invalidates any in-flight engine computation (undo / new game / colour
-  // change while the engine is thinking), so a late result is safely ignored.
-  const moveGenerationRef = useRef(0);
-
-  const recreateEngine = useCallback((bandId: string) => {
-    const prev = engineRef.current;
-    prev?.cancel?.();
-    prev?.destroy?.();
-    const next = createOpponentEngine(engineOptionsForBand(bandId));
-    engineRef.current = next;
-    next.init?.().catch(() => {
-      /* engine failed to load — opponentMove will simply produce no move */
-    });
-  }, [engineOptionsForBand]);
-
-  useEffect(() => {
-    engineRef.current?.init?.().catch(() => {
-      /* engine failed to load — opponentMove will simply produce no move */
-    });
-    return () => {
-      engineRef.current?.destroy?.();
-    };
-  }, []);
-
-  // Mirror the shared SpeechService "speaking" signal into React state so the
-  // mic layer can pause recognition while TTS (player move + engine reply) is
-  // playing and resume once the whole queue drains.
-  useEffect(() => {
-    const unsubscribe = speechService.onSpeakingChange(setIsSpeaking);
-    return () => {
-      unsubscribe();
-      speechService.cancel('unmount');
-    };
-  }, []);
-
-  const [playerColor, setPlayerColor]           = useState<PlayerColor>('w');
-  const [board, setBoard]                       = useState<(BoardPiece | null)[][]>(
-    () => gameRef.current.board() as (BoardPiece | null)[][],
+  const recreateEngine = useCallback(
+    (bandId: string) => {
+      const prev = engineRef.current;
+      prev?.cancel?.();
+      prev?.destroy?.();
+      const next = createOpponentEngine(engineOptionsForBand(bandId));
+      engineRef.current = next;
+      next.init?.().catch(() => {});
+    },
+    [engineOptionsForBand],
   );
-  const [history, setHistory]                   = useState<string[]>([]);
-  const [status, setStatus]                     = useState('À toi de jouer.');
-  const [heardText, setHeardText]               = useState('');
-  const [lastMove, setLastMove]                 = useState<LastMove | null>(null);
-  const [isGameOver, setIsGameOver]             = useState(false);
-  const [waitingForUser, setWaitingForUser]     = useState(true);
-  const [isOpponentThinking, setIsOpponentThinking] = useState(false);
-  const [moveEvent, setMoveEvent]               = useState<MoveEvent | null>(null);
-  const [isSpeaking, setIsSpeaking]             = useState(false);
-  const [strengthBandId, setStrengthBandIdState] = useState(DEFAULT_STRENGTH_BAND_ID);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
-  const syncState = useCallback(() => {
-    const g = gameRef.current;
-    setBoard(g.board() as (BoardPiece | null)[][]);
-    setHistory(g.history());
-    setIsGameOver(g.isGameOver());
-  }, []);
-
-  /**
-   * Speak text via the shared SpeechService.  Utterances are queued so the
-   * player's move announcement plays fully before the engine's reply.  The
-   * mic layer pauses while `isSpeaking` is true and resumes when it clears.
-   *
-   * Pass `{ flush: true }` to interrupt current speech (repeat / new game).
-   */
-  const speak = useCallback((text: string, opts?: { flush?: boolean }) => {
-    lastSpokenRef.current = text;
-    speechService.speak(text, opts);
-  }, []);
-
-  const emitEvent = useCallback((kind: 'success' | 'error', source?: MoveInputSource) => {
-    setMoveEvent(prev => ({ kind, id: (prev?.id ?? 0) + 1, source }));
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (!engineRef.current) {
+        engineRef.current = createOpponentEngine(
+          engineOptionsForBand(strengthBandIdRef.current),
+        );
+      }
+      engineRef.current.init?.().catch(() => {});
+      return () => {
+        moveGenerationRef.current += 1;
+        const engine = engineRef.current;
+        engineRef.current = null;
+        engine?.cancel?.();
+        engine?.destroy?.();
+      };
+    }, [engineOptionsForBand, moveGenerationRef]),
+  );
 
   const setStrengthBandId = useCallback(
     (id: string) => {
@@ -209,49 +154,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     [recreateEngine],
   );
 
-  const repeatLast = useCallback(() => {
-    speak(lastSpokenRef.current || 'Aucun coup à répéter.', { flush: true });
-  }, [speak]);
-
-  // ── summarizeGame ─────────────────────────────────────────────────────────
-
   const summarizeGameHistory = useCallback(() => {
-    const moves = gameRef.current.history();
-    if (!moves.length) {
-      speak('Aucun coup joué pour le moment.', { flush: true });
-      return;
-    }
-    // Flush anything playing, then queue each half-move; the SpeechService
-    // plays them back-to-back and clears isSpeaking when finished.
-    speechService.cancel('summarize');
-    moves.forEach((san, i) => {
-      const pairNum = Math.floor(i / 2) + 1;
-      const isWhite = i % 2 === 0;
-      const verbal = sanToVerbal(san);
-      const text = isWhite ? `${pairNum}. ${verbal}` : verbal;
-      speechService.speak(text, { rate: 0.9 });
-    });
-  }, [speak]);
+    speakMoveHistorySummary(gameRef.current.history());
+  }, [gameRef]);
 
-  // ── opponentMove ──────────────────────────────────────────────────────────
-
-  const opponentMoveRef     = useRef<() => void>(() => {});
-  const opponentTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  /**
-   * Abort a pending/in-flight engine turn. Invalidates the current generation
-   * (so a late engine result is discarded), clears any scheduled kickoff, and
-   * tells the engine to stop calculating. Call this before undo / new game /
-   * colour change.
-   */
-  const cancelPendingOpponent = useCallback(() => {
-    moveGenerationRef.current += 1;
-    if (opponentTimeoutRef.current != null) {
-      clearTimeout(opponentTimeoutRef.current);
-      opponentTimeoutRef.current = null;
-    }
-    engineRef.current?.cancel?.();
-  }, []);
+  const cancelPending = useCallback(() => {
+    cancelPendingOpponent(() => engineRef.current?.cancel?.());
+  }, [cancelPendingOpponent]);
 
   const opponentMove = useCallback(async () => {
     const game = gameRef.current;
@@ -267,8 +176,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       selected = null;
     }
 
-    // Superseded while thinking (undo / new game / colour change) → discard.
-    // The action that cancelled us is responsible for resetting UI state.
     if (myGen !== moveGenerationRef.current) return;
 
     if (!selected) {
@@ -296,21 +203,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setIsOpponentThinking(false);
       setWaitingForUser(true);
     }
-  }, [syncState, speak]);
+  }, [
+    gameRef,
+    moveGenerationRef,
+    setIsOpponentThinking,
+    setWaitingForUser,
+    setLastMove,
+    syncState,
+    setStatus,
+    speak,
+  ]);
 
   opponentMoveRef.current = opponentMove;
 
-  // ── Shared post-player-move logic ─────────────────────────────────────────
-
-  /**
-   * Called after any successful player move (voice or touch).
-   *
-   * The player's validated move is always announced aloud — including
-   * captures, checks, checkmate, promotions and castling — via
-   * gameStateAnnouncement(verbalMove(...)).  The announcement is queued, so
-   * when the engine replies its own announcement plays right after (the mic
-   * stays paused for the whole sequence).
-   */
   const finishPlayerMove = useCallback(
     (played: Move, source: MoveInputSource) => {
       setLastMove({ from: played.from, to: played.to });
@@ -321,12 +226,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
 
       const game = gameRef.current;
-
-      // verbalMove handles piece name, capture ("prend"), castling and
-      // promotion; gameStateAnnouncement appends check / checkmate / draw.
       const playerAnnouncement = gameStateAnnouncement(game, verbalMove(played));
-
-      // Stop mid-summary / leftover dictation before announcing the move.
       speechService.cancel('move');
 
       if (game.isGameOver()) {
@@ -340,138 +240,108 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         opponentMoveRef.current();
       }
     },
-    [syncState, emitEvent, speak],
+    [
+      setLastMove,
+      setHeardText,
+      syncState,
+      emitEvent,
+      gameRef,
+      setWaitingForUser,
+      setStatus,
+      speak,
+      opponentMoveRef,
+    ],
   );
 
-  // ── undoMove ──────────────────────────────────────────────────────────────
-
-  /**
-   * Undo the player's last move AND the engine's response.
-   * Returns the game to the player's turn and re-announces the engine's
-   * previous move (if any) so the player can re-orient.
-   */
   const undoMove = useCallback(() => {
-    const game = gameRef.current;
-
-    // Abort any pending/in-flight engine turn first, so a late Stockfish
-    // result cannot land on the restored position.
-    cancelPendingOpponent();
+    cancelPending();
     speechService.cancel('undo');
 
-    const allMoves = game.history({ verbose: true }) as Move[];
-
-    // Need at least 2 half-moves to undo (player + engine)
-    if (allMoves.length < 2) {
-      // Only one half-move: undo it if it was the player's
-      if (allMoves.length === 1 && allMoves[0].color === playerColorRef.current) {
-        game.undo();
-        syncState();
-        setLastMove(null);
-        setWaitingForUser(true);
-        setIsOpponentThinking(false);
-        setIsGameOver(false);
-        setHeardText('');
-        setStatus('À toi de jouer.');
-        speak('Coup annulé. Début de la partie.');
-      }
-      return;
-    }
-
-    // Undo engine's last move, then player's last move
-    game.undo();
-    game.undo();
+    const result = undoPlayerTurn(gameRef.current, playerColorRef.current);
+    if (result.kind === 'noop') return;
 
     syncState();
     setIsOpponentThinking(false);
-    setIsGameOver(false);
     setHeardText('');
     setWaitingForUser(true);
 
-    // Restore last-move highlight to the move just before the undo
-    const remaining = game.history({ verbose: true }) as Move[];
-    if (remaining.length > 0) {
-      const lm = remaining[remaining.length - 1];
-      setLastMove({ from: lm.from, to: lm.to });
-    } else {
+    if (result.kind === 'undone-to-start') {
       setLastMove(null);
+      setStatus(result.status);
+      speak(result.speak);
+      return;
     }
 
-    // Find the engine's last move in the remaining history and re-announce it
-    const engineColor: PlayerColor = playerColorRef.current === 'w' ? 'b' : 'w';
-    const lastEngineMove = remaining
-      .slice()
-      .reverse()
-      .find(m => m.color === engineColor) ?? null;
-
-    if (lastEngineMove) {
-      const announcement = verbalMove(lastEngineMove);
-      setStatus(announcement);
-      speak(`Coup annulé. Dernier coup de l'adversaire : ${announcement}`);
-    } else {
-      setStatus('À toi de jouer.');
-      speak('Coup annulé. Début de la partie.');
-    }
-  }, [syncState, speak, cancelPendingOpponent]);
-
-  // ── applyUserMove (voice / text input) ────────────────────────────────────
+    setLastMove(result.lastMove);
+    setStatus(result.status);
+    speak(result.speak);
+  }, [
+    cancelPending,
+    gameRef,
+    playerColorRef,
+    syncState,
+    setIsOpponentThinking,
+    setHeardText,
+    setWaitingForUser,
+    setLastMove,
+    setStatus,
+    speak,
+  ]);
 
   const applyUserMove = useCallback(
     (raw: string, source: MoveInputSource = 'voice') => {
-      const input = normalizeTranscript(raw);
-      const game = gameRef.current;
-      const parsed = parseChessVoice(raw, game, { mode: 'classic' });
+      const result = applyUserMoveInput({
+        raw,
+        game: gameRef.current,
+        mode: 'classic',
+        waitingForUser,
+        isOpponentThinking,
+        source,
+      });
 
-      // ── App commands — bypass the turn guard ──────────────────────────
-      if (parsed.type === 'command') {
-        if (parsed.command === 'repeat') { repeatLast(); return; }
-        if (parsed.command === 'summarize') { summarizeGameHistory(); return; }
-        if (parsed.command === 'undo') { undoMove(); return; }
+      if (result.kind === 'command') {
+        if (result.command === 'repeat') repeatLast();
+        else if (result.command === 'summarize') summarizeGameHistory();
+        else if (result.command === 'undo') undoMove();
         return;
       }
 
-      // Non-command voice/text input: stop any mid-summary/dictation so a
-      // rejected attempt cannot leave stale TTS running.
       speechService.cancel('move');
+      if (result.kind === 'ignored-busy') return;
 
-      if (!waitingForUser || isOpponentThinking || game.isGameOver()) return;
+      setHeardText(result.heardText);
 
-      setHeardText(raw ? `« ${raw} »` : '');
-
-      if (parsed.type === 'unrecognized') {
+      if (result.kind === 'unrecognized') {
         setStatus('Coup non reconnu. Répète.');
-        if (looksLikeChessMove(input)) emitEvent('error', source);
+        if (result.emitError) emitEvent('error', source);
         return;
       }
-
-      if (parsed.type === 'ambiguous') {
+      if (result.kind === 'ambiguous') {
         setStatus('Coup ambigu. Précise la case de départ.');
         emitEvent('error', source);
         return;
       }
-
-      if (parsed.type === 'illegal') {
+      if (result.kind === 'illegal') {
         setStatus('Coup illégal. Répète.');
         emitEvent('error', source);
         return;
       }
 
-      try {
-        const played = game.move({
-          from: parsed.move.from,
-          to: parsed.move.to,
-          promotion: parsed.move.promotion ?? 'q',
-        }) as Move;
-        finishPlayerMove(played, source);
-      } catch {
-        setStatus('Coup illégal. Répète.');
-        emitEvent('error', source);
-      }
+      finishPlayerMove(result.played, source);
     },
-    [waitingForUser, isOpponentThinking, finishPlayerMove,
-     emitEvent, repeatLast, summarizeGameHistory, undoMove],
+    [
+      gameRef,
+      waitingForUser,
+      isOpponentThinking,
+      repeatLast,
+      summarizeGameHistory,
+      undoMove,
+      setHeardText,
+      setStatus,
+      emitEvent,
+      finishPlayerMove,
+    ],
   );
-
-  // ── movePieceBySquare (touch input) ───────────────────────────────────────
 
   const movePieceBySquare = useCallback(
     (from: string, to: string): boolean => {
@@ -485,63 +355,50 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
     },
-    [waitingForUser, isOpponentThinking, finishPlayerMove],
+    [gameRef, waitingForUser, isOpponentThinking, finishPlayerMove],
   );
-
-  // ── getLegalDestinations ──────────────────────────────────────────────────
 
   const getLegalDestinations = useCallback(
-    (square: string): string[] => {
-      const game = gameRef.current;
-      if (!waitingForUser || game.isGameOver()) return [];
-      const piece = game.get(square as Square);
-      if (!piece || piece.color !== playerColorRef.current) return [];
-      try {
-        const moves = game.moves({ verbose: true, square: square as Square }) as Move[];
-        return [...new Set(moves.map(m => m.to))];
-      } catch {
-        return [];
-      }
-    },
-    [waitingForUser],
+    (square: string): string[] =>
+      legalDestinationsForSquare(gameRef.current, square, playerColorRef.current, {
+        waitingForUser,
+      }),
+    [gameRef, playerColorRef, waitingForUser],
   );
-
-  // ── Reset / new game ──────────────────────────────────────────────────────
 
   const resetForColor = useCallback(
     (color: PlayerColor) => {
-      cancelPendingOpponent();
+      cancelPending();
       speechService.cancel('new-game');
-      // Fresh Elo jitter within the selected strength band for each new game.
       recreateEngine(strengthBandIdRef.current);
       gameRef.current.reset();
-      lastSpokenRef.current = '';
-      setLastMove(null);
-      setHeardText('');
-      setIsGameOver(false);
-      setIsOpponentThinking(false);
-      setMoveEvent(null);
-      setIsSpeaking(false);
+      resetUiForNewGame();
       syncState();
 
       if (color === 'b') {
         setWaitingForUser(false);
         setStatus("L'adversaire prépare son coup…");
-        opponentTimeoutRef.current = setTimeout(() => {
-          opponentTimeoutRef.current = null;
-          opponentMoveRef.current();
-        }, 1200);
+        scheduleOpponentKickoff(1200);
       } else {
         setWaitingForUser(true);
         setStatus('À toi de jouer.');
       }
     },
-    [syncState, cancelPendingOpponent, recreateEngine],
+    [
+      cancelPending,
+      recreateEngine,
+      gameRef,
+      resetUiForNewGame,
+      syncState,
+      setWaitingForUser,
+      setStatus,
+      scheduleOpponentKickoff,
+    ],
   );
 
   const newGame = useCallback(() => {
     resetForColor(playerColorRef.current);
-  }, [resetForColor]);
+  }, [resetForColor, playerColorRef]);
 
   const changeColor = useCallback(
     (color: PlayerColor) => {
@@ -549,7 +406,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setPlayerColor(color);
       resetForColor(color);
     },
-    [resetForColor],
+    [playerColorRef, setPlayerColor, resetForColor],
   );
 
   const buildPgn = useCallback(() => {
@@ -578,10 +435,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       },
       moves,
     });
-  }, []);
+  }, [gameRef, playerColorRef]);
 
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
-
   const downloadPgn = useCallback(() => {
     downloadPgnFile(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
@@ -618,8 +474,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     </GameContext.Provider>
   );
 }
-
-// ── Hook ───────────────────────────────────────────────────────────────────
 
 export function useGame(): GameContextValue {
   const ctx = useContext(GameContext);

@@ -5,14 +5,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Chess } from 'chess.js';
@@ -20,6 +18,7 @@ import type { Move } from 'chess.js';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { SoundToggle } from '@/components/SoundToggle';
@@ -47,11 +46,8 @@ function formatLine(sans: string[], startPly = 0): string {
 export default function ContinueLineScreen() {
   useCancelSpeechOnLeave('/openings/continue');
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
   const { soundEnabled } = useAudioSettings();
 
   const { folderId, folderIds, side: sideParam } = useLocalSearchParams<{

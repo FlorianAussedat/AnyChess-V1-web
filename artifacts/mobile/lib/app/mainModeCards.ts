@@ -22,54 +22,52 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     id: 'classic',
     route: '/classic' as Href,
     title: 'Partie classique',
-    description: 'Joue une partie complète contre Stockfish, à la voix ou au doigt.',
+    description:
+      'Joue une partie, tout simplement ! À la voix ou directement sur l’échiquier.',
     iconName: 'people-outline',
-    /** User original: V1-mascot-classic-knight-soundwave.png */
-    requiredMascotAsset: 'V1-mascot-classic-knight-soundwave.png',
+    /** Production transparent mascot PNG still required. */
+    requiredMascotAsset: 'mascot-classic-knight-soundwave.png',
   },
   {
     id: 'openings',
     route: '/openings' as Href,
-    title: 'Ouvertures',
-    description: 'Joue contre ton répertoire ou continue une ligne PGN importée.',
+    title: 'Apprends tes ouvertures',
+    description: 'Apprends et révise tes répertoires d’ouvertures, coup après coup.',
     iconName: 'book-outline',
-    /** User original (exact filename includes double .png): V1-mascot-openings-knight-reading.png.png */
-    requiredMascotAsset: 'V1-mascot-openings-knight-reading.png.png',
+    requiredMascotAsset: 'mascot-openings-knight-reading.png',
   },
   {
     id: 'blind',
     route: '/blind' as Href,
-    title: 'Séquences à l’aveugle',
-    description: 'Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.',
+    title: 'Mémorisation',
+    description:
+      'Entraîne-toi à retenir des séquences de coups, à l’écoute ou en les observant.',
     iconName: 'eye-off-outline',
-    /** User original: v1-mascot-blind-knight-blindfold.png */
-    requiredMascotAsset: 'v1-mascot-blind-knight-blindfold.png',
+    requiredMascotAsset: 'mascot-blind-knight-blindfold.png',
   },
   {
     id: 'puzzles',
     route: '/puzzles' as Href,
-    title: 'Tactiques',
-    description: 'Résous des problèmes Lichess à vue ou à l’aveugle, hors-ligne.',
+    title: 'Entraînement tactique',
+    description: 'Résous des positions tactiques, avec ou sans échiquier visible.',
     iconName: 'extension-puzzle-outline',
-    /** User original: v1-mascot-tactics-knight-calculator.png */
-    requiredMascotAsset: 'v1-mascot-tactics-knight-calculator.png',
+    requiredMascotAsset: 'mascot-tactics-knight-calculator.png',
   },
   {
     id: 'visualisation',
     route: '/visualisation' as Href,
-    title: 'Visualisation',
-    description: 'Suivi mental de position et reconnaissance rapide de coups.',
+    title: 'Vision de l’échiquier',
+    description:
+      'Entraîne-toi à suivre une position mentalement et à reconnaître rapidement les coups.',
     iconName: 'eye-outline',
-    /** User original: v1-mascot-visualisation-knight-binoculars.png */
-    requiredMascotAsset: 'v1-mascot-visualisation-knight-binoculars.png',
+    requiredMascotAsset: 'mascot-visualisation-knight-binoculars.png',
   },
   {
     id: 'quiz-ouverture',
     route: '/quiz-ouverture' as Href,
-    title: 'Quiz Ouverture',
-    description: 'Nomme ou construis des ouvertures à partir de la base ECO.',
+    title: 'Culture générale',
+    description: 'Teste tes connaissances sur les ouvertures et la culture échiquéenne.',
     iconName: 'help-circle-outline',
-    /** User original: V1-mascot-quiz-knight-detective.png */
-    requiredMascotAsset: 'V1-mascot-quiz-knight-detective.png',
+    requiredMascotAsset: 'mascot-quiz-knight-detective.png',
   },
 ];

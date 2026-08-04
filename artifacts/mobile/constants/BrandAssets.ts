@@ -2,6 +2,9 @@
  * Central require() map for Major Update brand assets.
  * Keep paths relative so Metro can resolve them.
  *
+ * Filenames under assets/brand are lowercase kebab-case for
+ * Windows/Android/Linux case-safety where possible.
+ *
  * ModeCard / Accueil illustrations use lightweight `display/` WebP copies
  * derived from the user-supplied `v1-` / `V1-` PNGs (originals untouched).
  * Regenerate with: `pnpm run optimize:brand-display`
@@ -54,7 +57,7 @@ export const BrandAssets = {
   },
 } as const;
 
-/** Prefer user v1 mascot art; fall back to legacy mode PNG only if missing. */
+/** Prefer mascot art; fall back to mode PNG only if missing. */
 export function modeCardIllustration(modeId: MainModeId): ImageSourcePropType {
   return BrandAssets.mascots[modeId] ?? BrandAssets.modes[modeId];
 }

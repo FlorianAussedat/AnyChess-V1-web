@@ -1,9 +1,9 @@
 import React from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { BrandAssets } from '@/constants/BrandAssets';
 import type { ImageSourcePropType } from 'react-native';
 
@@ -30,15 +30,20 @@ const EXERCISES: ExerciseCard[] = [
     description: 'Dicte la ligne jusqu’à la position qui identifie l’ouverture demandée.',
     icon: BrandAssets.modes.openings,
   },
+  {
+    id: 'culture',
+    route: '/quiz-ouverture/culture' as Href,
+    title: 'Quiz',
+    description:
+      'Teste ta culture échiquéenne avec des questions variées sur l’histoire, les champions, les règles, les tournois et le monde des échecs.',
+    icon: BrandAssets.modes.target,
+  },
 ];
 
 export default function QuizOuvertureHub() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   return (
     <ScrollView
@@ -64,7 +69,7 @@ export default function QuizOuvertureHub() {
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Menu</Text>
       </Pressable>
 
-      <Text style={[styles.title, { color: colors.foreground }]}>Quiz Ouverture</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>Culture générale</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         Utilise la base d’ouvertures ECO locale — indépendante de tes répertoires PGN.
       </Text>

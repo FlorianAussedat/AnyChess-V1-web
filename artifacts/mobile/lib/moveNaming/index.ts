@@ -2,6 +2,7 @@ export { scoreMoveNamingAttempt, emptyMoveNamingScore } from './MoveNamingScorer
 export { MoveNamingTimer } from './MoveNamingTimer.ts';
 export { buildMoveNamingChallenge, pickMoveNamingChallenge } from './MoveNamingChallenge.ts';
 export { MoveNamingRecordsStore } from './MoveNamingRecords.ts';
+export type { MoveNamingSession60Record, MoveNamingRecords } from './MoveNamingRecords.ts';
 export {
   MoveNamingSession,
   COUNTDOWN_LABELS,

@@ -23,6 +23,17 @@ describe('main mode cards catalog', () => {
       assert.ok(mode.requiredMascotAsset.endsWith('.png'), mode.id);
     }
   });
+
+  it('uses the 0.0.4.1 French home labels', () => {
+    const byId = Object.fromEntries(MAIN_MODE_CARD_META.map((m) => [m.id, m]));
+    assert.equal(byId.classic?.title, 'Partie classique');
+    assert.match(byId.classic?.description ?? '', /voix|échiquier/i);
+    assert.equal(byId.openings?.title, 'Apprends tes ouvertures');
+    assert.equal(byId.blind?.title, 'Mémorisation');
+    assert.equal(byId.puzzles?.title, 'Entraînement tactique');
+    assert.equal(byId.visualisation?.title, 'Vision de l’échiquier');
+    assert.equal(byId['quiz-ouverture']?.title, 'Culture générale');
+  });
 });
 
 describe('design tokens', () => {

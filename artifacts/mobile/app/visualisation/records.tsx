@@ -4,83 +4,101 @@ import { useRouter } from 'expo-router';
 import { BackButton } from '@/components/BackButton';
 import { useColors } from '@/hooks/useColors';
 import { defaultKeyValueStorage } from '@/lib/storage';
-import {
-  MoveNamingRecordsStore,
-  type MoveNamingRecords,
-} from '@/lib/moveNaming/MoveNamingRecords';
+import { MoveNamingRecordsStore } from '@/lib/moveNaming/MoveNamingRecords';
+import { PlayMoveRecordsStore } from '@/lib/playMove/PlayMoveRecords';
 
-const store = new MoveNamingRecordsStore(defaultKeyValueStorage);
+const moveNamingStore = new MoveNamingRecordsStore(defaultKeyValueStorage);
+const playMoveStore = new PlayMoveRecordsStore(defaultKeyValueStorage);
 
 export default function VisualisationRecordsScreen() {
   const colors = useColors();
   const router = useRouter();
-  const [records, setRecords] = useState<MoveNamingRecords>({});
-  const load = useCallback(() => store.load().then(setRecords).catch(() => setRecords({})), []);
+  const [moveNamingBest, setMoveNamingBest] = useState(0);
+  const [playMoveBest, setPlayMoveBest] = useState(0);
+  const [legacy, setLegacy] = useState<Record<number, number>>({});
+
+  const load = useCallback(async () => {
+    const [mn, pm, leg] = await Promise.all([
+      moveNamingStore.loadBest().catch(() => 0),
+      playMoveStore.loadBest().catch(() => 0),
+      moveNamingStore.load().catch(() => ({}) as Record<number, number>),
+    ]);
+    setMoveNamingBest(mn);
+    setPlayMoveBest(pm);
+    setLegacy(leg);
+  }, []);
+
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
+
+  const hasLegacy = Object.values(legacy).some((v) => (v ?? 0) > 0);
 
   const resetAll = () =>
     Alert.alert(
       'Réinitialiser tous les records ?',
-      'Cette action supprimera tous les meilleurs scores enregistrés.',
+      'Cette action remettra à zéro les records 60 secondes. Les anciens scores par délai (legacy) restent conservés séparément.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Réinitialiser',
           style: 'destructive',
-          onPress: () => store.reset().then(load),
-        },
-      ],
-    );
-
-  const resetOne = (seconds: number) =>
-    Alert.alert(
-      `Réinitialiser le record ${seconds} s ?`,
-      `Le meilleur score pour ${seconds} seconde${seconds > 1 ? 's' : ''} par coup sera remis à zéro.`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Réinitialiser',
-          style: 'destructive',
-          onPress: () => store.resetCategory(seconds).then(load),
+          onPress: () =>
+            Promise.all([moveNamingStore.reset(), playMoveStore.reset()]).then(load),
         },
       ],
     );
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}
-    >
+    <ScrollView contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}>
       <BackButton onPress={() => router.back()} label="Retour" />
       <Text style={[styles.title, { color: colors.foreground }]}>Records</Text>
       <Text style={{ color: colors.mutedForeground }}>
-        Nommer le coup — meilleur score en 60 secondes
+        Meilleurs scores sur 60 secondes — Vision de l’échiquier
       </Text>
-      {Array.from({ length: 10 }, (_, i) => i + 1).map((seconds) => (
-        <View
-          key={seconds}
-          style={[styles.row, { borderColor: colors.border }]}
-        >
-          <Text style={{ color: colors.foreground }}>{seconds} s par coup</Text>
-          <View style={styles.rowRight}>
-            <Text style={{ color: colors.foreground }}>{records[seconds] ?? 0}</Text>
-            {(records[seconds] ?? 0) > 0 ? (
-              <Pressable
-                onPress={() => resetOne(seconds)}
-                hitSlop={8}
-                style={styles.resetOneBtn}
-                testID={`reset-record-${seconds}`}
-              >
-                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Réinit.</Text>
-              </Pressable>
-            ) : null}
-          </View>
+
+      <View style={[styles.row, { borderColor: colors.border }]} testID="record-move-naming-60">
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.foreground, fontWeight: '600' }}>Nommer le coup</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+            Coups correctement nommés / 60 s
+          </Text>
         </View>
-      ))}
+        <Text style={{ color: colors.foreground, fontSize: 22, fontWeight: '700' }}>
+          {moveNamingBest}
+        </Text>
+      </View>
+
+      <View style={[styles.row, { borderColor: colors.border }]} testID="record-play-move-60">
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: colors.foreground, fontWeight: '600' }}>Jouer le coup</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+            Coups correctement joués / 60 s
+          </Text>
+        </View>
+        <Text style={{ color: colors.foreground, fontSize: 22, fontWeight: '700' }}>
+          {playMoveBest}
+        </Text>
+      </View>
+
+      {hasLegacy ? (
+        <View style={styles.legacyBlock}>
+          <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+            Anciens records (délai par coup) — conservés, non utilisés par le mode 60 s :
+          </Text>
+          {Array.from({ length: 10 }, (_, i) => i + 1)
+            .filter((s) => (legacy[s] ?? 0) > 0)
+            .map((seconds) => (
+              <Text key={seconds} style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                {seconds} s / coup → {legacy[seconds]}
+              </Text>
+            ))}
+        </View>
+      ) : null}
+
       <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-records">
         <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-          Réinitialiser les scores
+          Réinitialiser les scores 60 s
         </Text>
       </Pressable>
     </ScrollView>
@@ -97,9 +115,9 @@ const styles = StyleSheet.create({
     padding: 13,
     borderWidth: 1,
     borderRadius: 10,
+    gap: 12,
   },
-  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  resetOneBtn: { paddingHorizontal: 4, paddingVertical: 2 },
+  legacyBlock: { gap: 4, marginTop: 8, opacity: 0.85 },
   resetBtn: {
     marginTop: 8,
     padding: 12,
