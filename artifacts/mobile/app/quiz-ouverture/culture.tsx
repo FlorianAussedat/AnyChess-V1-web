@@ -181,9 +181,9 @@ export default function CultureGeneraleQuizScreen() {
             {current.displayAnswers.map((answer, i) => {
               const selected = selectedDisplayIndex === i;
               const isCorrect = i === current.correctDisplayIndex;
-              let borderColor = colors.border;
-              let backgroundColor = colors.card;
-              let textColor = colors.foreground;
+              let borderColor: string = colors.border;
+              let backgroundColor: string = colors.card;
+              const textColor = colors.foreground;
               if (hasAnswered) {
                 if (isCorrect) {
                   borderColor = '#398a55';
