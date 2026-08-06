@@ -1,7 +1,8 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useColors } from '@/hooks/useColors';
+import { StyleSheet, View } from 'react-native';
+import { OptionChip } from '@/components/ui/OptionChip';
 import type { RepertoireSide } from '@/lib/repertoire';
+import { DesignTokens } from '@/constants/designTokens';
 
 type Props = {
   value: RepertoireSide | null;
@@ -9,52 +10,29 @@ type Props = {
   disabled?: boolean;
 };
 
+/**
+ * Fixed White / Black repertoire side — NO random.
+ * Persistent import/migration data, not pre-game camp selection.
+ */
 export function RepertoireSidePicker({ value, onChange, disabled }: Props) {
-  const colors = useColors();
   return (
     <View style={styles.row}>
-      {(['white', 'black'] as RepertoireSide[]).map((side) => {
-        const active = value === side;
-        return (
-          <Pressable
-            key={side}
-            onPress={() => !disabled && onChange(side)}
-            disabled={disabled}
-            style={[
-              styles.btn,
-              {
-                backgroundColor: active ? colors.primary : colors.input,
-                borderColor: active ? colors.primary : colors.border,
-                opacity: disabled ? 0.5 : 1,
-              },
-            ]}
-          >
-            <Text
-              style={{
-                fontFamily: 'Inter_600SemiBold',
-                fontSize: 14,
-                color: active ? colors.primaryForeground : colors.foreground,
-              }}
-            >
-              {side === 'white' ? 'Je joue Blancs' : 'Je joue Noirs'}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {(['white', 'black'] as RepertoireSide[]).map((side) => (
+        <OptionChip
+          key={side}
+          label={side === 'white' ? 'Je joue Blancs' : 'Je joue Noirs'}
+          active={value === side}
+          onPress={() => {
+            if (!disabled) onChange(side);
+          }}
+        />
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 8 },
-  btn: {
-    flex: 1,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: DesignTokens.spacing.sm },
 });
 
 export function sideLabel(side: RepertoireSide): string {

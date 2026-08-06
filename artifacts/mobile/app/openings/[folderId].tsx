@@ -18,6 +18,8 @@ import type { StoredPgnFile, RepertoireSide } from '@/lib/repertoire';
 import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import type { PlayerColor } from '@/contexts/GameContext';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { HubModeCard } from '@/components/HubModeCard';
 import { PgnFileRow } from '@/components/openings/PgnFileRow';
 import { ImportPgnModal } from '@/components/openings/ImportPgnModal';
 import { PlayOpeningModal } from '@/components/openings/PlayOpeningModal';
@@ -216,15 +218,7 @@ export default function FolderDetailScreen() {
   if (!folder) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-          </Pressable>
-          <Text style={[styles.title, { color: colors.foreground }]}>Dossier introuvable</Text>
-        </View>
+        <ScreenHeader onBack={() => router.back()} title="Dossier introuvable" />
       </View>
     );
   }
@@ -240,40 +234,31 @@ export default function FolderDetailScreen() {
         },
       ]}
     >
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 },
-          ]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-            {folder.name}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {files.length} fichier{files.length !== 1 ? 's' : ''} PGN
-            {folder.side ? ` · ${sideLabel(folder.side)}` : ''}
-          </Text>
-        </View>
-        <Pressable
-          onPress={openImport}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, opacity: pressed ? 0.75 : 1 },
-          ]}
-          testID="import-pgn-btn"
-        >
-          <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
-          <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>
-            Importer
-          </Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={folder.name}
+        subtitle={`${files.length} fichier${files.length !== 1 ? 's' : ''} PGN${
+          folder.side ? ` · ${sideLabel(folder.side)}` : ''
+        }`}
+        trailing={
+          <Pressable
+            onPress={openImport}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderWidth: 1,
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+            testID="import-pgn-btn"
+          >
+            <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
+            <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>Importer</Text>
+          </Pressable>
+        }
+      />
 
       <Text style={[styles.hint, { color: colors.mutedForeground }]}>
         Plusieurs PGN dans ce dossier seront fusionnés en un seul arbre de répertoire
@@ -282,54 +267,22 @@ export default function FolderDetailScreen() {
 
       <View style={styles.exerciseBlock}>
         <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>Exercices</Text>
-        <Pressable
+        <HubModeCard
+          title="Jouer contre le répertoire"
+          description="L’adversaire suit tes lignes importées, puis Stockfish hors livre."
+          iconName="play-circle-outline"
           onPress={() => ensureSideThen('play')}
           disabled={!canPlay}
           testID="play-opening-btn"
-          style={({ pressed }) => [
-            styles.exerciseCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
-            },
-          ]}
-        >
-          <Ionicons name="play-circle-outline" size={22} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.exerciseTitle, { color: colors.foreground }]}>
-              Jouer contre le répertoire
-            </Text>
-            <Text style={[styles.exerciseDesc, { color: colors.mutedForeground }]}>
-              L’adversaire suit tes lignes importées, puis Stockfish hors livre.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable
+        />
+        <HubModeCard
+          title="Continue la ligne"
+          description="Récite la suite d’une branche choisie dans ce répertoire."
+          iconName="mic-outline"
           onPress={() => ensureSideThen('continue')}
           disabled={!canPlay}
           testID="continue-line-btn"
-          style={({ pressed }) => [
-            styles.exerciseCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
-            },
-          ]}
-        >
-          <Ionicons name="mic-outline" size={22} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.exerciseTitle, { color: colors.foreground }]}>
-              Continue la ligne
-            </Text>
-            <Text style={[styles.exerciseDesc, { color: colors.mutedForeground }]}>
-              Récite la suite d’une branche choisie dans ce répertoire.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-        </Pressable>
+        />
         <Text style={[styles.exerciseHeading, { color: colors.foreground, marginTop: 8 }]}>
           Gérer les PGN
         </Text>

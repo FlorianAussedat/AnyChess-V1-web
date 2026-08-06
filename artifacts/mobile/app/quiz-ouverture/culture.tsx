@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { BackButton } from '@/components/BackButton';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessCultureVisual } from '@/components/chessCulture/ChessCultureVisual';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -137,16 +137,12 @@ export default function CultureGeneraleQuizScreen() {
         },
       ]}
     >
-      <BackButton
-        onPress={() => router.back()}
-        label="Culture générale"
-        testID="culture-quiz-back"
+      <ScreenHeader
+        onBack={() => router.back()}
+        title="Quiz"
+        subtitle="Culture échiquéenne — 10 questions mixtes"
+        backTestID="culture-quiz-back"
       />
-
-      <Text style={[styles.title, { color: colors.foreground }]}>Quiz</Text>
-      <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Culture échiquéenne — 10 questions mixtes
-      </Text>
 
       {phase === 'loading' ? (
         <View style={styles.centered}>

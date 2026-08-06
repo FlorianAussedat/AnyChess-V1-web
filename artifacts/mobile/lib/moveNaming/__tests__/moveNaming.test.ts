@@ -14,6 +14,11 @@ import {
   type MoveNamingScheduler,
 } from '../MoveNamingSession.ts';
 import type { MoveNamingChallenge } from '../types.ts';
+import {
+  boardPerspectiveLabel,
+  isFlippedForPerspective,
+  pickBoardPerspective,
+} from '../boardPerspective.ts';
 
 function sampleChallenge(id: string, setupSan: string, initialFen?: string): MoveNamingChallenge {
   const game = new Chess(initialFen);
@@ -27,6 +32,7 @@ function sampleChallenge(id: string, setupSan: string, initialFen?: string): Mov
     setupSan: move.san,
     setupMove: { from: move.from, to: move.to, promotion: move.promotion },
     expectedSan: move.san,
+    boardPerspective: 'w',
   };
 }
 
@@ -256,5 +262,49 @@ describe('move naming session — 60s model', () => {
     session.dispose();
     scheduler.tick(COUNTDOWN_STEP_MS * 4);
     assert.equal(session.snapshot().phase, 'idle');
+  });
+});
+
+describe('board perspective (display only)', () => {
+  it('maps vision labels and flip flags without changing answer data', () => {
+    assert.equal(boardPerspectiveLabel('w'), 'Vision côté Blancs');
+    assert.equal(boardPerspectiveLabel('b'), 'Vision côté Noirs');
+    assert.equal(isFlippedForPerspective('w'), false);
+    assert.equal(isFlippedForPerspective('b'), true);
+  });
+
+  it('can generate both white and black perspectives', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 20; i += 1) {
+      seen.add(pickBoardPerspective(undefined, () => (i % 2 === 0 ? 0.1 : 0.9)));
+    }
+    assert.ok(seen.has('w'));
+    assert.ok(seen.has('b'));
+  });
+
+  it('prefers alternating after a previous perspective', () => {
+    assert.equal(pickBoardPerspective('w', () => 0.1), 'b');
+    assert.equal(pickBoardPerspective('b', () => 0.1), 'w');
+  });
+
+  it('does not change FEN / expectedSan when perspective flips', () => {
+    const whiteView = sampleChallenge('c1', 'e4');
+    const blackView: MoveNamingChallenge = { ...whiteView, boardPerspective: 'b' };
+    assert.equal(whiteView.initialFen, blackView.initialFen);
+    assert.equal(whiteView.positionFen, blackView.positionFen);
+    assert.equal(whiteView.expectedSan, blackView.expectedSan);
+    assert.deepEqual(whiteView.setupMove, blackView.setupMove);
+    assert.notEqual(whiteView.boardPerspective, blackView.boardPerspective);
+
+    const scheduler = new FakeScheduler();
+    const session = new MoveNamingSession({
+      scheduler,
+      pickChallenge: () => blackView,
+    });
+    runCountdownToPlaying(session, scheduler);
+    const before = session.snapshot().challenge!;
+    session.answer(before.expectedSan);
+    assert.equal(session.snapshot().score.correct, 1);
+    session.dispose();
   });
 });

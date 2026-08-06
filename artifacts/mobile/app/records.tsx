@@ -13,6 +13,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
+import { OptionChip } from '@/components/ui/OptionChip';
 import {
   PIECE_COUNT_BANDS,
   PUZZLE_RATING_BANDS,
@@ -80,35 +81,16 @@ export default function RecordsHubScreen() {
         Tes meilleurs scores déjà enregistrés sur cet appareil
       </Text>
 
-      <View style={styles.selector}>
-        {RECORDS_CATEGORIES.map((cat) => {
-          const active = category === cat.id;
-          return (
-            <Pressable
-              key={cat.id}
+      <View style={styles.selector} testID="records-category-selector">
+        {RECORDS_CATEGORIES.map((cat) => (
+          <View key={cat.id} testID={`records-cat-${cat.id}`}>
+            <OptionChip
+              label={cat.label}
+              active={category === cat.id}
               onPress={() => setCategory(cat.id)}
-              testID={`records-cat-${cat.id}`}
-              style={({ pressed }) => [
-                styles.chip,
-                {
-                  backgroundColor: active ? colors.primary : colors.card,
-                  borderColor: active ? colors.primary : colors.border,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color: active ? colors.primaryForeground : colors.foreground,
-                  fontFamily: 'Inter_600SemiBold',
-                  fontSize: 13,
-                }}
-              >
-                {cat.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+            />
+          </View>
+        ))}
       </View>
 
       <Text style={[styles.catDesc, { color: colors.mutedForeground }]}>

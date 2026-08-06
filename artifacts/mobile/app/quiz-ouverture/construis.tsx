@@ -3,6 +3,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { DesignTokens } from '@/constants/designTokens';
 import { AppButton } from '@/components/ui/AppButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
@@ -100,6 +102,7 @@ function Dropdown({
 
 export default function ConstruisOuvertureScreen() {
   const colors = useColors();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   useCancelSpeechOnLeave('/quiz-ouverture/construis');
 
@@ -236,10 +239,13 @@ export default function ConstruisOuvertureScreen() {
     <ScrollView
       contentContainerStyle={{
         flexGrow: 1,
-        padding: 20,
-        gap: 14,
+        paddingHorizontal: DesignTokens.spacing.xl,
+        paddingTop: topPad + DesignTokens.spacing.md,
+        paddingBottom: bottomPad + DesignTokens.spacing.xl,
+        gap: DesignTokens.spacing.md,
         backgroundColor: colors.background,
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <ScreenHeader
         onBack={() => {

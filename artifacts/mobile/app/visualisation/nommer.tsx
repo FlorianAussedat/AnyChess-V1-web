@@ -11,12 +11,16 @@ import { ChessBoard } from '@/components/ChessBoard';
 import type { BoardPiece } from '@/contexts/GameContext';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { DesignTokens } from '@/constants/designTokens';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage } from '@/lib/storage';
 import {
   MoveNamingRecordsStore,
   MoveNamingSession,
   pickMoveNamingChallenge,
+  boardPerspectiveLabel,
+  isFlippedForPerspective,
   type MoveNamingSnapshot,
 } from '@/lib/moveNaming';
 
@@ -25,6 +29,7 @@ const records = new MoveNamingRecordsStore(defaultKeyValueStorage);
 export default function NommerLeCoupScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const sessionRef = useRef(new MoveNamingSession({ pickChallenge: pickMoveNamingChallenge }));
   const micPrimedRef = useRef(false);
@@ -90,10 +95,20 @@ export default function NommerLeCoupScreen() {
 
   const display =
     snap.phase === 'playing' && snap.challenge ? new Chess(snap.challenge.positionFen) : null;
+  const perspective = snap.challenge?.boardPerspective ?? 'w';
+  const perspectiveLabel = boardPerspectiveLabel(perspective);
+  const boardFlipped = isFlippedForPerspective(perspective);
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        styles.page,
+        {
+          backgroundColor: colors.background,
+          paddingTop: topPad + DesignTokens.spacing.md,
+          paddingBottom: bottomPad + DesignTokens.spacing.xl,
+        },
+      ]}
       keyboardShouldPersistTaps="handled"
       testID="nommer-screen"
     >
@@ -157,6 +172,7 @@ export default function NommerLeCoupScreen() {
             </Text>
           </View>
           <BoardToolbar
+            label={perspectiveLabel}
             showCoordinates={showCoordinates}
             onToggleCoordinates={() => {
               void toggleCoordinates();
@@ -167,6 +183,7 @@ export default function NommerLeCoupScreen() {
               board={display.board() as (BoardPiece | null)[][]}
               lastMove={snap.challenge?.setupMove ?? null}
               showCoordinates={showCoordinates}
+              isFlipped={boardFlipped}
             />
           )}
           <Text style={{ color: colors.mutedForeground }}>Quel était le dernier coup ?</Text>
@@ -226,38 +243,28 @@ export default function NommerLeCoupScreen() {
           <Text style={{ color: colors.mutedForeground }}>
             Record : {Math.max(snap.previousRecord, snap.score.score)}
           </Text>
-          <Pressable
+          <AppButton
+            label="Retour"
             onPress={() => {
               sessionRef.current.returnToIdle();
               sync();
               router.back();
             }}
-            style={[styles.button, { backgroundColor: colors.primary }]}
-          >
-            <Text style={{ color: colors.primaryForeground }}>Retour</Text>
-          </Pressable>
-          <Pressable
+          />
+          <AppButton
+            label="Voir les records"
+            variant="secondary"
             onPress={() => router.push('/visualisation/records')}
-            style={[
-              styles.button,
-              { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
-            ]}
-          >
-            <Text style={{ color: colors.foreground }}>Voir les records</Text>
-          </Pressable>
-          <Pressable
+          />
+          <AppButton
+            label="Rejouer"
+            variant="secondary"
             onPress={() => {
               stopListening();
               sessionRef.current.replay();
               void beginSession();
             }}
-            style={[
-              styles.button,
-              { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
-            ]}
-          >
-            <Text style={{ color: colors.foreground }}>Rejouer</Text>
-          </Pressable>
+          />
         </View>
       )}
     </ScrollView>
@@ -265,21 +272,40 @@ export default function NommerLeCoupScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flexGrow: 1, padding: 20, gap: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  title: { fontSize: 25, fontWeight: '700', flex: 1 },
-  gap: { gap: 14 },
-  button: { padding: 14, borderRadius: 10, alignItems: 'center', minHeight: 48 },
-  toggleRow: { padding: 14, borderRadius: 10, borderWidth: 1 },
+  page: {
+    flexGrow: 1,
+    paddingHorizontal: DesignTokens.spacing.xl,
+    gap: DesignTokens.spacing.lg,
+  },
+  gap: { gap: DesignTokens.spacing.md },
+  button: {
+    padding: DesignTokens.spacing.md,
+    borderRadius: DesignTokens.radius.sm,
+    alignItems: 'center',
+    minHeight: DesignTokens.minTouchTarget,
+  },
   countdownWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 220 },
-  countdown: { fontSize: 96, fontWeight: '800' },
+  countdown: { fontSize: 96, fontFamily: DesignTokens.typography.weightBold },
   hudRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  hudValue: { fontSize: 22, fontWeight: '700' },
-  scoreLabel: { fontSize: 14, fontWeight: '600', letterSpacing: 2, textAlign: 'center' },
-  scoreValue: { fontSize: 64, fontWeight: '800', textAlign: 'center' },
-  newRecord: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  hudValue: { fontSize: 22, fontFamily: DesignTokens.typography.weightBold },
+  scoreLabel: {
+    fontSize: 14,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  scoreValue: {
+    fontSize: 64,
+    fontFamily: DesignTokens.typography.weightBold,
+    textAlign: 'center',
+  },
+  newRecord: {
+    fontSize: 20,
+    fontFamily: DesignTokens.typography.weightBold,
+    textAlign: 'center',
+  },
 });

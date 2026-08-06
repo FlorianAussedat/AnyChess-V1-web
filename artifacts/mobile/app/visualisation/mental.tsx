@@ -248,7 +248,9 @@ export default function MentalPositionScreen() {
           {snap.errorMessage ? (
             <Text style={{ color: '#c44' }}>{snap.errorMessage}</Text>
           ) : null}
-          <Text style={{ color: colors.mutedForeground }}>Coups complets</Text>
+          <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 0.5 }}>
+            COUPS COMPLETS
+          </Text>
           <View style={styles.row}>
             {[3, 4, 5, 6].map((n) => (
               <OptionChip
@@ -259,7 +261,9 @@ export default function MentalPositionScreen() {
               />
             ))}
           </View>
-          <Text style={{ color: colors.mutedForeground }}>Perspective</Text>
+          <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 0.5 }}>
+            PERSPECTIVE
+          </Text>
           <View style={styles.row}>
             {(['w', 'b'] as const).map((c) => (
               <OptionChip
@@ -401,19 +405,8 @@ export default function MentalPositionScreen() {
               </View>
             </View>
           ))}
-          <Pressable onPress={start} style={[styles.btn, { backgroundColor: colors.primary }]}>
-            <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              Nouvelle séquence
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.btn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
-          >
-            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-              Retour
-            </Text>
-          </Pressable>
+          <AppButton label="Nouvelle séquence" onPress={start} />
+          <AppButton label="Retour" variant="secondary" onPress={() => router.back()} />
         </View>
       )}
     </ScrollView>
@@ -421,16 +414,7 @@ export default function MentalPositionScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 24, fontFamily: 'Inter_700Bold' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
   btn: {
     minHeight: 48,
     borderRadius: 12,

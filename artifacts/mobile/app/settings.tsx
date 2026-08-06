@@ -4,7 +4,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BackButton } from '@/components/BackButton';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
@@ -26,8 +26,7 @@ export default function SettingsPlaceholderScreen() {
       ]}
       testID="settings-screen"
     >
-      <BackButton onPress={() => router.back()} />
-      <Text style={[styles.title, { color: colors.foreground }]}>Paramètres</Text>
+      <ScreenHeader onBack={() => router.back()} title="Paramètres" />
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.body, { color: colors.mutedForeground }]}>
           Les paramètres arriveront bientôt.

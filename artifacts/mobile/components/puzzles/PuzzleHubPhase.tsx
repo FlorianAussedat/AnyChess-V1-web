@@ -4,6 +4,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { PuzzleFilterChip } from '@/components/puzzles/PuzzleFilterChip';
+import { AppButton } from '@/components/ui/AppButton';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
 import {
@@ -97,25 +98,18 @@ export function PuzzleHubPhase() {
           </>
         )}
 
-        <Pressable
-          disabled={starting || !submode}
-          onPress={() => onStart()}
-          style={({ pressed }) => [
-            puzzleStyles.cta,
-            {
-              backgroundColor: colors.primary,
-              opacity: starting || !submode || pressed ? 0.55 : 1,
-            },
-          ]}
-        >
-          <Text style={[puzzleStyles.ctaLabel, { color: colors.primaryForeground }]}>
-            {submode === 'blind'
+        <AppButton
+          label={
+            submode === 'blind'
               ? 'Commencer à l’aveugle'
               : submode === 'visual'
                 ? 'Commencer en visuel'
-                : 'Choisir un mode'}
-          </Text>
-        </Pressable>
+                : 'Choisir un mode'
+          }
+          onPress={() => void onStart()}
+          disabled={starting || !submode}
+          testID="puzzle-start"
+        />
 
         {starting && <ActivityIndicator color={colors.primary} />}
         {!!loadError && (

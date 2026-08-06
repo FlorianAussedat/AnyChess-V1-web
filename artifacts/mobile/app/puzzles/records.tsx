@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BackButton } from '@/components/BackButton';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { DesignTokens } from '@/constants/designTokens';
 import {
   PIECE_COUNT_BANDS,
   PUZZLE_RATING_BANDS,
@@ -23,6 +26,7 @@ function pieceLabel(id: string): string {
 export default function PuzzleRecordsScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const [snapshot, setSnapshot] = useState<PuzzleStreakState>(emptyStreakState());
 
   const load = useCallback(() => {
@@ -56,10 +60,16 @@ export default function PuzzleRecordsScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.page, { backgroundColor: colors.background }]}
+      contentContainerStyle={[
+        styles.page,
+        {
+          backgroundColor: colors.background,
+          paddingTop: topPad + DesignTokens.spacing.md,
+          paddingBottom: bottomPad + DesignTokens.spacing.xl,
+        },
+      ]}
     >
-      <BackButton onPress={() => router.back()} label="Retour" />
-      <Text style={[styles.title, { color: colors.foreground }]}>Records</Text>
+      <ScreenHeader onBack={() => router.back()} title="Records" />
       <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
         Meilleures séries par bande de difficulté
       </Text>
@@ -84,31 +94,29 @@ export default function PuzzleRecordsScreen() {
         ))
       )}
 
-      <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-puzzle-records">
-        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
-          Réinitialiser les records
-        </Text>
-      </Pressable>
+      <AppButton
+        label="Réinitialiser les records"
+        variant="destructive"
+        onPress={resetAll}
+        testID="reset-puzzle-records"
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flexGrow: 1, padding: 20, gap: 12 },
-  title: { fontSize: 25, fontFamily: 'Inter_700Bold' },
+  page: {
+    flexGrow: 1,
+    paddingHorizontal: DesignTokens.spacing.xl,
+    gap: DesignTokens.spacing.md,
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 13,
+    padding: DesignTokens.spacing.md,
     borderWidth: 1,
-    borderRadius: 10,
-    gap: 10,
-  },
-  resetBtn: {
-    marginTop: 8,
-    padding: 12,
-    alignItems: 'center',
-    opacity: 0.85,
+    borderRadius: DesignTokens.radius.sm,
+    gap: DesignTokens.spacing.sm,
   },
 });

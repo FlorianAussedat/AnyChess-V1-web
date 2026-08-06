@@ -6,7 +6,7 @@ import { useColors } from '@/hooks/useColors';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
-import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
+import { BoardToolbar } from '@/components/BoardToolbar';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
@@ -160,17 +160,20 @@ export function PuzzlePlayingPhase() {
         </View>
 
         {boardVisible || pieceRevealFilter !== 'hidden' ? (
-          <View style={{ alignItems: 'center', gap: 8 }}>
-            {boardVisible && (
-              <View style={{ alignSelf: 'flex-end' }}>
-                <BoardCoordinatesToggle
-                  visible={showCoordinates}
-                  onToggle={() => {
+          <View style={{ alignItems: 'center', gap: 8, width: '100%' }}>
+            {boardVisible ? (
+              <View style={{ width: '100%' }}>
+                <BoardToolbar
+                  label={
+                    sideToMove === 'w' ? 'Trait aux Blancs' : 'Trait aux Noirs'
+                  }
+                  showCoordinates={showCoordinates}
+                  onToggleCoordinates={() => {
                     void toggleCoordinates();
                   }}
                 />
               </View>
-            )}
+            ) : null}
             <ChessBoard
               board={displayBoard}
               lastMove={lastMove}

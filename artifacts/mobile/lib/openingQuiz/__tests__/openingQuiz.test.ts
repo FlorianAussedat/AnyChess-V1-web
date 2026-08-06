@@ -14,6 +14,7 @@ import {
 import { OpeningIdentificationSession } from '../OpeningIdentificationSession.ts';
 import { findOpeningTarget } from '../OpeningLineBuilder.ts';
 import { OpeningConstructionSession } from '../OpeningConstructionSession.ts';
+import { groupOpeningSans } from '../groupOpeningSans.ts';
 import { replayLine } from '../../replay/replayLine.ts';
 
 describe('opening answer normalization and hierarchy', () => {
@@ -121,5 +122,21 @@ describe('opening construction', () => {
     handle.cancel();
     await new Promise((r) => setTimeout(r, 120));
     assert.equal(completed, false);
+  });
+});
+
+describe('groupOpeningSans', () => {
+  it('pairs full moves with white and black columns', () => {
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Nf3', 'Nc6']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Nf3', black: 'Nc6' },
+    ]);
+  });
+
+  it('leaves black empty on an odd ply count', () => {
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Nf3']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Nf3' },
+    ]);
   });
 });

@@ -1,3 +1,5 @@
+import type { BoardPerspective } from './boardPerspective.ts';
+
 export type MoveNamingOutcome = 'correct' | 'wrong' | 'timeout' | 'recognition-failure';
 
 export type MoveNamingChallenge = {
@@ -7,6 +9,8 @@ export type MoveNamingChallenge = {
   setupSan: string;
   setupMove: { from: string; to: string; promotion?: string };
   expectedSan: string;
+  /** Display viewpoint only — does not affect answer validation. */
+  boardPerspective: BoardPerspective;
 };
 
 export type MoveNamingScore = {

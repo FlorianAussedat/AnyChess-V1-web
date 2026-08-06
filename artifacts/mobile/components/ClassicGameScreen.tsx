@@ -29,7 +29,7 @@ import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { OptionChip } from '@/components/ui/OptionChip';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor, SideChoice } from '@/lib/game/types';
-import { pairMoveHistory, resolveSideChoice } from '@/lib/game';
+import { beginGameFromCampChoice, pairMoveHistory, resolveSideChoice } from '@/lib/game';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { BrandAssets } from '@/constants/BrandAssets';
@@ -124,9 +124,10 @@ export function ClassicGameScreen() {
   const onPickSide = useCallback(
     (side: SideChoice) => {
       if (campLocked) return;
+      const result = beginGameFromCampChoice(side);
       setPendingSide(side);
       setStrengthBandId(setupBandId);
-      applySide(resolveSideChoice(side));
+      applySide(result.playerColor);
       setCampLocked(true);
     },
     [campLocked, setupBandId, setStrengthBandId, applySide],

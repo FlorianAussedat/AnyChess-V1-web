@@ -21,7 +21,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
-import { SoundToggle } from '@/components/SoundToggle';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
@@ -417,23 +417,14 @@ export default function ContinueLineScreen() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.headerRow}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={[styles.back, { borderColor: colors.border, backgroundColor: colors.card }]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Continue la ligne</Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-            {snap.repertoireName}
-            {snap.trainingSide ? ` · ${sideLabel(snap.trainingSide)}` : ''}
-          </Text>
-        </View>
-        <SoundToggle />
-      </View>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title="Continue la ligne"
+        subtitle={`${snap.repertoireName}${
+          snap.trainingSide ? ` · ${sideLabel(snap.trainingSide)}` : ''
+        }`}
+        showSound
+      />
 
       {snap.preambleSans.length > 0 && (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>

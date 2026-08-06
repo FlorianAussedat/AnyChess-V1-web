@@ -16,6 +16,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
 import { filterFoldersByReviewSide } from '@/lib/repertoire';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { FolderListRow } from '@/components/openings/FolderListRow';
 import { NameModal } from '@/components/openings/NameModal';
 import { OpeningsReviewBlock } from '@/components/openings/OpeningsReviewBlock';
@@ -190,38 +191,27 @@ export default function OpeningsFolderList() {
         },
       ]}
     >
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 },
-          ]}
-          testID="openings-back"
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Ouvertures</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Répertoires PGN
-          </Text>
-        </View>
-        <Pressable
-          onPress={openCreate}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
-          ]}
-          testID="create-folder-btn"
-        >
-          <Ionicons name="add" size={18} color={colors.primaryForeground} />
-          <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
-            Nouveau
-          </Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title="Ouvertures"
+        subtitle="Répertoires PGN"
+        backTestID="openings-back"
+        trailing={
+          <Pressable
+            onPress={openCreate}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+            ]}
+            testID="create-folder-btn"
+          >
+            <Ionicons name="add" size={18} color={colors.primaryForeground} />
+            <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
+              Nouveau
+            </Text>
+          </Pressable>
+        }
+      />
 
       {trainable.length > 0 && (
         <OpeningsReviewBlock

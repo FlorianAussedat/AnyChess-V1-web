@@ -1,16 +1,15 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Image,
-  Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
+import { OptionChip } from '@/components/ui/OptionChip';
+import { AppButton } from '@/components/ui/AppButton';
 import { blindStyles } from '@/components/blind/blindStyles';
 import { useBlindSequence } from '@/contexts/BlindSequenceContext';
 import { halfMoveCount } from '@/lib/blind';
@@ -20,9 +19,14 @@ import {
   DEFAULT_BLIND_SPEED,
   type BlindPerspective,
 } from '@/lib/blind';
-import { BrandAssets } from '@/constants/BrandAssets';
 
 const FULL_MOVE_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
+
+const PERSPECTIVE_OPTIONS: { id: BlindPerspective; label: string }[] = [
+  { id: 'white', label: 'Blancs' },
+  { id: 'black', label: 'Noirs' },
+  { id: 'random', label: 'Aléatoire' },
+];
 
 export function BlindSettingsPhase() {
   const colors = useColors();
@@ -47,82 +51,34 @@ export function BlindSettingsPhase() {
     <ModeScreenShell title={title} onBack={backToHub}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
         <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          Perspective (bas de l’échiquier)
+          PERSPECTIVE
         </Text>
         <View style={blindStyles.row}>
-          {(
-            [
-              { id: 'white' as BlindPerspective, label: 'Blancs', icon: BrandAssets.sides.white },
-              { id: 'black' as BlindPerspective, label: 'Noirs', icon: BrandAssets.sides.black },
-              { id: 'random' as BlindPerspective, label: 'Aléatoire', icon: BrandAssets.sides.random },
-            ] as const
-          ).map((opt) => {
-            const active = perspective === opt.id;
-            return (
-              <Pressable
-                key={opt.id}
-                onPress={() => setPerspective(opt.id)}
-                style={[
-                  blindStyles.choice,
-                  {
-                    backgroundColor: active ? colors.primary : colors.card,
-                    borderColor: active ? colors.primary : colors.border,
-                    flexDirection: 'row',
-                    gap: 6,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  },
-                ]}
-              >
-                <Image source={opt.icon} style={{ width: 20, height: 20 }} />
-                <Text
-                  style={{
-                    fontFamily: 'Inter_600SemiBold',
-                    fontSize: 12,
-                    color: active ? colors.primaryForeground : colors.foreground,
-                    textAlign: 'center',
-                  }}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {PERSPECTIVE_OPTIONS.map((opt) => (
+            <OptionChip
+              key={opt.id}
+              label={opt.label}
+              active={perspective === opt.id}
+              onPress={() => setPerspective(opt.id)}
+            />
+          ))}
         </View>
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
           Les Blancs jouent toujours en premier. 1 coup complet = 1 coup Blanc + 1 coup Noir.
         </Text>
 
         <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          Coups complets (1–20)
+          COUPS COMPLETS
         </Text>
         <View style={blindStyles.chipRow}>
-          {FULL_MOVE_OPTIONS.map((n) => {
-            const active = fullMoves === n;
-            return (
-              <Pressable
-                key={n}
-                onPress={() => setFullMoves(n)}
-                style={[
-                  blindStyles.chip,
-                  {
-                    backgroundColor: active ? colors.primary : colors.card,
-                    borderColor: active ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontFamily: 'Inter_600SemiBold',
-                    fontSize: 12,
-                    color: active ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {n}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {FULL_MOVE_OPTIONS.map((n) => (
+            <OptionChip
+              key={n}
+              label={String(n)}
+              active={fullMoves === n}
+              onPress={() => setFullMoves(n)}
+            />
+          ))}
         </View>
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
           {fullMoves} coups complets = {halfMoveCount(fullMoves)} demi-coups
@@ -130,7 +86,7 @@ export function BlindSettingsPhase() {
         </Text>
 
         <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          Vitesse ({BLIND_SPEED_MIN}–{BLIND_SPEED_MAX})
+          VITESSE ({BLIND_SPEED_MIN}–{BLIND_SPEED_MAX})
         </Text>
         <View style={blindStyles.sliderBlock}>
           <View style={blindStyles.sliderLabels}>
@@ -174,25 +130,13 @@ export function BlindSettingsPhase() {
           </Text>
         )}
 
-        <Pressable
+        {isGenerating ? <ActivityIndicator color={colors.primary} /> : null}
+        <AppButton
+          label="Générer la séquence"
           onPress={() => startSession()}
           disabled={isGenerating}
-          style={({ pressed }) => [
-            blindStyles.cta,
-            { backgroundColor: colors.primary, opacity: isGenerating || pressed ? 0.7 : 1 },
-          ]}
-        >
-          {isGenerating ? (
-            <ActivityIndicator color={colors.primaryForeground} />
-          ) : (
-            <>
-              <Ionicons name="play" size={20} color={colors.primaryForeground} />
-              <Text style={[blindStyles.ctaLabel, { color: colors.primaryForeground }]}>
-                Générer la séquence
-              </Text>
-            </>
-          )}
-        </Pressable>
+          testID="blind-generate"
+        />
       </ScrollView>
     </ModeScreenShell>
   );

@@ -8,39 +8,60 @@ import {
   type ImageSourcePropType,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 export type HubModeCardProps = {
   title: string;
   description: string;
   icon?: ImageSourcePropType;
+  /** Simple system icon when no brand image is available. */
+  iconName?: IoniconName;
   onPress: () => void;
+  disabled?: boolean;
   testID?: string;
 };
 
 /**
  * Family A — navigation/mode menu card.
- * Shared architecture for Culture / Vision / Memorisation hubs.
+ * Shared architecture for Culture / Vision / Memorisation / repertoire exercises.
  */
-export function HubModeCard({ title, description, icon, onPress, testID }: HubModeCardProps) {
+export function HubModeCard({
+  title,
+  description,
+  icon,
+  iconName,
+  onPress,
+  disabled = false,
+  testID,
+}: HubModeCardProps) {
   const colors = useColors();
   return (
     <Pressable
       testID={testID}
       onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
-          opacity: pressed ? 0.75 : 1,
+          opacity: disabled ? 0.45 : pressed ? 0.75 : 1,
         },
       ]}
     >
       {icon ? (
         <View style={styles.iconWrap}>
           <Image source={icon} style={styles.modeIcon} resizeMode="contain" />
+        </View>
+      ) : iconName ? (
+        <View style={[styles.iconWrap, { backgroundColor: colors.secondary }]}>
+          <Ionicons name={iconName} size={24} color={colors.primary} />
         </View>
       ) : null}
       <View style={styles.textCol}>

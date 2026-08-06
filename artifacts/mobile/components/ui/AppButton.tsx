@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'rea
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
 
-type Variant = 'primary' | 'secondary' | 'destructive';
+type Variant = 'primary' | 'secondary' | 'destructive' | 'success';
 
 type Props = {
   label: string;
@@ -15,7 +15,8 @@ type Props = {
 };
 
 /**
- * Shared action button — primary (orange) / secondary (card) / destructive (red).
+ * Shared action button — primary (orange) / secondary (card) / destructive / success.
+ * Disabled uses a muted dark style (never muddy orange).
  */
 export function AppButton({
   label,
@@ -26,20 +27,30 @@ export function AppButton({
   style,
 }: Props) {
   const colors = useColors();
-  const bg =
-    variant === 'primary'
-      ? colors.primary
-      : variant === 'destructive'
-        ? colors.destructive
-        : colors.card;
-  const fg =
-    variant === 'primary'
-      ? colors.primaryForeground
-      : variant === 'destructive'
-        ? colors.destructiveForeground
-        : colors.foreground;
-  const border =
-    variant === 'secondary' ? colors.border : variant === 'primary' ? colors.primary : colors.destructive;
+
+  let bg: string = colors.primary;
+  let fg: string = colors.primaryForeground;
+  let border: string = colors.primary;
+
+  if (variant === 'secondary') {
+    bg = colors.card;
+    fg = colors.foreground;
+    border = colors.border;
+  } else if (variant === 'destructive') {
+    bg = colors.destructive;
+    fg = colors.destructiveForeground;
+    border = colors.destructive;
+  } else if (variant === 'success') {
+    bg = '#398a55';
+    fg = '#ffffff';
+    border = '#398a55';
+  }
+
+  if (disabled) {
+    bg = colors.muted;
+    fg = colors.mutedForeground;
+    border = colors.border;
+  }
 
   return (
     <Pressable
@@ -53,12 +64,12 @@ export function AppButton({
         {
           backgroundColor: bg,
           borderColor: border,
-          opacity: disabled ? 0.4 : pressed ? 0.75 : 1,
+          opacity: disabled ? 1 : pressed ? 0.75 : 1,
         },
         style,
       ]}
     >
-      <Text style={[styles.label, { color: disabled ? colors.mutedForeground : fg }]}>{label}</Text>
+      <Text style={[styles.label, { color: fg }]}>{label}</Text>
     </Pressable>
   );
 }

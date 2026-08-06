@@ -18,8 +18,9 @@ import {
   type TimedChallengePhase,
   type TimedChallengeScheduler,
 } from '../timedChallenge/index.ts';
-import { emptyMoveNamingScore, scoreMoveNamingAttempt } from './MoveNamingScorer.ts';
+import type { BoardPerspective } from './boardPerspective.ts';
 import type { MoveNamingChallenge, MoveNamingOutcome, MoveNamingScore } from './types.ts';
+import { emptyMoveNamingScore, scoreMoveNamingAttempt } from './MoveNamingScorer.ts';
 
 export type MoveNamingPhase = TimedChallengePhase;
 
@@ -61,12 +62,18 @@ export class MoveNamingSession {
   private sessionSeconds = SESSION_SECONDS;
   private readonly timer: TimedChallengeTimer;
   private readonly scheduler: MoveNamingScheduler;
-  private readonly pickChallenge: (previousId?: string) => MoveNamingChallenge | null;
+  private readonly pickChallenge: (
+    previousId?: string,
+    previousPerspective?: BoardPerspective,
+  ) => MoveNamingChallenge | null;
 
   constructor(options: {
     timer?: TimedChallengeTimer;
     scheduler?: MoveNamingScheduler;
-    pickChallenge: (previousId?: string) => MoveNamingChallenge | null;
+    pickChallenge: (
+      previousId?: string,
+      previousPerspective?: BoardPerspective,
+    ) => MoveNamingChallenge | null;
   }) {
     this.timer = options.timer ?? new TimedChallengeTimer();
     this.scheduler = options.scheduler ?? defaultTimedChallengeScheduler;
@@ -218,7 +225,8 @@ export class MoveNamingSession {
   }
 
   private loadNextChallenge(previousId?: string): void {
-    this.challenge = this.pickChallenge(previousId);
+    const previousPerspective = this.challenge?.boardPerspective;
+    this.challenge = this.pickChallenge(previousId, previousPerspective);
   }
 
   private endSession(): void {

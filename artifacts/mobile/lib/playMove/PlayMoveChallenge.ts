@@ -50,7 +50,7 @@ export function pickPlayMoveChallenge(
   if (available.length === 0) {
     // Fall back to move-naming picker then filter
     for (let i = 0; i < maxAttempts; i += 1) {
-      const base = pickMoveNamingChallenge(previousId, rng);
+      const base = pickMoveNamingChallenge(previousId, undefined, rng);
       if (!base) return null;
       const challenge: PlayMoveChallenge = {
         ...base,
@@ -69,7 +69,7 @@ export function pickPlayMoveChallenge(
   }
 
   // Last resort: return any buildable challenge even if promotion (default q)
-  const fallback = pickMoveNamingChallenge(previousId, rng);
+  const fallback = pickMoveNamingChallenge(previousId, undefined, rng);
   if (!fallback) return null;
   return {
     ...fallback,

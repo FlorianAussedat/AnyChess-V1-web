@@ -29,3 +29,5 @@ export type {
   ConstructionPhase,
   PlayerConstructionSnapshot,
 } from './OpeningConstructionSession.ts';
+export { groupOpeningSans } from './groupOpeningSans.ts';
+export type { OpeningMoveRow } from './groupOpeningSans.ts';

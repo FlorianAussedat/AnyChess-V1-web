@@ -1,16 +1,21 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BackButton } from '@/components/BackButton';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { DesignTokens } from '@/constants/designTokens';
 import {
   OpeningIdentificationSession,
+  groupOpeningSans,
   type OpeningIdentificationSnapshot,
 } from '@/lib/openingQuiz';
 
 export default function QuelleOuvertureScreen() {
   const colors = useColors();
   const router = useRouter();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const session = useRef(new OpeningIdentificationSession());
   const [snap, setSnap] = useState<OpeningIdentificationSnapshot>(() => session.current.start());
   const [input, setInput] = useState('');
@@ -21,67 +26,106 @@ export default function QuelleOuvertureScreen() {
   const next = () =>
     setSnap(session.current.start(snap.line ? [snap.line.identity.name] : []));
 
+  const moveRows = groupOpeningSans(snap.line?.sans ?? []);
+
   return (
     <ScrollView
-      contentContainerStyle={{
-        flexGrow: 1,
-        padding: 20,
-        gap: 14,
-        backgroundColor: colors.background,
-      }}
+      contentContainerStyle={[
+        styles.page,
+        {
+          backgroundColor: colors.background,
+          paddingTop: topPad + DesignTokens.spacing.md,
+          paddingBottom: bottomPad + DesignTokens.spacing.xl,
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
     >
-      <BackButton onPress={() => router.back()} />
-      <Text style={{ color: colors.foreground, fontSize: 25, fontWeight: '700' }}>
-        Quelle ouverture ?
+      <ScreenHeader onBack={() => router.back()} title="Quelle ouverture ?" />
+      <Text style={{ color: colors.mutedForeground }}>
+        Identifie l’ouverture après cette ligne :
       </Text>
-      <Text style={{ color: colors.mutedForeground }}>Identifie l’ouverture après cette ligne :</Text>
-      <Text style={{ color: colors.foreground, fontSize: 20 }}>{snap.line?.sans.join(' ')}</Text>
+      <View
+        style={[styles.lineCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        testID="quelle-move-rows"
+      >
+        {moveRows.map((row) => (
+          <View key={row.moveNumber} style={styles.moveRow}>
+            <Text style={[styles.moveNum, { color: colors.mutedForeground }]}>
+              {row.moveNumber}.
+            </Text>
+            <Text style={[styles.moveSan, { color: colors.foreground }]}>
+              {row.white ?? ''}
+            </Text>
+            <Text style={[styles.moveSan, { color: colors.foreground }]}>
+              {row.black ? `...${row.black}` : ''}
+            </Text>
+          </View>
+        ))}
+      </View>
       {!snap.answered ? (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={styles.inputRow}>
           <TextInput
             value={input}
             onChangeText={setInput}
             onSubmitEditing={answer}
             placeholder="Nom de l’ouverture"
             placeholderTextColor={colors.mutedForeground}
-            style={{
-              flex: 1,
-              padding: 12,
-              borderWidth: 1,
-              borderColor: colors.border,
-              color: colors.foreground,
-              borderRadius: 10,
-              minHeight: 44,
-            }}
+            style={[
+              styles.input,
+              {
+                color: colors.foreground,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+              },
+            ]}
           />
-          <Pressable
-            onPress={answer}
-            style={{ backgroundColor: colors.primary, padding: 13, borderRadius: 10 }}
-          >
-            <Text style={{ color: colors.primaryForeground }}>Valider</Text>
-          </Pressable>
+          <AppButton label="Valider" onPress={answer} style={styles.validate} />
         </View>
       ) : (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: DesignTokens.spacing.sm }}>
           <Text style={{ color: snap.verdict?.correct ? '#398a55' : '#c44' }}>
             {snap.verdict?.correct
               ? `Correct${snap.verdict.acceptedAs === 'family' ? ' (famille acceptée)' : ''} !`
               : 'Incorrect.'}
           </Text>
           <Text style={{ color: colors.foreground }}>Réponse : {snap.line?.identity.name}</Text>
-          <Pressable
-            onPress={next}
-            style={{
-              backgroundColor: colors.primary,
-              padding: 14,
-              borderRadius: 10,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ color: colors.primaryForeground }}>Nouvelle ouverture</Text>
-          </Pressable>
+          <AppButton label="Nouvelle ouverture" onPress={next} />
         </View>
       )}
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  page: {
+    flexGrow: 1,
+    paddingHorizontal: DesignTokens.spacing.xl,
+    gap: DesignTokens.spacing.md,
+  },
+  lineCard: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.md,
+    padding: DesignTokens.spacing.lg,
+    gap: DesignTokens.spacing.sm,
+  },
+  moveRow: { flexDirection: 'row', alignItems: 'center', gap: DesignTokens.spacing.md },
+  moveNum: {
+    width: 28,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    fontSize: 16,
+  },
+  moveSan: {
+    flex: 1,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    fontSize: 18,
+  },
+  inputRow: { flexDirection: 'row', gap: DesignTokens.spacing.sm, alignItems: 'center' },
+  input: {
+    flex: 1,
+    paddingHorizontal: DesignTokens.spacing.md,
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.sm,
+    minHeight: DesignTokens.minTouchTarget,
+  },
+  validate: { paddingHorizontal: DesignTokens.spacing.md },
+});

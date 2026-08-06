@@ -10,6 +10,7 @@ import {
 } from '@/contexts/OpeningGameContext';
 import type { PlayerColor } from '@/contexts/OpeningGameContext';
 import { OpeningGameScreen } from '@/components/OpeningGameScreen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { repertoireService, type ParsedRepertoire } from '@/lib/repertoire';
 
 /**
@@ -101,12 +102,7 @@ export default function OpeningPlayRoute() {
           { backgroundColor: colors.background, paddingTop: topPad + 6, paddingHorizontal: 20 },
         ]}
       >
-        <Pressable
-          onPress={() => router.back()}
-          style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
+        <ScreenHeader onBack={() => router.back()} title="Ouverture" />
         <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
       </View>
     );
