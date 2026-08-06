@@ -10,6 +10,7 @@ export { looksLikeChessMove } from './looksLikeChessMove.ts';
 export { legalDestinationsForSquare } from './legalDestinations.ts';
 export { pairMoveHistory } from './pairMoveHistory.ts';
 export { resolveSideChoice } from './resolveSideChoice.ts';
+export { campFromSquareTap, CAMP_PICKER_START_FEN } from './boardCampPicker.ts';
 export { speakMoveHistorySummary } from './speakMoveHistory.ts';
 export { undoPlayerTurn, type UndoPlayerTurnResult } from './undoPlayerTurn.ts';
 export {

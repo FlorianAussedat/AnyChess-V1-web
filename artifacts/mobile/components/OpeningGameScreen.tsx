@@ -304,7 +304,7 @@ export function OpeningGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flexGrow: 1, paddingHorizontal: 10, gap: 8 },
+  root: { flex: 1, flexGrow: 1, paddingHorizontal: 10, gap: 8 },
   loadingBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   boardRow: { alignItems: 'center' },
   sideIndicator: {

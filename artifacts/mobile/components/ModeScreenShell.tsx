@@ -1,9 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { SoundToggle } from '@/components/SoundToggle';
+import { BackButton } from '@/components/BackButton';
 import { AnyChessAppShell } from '@/components/AnyChessAppShell';
 import { DesignTokens } from '@/constants/designTokens';
 
@@ -22,16 +22,7 @@ export function ModeScreenShell({
   return (
     <AnyChessAppShell style={styles.root}>
       <View style={styles.header}>
-        <Pressable
-          onPress={onBack ?? (() => router.back())}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 },
-          ]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
+        <BackButton onPress={onBack ?? (() => router.back())} />
         <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
           {title}
         </Text>
@@ -45,14 +36,6 @@ export function ModeScreenShell({
 const styles = StyleSheet.create({
   root: { paddingHorizontal: 14, gap: DesignTokens.spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBtn: {
-    width: DesignTokens.headerIconButton,
-    height: DesignTokens.headerIconButton,
-    borderRadius: DesignTokens.radius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
     fontSize: DesignTokens.typography.modeTitle,
     fontFamily: DesignTokens.typography.weightBold,

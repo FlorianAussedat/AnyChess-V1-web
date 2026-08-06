@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
-import { BackButton } from '@/components/BackButton';
-import { SoundToggle } from '@/components/SoundToggle';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { BoardToolbar } from '@/components/BoardToolbar';
+import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
+import { AppButton } from '@/components/ui/AppButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
-import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import type { BoardPiece } from '@/contexts/GameContext';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useColors } from '@/hooks/useColors';
@@ -96,26 +97,15 @@ export default function NommerLeCoupScreen() {
       keyboardShouldPersistTaps="handled"
       testID="nommer-screen"
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <BackButton
-          onPress={() => {
-            sessionRef.current.returnToIdle();
-            sync();
-            router.back();
-          }}
-          label="Retour"
-        />
-        <SoundToggle />
-      </View>
-      <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Nommer le coup</Text>
-        <BoardCoordinatesToggle
-          visible={showCoordinates}
-          onToggle={() => {
-            void toggleCoordinates();
-          }}
-        />
-      </View>
+      <ScreenHeader
+        onBack={() => {
+          sessionRef.current.returnToIdle();
+          sync();
+          router.back();
+        }}
+        title="Nommer le coup"
+        showSound
+      />
 
       {snap.phase === 'idle' && (
         <View style={styles.gap}>
@@ -126,24 +116,22 @@ export default function NommerLeCoupScreen() {
           <Text style={{ color: colors.foreground }}>
             Record actuel : {snap.previousRecord}
           </Text>
-          <Pressable
-            onPress={() => {
+          <BooleanSettingRow
+            label="Réponse vocale"
+            value={snap.voiceEnabled}
+            onToggle={() => {
               sessionRef.current.configure({ voiceEnabled: !snap.voiceEnabled });
               sync();
             }}
-            style={[styles.toggleRow, { borderColor: colors.border, backgroundColor: colors.card }]}
-          >
-            <Text style={{ color: colors.foreground }}>
-              Réponse vocale : {snap.voiceEnabled ? 'activée' : 'désactivée'}
-            </Text>
-          </Pressable>
-          <Pressable
+            activeIcon="mic"
+            inactiveIcon="mic-off-outline"
+            testID="nommer-voice-toggle"
+          />
+          <AppButton
+            label="Commencer"
             onPress={() => void beginSession()}
-            style={[styles.button, { backgroundColor: colors.primary }]}
             testID="nommer-start"
-          >
-            <Text style={{ color: colors.primaryForeground }}>Commencer</Text>
-          </Pressable>
+          />
           <Pressable onPress={() => router.push('/visualisation/records')}>
             <Text style={{ color: colors.primary }}>Voir les records</Text>
           </Pressable>
@@ -168,6 +156,12 @@ export default function NommerLeCoupScreen() {
               Score : {snap.score.score}
             </Text>
           </View>
+          <BoardToolbar
+            showCoordinates={showCoordinates}
+            onToggleCoordinates={() => {
+              void toggleCoordinates();
+            }}
+          />
           {display && (
             <ChessBoard
               board={display.board() as (BoardPiece | null)[][]}

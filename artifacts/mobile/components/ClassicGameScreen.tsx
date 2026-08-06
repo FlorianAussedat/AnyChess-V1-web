@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -18,24 +16,24 @@ import {
   useMoveEventFeedback,
 } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
-import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
-import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
-import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { BoardToolbar } from '@/components/BoardToolbar';
+import { BoardCampPicker } from '@/components/game/BoardCampPicker';
 import { GameActionRow } from '@/components/game/GameActionRow';
-import { GameSidePicker } from '@/components/game/GameSidePicker';
 import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
+import { OptionChip } from '@/components/ui/OptionChip';
 import { useGame } from '@/contexts/GameContext';
-import type { PlayerColor } from '@/lib/game/types';
-import type { SideChoice } from '@/lib/game/types';
+import type { PlayerColor, SideChoice } from '@/lib/game/types';
 import { pairMoveHistory, resolveSideChoice } from '@/lib/game';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { BrandAssets } from '@/constants/BrandAssets';
+import { DesignTokens } from '@/constants/designTokens';
 import {
   DEFAULT_STRENGTH_BAND_ID,
   STOCKFISH_STRENGTH_BANDS,
@@ -81,10 +79,8 @@ export function ClassicGameScreen() {
   }, [applyUserMove]);
 
   const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
-  const gameStarted = history.length > 0;
-  const [pendingSide, setPendingSide] = useState<SideChoice>(() =>
-    playerColor === 'b' ? 'b' : 'w',
-  );
+  const [campLocked, setCampLocked] = useState(false);
+  const [pendingSide, setPendingSide] = useState<SideChoice>('w');
   const [setupBandId, setSetupBandId] = useState(strengthBandId || DEFAULT_STRENGTH_BAND_ID);
   const [boardVisible, setBoardVisible] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
@@ -97,24 +93,24 @@ export function ClassicGameScreen() {
     toggleMic,
   } = useSpeechInput({
     isSpeaking,
-    forceOff: isGameOver,
+    forceOff: isGameOver || !campLocked,
     onTranscript: (text) => applyRef.current(text),
   });
 
   const { showRecognized } = useMoveEventFeedback(moveEvent);
   const { touchSelected, legalDests, onSquarePress } = useBoardTouchSelection({
-    canAct,
+    canAct: canAct && campLocked,
     getLegalDestinations,
     movePieceBySquare,
   });
 
   const onPickSetupBand = useCallback(
     (id: string) => {
-      if (gameStarted) return;
+      if (campLocked) return;
       setSetupBandId(id);
       setStrengthBandId(id);
     },
-    [gameStarted, setStrengthBandId],
+    [campLocked, setStrengthBandId],
   );
 
   const applySide = useCallback(
@@ -127,12 +123,13 @@ export function ClassicGameScreen() {
 
   const onPickSide = useCallback(
     (side: SideChoice) => {
-      if (gameStarted) return;
+      if (campLocked) return;
       setPendingSide(side);
       setStrengthBandId(setupBandId);
       applySide(resolveSideChoice(side));
+      setCampLocked(true);
     },
-    [gameStarted, setupBandId, setStrengthBandId, applySide],
+    [campLocked, setupBandId, setStrengthBandId, applySide],
   );
 
   const onNewGamePress = useCallback(() => {
@@ -142,47 +139,35 @@ export function ClassicGameScreen() {
     else newGame();
   }, [setupBandId, setStrengthBandId, pendingSide, playerColor, applySide, changeColor, newGame]);
 
+  const activeBand =
+    STOCKFISH_STRENGTH_BANDS.find((b) => b.id === setupBandId) ??
+    STOCKFISH_STRENGTH_BANDS.find((b) => b.id === DEFAULT_STRENGTH_BAND_ID);
+  const campLabel = playerColor === 'w' ? 'Blancs' : 'Noirs';
+  const contextLine = campLocked
+    ? `${campLabel} · adversaire ${activeBand?.label ?? ''}`
+    : 'Configure la partie';
+
   const moveRows = pairMoveHistory(history);
 
   return (
-    <View
-      style={[
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={[
         styles.root,
         {
-          backgroundColor: colors.background,
           paddingTop: topPad + 6,
           paddingBottom: bottomPad + 6,
         },
       ]}
+      keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                borderColor: colors.border,
-                backgroundColor: colors.card,
-                opacity: pressed ? 0.6 : 1,
-              },
-            ]}
-            testID="back-btn"
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-          </Pressable>
-          <Image source={require('@/assets/images/icon.png')} style={styles.logoImg} />
-          <View>
-            <Text style={[styles.title, { color: colors.foreground }]}>Partie classique</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {playerColor === 'w' ? 'Tu joues les Blancs' : 'Tu joues les Noirs'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          {gameStarted && (
+      <ScreenHeader
+        onBack={() => router.back()}
+        title="Partie classique"
+        subtitle={contextLine}
+        showSound
+        trailing={
+          campLocked ? (
             <View
               style={styles.sideIndicator}
               accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
@@ -201,30 +186,12 @@ export function ClassicGameScreen() {
                 {playerColor === 'w' ? 'B' : 'N'}
               </Text>
             </View>
-          )}
-          <SoundToggle />
-          <BoardCoordinatesToggle
-            visible={showCoordinates}
-            onToggle={() => {
-              void toggleCoordinates();
-            }}
-          />
-          <BoardVisibilityToggle
-            visible={boardVisible}
-            onToggle={() => setBoardVisible((v) => !v)}
-          />
-        </View>
-      </View>
-
-      <GameActionRow
-        onRepeat={repeatLast}
-        onUndo={undoMove}
-        onSummarize={summarizeGame}
-        onNewGame={onNewGamePress}
+          ) : null
+        }
       />
 
-      {!gameStarted ? (
-        <GameSidePicker pendingSide={pendingSide} onPickSide={onPickSide}>
+      {!campLocked ? (
+        <View style={styles.setupBlock}>
           <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>
             Niveau adversaire
           </Text>
@@ -233,85 +200,86 @@ export function ClassicGameScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.bandRow}
           >
-            {STOCKFISH_STRENGTH_BANDS.map((band) => {
-              const active = setupBandId === band.id;
-              return (
-                <Pressable
-                  key={band.id}
-                  onPress={() => onPickSetupBand(band.id)}
-                  style={[
-                    styles.bandChip,
-                    {
-                      backgroundColor: active ? colors.primary : colors.card,
-                      borderColor: active ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      fontFamily: 'Inter_600SemiBold',
-                      fontSize: 11,
-                      color: active ? colors.primaryForeground : colors.foreground,
-                    }}
-                  >
-                    {band.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            {STOCKFISH_STRENGTH_BANDS.map((band) => (
+              <OptionChip
+                key={band.id}
+                label={band.label}
+                active={setupBandId === band.id}
+                onPress={() => onPickSetupBand(band.id)}
+              />
+            ))}
           </ScrollView>
-        </GameSidePicker>
-      ) : null}
-
-      <View style={styles.boardRow}>
-        {boardVisible ? (
-          <ChessBoard
-            board={board}
-            lastMove={lastMove}
-            isFlipped={playerColor === 'b'}
-            selectedSquare={touchSelected}
-            legalDots={legalDests}
-            onSquarePress={onSquarePress}
-            showCoordinates={showCoordinates}
+          <BoardCampPicker onSelect={onPickSide} />
+        </View>
+      ) : (
+        <>
+          <GameActionRow
+            onRepeat={repeatLast}
+            onUndo={undoMove}
+            onSummarize={summarizeGame}
+            onNewGame={onNewGamePress}
           />
-        ) : (
-          <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
-        )}
-      </View>
 
-      <GameStatusCard
-        status={status}
-        heardText={heardText}
-        isGameOver={isGameOver}
-        isOpponentThinking={isOpponentThinking}
-      />
+          <BoardToolbar
+            showCoordinates={showCoordinates}
+            onToggleCoordinates={() => {
+              void toggleCoordinates();
+            }}
+            boardVisible={boardVisible}
+            onToggleBoardVisible={() => setBoardVisible((v) => !v)}
+          />
 
-      <GameMicButton
-        showRecognized={showRecognized}
-        isListening={isListening}
-        micActive={micActive}
-        micMessage={micStatus.message}
-        onToggle={toggleMic}
-      />
+          <View style={styles.boardRow}>
+            {boardVisible ? (
+              <ChessBoard
+                board={board}
+                lastMove={lastMove}
+                isFlipped={playerColor === 'b'}
+                selectedSquare={touchSelected}
+                legalDots={legalDests}
+                onSquarePress={onSquarePress}
+                showCoordinates={showCoordinates}
+              />
+            ) : (
+              <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
+            )}
+          </View>
 
-      <ChessAnswerInput
-        onSubmit={(text) => applyRef.current(text)}
-        enabled={canAct}
-        persistFocus={canAct}
-        placeholder="Ex. Nc3, Fou b5, e4, petit roque, annuler…"
-        testID="manual-input"
-      />
+          <GameStatusCard
+            status={status}
+            heardText={heardText}
+            isGameOver={isGameOver}
+            isOpponentThinking={isOpponentThinking}
+          />
 
-      <GameMoveHistoryCard
-        moveRows={moveRows}
-        opening={openingIdentity}
-        emptyMessage="La partie commence ici"
-        onExportPress={() => {
-          setExportedText(exportPgn());
-          setExportOpen(true);
-        }}
-        exportMode="icon"
-      />
+          <GameMicButton
+            showRecognized={showRecognized}
+            isListening={isListening}
+            micActive={micActive}
+            micMessage={micStatus.message}
+            onToggle={toggleMic}
+          />
+
+          <ChessAnswerInput
+            onSubmit={(text) => applyRef.current(text)}
+            enabled={canAct}
+            persistFocus={canAct}
+            placeholder="Ex. Nc3, Fou b5, e4, petit roque, annuler…"
+            testID="manual-input"
+          />
+
+          <GameMoveHistoryCard
+            moveRows={moveRows}
+            opening={openingIdentity}
+            emptyMessage="La partie commence ici"
+            onExportPress={() => {
+              setExportedText(exportPgn());
+              setExportOpen(true);
+            }}
+            exportMode="icon"
+          />
+        </>
+      )}
 
       <GameExportPgnModal
         visible={exportOpen}
@@ -323,27 +291,21 @@ export function ClassicGameScreen() {
         downloadPgn={downloadPgn}
         onClose={() => setExportOpen(false)}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 10, gap: 7 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  root: { flexGrow: 1, paddingHorizontal: 10, gap: 8 },
+  setupBlock: { gap: DesignTokens.spacing.md },
+  setupLabel: {
+    fontSize: 11,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoImg: { width: 36, height: 36, borderRadius: 8 },
+  bandRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
+  boardRow: { alignItems: 'center' },
   sideIndicator: {
     width: 32,
     height: 32,
@@ -360,25 +322,9 @@ const styles = StyleSheet.create({
   },
   sideIndicatorLetter: {
     fontSize: 13,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: DesignTokens.typography.weightBold,
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  title: { fontSize: 18, fontFamily: 'Inter_700Bold', letterSpacing: 0.3 },
-  subtitle: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 1 },
-  setupLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  bandRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
-  bandChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  boardRow: { alignItems: 'center' },
 });

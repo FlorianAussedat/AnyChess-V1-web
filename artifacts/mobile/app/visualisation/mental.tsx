@@ -16,8 +16,10 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
-import { BackButton } from '@/components/BackButton';
-import { SoundToggle } from '@/components/SoundToggle';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
+import { OptionChip } from '@/components/ui/OptionChip';
+import { AppButton } from '@/components/ui/AppButton';
 import { ChessBoard } from '@/components/ChessBoard';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
@@ -235,12 +237,11 @@ export default function MentalPositionScreen() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <BackButton onPress={() => router.back()} label="Retour" />
-        <SoundToggle />
-      </View>
-
-      <Text style={[styles.title, { color: colors.foreground }]}>Suivi mental de position</Text>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title="Suivi mental de position"
+        showSound
+      />
 
       {snap.phase === 'setup' || snap.phase === 'error' ? (
         <View style={{ gap: 12 }}>
@@ -250,74 +251,43 @@ export default function MentalPositionScreen() {
           <Text style={{ color: colors.mutedForeground }}>Coups complets</Text>
           <View style={styles.row}>
             {[3, 4, 5, 6].map((n) => (
-              <Pressable
+              <OptionChip
                 key={n}
+                label={String(n)}
+                active={fullMoves === n}
                 onPress={() => setFullMoves(n)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: fullMoves === n ? colors.primary : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: fullMoves === n ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {n}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
-          <Text style={{ color: colors.mutedForeground }}>Orientation</Text>
+          <Text style={{ color: colors.mutedForeground }}>Perspective</Text>
           <View style={styles.row}>
             {(['w', 'b'] as const).map((c) => (
-              <Pressable
+              <OptionChip
                 key={c}
+                label={c === 'w' ? 'Blancs' : 'Noirs'}
+                active={orientation === c}
                 onPress={() => setOrientation(c)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: orientation === c ? colors.primary : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: orientation === c ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {c === 'w' ? 'Blancs' : 'Noirs'}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
-          <Pressable onPress={() => setDictate((v) => !v)}>
-            <Text style={{ color: colors.foreground }}>
-              Dicter la séquence : {dictate ? 'oui' : 'non'}
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => setShowBoard((v) => !v)}>
-            <Text style={{ color: colors.foreground }}>
-              Afficher l'échiquier pendant la séquence : {showBoard ? 'oui' : 'non'}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={start}
-            disabled={busy}
-            style={[styles.btn, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.primaryForeground} />
-            ) : (
-              <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                Commencer
-              </Text>
-            )}
-          </Pressable>
+          <BooleanSettingRow
+            label="Dicter la séquence"
+            value={dictate}
+            onToggle={() => setDictate((v) => !v)}
+            activeIcon="volume-high"
+            inactiveIcon="volume-mute-outline"
+            testID="mental-dictate-toggle"
+          />
+          <BooleanSettingRow
+            label="Afficher l'échiquier pendant la séquence"
+            value={showBoard}
+            onToggle={() => setShowBoard((v) => !v)}
+            activeIcon="eye"
+            inactiveIcon="eye-off-outline"
+            testID="mental-board-toggle"
+          />
+          <AppButton label="Commencer" onPress={start} disabled={busy} testID="mental-start" />
+          {busy ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
       ) : null}
 

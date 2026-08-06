@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
-import { BackButton } from '@/components/BackButton';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { AppButton } from '@/components/ui/AppButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
-import { SoundToggle } from '@/components/SoundToggle';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
@@ -118,6 +118,7 @@ export default function ConstruisOuvertureScreen() {
   const [isReplaying, setIsReplaying] = useState(false);
   const [touchSelected, setTouchSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
+  const [configExpanded, setConfigExpanded] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -139,6 +140,7 @@ export default function ConstruisOuvertureScreen() {
     setReplayLastMove(null);
     setIsReplaying(false);
     clearTouch();
+    setConfigExpanded(false);
   }
 
   function selectFamily(nextFamily: string) {
@@ -239,55 +241,65 @@ export default function ConstruisOuvertureScreen() {
         backgroundColor: colors.background,
       }}
     >
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
+      <ScreenHeader
+        onBack={() => {
+          replayHandle.current?.cancel();
+          router.back();
         }}
-      >
-        <BackButton
-          onPress={() => {
-            replayHandle.current?.cancel();
-            router.back();
-          }}
-        />
-        <SoundToggle />
-      </View>
-      <Text style={{ color: colors.foreground, fontSize: 25, fontWeight: '700' }}>
-        Construis l’ouverture
-      </Text>
-      <Text style={{ color: colors.mutedForeground }}>
-        Joue la ligne de référence exacte, coup par coup.
-      </Text>
+        title="Construis l’ouverture"
+        subtitle={
+          target
+            ? `${family} · ${target.identity.name}`
+            : 'Joue la ligne de référence exacte, coup par coup.'
+        }
+        showSound
+      />
 
-      <Dropdown label="Ouverture" value={family} options={families} onSelect={selectFamily} />
-      {variations.length > 0 && target && (
-        <Dropdown
-          label="Variation"
-          value={target.identity.name}
-          options={variations.map((v) => v.identity.name)}
-          onSelect={selectVariation}
-        />
+      {(configExpanded || !snap || snap.phase !== 'playing') && (
+        <View style={{ gap: 10 }}>
+          <Dropdown label="Ouverture" value={family} options={families} onSelect={selectFamily} />
+          {variations.length > 0 && target && (
+            <Dropdown
+              label="Variation"
+              value={target.identity.name}
+              options={variations.map((v) => v.identity.name)}
+              onSelect={selectVariation}
+            />
+          )}
+          <AppButton label="Aléatoire" onPress={pickRandom} variant="secondary" />
+          {!!randomAnnouncement && (
+            <Text style={{ color: colors.primary, fontWeight: '600' }}>{randomAnnouncement}</Text>
+          )}
+        </View>
       )}
 
-      <Pressable
-        onPress={pickRandom}
-        style={{
-          padding: 12,
-          borderRadius: 10,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.card,
-          alignItems: 'center',
-        }}
-      >
-        <Text style={{ color: colors.foreground, fontWeight: '600' }}>Aléatoire</Text>
-      </Pressable>
-
-      {!!randomAnnouncement && (
-        <Text style={{ color: colors.primary, fontWeight: '600' }}>{randomAnnouncement}</Text>
+      {snap?.phase === 'playing' && target && !configExpanded && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 13 }} numberOfLines={2}>
+            {family}
+            {'\n'}
+            {target.identity.name}
+          </Text>
+          <AppButton
+            label="Changer"
+            variant="secondary"
+            onPress={() => setConfigExpanded(true)}
+            style={{ paddingHorizontal: 12, minHeight: 40 }}
+          />
+          <AppButton
+            label="Aléatoire"
+            variant="secondary"
+            onPress={pickRandom}
+            style={{ paddingHorizontal: 12, minHeight: 40 }}
+          />
+        </View>
       )}
 
       {boardToShow && (

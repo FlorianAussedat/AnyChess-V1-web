@@ -1,7 +1,11 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
 import { useColors } from '@/hooks/useColors';
+import { DesignTokens } from '@/constants/designTokens';
+
+type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 type Props = {
   onRepeat: () => void;
@@ -10,55 +14,70 @@ type Props = {
   onNewGame: () => void;
 };
 
+type Action = {
+  id: string;
+  label: string;
+  icon: IoniconName;
+  onPress: () => void;
+  testID: string;
+};
+
+/**
+ * Compact in-game action bar — smaller footprint, still labeled.
+ */
 export function GameActionRow({ onRepeat, onUndo, onSummarize, onNewGame }: Props) {
   const colors = useColors();
-  const btn = (pressed: boolean) => [
-    styles.actionBtn,
-    { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+  const actions: Action[] = [
+    { id: 'repeat', label: 'Répéter', icon: 'volume-medium-outline', onPress: onRepeat, testID: 'repeat-btn' },
+    { id: 'undo', label: 'Annuler', icon: 'arrow-undo-outline', onPress: onUndo, testID: 'undo-btn' },
+    { id: 'summary', label: 'Résumé', icon: 'list-outline', onPress: onSummarize, testID: 'summary-btn' },
+    { id: 'new', label: 'Nouvelle', icon: 'refresh-outline', onPress: onNewGame, testID: 'new-game-btn' },
   ];
 
   return (
     <View style={styles.actionRow}>
-      <Pressable style={({ pressed }) => btn(pressed)} onPress={onRepeat} testID="repeat-btn">
-        <Ionicons name="volume-medium-outline" size={14} color={colors.foreground} />
-        <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Répéter</Text>
-      </Pressable>
-      <Pressable style={({ pressed }) => btn(pressed)} onPress={onUndo} testID="undo-btn">
-        <Ionicons name="arrow-undo-outline" size={14} color={colors.foreground} />
-        <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Annuler</Text>
-      </Pressable>
-      <Pressable style={({ pressed }) => btn(pressed)} onPress={onSummarize} testID="summary-btn">
-        <Ionicons name="list-outline" size={14} color={colors.foreground} />
-        <Text style={[styles.actionBtnLabel, { color: colors.foreground }]}>Résumé</Text>
-      </Pressable>
-      <Pressable style={({ pressed }) => btn(pressed)} onPress={onNewGame} testID="new-game-btn">
-        <Ionicons name="refresh-outline" size={14} color={colors.foreground} />
-        <Text style={[styles.actionBtnLabel, { color: colors.foreground }]} numberOfLines={2}>
-          Nouvelle{'\n'}partie
-        </Text>
-      </Pressable>
+      {actions.map((action) => (
+        <Pressable
+          key={action.id}
+          style={({ pressed }) => [
+            styles.actionBtn,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              opacity: pressed ? 0.6 : 1,
+            },
+          ]}
+          onPress={action.onPress}
+          testID={action.testID}
+          accessibilityLabel={action.label}
+        >
+          <Ionicons name={action.icon} size={15} color={colors.foreground} />
+          <Text style={[styles.actionBtnLabel, { color: colors.foreground }]} numberOfLines={1}>
+            {action.label}
+          </Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  actionRow: { flexDirection: 'row', gap: 6 },
+  actionRow: { flexDirection: 'row', gap: 5 },
   actionBtn: {
     flex: 1,
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    minHeight: 44,
+    gap: 4,
+    minHeight: 40,
     paddingVertical: 6,
     paddingHorizontal: 4,
-    borderRadius: 10,
+    borderRadius: DesignTokens.radius.sm,
     borderWidth: 1,
   },
   actionBtnLabel: {
     fontSize: 10,
-    fontFamily: 'Inter_600SemiBold',
-    textAlign: 'center',
+    fontFamily: DesignTokens.typography.weightSemiBold,
     flexShrink: 1,
   },
 });
