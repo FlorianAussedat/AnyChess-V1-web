@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -18,24 +18,23 @@ import {
   useMoveEventFeedback,
 } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
-import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
-import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
-import { SoundToggle } from '@/components/SoundToggle';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { BoardToolbar } from '@/components/BoardToolbar';
+import { BackButton } from '@/components/BackButton';
 import { TheoryContinuationViewer } from '@/components/TheoryContinuationViewer';
 import { GameActionRow } from '@/components/game/GameActionRow';
-import { GameSidePicker } from '@/components/game/GameSidePicker';
 import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
-import type { PlayerColor, SideChoice } from '@/lib/game/types';
-import { pairMoveHistory, resolveSideChoice } from '@/lib/game';
+import { pairMoveHistory } from '@/lib/game';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { BrandAssets } from '@/constants/BrandAssets';
+import { DesignTokens } from '@/constants/designTokens';
 
 export function OpeningGameScreen() {
   const colors = useColors();
@@ -65,7 +64,6 @@ export function OpeningGameScreen() {
     movePieceBySquare,
     getLegalDestinations,
     newGame,
-    changeColor,
     repeatLast,
     summarizeGame,
     undoMove,
@@ -80,10 +78,6 @@ export function OpeningGameScreen() {
   }, [applyUserMove]);
 
   const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
-  const gameStarted = history.length > 0;
-  const [pendingSide, setPendingSide] = useState<SideChoice>(() =>
-    playerColor === 'b' ? 'b' : 'w',
-  );
   const [boardVisible, setBoardVisible] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
   const [theoryOpen, setTheoryOpen] = useState(false);
@@ -116,40 +110,16 @@ export function OpeningGameScreen() {
     movePieceBySquare,
   });
 
-  const applySide = useCallback(
-    (color: PlayerColor) => {
-      if (color === playerColor) newGame();
-      else changeColor(color);
-    },
-    [playerColor, newGame, changeColor],
-  );
-
-  const onPickSide = useCallback(
-    (side: SideChoice) => {
-      if (gameStarted) return;
-      setPendingSide(side);
-      applySide(resolveSideChoice(side));
-    },
-    [gameStarted, applySide],
-  );
-
-  const onNewGamePress = useCallback(() => {
-    if (pendingSide === 'random') applySide(resolveSideChoice('random'));
-    else if (pendingSide !== playerColor) changeColor(pendingSide);
-    else newGame();
-  }, [pendingSide, playerColor, applySide, changeColor, newGame]);
-
   const moveRows = pairMoveHistory(history);
+  const campLabel = playerColor === 'w' ? 'Blancs' : 'Noirs';
+  const phaseLabel = phase === 'book' ? 'Théorie' : 'Stockfish';
+  const headerTitle = repertoireName || 'Répertoire';
+  const headerSubtitle = `${campLabel} · ${phaseLabel}`;
 
   if (loadError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
-        <Pressable
-          onPress={() => router.back()}
-          style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
+        <ScreenHeader onBack={() => router.back()} title="Répertoire" />
         <Text style={[styles.errorText, { color: colors.destructive }]}>{loadError}</Text>
       </View>
     );
@@ -163,91 +133,58 @@ export function OpeningGameScreen() {
           {
             backgroundColor: colors.background,
             paddingTop: topPad + 6,
-            alignItems: 'center',
-            justifyContent: 'center',
           },
         ]}
       >
-        <ActivityIndicator color={colors.primary} />
-        <Text style={{ color: colors.mutedForeground, marginTop: 12, fontFamily: 'Inter_400Regular' }}>
-          Chargement du répertoire…
-        </Text>
+        <BackButton onPress={() => router.back()} />
+        <View style={styles.loadingBody}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={{ color: colors.mutedForeground, marginTop: 12, fontFamily: 'Inter_400Regular' }}>
+            Chargement du répertoire…
+          </Text>
+        </View>
       </View>
     );
   }
 
   return (
-    <View
-      style={[
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={[
         styles.root,
         {
-          backgroundColor: colors.background,
           paddingTop: topPad + 6,
           paddingBottom: bottomPad + 6,
         },
       ]}
+      keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={10}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              {
-                borderColor: colors.border,
-                backgroundColor: colors.card,
-                opacity: pressed ? 0.6 : 1,
-              },
-            ]}
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={headerTitle}
+        subtitle={headerSubtitle}
+        showSound
+        trailing={
+          <View
+            style={styles.sideIndicator}
+            accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
           >
-            <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-              {repertoireName}
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              {playerColor === 'w' ? 'Tu joues les Blancs' : 'Tu joues les Noirs'}
-              {' · '}
-              {phase === 'book' ? 'Théorie' : 'Stockfish'}
+            <Image
+              source={BrandAssets.logoMark}
+              style={styles.sideIndicatorMark}
+              resizeMode="contain"
+            />
+            <Text
+              style={[
+                styles.sideIndicatorLetter,
+                { color: playerColor === 'w' ? '#F5F5F5' : '#1A1A1A' },
+              ]}
+            >
+              {playerColor === 'w' ? 'B' : 'N'}
             </Text>
           </View>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-          {gameStarted && (
-            <View
-              style={styles.sideIndicator}
-              accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
-            >
-              <Image
-                source={BrandAssets.logoMark}
-                style={styles.sideIndicatorMark}
-                resizeMode="contain"
-              />
-              <Text
-                style={[
-                  styles.sideIndicatorLetter,
-                  { color: playerColor === 'w' ? '#F5F5F5' : '#1A1A1A' },
-                ]}
-              >
-                {playerColor === 'w' ? 'B' : 'N'}
-              </Text>
-            </View>
-          )}
-          <SoundToggle />
-          <BoardCoordinatesToggle
-            visible={showCoordinates}
-            onToggle={() => {
-              void toggleCoordinates();
-            }}
-          />
-          <BoardVisibilityToggle
-            visible={boardVisible}
-            onToggle={() => setBoardVisible((v) => !v)}
-          />
-        </View>
-      </View>
+        }
+      />
 
       {theoryExit && (
         <View
@@ -283,12 +220,17 @@ export function OpeningGameScreen() {
         onRepeat={repeatLast}
         onUndo={undoMove}
         onSummarize={summarizeGame}
-        onNewGame={onNewGamePress}
+        onNewGame={newGame}
       />
 
-      {!gameStarted ? (
-        <GameSidePicker pendingSide={pendingSide} onPickSide={onPickSide} />
-      ) : null}
+      <BoardToolbar
+        showCoordinates={showCoordinates}
+        onToggleCoordinates={() => {
+          void toggleCoordinates();
+        }}
+        boardVisible={boardVisible}
+        onToggleBoardVisible={() => setBoardVisible((v) => !v)}
+      />
 
       <View style={styles.boardRow}>
         {boardVisible ? (
@@ -357,24 +299,14 @@ export function OpeningGameScreen() {
         downloadPgn={downloadPgn}
         onClose={() => setExportOpen(false)}
       />
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 10, gap: 7 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flex: 1, marginRight: 8 },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontSize: 17, fontFamily: 'Inter_700Bold', letterSpacing: 0.2 },
-  subtitle: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 1 },
+  root: { flexGrow: 1, paddingHorizontal: 10, gap: 8 },
+  loadingBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  boardRow: { alignItems: 'center' },
   sideIndicator: {
     width: 32,
     height: 32,
@@ -391,7 +323,7 @@ const styles = StyleSheet.create({
   },
   sideIndicatorLetter: {
     fontSize: 13,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: DesignTokens.typography.weightBold,
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -403,6 +335,5 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   theoryText: { fontSize: 12, fontFamily: 'Inter_500Medium', lineHeight: 17 },
-  boardRow: { alignItems: 'center' },
   errorText: { marginTop: 24, fontFamily: 'Inter_500Medium', fontSize: 14, paddingHorizontal: 8 },
 });
