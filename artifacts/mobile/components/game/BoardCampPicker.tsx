@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Chess } from 'chess.js';
 import { ChessBoard } from '@/components/ChessBoard';
 import type { BoardPiece } from '@/lib/game/types';
 import { campFromSquareTap, CAMP_PICKER_START_FEN } from '@/lib/game/boardCampPicker';
 import { campZoneRects } from '@/lib/game/campZoneRects';
-import type { SideChoice } from '@/lib/game/types';
+import type { BoardSizeMode, SideChoice } from '@/lib/game';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
 
@@ -13,16 +14,21 @@ type Props = {
   onSelect: (side: SideChoice) => void;
   /** Preview orientation while choosing (default White at bottom). */
   isFlipped?: boolean;
+  /** Match ChessBoard footprint (Classic uses `wide`). */
+  sizeMode?: BoardSizeMode;
 };
 
 /**
  * Pre-game camp selector: tap White/Black pieces on the starting board,
  * or the discreet central « Camp aléatoire » button.
  */
-export function BoardCampPicker({ onSelect, isFlipped = false }: Props) {
+export function BoardCampPicker({
+  onSelect,
+  isFlipped = false,
+  sizeMode = 'default',
+}: Props) {
   const colors = useColors();
-  const { width } = useWindowDimensions();
-  const boardSize = Math.min(width - 20, 352);
+  const boardSize = useBoardSize(sizeMode);
   const zones = useMemo(() => campZoneRects(boardSize, isFlipped), [boardSize, isFlipped]);
 
   const board = useMemo(
@@ -39,6 +45,8 @@ export function BoardCampPicker({ onSelect, isFlipped = false }: Props) {
           lastMove={null}
           isFlipped={isFlipped}
           showCoordinates
+          sizeMode={sizeMode}
+          size={boardSize}
           onSquarePress={(square) => {
             const camp = campFromSquareTap(board, square);
             if (camp) onSelect(camp);

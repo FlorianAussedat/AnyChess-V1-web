@@ -11,6 +11,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import {
   useBoardTouchSelection,
   useMoveEventFeedback,
@@ -44,6 +45,7 @@ export function ClassicGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave('/classic');
 
   const {
@@ -193,7 +195,7 @@ export function ClassicGameScreen() {
       {!campLocked ? (
         <View style={styles.setupBlock}>
           <StrengthBandSlider bandId={setupBandId} onBandIdChange={onPickSetupBand} />
-          <BoardCampPicker onSelect={onPickSide} />
+          <BoardCampPicker onSelect={onPickSide} sizeMode="wide" />
         </View>
       ) : (
         <>
@@ -204,7 +206,7 @@ export function ClassicGameScreen() {
             onNewGame={onNewGamePress}
           />
 
-          <View style={styles.boardBlock}>
+          <View style={[styles.boardBlock, { width: boardSize }]}>
             <BoardToolbar
               showCoordinates={showCoordinates}
               onToggleCoordinates={() => {
@@ -224,9 +226,15 @@ export function ClassicGameScreen() {
                   legalDots={legalDests}
                   onSquarePress={onSquarePress}
                   showCoordinates={showCoordinates}
+                  sizeMode="wide"
+                  size={boardSize}
                 />
               ) : (
-                <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
+                <HiddenBoardPlaceholder
+                  onReveal={() => setBoardVisible(true)}
+                  sizeMode="wide"
+                  size={boardSize}
+                />
               )}
             </View>
           </View>
@@ -282,9 +290,9 @@ export function ClassicGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flexGrow: 1, paddingHorizontal: 10, gap: 8 },
+  root: { flexGrow: 1, paddingHorizontal: 8, gap: 8 },
   setupBlock: { gap: DesignTokens.spacing.md },
-  boardBlock: { gap: 4 },
+  boardBlock: { gap: 4, alignSelf: 'center' },
   boardRow: { alignItems: 'center' },
   sideIndicator: {
     width: 32,

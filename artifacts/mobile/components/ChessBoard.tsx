@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { BoardTheme } from '@/constants/boardTheme';
+import { computeBoardSize, type BoardSizeMode } from '@/lib/game/boardSize';
 import { PieceSvg } from './PieceSvg';
 import type { PType, PColor } from './PieceSvg';
 
@@ -34,7 +35,7 @@ function pieceAtSquare(
 ): BoardPiece | null {
   const file = square.charCodeAt(0) - 97;
   const rank = parseInt(square[1], 10);
-  const row  = 8 - rank;
+  const row = 8 - rank;
   return board[row]?.[file] ?? null;
 }
 
@@ -53,6 +54,13 @@ interface Props {
   onSquarePress?: (square: string) => void;
   /** Hide rank/file labels for recognition exercises. */
   showCoordinates?: boolean;
+  /**
+   * Shared footprint mode. Default keeps historical compact sizing;
+   * `wide` is ~94–96% of screen width (Classic / Repertoire game).
+   */
+  sizeMode?: BoardSizeMode;
+  /** Optional explicit edge length (overrides sizeMode calculation). */
+  size?: number;
 }
 
 export function ChessBoard({
@@ -63,18 +71,20 @@ export function ChessBoard({
   legalDots = [],
   onSquarePress,
   showCoordinates = true,
+  sizeMode = 'default',
+  size,
 }: Props) {
   const { width } = useWindowDimensions();
-  const boardSize = Math.min(width - 20, 352);
-  const cellSize  = boardSize / 8;
+  const boardSize = size ?? computeBoardSize(width, sizeMode);
+  const cellSize = boardSize / 8;
   const pieceSize = cellSize * 0.86;
   const coordSize = cellSize * 0.21;
-  const dotSize   = cellSize * 0.32;
-  const ringSize  = cellSize * 0.88;
+  const dotSize = cellSize * 0.32;
+  const ringSize = cellSize * 0.88;
   const ringBorder = Math.ceil(cellSize * 0.09);
 
-  const rows = isFlipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
-  const cols = isFlipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+  const rows = isFlipped ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
+  const cols = isFlipped ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
 
   return (
     <View style={[styles.wrapper, { width: boardSize, height: boardSize }]}>
@@ -86,11 +96,12 @@ export function ChessBoard({
             // Algebraic square — same formula regardless of flip
             const sqName = FILES[boardCol] + (8 - boardRow);
 
-            const isLight    = (displayR + displayC) % 2 === 0;
-            const isLastMove = !!lastMove && (sqName === lastMove.from || sqName === lastMove.to);
+            const isLight = (displayR + displayC) % 2 === 0;
+            const isLastMove =
+              !!lastMove && (sqName === lastMove.from || sqName === lastMove.to);
             const isSelected = sqName === selectedSquare;
-            const isLegal    = legalDots.includes(sqName);
-            const isCapture  = isLegal && piece != null;
+            const isLegal = legalDots.includes(sqName);
+            const isCapture = isLegal && piece != null;
 
             let bg: string;
             if (isSelected) {
@@ -102,10 +113,10 @@ export function ChessBoard({
             }
 
             const coordColor = isLight ? COORD_ON_LIGHT : COORD_ON_DARK;
-            const showFile   = displayR === 7;
-            const showRank   = displayC === 0;
-            const fileLabel  = FILES[boardCol];
-            const rankLabel  = String(8 - boardRow);
+            const showFile = displayR === 7;
+            const showRank = displayC === 0;
+            const fileLabel = FILES[boardCol];
+            const rankLabel = String(8 - boardRow);
 
             const cell = (
               <View
@@ -117,7 +128,6 @@ export function ChessBoard({
                   justifyContent: 'center',
                 }}
               >
-                {/* SVG Piece */}
                 {piece != null && (
                   <PieceSvg
                     type={piece.type as PType}
@@ -126,7 +136,6 @@ export function ChessBoard({
                   />
                 )}
 
-                {/* Legal-move dot (empty destination) */}
                 {isLegal && !isCapture && (
                   <View
                     style={{
@@ -139,7 +148,6 @@ export function ChessBoard({
                   />
                 )}
 
-                {/* Legal-move ring (capture destination) */}
                 {isCapture && (
                   <View
                     style={{
@@ -153,7 +161,6 @@ export function ChessBoard({
                   />
                 )}
 
-                {/* File coordinate */}
                 {showCoordinates && showFile && (
                   <Text
                     style={[
@@ -165,7 +172,6 @@ export function ChessBoard({
                   </Text>
                 )}
 
-                {/* Rank coordinate */}
                 {showCoordinates && showRank && (
                   <Text
                     style={[
@@ -198,8 +204,6 @@ export function ChessBoard({
     </View>
   );
 }
-
-// ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   wrapper: {
