@@ -15,6 +15,9 @@ import {
   sampleRandomPath,
   voiceSpeedToRate,
   DEFAULT_VOICE_SPEED,
+  continueLineRepeatSans,
+  continueLineRepeatVerbalCue,
+  continueLineRepeatSpeakOptions,
 } from '../index.ts';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { ContinueLineRecentStorage } from '../ContinueLineRecentStorage.ts';
@@ -237,6 +240,73 @@ describe('voiceSpeedToRate', () => {
     assert.ok(voiceSpeedToRate(1) < voiceSpeedToRate(DEFAULT_VOICE_SPEED));
     assert.ok(voiceSpeedToRate(10) > voiceSpeedToRate(DEFAULT_VOICE_SPEED));
     assert.equal(voiceSpeedToRate(5), voiceSpeedToRate(DEFAULT_VOICE_SPEED));
+  });
+});
+
+describe('continueLineRepeatCue', () => {
+  it('Répéter before progress uses the ligne de départ SANs only', () => {
+    const preamble = ['e4', 'e5', 'Nf3', 'Nc6'];
+    assert.deepEqual(
+      continueLineRepeatSans({
+        preambleSans: preamble,
+        recitedSans: [],
+        correctCount: 0,
+      }),
+      preamble,
+    );
+    const cue = continueLineRepeatVerbalCue({
+      preambleSans: preamble,
+      recitedSans: ['Bc4'],
+      correctCount: 0,
+      trainingSide: 'white',
+    });
+    assert.match(cue, /Continue la ligne \(Blancs\)/);
+    assert.doesNotMatch(cue, /fou|Bc4/i);
+  });
+
+  it('Répéter after progress uses the position atteinte line', () => {
+    const sans = continueLineRepeatSans({
+      preambleSans: ['e4', 'e5'],
+      recitedSans: ['Nf3', 'Nc6'],
+      correctCount: 1,
+    });
+    assert.deepEqual(sans, ['e4', 'e5', 'Nf3', 'Nc6']);
+  });
+
+  it('speak options read the current slider value and always flush', () => {
+    const slow = continueLineRepeatSpeakOptions(3);
+    const fast = continueLineRepeatSpeakOptions(7);
+    assert.equal(slow.flush, true);
+    assert.equal(fast.flush, true);
+    assert.equal(slow.rate, voiceSpeedToRate(3));
+    assert.equal(fast.rate, voiceSpeedToRate(7));
+    assert.ok(fast.rate > slow.rate);
+  });
+
+  it('Répéter helpers do not mutate session progression', () => {
+    const rep = buildRepertoire(ITALIAN);
+    const session = new ContinueLineSession();
+    const path = fixedPath(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']);
+    session.start(rep, 'Italien', {
+      path,
+      startPly: 2,
+      trainingSide: 'white',
+    });
+    session.beginRecitation();
+    const before = session.snapshot();
+    continueLineRepeatVerbalCue({
+      preambleSans: before.preambleSans,
+      recitedSans: before.recitedSans,
+      correctCount: before.correctCount,
+      trainingSide: before.trainingSide,
+    });
+    continueLineRepeatSpeakOptions(4);
+    const after = session.snapshot();
+    assert.equal(after.correctCount, before.correctCount);
+    assert.equal(after.phase, before.phase);
+    assert.deepEqual(after.preambleSans, before.preambleSans);
+    assert.deepEqual(after.recitedSans, before.recitedSans);
+    assert.equal(session.getPathId(), path.id);
   });
 });
 

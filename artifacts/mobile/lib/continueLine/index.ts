@@ -29,4 +29,10 @@ export {
   DEFAULT_VOICE_SPEED,
   voiceSpeedToRate,
 } from './voiceSpeed.ts';
+export {
+  continueLineRepeatSans,
+  continueLineRepeatVerbalCue,
+  continueLineRepeatSpeakOptions,
+} from './continueLineRepeatCue.ts';
+export type { ContinueLineRepeatCueInput } from './continueLineRepeatCue.ts';
 
