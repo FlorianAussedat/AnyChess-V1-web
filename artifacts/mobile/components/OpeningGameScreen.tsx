@@ -165,24 +165,27 @@ export function OpeningGameScreen() {
         subtitle={headerSubtitle}
         showSound
         trailing={
-          <View
-            style={styles.sideIndicator}
-            accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
-          >
-            <Image
-              source={BrandAssets.logoMark}
-              style={styles.sideIndicatorMark}
-              resizeMode="contain"
-            />
-            <Text
-              style={[
-                styles.sideIndicatorLetter,
-                { color: playerColor === 'w' ? '#F5F5F5' : '#1A1A1A' },
-              ]}
+          !boardVisible ? (
+            <View
+              style={styles.sideIndicator}
+              accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
+              testID="opening-side-indicator"
             >
-              {playerColor === 'w' ? 'B' : 'N'}
-            </Text>
-          </View>
+              <Image
+                source={BrandAssets.logoMark}
+                style={styles.sideIndicatorMark}
+                resizeMode="contain"
+              />
+              <Text
+                style={[
+                  styles.sideIndicatorLetter,
+                  { color: playerColor === 'w' ? '#F5F5F5' : '#1A1A1A' },
+                ]}
+              >
+                {playerColor === 'w' ? 'B' : 'N'}
+              </Text>
+            </View>
+          ) : null
         }
       />
 
@@ -223,29 +226,31 @@ export function OpeningGameScreen() {
         onNewGame={newGame}
       />
 
-      <BoardToolbar
-        showCoordinates={showCoordinates}
-        onToggleCoordinates={() => {
-          void toggleCoordinates();
-        }}
-        boardVisible={boardVisible}
-        onToggleBoardVisible={() => setBoardVisible((v) => !v)}
-      />
+      <View style={styles.boardBlock}>
+        <BoardToolbar
+          showCoordinates={showCoordinates}
+          onToggleCoordinates={() => {
+            void toggleCoordinates();
+          }}
+          boardVisible={boardVisible}
+          onToggleBoardVisible={() => setBoardVisible((v) => !v)}
+        />
 
-      <View style={styles.boardRow}>
-        {boardVisible ? (
-          <ChessBoard
-            board={board}
-            lastMove={lastMove}
-            isFlipped={playerColor === 'b'}
-            selectedSquare={touchSelected}
-            legalDots={legalDests}
-            onSquarePress={onSquarePress}
-            showCoordinates={showCoordinates}
-          />
-        ) : (
-          <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
-        )}
+        <View style={styles.boardRow}>
+          {boardVisible ? (
+            <ChessBoard
+              board={board}
+              lastMove={lastMove}
+              isFlipped={playerColor === 'b'}
+              selectedSquare={touchSelected}
+              legalDots={legalDests}
+              onSquarePress={onSquarePress}
+              showCoordinates={showCoordinates}
+            />
+          ) : (
+            <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
+          )}
+        </View>
       </View>
 
       <GameStatusCard
@@ -306,6 +311,7 @@ export function OpeningGameScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, flexGrow: 1, paddingHorizontal: 10, gap: 8 },
   loadingBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  boardBlock: { gap: 4 },
   boardRow: { alignItems: 'center' },
   sideIndicator: {
     width: 32,

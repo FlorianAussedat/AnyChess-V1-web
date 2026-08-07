@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
-import { BrandAssets } from '@/constants/BrandAssets';
+import { DesignTokens } from '@/constants/designTokens';
 
 interface Props {
   visible: boolean;
@@ -9,7 +10,7 @@ interface Props {
 }
 
 /**
- * Board show/hide control using Major Update brand artwork.
+ * Board show/hide — temporary Ionicons until custom assets arrive.
  */
 export function BoardVisibilityToggle({ visible, onToggle }: Props) {
   const colors = useColors();
@@ -24,16 +25,16 @@ export function BoardVisibilityToggle({ visible, onToggle }: Props) {
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          opacity: pressed ? 0.6 : 1,
+          backgroundColor: visible ? colors.primary : colors.card,
+          borderColor: visible ? colors.primary : colors.border,
+          opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
-      <Image
-        source={visible ? BrandAssets.toggles.boardOn : BrandAssets.toggles.boardOff}
-        style={styles.icon}
-        resizeMode="contain"
+      <Ionicons
+        name={visible ? 'eye-outline' : 'eye-off-outline'}
+        size={20}
+        color={visible ? colors.primaryForeground : colors.mutedForeground}
       />
     </Pressable>
   );
@@ -41,15 +42,11 @@ export function BoardVisibilityToggle({ visible, onToggle }: Props) {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: DesignTokens.headerIconButton + 4,
+    height: DesignTokens.headerIconButton + 4,
+    borderRadius: DesignTokens.radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    width: 30,
-    height: 30,
   },
 });

@@ -192,6 +192,7 @@ export class ContinueLineSession {
       startPly: this.startPly,
       currentFen: fen,
       correctCount: this.correctCount,
+      recitedSans: this.board.history(),
       availableSans: available,
       incorrectSan: this.incorrectSan,
       validAlternatives: this.validAlternatives,

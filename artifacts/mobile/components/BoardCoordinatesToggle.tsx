@@ -1,7 +1,8 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
-import { BrandAssets } from '@/constants/BrandAssets';
+import { DesignTokens } from '@/constants/designTokens';
 
 interface Props {
   visible: boolean;
@@ -9,7 +10,7 @@ interface Props {
 }
 
 /**
- * Coordinates show/hide using Major Update brand artwork.
+ * Coordinates show/hide — temporary Ionicons until custom assets arrive.
  */
 export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
   const colors = useColors();
@@ -26,16 +27,16 @@ export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          opacity: pressed ? 0.6 : 1,
+          backgroundColor: visible ? colors.primary : colors.card,
+          borderColor: visible ? colors.primary : colors.border,
+          opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
-      <Image
-        source={visible ? BrandAssets.toggles.coordsOn : BrandAssets.toggles.coordsOff}
-        style={styles.icon}
-        resizeMode="contain"
+      <Ionicons
+        name="grid-outline"
+        size={20}
+        color={visible ? colors.primaryForeground : colors.foreground}
       />
     </Pressable>
   );
@@ -43,15 +44,11 @@ export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
+    width: DesignTokens.headerIconButton + 4,
+    height: DesignTokens.headerIconButton + 4,
+    borderRadius: DesignTokens.radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    width: 30,
-    height: 30,
   },
 });

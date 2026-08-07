@@ -4,7 +4,8 @@ import { Chess } from 'chess.js';
 import { ChessBoard } from '@/components/ChessBoard';
 import type { BoardPiece } from '@/lib/game/types';
 import { campFromSquareTap, CAMP_PICKER_START_FEN } from '@/lib/game/boardCampPicker';
-import type { PlayerColor, SideChoice } from '@/lib/game/types';
+import { campZoneRects } from '@/lib/game/campZoneRects';
+import type { SideChoice } from '@/lib/game/types';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
 
@@ -17,11 +18,13 @@ type Props = {
 /**
  * Pre-game camp selector: tap White/Black pieces on the starting board,
  * or the central « Camp aléatoire » button.
+ * Orange zone highlights exist ONLY in this pre-game mode.
  */
 export function BoardCampPicker({ onSelect, isFlipped = false }: Props) {
   const colors = useColors();
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - 20, 352);
+  const zones = useMemo(() => campZoneRects(boardSize, isFlipped), [boardSize, isFlipped]);
 
   const board = useMemo(
     () => new Chess(CAMP_PICKER_START_FEN).board() as (BoardPiece | null)[][],
@@ -41,6 +44,35 @@ export function BoardCampPicker({ onSelect, isFlipped = false }: Props) {
             const camp = campFromSquareTap(board, square);
             if (camp) onSelect(camp);
           }}
+        />
+        {/* Zone emphasis — pointerEvents none so piece taps still reach ChessBoard */}
+        <View
+          testID="camp-zone-black"
+          pointerEvents="none"
+          style={[
+            styles.zone,
+            {
+              top: zones.black.top,
+              left: zones.black.left,
+              width: zones.black.width,
+              height: zones.black.height,
+              borderColor: colors.primary,
+            },
+          ]}
+        />
+        <View
+          testID="camp-zone-white"
+          pointerEvents="none"
+          style={[
+            styles.zone,
+            {
+              top: zones.white.top,
+              left: zones.white.left,
+              width: zones.white.width,
+              height: zones.white.height,
+              borderColor: colors.primary,
+            },
+          ]}
         />
         <View style={styles.overlay} pointerEvents="box-none">
           <Pressable
@@ -77,7 +109,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  boardHost: { alignItems: 'center', justifyContent: 'center' },
+  boardHost: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  zone: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(245, 166, 35, 0.12)',
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

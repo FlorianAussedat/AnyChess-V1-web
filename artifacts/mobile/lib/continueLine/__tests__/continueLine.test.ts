@@ -120,6 +120,7 @@ describe('ContinueLineSession', () => {
     assert.equal(session.snapshot().phase, 'completed');
     assert.equal(session.snapshot().lineCompleted, true);
     assert.ok(session.snapshot().correctCount > 0);
+    assert.equal(session.snapshot().recitedSans.length, session.snapshot().correctCount);
   });
 
   it('stops on first incorrect repertoire move and lists alternatives', () => {

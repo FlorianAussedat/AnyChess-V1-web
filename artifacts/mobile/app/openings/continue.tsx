@@ -22,6 +22,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
@@ -32,6 +33,7 @@ import {
   ContinueLineSession,
   type ContinueLineSessionSnapshot,
 } from '@/lib/continueLine';
+import { continueLineNotationDisplay } from '@/lib/continueLine/continueLineNotationDisplay';
 import { continueLineRecentStorage } from '@/lib/continueLine/recentStore';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { speechService } from '@/services/SpeechService';
@@ -213,19 +215,15 @@ export default function ContinueLineScreen() {
         await continueLineRecentStorage.pushRecentPathId(recentKey, storageId);
       }
 
-      const preamble = formatLine(next.preambleSans, 0);
       const sideHint = next.trainingSide ? ` (${sideLabel(next.trainingSide)})` : '';
-      const intro =
-        next.preambleSans.length > 0
-          ? `${preamble}. Continue la ligne${sideHint}.`
-          : `Continue la ligne depuis le début${sideHint}.`;
-      setFeedback(intro);
+      // No duplicate text card for the reference line — shown once as Ligne de départ.
+      setFeedback(null);
       if (soundEnabled) {
         const verbalCue =
           next.preambleSans.length > 0
             ? next.preambleSans.map((s) => sanToVerbal(s)).join('. ') +
-              '. Continue la ligne.'
-            : 'Continue la ligne.';
+              `. Continue la ligne${sideHint}.`
+            : `Continue la ligne depuis le début${sideHint}.`;
         speak(verbalCue);
       }
     } catch (err) {
@@ -265,12 +263,7 @@ export default function ContinueLineScreen() {
       const next = session.beginRecitation();
       setSnap(next);
       setLoading(false);
-      const preamble = formatLine(next.preambleSans, 0);
-      const intro =
-        next.preambleSans.length > 0
-          ? `${preamble}. Continue la ligne.`
-          : 'Continue la ligne depuis le début.';
-      setFeedback(intro);
+      setFeedback(null);
       if (soundEnabled) {
         speak(
           next.preambleSans.length > 0
@@ -426,15 +419,6 @@ export default function ContinueLineScreen() {
         showSound
       />
 
-      {snap.preambleSans.length > 0 && (
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>Position atteinte</Text>
-          <Text style={[styles.mono, { color: colors.foreground }]}>
-            {formatLine(snap.preambleSans, 0)}
-          </Text>
-        </View>
-      )}
-
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>Statut</Text>
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
@@ -447,8 +431,45 @@ export default function ContinueLineScreen() {
         </Text>
       </View>
 
+      {(() => {
+        const notation = continueLineNotationDisplay(
+          snap.preambleSans,
+          snap.recitedSans,
+          snap.correctCount,
+        );
+        if (notation.kind === 'none') {
+          return (
+            <View
+              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+              testID="continue-start-empty"
+            >
+              <Text style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}>
+                Continue la ligne depuis le début
+                {snap.trainingSide ? ` (${sideLabel(snap.trainingSide)})` : ''}.
+              </Text>
+            </View>
+          );
+        }
+        return (
+          <View
+            style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+            testID={
+              notation.kind === 'start' ? 'continue-start-line' : 'continue-position-reached'
+            }
+          >
+            <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>
+              {notation.heading}
+            </Text>
+            <NumberedSanRows sans={notation.sans} testID="continue-san-rows" />
+          </View>
+        );
+      })()}
+
       {feedback ? (
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+          testID="continue-feedback"
+        >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_400Regular', lineHeight: 22 }}>
             {feedback}
           </Text>

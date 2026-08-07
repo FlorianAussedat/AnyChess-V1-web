@@ -15,8 +15,8 @@ type Props = {
 };
 
 /**
- * Board-adjacent toolbar for coordinates / visibility.
- * Keep these controls out of the global screen header.
+ * Compact board-adjacent toolbar for coordinates / visibility.
+ * Sit immediately above the ChessBoard (small gap only).
  */
 export function BoardToolbar({
   label,
@@ -31,10 +31,14 @@ export function BoardToolbar({
   if (!label && !hasCoords && !hasVisibility) return null;
 
   return (
-    <View style={styles.row}>
-      <Text style={[styles.label, { color: colors.mutedForeground }]} numberOfLines={1}>
-        {label ?? ''}
-      </Text>
+    <View style={styles.row} testID="board-toolbar">
+      {label ? (
+        <Text style={[styles.label, { color: colors.mutedForeground }]} numberOfLines={1}>
+          {label}
+        </Text>
+      ) : (
+        <View style={styles.spacer} />
+      )}
       <View style={styles.controls}>
         {hasCoords ? (
           <BoardCoordinatesToggle visible={showCoordinates!} onToggle={onToggleCoordinates!} />
@@ -53,12 +57,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: DesignTokens.spacing.sm,
-    minHeight: 36,
+    minHeight: DesignTokens.headerIconButton + 4,
   },
+  spacer: { flex: 1 },
   label: {
     flex: 1,
     fontSize: 13,
     fontFamily: DesignTokens.typography.weightSemiBold,
   },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: DesignTokens.spacing.sm },
+  controls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing.sm,
+    marginLeft: 'auto',
+  },
 });

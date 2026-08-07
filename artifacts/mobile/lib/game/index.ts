@@ -13,6 +13,8 @@ export { resolveSideChoice } from './resolveSideChoice.ts';
 export { campFromSquareTap, CAMP_PICKER_START_FEN } from './boardCampPicker.ts';
 export { beginGameFromCampChoice } from './campSelectionFlow.ts';
 export type { CampSelectionResult } from './campSelectionFlow.ts';
+export { campZoneRects } from './campZoneRects.ts';
+export type { CampZoneRect } from './campZoneRects.ts';
 export { speakMoveHistorySummary } from './speakMoveHistory.ts';
 export { undoPlayerTurn, type UndoPlayerTurnResult } from './undoPlayerTurn.ts';
 export {

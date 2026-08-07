@@ -41,7 +41,9 @@ export function PlayOpeningModal({
           </Text>
           <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 8 }]}>
             L’échiquier s’oriente selon le côté enregistré pour ce répertoire.
-            L’adversaire suit le répertoire tant que tu restes dans la théorie.
+            {'\n\n'}
+            L’adversaire suit ton répertoire tant que tu restes dans la théorie. Dès que tu en
+            sors, Stockfish prend le relais.
           </Text>
           <View style={styles.modalActions}>
             <Pressable

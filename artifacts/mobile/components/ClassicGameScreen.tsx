@@ -168,10 +168,11 @@ export function ClassicGameScreen() {
         subtitle={contextLine}
         showSound
         trailing={
-          campLocked ? (
+          campLocked && !boardVisible ? (
             <View
               style={styles.sideIndicator}
               accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
+              testID="classic-side-indicator"
             >
               <Image
                 source={BrandAssets.logoMark}
@@ -200,6 +201,7 @@ export function ClassicGameScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.bandRow}
+            testID="classic-elo-scroll"
           >
             {STOCKFISH_STRENGTH_BANDS.map((band) => (
               <OptionChip
@@ -221,29 +223,31 @@ export function ClassicGameScreen() {
             onNewGame={onNewGamePress}
           />
 
-          <BoardToolbar
-            showCoordinates={showCoordinates}
-            onToggleCoordinates={() => {
-              void toggleCoordinates();
-            }}
-            boardVisible={boardVisible}
-            onToggleBoardVisible={() => setBoardVisible((v) => !v)}
-          />
+          <View style={styles.boardBlock}>
+            <BoardToolbar
+              showCoordinates={showCoordinates}
+              onToggleCoordinates={() => {
+                void toggleCoordinates();
+              }}
+              boardVisible={boardVisible}
+              onToggleBoardVisible={() => setBoardVisible((v) => !v)}
+            />
 
-          <View style={styles.boardRow}>
-            {boardVisible ? (
-              <ChessBoard
-                board={board}
-                lastMove={lastMove}
-                isFlipped={playerColor === 'b'}
-                selectedSquare={touchSelected}
-                legalDots={legalDests}
-                onSquarePress={onSquarePress}
-                showCoordinates={showCoordinates}
-              />
-            ) : (
-              <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
-            )}
+            <View style={styles.boardRow}>
+              {boardVisible ? (
+                <ChessBoard
+                  board={board}
+                  lastMove={lastMove}
+                  isFlipped={playerColor === 'b'}
+                  selectedSquare={touchSelected}
+                  legalDots={legalDests}
+                  onSquarePress={onSquarePress}
+                  showCoordinates={showCoordinates}
+                />
+              ) : (
+                <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
+              )}
+            </View>
           </View>
 
           <GameStatusCard
@@ -305,7 +309,14 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  bandRow: { flexDirection: 'row', gap: 6, paddingVertical: 2 },
+  bandRow: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: 6,
+    paddingVertical: 2,
+    paddingRight: 28,
+  },
+  boardBlock: { gap: 4 },
   boardRow: { alignItems: 'center' },
   sideIndicator: {
     width: 32,
