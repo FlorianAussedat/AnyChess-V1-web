@@ -23,6 +23,7 @@ import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
+import { AppButton } from '@/components/ui/AppButton';
 import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
@@ -36,7 +37,8 @@ import {
   VOICE_SPEED_MAX,
   VOICE_SPEED_MIN,
   continueLineNotationDisplay,
-  voiceSpeedToRate,
+  continueLineRepeatSpeakOptions,
+  continueLineRepeatVerbalCue,
   type ContinueLineSessionSnapshot,
 } from '@/lib/continueLine';
 import { continueLineRecentStorage } from '@/lib/continueLine/recentStore';
@@ -117,13 +119,23 @@ export default function ContinueLineScreen() {
   const speak = useCallback(
     (text: string) => {
       if (!soundEnabled) return;
-      speechService.speak(text, {
-        flush: true,
-        rate: voiceSpeedToRate(voiceSpeedRef.current),
-      });
+      // Always read the live slider value at speak time (never a mount-time rate).
+      speechService.speak(text, continueLineRepeatSpeakOptions(voiceSpeedRef.current));
     },
     [soundEnabled],
   );
+
+  /** Manual replay only — no auto-speak on exercise load. */
+  const onRepeatLine = useCallback(() => {
+    const current = sessionRef.current.snapshot();
+    const cue = continueLineRepeatVerbalCue({
+      preambleSans: current.preambleSans,
+      recitedSans: current.recitedSans,
+      correctCount: current.correctCount,
+      trainingSide: current.trainingSide,
+    });
+    speak(cue);
+  }, [speak]);
 
   const startExercise = useCallback(async () => {
     if (mixedFolderIds.length === 0) {
@@ -230,22 +242,13 @@ export default function ContinueLineScreen() {
         await continueLineRecentStorage.pushRecentPathId(recentKey, storageId);
       }
 
-      const sideHint = next.trainingSide ? ` (${sideLabel(next.trainingSide)})` : '';
-      // No duplicate text card for the reference line — shown once as Ligne de départ.
+      // Intentionally no auto-speak: user sets voice speed then taps Répéter.
       setFeedback(null);
-      if (soundEnabled) {
-        const verbalCue =
-          next.preambleSans.length > 0
-            ? next.preambleSans.map((s) => sanToVerbal(s)).join('. ') +
-              `. Continue la ligne${sideHint}.`
-            : `Continue la ligne depuis le début${sideHint}.`;
-        speak(verbalCue);
-      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak]);
+  }, [mixedFolderIds, isMixed, recentKey, reviewSide]);
 
   // Dedicated retry that keeps the current path if still available
   const retrySame = useCallback(async () => {
@@ -279,19 +282,12 @@ export default function ContinueLineScreen() {
       setSnap(begun.snapshot);
       setLoading(false);
       setFeedback(null);
-      if (soundEnabled) {
-        speak(
-          begun.snapshot.preambleSans.length > 0
-            ? begun.snapshot.preambleSans.map((s) => sanToVerbal(s)).join('. ') +
-                '. Continue la ligne.'
-            : 'Continue la ligne.',
-        );
-      }
+      // No auto-speak on retry — user taps Répéter when ready.
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [mixedFolderIds, soundEnabled, speak, startExercise]);
+  }, [mixedFolderIds, startExercise]);
 
   useEffect(() => {
     startExercise();
@@ -514,6 +510,13 @@ export default function ContinueLineScreen() {
             leftHint="Lent"
             rightHint="Rapide"
             accessibilityLabel="Vitesse de la voix"
+          />
+
+          <AppButton
+            label="Répéter"
+            variant="secondary"
+            onPress={onRepeatLine}
+            testID="continue-repeat"
           />
 
           <Pressable
