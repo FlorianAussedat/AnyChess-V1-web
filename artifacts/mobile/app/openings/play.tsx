@@ -1,16 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import {
   OpeningGameProvider,
   useOpeningGame,
 } from '@/contexts/OpeningGameContext';
 import type { PlayerColor } from '@/contexts/OpeningGameContext';
 import { OpeningGameScreen } from '@/components/OpeningGameScreen';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { repertoireService, type ParsedRepertoire } from '@/lib/repertoire';
+import {
+  DEFAULT_STRENGTH_BAND_ID,
+  getStrengthBand,
+} from '@/lib/difficulty/StockfishStrengthBands';
 
 /**
  * Opening Game play route.
@@ -18,21 +22,24 @@ import { repertoireService, type ParsedRepertoire } from '@/lib/repertoire';
  * Loads the merged repertoire for `folderId`, then hosts an isolated
  * OpeningGameProvider (separate from Classic GameContext).
  *
- * Query: /openings/play?folderId=…&color=w|b
+ * Query: /openings/play?folderId=…&color=w|b&band=…
  */
 export default function OpeningPlayRoute() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { contentTop } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
 
-  const { folderId, color } = useLocalSearchParams<{
+  const { folderId, color, band } = useLocalSearchParams<{
     folderId: string;
     color?: string;
+    band?: string;
   }>();
 
   const initialColor: PlayerColor = color === 'b' ? 'b' : 'w';
+  const strengthBandId =
+    typeof band === 'string' && band.length > 0
+      ? getStrengthBand(band).id
+      : DEFAULT_STRENGTH_BAND_ID;
 
   const [repertoire, setRepertoire] = useState<ParsedRepertoire | null>(null);
   const [repertoireName, setRepertoireName] = useState('');
@@ -86,7 +93,7 @@ export default function OpeningPlayRoute() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
+      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ActivityIndicator color={colors.primary} />
         <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>
           Préparation de la partie…
@@ -100,22 +107,21 @@ export default function OpeningPlayRoute() {
       <View
         style={[
           styles.center,
-          { backgroundColor: colors.background, paddingTop: topPad + 6, paddingHorizontal: 20 },
+          { backgroundColor: colors.background, paddingTop: contentTop, paddingHorizontal: 20 },
         ]}
       >
-        <Pressable
-          onPress={() => router.back()}
-          style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
+        <ScreenHeader onBack={() => router.back()} title="Ouverture" />
         <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
       </View>
     );
   }
 
   return (
-    <OpeningGameProvider repertoire={repertoire} repertoireName={repertoireName}>
+    <OpeningGameProvider
+      repertoire={repertoire}
+      repertoireName={repertoireName}
+      strengthBandId={strengthBandId}
+    >
       <ApplyInitialColor initialColor={initialColor}>
         <OpeningGameScreen />
       </ApplyInitialColor>
@@ -150,17 +156,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-  },
-  iconBtn: {
-    position: 'absolute',
-    top: 80,
-    left: 14,
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   error: {
     fontSize: 14,

@@ -5,36 +5,37 @@ import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 
 /**
- * Global sound toggle (speaker / muted speaker).
- * Independent from board visibility and microphone state.
+ * Voice / speech mute toggle (TTS only).
+ * Temporary person-circle placeholder (oral / profile) until custom assets arrive.
+ * Does NOT mute validation/error SFX or haptics.
  */
 export function SoundToggle() {
   const colors = useColors();
-  const { soundEnabled, toggleSound } = useAudioSettings();
+  const { voiceEnabled, toggleVoice } = useAudioSettings();
 
   return (
     <Pressable
       onPress={() => {
-        toggleSound().catch(() => {});
+        toggleVoice().catch(() => {});
       }}
       hitSlop={10}
       testID="sound-toggle"
       accessibilityRole="switch"
-      accessibilityState={{ checked: soundEnabled }}
-      accessibilityLabel={soundEnabled ? 'Couper le son' : 'Activer le son'}
+      accessibilityState={{ checked: voiceEnabled }}
+      accessibilityLabel={voiceEnabled ? 'Couper la voix' : 'Activer la voix'}
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: soundEnabled ? colors.card : colors.primary,
-          borderColor: soundEnabled ? colors.border : colors.primary,
-          opacity: pressed ? 0.6 : 1,
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          opacity: pressed ? 0.6 : voiceEnabled ? 1 : 0.55,
         },
       ]}
     >
       <Ionicons
-        name={soundEnabled ? 'volume-high-outline' : 'volume-mute-outline'}
-        size={20}
-        color={soundEnabled ? colors.foreground : colors.primaryForeground}
+        name={voiceEnabled ? 'person-circle' : 'person-circle-outline'}
+        size={22}
+        color={voiceEnabled ? colors.primary : colors.mutedForeground}
       />
     </Pressable>
   );
@@ -42,8 +43,8 @@ export function SoundToggle() {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',

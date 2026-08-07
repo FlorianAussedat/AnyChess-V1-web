@@ -43,6 +43,11 @@ export interface StoredPgnFile {
   /** Raw PGN text as imported / replaced. */
   pgnText: string;
   summary: PgnParseSummary;
+  /**
+   * When false, the file is kept in the library but excluded from training
+   * merges (Review / Play). Defaults to true when missing (legacy snapshots).
+   */
+  enabled?: boolean;
 }
 
 /** Full snapshot persisted by the storage backend. */

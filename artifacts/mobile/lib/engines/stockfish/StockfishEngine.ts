@@ -38,6 +38,8 @@ export class StockfishEngine implements ChessEngine {
   private transport: UciTransport | null = null;
   private readyPromise: Promise<void> | null = null;
   private isReady = false;
+  private destroyed = false;
+  private bootTimeout: ReturnType<typeof setTimeout> | null = null;
   private pending: PendingSearch | null = null;
   /** MultiPV candidate lines collected during the current search (keyed by rank). */
   private searchInfo = new Map<number, CandidateLine>();
@@ -49,9 +51,12 @@ export class StockfishEngine implements ChessEngine {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   init(): Promise<void> {
+    if (this.destroyed) {
+      return Promise.reject(new Error('[StockfishEngine] Cannot init after destroy().'));
+    }
     if (!this.readyPromise) {
       this.readyPromise = this.boot().catch((err) => {
-        // Allow a later retry if boot failed.
+        // Allow a later retry if boot failed (unless permanently destroyed).
         this.readyPromise = null;
         throw err;
       });
@@ -59,8 +64,42 @@ export class StockfishEngine implements ChessEngine {
     return this.readyPromise;
   }
 
+  private clearBootTimeout(): void {
+    if (this.bootTimeout != null) {
+      clearTimeout(this.bootTimeout);
+      this.bootTimeout = null;
+    }
+  }
+
+  /**
+   * Release the current transport. Safe to call multiple times / after timeout.
+   * Does not flip `destroyed` — that is reserved for explicit `destroy()`.
+   */
+  private disposeTransport(): void {
+    this.clearBootTimeout();
+    const transport = this.transport;
+    this.transport = null;
+    this.isReady = false;
+    if (!transport) return;
+    try {
+      transport.send('quit');
+    } catch {
+      /* ignore */
+    }
+    try {
+      transport.terminate();
+    } catch {
+      /* ignore — avoid double-terminate crashes */
+    }
+  }
+
   private boot(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
+      if (this.destroyed) {
+        reject(new Error('[StockfishEngine] Cannot boot after destroy().'));
+        return;
+      }
+
       let transport: UciTransport;
       try {
         transport = createUciTransport(this.config.enginePath);
@@ -70,11 +109,33 @@ export class StockfishEngine implements ChessEngine {
       }
       this.transport = transport;
 
-      const timeout = setTimeout(() => {
-        reject(new Error('[StockfishEngine] Timed out waiting for engine to become ready.'));
+      const failBoot = (error: Error) => {
+        // Only dispose if this transport is still the active one (destroy may
+        // have already cleaned up a newer instance path).
+        if (this.transport === transport) {
+          this.disposeTransport();
+        } else {
+          this.clearBootTimeout();
+          try {
+            transport.terminate();
+          } catch {
+            /* ignore */
+          }
+        }
+        reject(error);
+      };
+
+      this.bootTimeout = setTimeout(() => {
+        this.bootTimeout = null;
+        if (this.destroyed || this.isReady) return;
+        failBoot(
+          new Error('[StockfishEngine] Timed out waiting for engine to become ready.'),
+        );
       }, 30_000);
 
       const onLine = (line: string) => {
+        if (this.destroyed || this.transport !== transport) return;
+
         // Handshake progression.
         if (!this.isReady) {
           if (line.startsWith('uciok')) {
@@ -86,7 +147,7 @@ export class StockfishEngine implements ChessEngine {
           }
           if (line.startsWith('readyok')) {
             this.isReady = true;
-            clearTimeout(timeout);
+            this.clearBootTimeout();
             transport.send('ucinewgame');
             resolve();
             return;
@@ -109,26 +170,32 @@ export class StockfishEngine implements ChessEngine {
       transport
         .start(onLine)
         .then(() => {
+          if (this.destroyed || this.transport !== transport) {
+            try {
+              transport.terminate();
+            } catch {
+              /* ignore */
+            }
+            reject(new Error('[StockfishEngine] Destroyed before worker start completed.'));
+            return;
+          }
           transport.send('uci');
         })
         .catch((err) => {
-          clearTimeout(timeout);
-          reject(err);
+          failBoot(
+            err instanceof Error
+              ? err
+              : new Error(`[StockfishEngine] Worker failed to start: ${String(err)}`),
+          );
         });
     });
   }
 
   destroy(): void {
+    this.destroyed = true;
     this.cancel();
-    try {
-      this.transport?.send('quit');
-    } catch {
-      /* ignore */
-    }
-    this.transport?.terminate();
-    this.transport = null;
+    this.disposeTransport();
     this.readyPromise = null;
-    this.isReady = false;
   }
 
   // ── New game ────────────────────────────────────────────────────────────────
@@ -144,7 +211,7 @@ export class StockfishEngine implements ChessEngine {
 
   async pickMove(game: Chess): Promise<Move | null> {
     await this.init();
-    if (!this.transport) return null;
+    if (!this.transport || this.destroyed) return null;
     if (game.isGameOver()) return null;
 
     // Reason on a private snapshot so we never depend on the live game being

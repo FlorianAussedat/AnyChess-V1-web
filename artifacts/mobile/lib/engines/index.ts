@@ -10,18 +10,29 @@ import type { ChessEngine } from '../engine';
 import { randomEngine } from './random';
 import { StockfishEngine } from './stockfish';
 
+export { OwnedEngine } from './OwnedEngine';
+export type { EngineFactory } from './OwnedEngine';
+
 /**
  * Build the opponent engine for the current platform.
  *
- * - web:    real Stockfish (WASM) in a Web Worker, ~1800 Elo, fully offline.
+ * - web:    real Stockfish (WASM) in a Web Worker, fully offline.
  * - native: the built-in RandomEngine, temporarily, so the app stays fully
  *           functional on Android/iOS today. When a native Stockfish transport
  *           is added (see engines/stockfish/transport.ts), switch this to
  *           `new StockfishEngine()` for native too — no other code changes.
  */
-export function createOpponentEngine(): ChessEngine {
+export function createOpponentEngine(options?: {
+  elo?: number;
+  multiPv?: number;
+  varietyMarginCp?: number;
+}): ChessEngine {
   if (Platform.OS === 'web') {
-    return new StockfishEngine();
+    const partial: { elo?: number; multiPv?: number; varietyMarginCp?: number } = {};
+    if (options?.elo != null) partial.elo = options.elo;
+    if (options?.multiPv != null) partial.multiPv = options.multiPv;
+    if (options?.varietyMarginCp != null) partial.varietyMarginCp = options.varietyMarginCp;
+    return new StockfishEngine(partial);
   }
   return randomEngine;
 }

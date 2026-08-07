@@ -4,6 +4,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Chess } from 'chess.js';
+import type { Move } from 'chess.js';
 import { buildRepertoire, movesForPosition } from '../../repertoire/repertoireTree.ts';
 import {
   ContinueLineSession,
@@ -12,6 +13,8 @@ import {
   pickStartPly,
   proposedContinuationSans,
   sampleRandomPath,
+  voiceSpeedToRate,
+  DEFAULT_VOICE_SPEED,
 } from '../index.ts';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { ContinueLineRecentStorage } from '../ContinueLineRecentStorage.ts';
@@ -40,6 +43,28 @@ function forceRng(sequence: number[]): () => number {
     i += 1;
     return v;
   };
+}
+
+function fixedPath(sans: string[]) {
+  const path = {
+    id: 'fixed',
+    sans: [...sans],
+    fensBefore: [] as string[],
+    choices: [] as never[],
+  };
+  const tmp = new Chess();
+  for (const san of path.sans) {
+    path.fensBefore.push(tmp.fen());
+    tmp.move(san);
+  }
+  return path;
+}
+
+function playSan(session: ContinueLineSession, san: string): Move {
+  const probe = new Chess(session.snapshot().currentFen);
+  const move = probe.move(san);
+  assert.ok(move, `expected legal SAN ${san}`);
+  return move;
 }
 
 describe('sampleRandomPath', () => {
@@ -94,101 +119,124 @@ describe('pickStartPly', () => {
 });
 
 describe('ContinueLineSession', () => {
-  it('counts correct moves and completes the line', () => {
+  it('user plays White only; Black replies auto from the fixed branch', () => {
     const rep = buildRepertoire(ITALIAN);
     const session = new ContinueLineSession();
+    const path = fixedPath(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']);
     session.start(rep, 'Italien', {
-      rng: forceRng([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+      path,
       startPly: 0,
+      trainingSide: 'white',
     });
-    session.beginRecitation();
+    const begun = session.beginRecitation();
+    assert.deepEqual(begun.autoPlayedSans, []);
+    assert.equal(session.snapshot().phase, 'reciting');
 
-    const board = new Chess();
-    const path = sampleRandomPath(rep, { rng: () => 0 })!;
-    // Follow first path from the same seed... session already started with startPly 0
-    // Just play all moves from movesForPosition iteratively preferring first.
-    let guard = 0;
-    while (session.snapshot().phase === 'reciting' && guard++ < 20) {
-      const fen = session.snapshot().currentFen;
-      const moves = movesForPosition(rep, fen);
-      assert.ok(moves.length > 0, 'expected book move');
-      const probe = new Chess(fen);
-      const played = probe.move(moves[0].san)!;
-      const result = session.applyChessMove(played);
-      assert.equal(result.kind, 'correct');
-    }
+    let result = session.applyChessMove(playSan(session, 'e4'));
+    assert.equal(result.kind, 'correct');
+    assert.deepEqual(result.autoPlayedSans, ['e5']);
+    assert.equal(session.snapshot().correctCount, 1);
+    assert.deepEqual(session.snapshot().recitedSans, ['e4', 'e5']);
+
+    result = session.applyChessMove(playSan(session, 'Nf3'));
+    assert.equal(result.kind, 'correct');
+    assert.deepEqual(result.autoPlayedSans, ['Nc6']);
+    assert.equal(session.snapshot().correctCount, 2);
+
+    result = session.applyChessMove(playSan(session, 'Bc4'));
+    assert.equal(result.kind, 'correct');
+    assert.deepEqual(result.autoPlayedSans, ['Bc5']);
     assert.equal(session.snapshot().phase, 'completed');
     assert.equal(session.snapshot().lineCompleted, true);
-    assert.ok(session.snapshot().correctCount > 0);
+    assert.equal(session.snapshot().correctCount, 3);
+    assert.equal(session.snapshot().recitedSans.length, 6);
   });
 
-  it('stops on first incorrect repertoire move and lists alternatives', () => {
+  it('user plays Black only; White is auto-played from the branch', () => {
+    const rep = buildRepertoire(ITALIAN);
+    const session = new ContinueLineSession();
+    const path = fixedPath(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5']);
+    session.start(rep, 'Italien', {
+      path,
+      startPly: 0,
+      trainingSide: 'black',
+    });
+    const begun = session.beginRecitation();
+    assert.deepEqual(begun.autoPlayedSans, ['e4']);
+    assert.equal(session.snapshot().correctCount, 0);
+    assert.deepEqual(session.snapshot().recitedSans, ['e4']);
+
+    const result = session.applyChessMove(playSan(session, 'e5'));
+    assert.equal(result.kind, 'correct');
+    assert.deepEqual(result.autoPlayedSans, ['Nf3']);
+    assert.equal(session.snapshot().correctCount, 1);
+    assert.deepEqual(session.snapshot().recitedSans, ['e4', 'e5', 'Nf3']);
+  });
+
+  it('stops on first incorrect branch move and lists the expected reply', () => {
     const rep = buildRepertoire(TWO_BRANCHES);
     const session = new ContinueLineSession();
-    // Build a fixed path: e4 e5 Nf3 Nc6 Bc4
-    const path = {
-      id: 'fixed',
-      sans: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'],
-      fensBefore: [] as string[],
-      choices: [] as never[],
-    };
-    // fill fensBefore
-    const tmp = new Chess();
-    for (const san of path.sans) {
-      path.fensBefore.push(tmp.fen());
-      tmp.move(san);
-    }
+    const path = fixedPath(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4']);
 
-    session.start(rep, 'Test', { path, startPly: 4 }); // start before Bc4
+    session.start(rep, 'Test', { path, startPly: 4, trainingSide: 'white' });
     session.beginRecitation();
 
-    const fen = session.snapshot().currentFen;
-    const probe = new Chess(fen);
-    // Play illegal-for-book: a3
-    const wrong = probe.move('a3')!;
+    const wrong = playSan(session, 'a3');
     const result = session.applyChessMove(wrong);
     assert.equal(result.kind, 'wrong');
     assert.equal(session.snapshot().phase, 'failed');
     assert.equal(session.snapshot().incorrectSan, 'a3');
-    const alts = [...session.snapshot().validAlternatives].sort();
-    assert.deepEqual(alts, ['Bb5', 'Bc4']);
+    assert.deepEqual(session.snapshot().validAlternatives, ['Bc4']);
     assert.ok(session.snapshot().proposedContinuation.length >= 1);
   });
 
-  it('accepts the other valid fork without failing', () => {
+  it('rejects the other repertoire fork that is not on the selected branch', () => {
     const rep = buildRepertoire(TWO_BRANCHES);
     const session = new ContinueLineSession();
-    const path = {
-      id: 'prefer-bc4',
-      sans: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'],
-      fensBefore: [] as string[],
-      choices: [] as never[],
-    };
-    const tmp = new Chess();
-    for (const san of path.sans) {
-      path.fensBefore.push(tmp.fen());
-      tmp.move(san);
-    }
-    session.start(rep, 'Test', { path, startPly: 4 });
+    const path = fixedPath(['e4', 'e5', 'Nf3', 'Nc6', 'Bc4']);
+    session.start(rep, 'Test', { path, startPly: 4, trainingSide: 'white' });
     session.beginRecitation();
-    const fen = session.snapshot().currentFen;
-    const probe = new Chess(fen);
-    const bb5 = probe.move('Bb5')!;
-    const result = session.applyChessMove(bb5);
-    assert.equal(result.kind, 'correct');
-    assert.equal(session.snapshot().phase, 'completed'); // Bb5 is a leaf in our mini book
+    const result = session.applyChessMove(playSan(session, 'Bb5'));
+    assert.equal(result.kind, 'wrong');
+    assert.equal(session.snapshot().phase, 'failed');
+    assert.deepEqual(session.snapshot().validAlternatives, ['Bc4']);
   });
 
   it('does not treat recognition failure as a repertoire error', () => {
     const rep = buildRepertoire(ITALIAN);
     const session = new ContinueLineSession();
-    session.start(rep, 'Italien', { startPly: 0, rng: () => 0 });
+    session.start(rep, 'Italien', {
+      startPly: 0,
+      rng: forceRng([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+      trainingSide: 'white',
+    });
     session.beginRecitation();
     const before = session.snapshot().correctCount;
     session.recordRecognitionFailure();
     assert.equal(session.snapshot().phase, 'reciting');
     assert.equal(session.snapshot().correctCount, before);
     assert.equal(session.snapshot().incorrectSan, null);
+  });
+
+  it('completes cleanly when the last user move finishes the branch', () => {
+    const rep = buildRepertoire(ITALIAN);
+    const session = new ContinueLineSession();
+    const path = fixedPath(['e4', 'e5', 'Nf3']);
+    session.start(rep, 'Test', { path, startPly: 2, trainingSide: 'white' });
+    session.beginRecitation();
+    const result = session.applyChessMove(playSan(session, 'Nf3'));
+    assert.equal(result.kind, 'correct');
+    assert.deepEqual(result.autoPlayedSans, []);
+    assert.equal(session.snapshot().phase, 'completed');
+    assert.equal(session.snapshot().correctCount, 1);
+  });
+});
+
+describe('voiceSpeedToRate', () => {
+  it('maps 1–10 into a usable speech rate band', () => {
+    assert.ok(voiceSpeedToRate(1) < voiceSpeedToRate(DEFAULT_VOICE_SPEED));
+    assert.ok(voiceSpeedToRate(10) > voiceSpeedToRate(DEFAULT_VOICE_SPEED));
+    assert.equal(voiceSpeedToRate(5), voiceSpeedToRate(DEFAULT_VOICE_SPEED));
   });
 });
 

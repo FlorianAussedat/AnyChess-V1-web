@@ -1,7 +1,14 @@
 export { scoreMoveNamingAttempt, emptyMoveNamingScore } from './MoveNamingScorer.ts';
 export { MoveNamingTimer } from './MoveNamingTimer.ts';
 export { buildMoveNamingChallenge, pickMoveNamingChallenge } from './MoveNamingChallenge.ts';
+export {
+  boardPerspectiveLabel,
+  isFlippedForPerspective,
+  pickBoardPerspective,
+} from './boardPerspective.ts';
+export type { BoardPerspective } from './boardPerspective.ts';
 export { MoveNamingRecordsStore } from './MoveNamingRecords.ts';
+export type { MoveNamingSession60Record, MoveNamingRecords } from './MoveNamingRecords.ts';
 export {
   MoveNamingSession,
   COUNTDOWN_LABELS,

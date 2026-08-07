@@ -1,118 +1,113 @@
 /**
- * Rewrite main menu: Tactiques + Visualisation + Quiz Ouverture + version label.
+ * AnyChess main home / menu — premium dark redesign (Major Update 0.0.4).
+ * Layout/styling only; routes and modes unchanged.
+ *
+ * Header: left-aligned horizontal logo (scaled for readable artwork despite
+ * canvas padding) + settings on the same row.
+ * Tagline text is omitted — the horizontal logo artwork already carries it.
  */
 import React from 'react';
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, type Href } from 'expo-router';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { formatAppVersionLabel } from '@/lib/app/version';
-
-interface ModeCard {
-  id: string;
-  route: Href;
-  title: string;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}
-
-const MODES: ModeCard[] = [
-  {
-    id: 'classic',
-    route: '/classic' as Href,
-    title: 'Partie classique',
-    description: 'Joue une partie complète contre Stockfish, à la voix ou au doigt.',
-    icon: 'game-controller-outline',
-  },
-  {
-    id: 'openings',
-    route: '/openings' as Href,
-    title: 'Ouvertures',
-    description: 'Joue contre ton répertoire ou continue une ligne PGN importée.',
-    icon: 'book-outline',
-  },
-  {
-    id: 'blind',
-    route: '/blind' as Href,
-    title: 'Séquences à l’aveugle',
-    description: 'Mémorise une séquence dictée, puis reconstruis-la sur l’échiquier.',
-    icon: 'eye-off-outline',
-  },
-  {
-    id: 'puzzles',
-    route: '/puzzles' as Href,
-    title: 'Tactiques',
-    description: 'Résous des problèmes Lichess à vue ou à l’aveugle, hors-ligne.',
-    icon: 'extension-puzzle-outline',
-  },
-  {
-    id: 'visualisation',
-    route: '/visualisation' as Href,
-    title: 'Visualisation',
-    description: 'Suivi mental de position et reconnaissance rapide de coups.',
-    icon: 'eye-outline',
-  },
-  {
-    id: 'quiz-ouverture',
-    route: '/quiz-ouverture' as Href,
-    title: 'Quiz Ouverture',
-    description: 'Nomme ou construis des ouvertures à partir de la base ECO.',
-    icon: 'school-outline',
-  },
-];
+import { BrandAssets, modeCardIllustration } from '@/constants/BrandAssets';
+import { DesignTokens } from '@/constants/designTokens';
+import {
+  HORIZONTAL_LOGO_ART,
+  artHeight,
+  artWidth,
+} from '@/constants/brandArtBounds';
+import { MAIN_MODE_CARD_META } from '@/lib/app/mainModeCards';
+import { ModeCard } from '@/components/home/ModeCard';
+import { SettingsButton } from '@/components/navigation/SettingsButton';
 
 export default function MainMenu() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
+  const { width } = useWindowDimensions();
 
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
+  // More prominent logo (~240–290px of VISIBLE artwork).
+  const logoArtW = artWidth(HORIZONTAL_LOGO_ART);
+  const logoArtH = artHeight(HORIZONTAL_LOGO_ART);
+  const logoVisibleWidth = Math.min(
+    290,
+    Math.max(
+      240,
+      width - DesignTokens.spacing.screenX * 2 - DesignTokens.minTouchTarget - 8,
+    ),
+  );
+  const logoVisibleHeight = Math.round(logoVisibleWidth * (logoArtH / logoArtW));
+  const logoImgWidth = Math.round(logoVisibleWidth / logoArtW);
+  const logoImgHeight = Math.round(logoImgWidth * (1024 / 1536));
+  const logoImgLeft = -Math.round(HORIZONTAL_LOGO_ART.left * logoImgWidth);
+  const logoImgTop = -Math.round(HORIZONTAL_LOGO_ART.top * logoImgHeight);
 
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.root,
-        { paddingTop: topPad + 20, paddingBottom: bottomPad + 20 },
+        {
+          paddingTop: topPad + DesignTokens.spacing.sm,
+          paddingBottom: bottomPad + DesignTokens.spacing.md,
+        },
       ]}
+      showsVerticalScrollIndicator={false}
+      testID="home-scroll"
     >
-      <View style={styles.brand}>
-        <Image source={require('@/assets/images/icon.png')} style={styles.logo} />
-        <Text style={[styles.title, { color: colors.foreground }]}>AnyChess</Text>
-        <Text style={[styles.tagline, { color: colors.mutedForeground }]}>
-          Choisis un mode de jeu
-        </Text>
+      <View style={styles.headerBlock}>
+        <View style={styles.headerRow}>
+          <View style={styles.brand}>
+            <View
+              style={[
+                styles.logoViewport,
+                { width: logoVisibleWidth, height: logoVisibleHeight },
+              ]}
+              testID="home-horizontal-logo"
+              accessibilityLabel="AnyChess"
+            >
+              <Image
+                source={BrandAssets.horizontalLogo}
+                style={{
+                  position: 'absolute',
+                  left: logoImgLeft,
+                  top: logoImgTop,
+                  width: logoImgWidth,
+                  height: logoImgHeight,
+                }}
+                contentFit="fill"
+                cachePolicy="memory-disk"
+                recyclingKey="home-horizontal-logo"
+                accessibilityIgnoresInvertColors
+              />
+            </View>
+          </View>
+          <SettingsButton />
+        </View>
       </View>
 
       <View style={styles.cards}>
-        {MODES.map((mode) => (
-          <Pressable
+        {MAIN_MODE_CARD_META.map((mode) => (
+          <ModeCard
             key={mode.id}
+            modeId={mode.id}
+            title={mode.title}
+            description={mode.description}
+            iconName={mode.iconName}
+            illustration={modeCardIllustration(mode.id)}
             onPress={() => router.push(mode.route)}
             testID={`menu-${mode.id}`}
-            style={({ pressed }) => [
-              styles.card,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <View style={[styles.iconWrap, { backgroundColor: colors.primary }]}>
-              <Ionicons name={mode.icon} size={26} color={colors.primaryForeground} />
-            </View>
-            <View style={styles.cardText}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>{mode.title}</Text>
-              <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-                {mode.description}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
-          </Pressable>
+          />
         ))}
       </View>
 
@@ -129,61 +124,32 @@ export default function MainMenu() {
 
 const styles = StyleSheet.create({
   root: {
-    paddingHorizontal: 18,
-    gap: 26,
+    paddingHorizontal: DesignTokens.spacing.screenX,
+    gap: DesignTokens.spacing.md,
   },
-  brand: {
-    alignItems: 'center',
+  headerBlock: {
+    marginBottom: DesignTokens.spacing.xs,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: 8,
   },
-  logo: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
+  brand: {
+    flex: 1,
+    alignItems: 'flex-start',
+    paddingTop: 2,
   },
-  title: {
-    fontSize: 30,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.5,
-  },
-  tagline: {
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+  logoViewport: {
+    overflow: 'hidden',
+    position: 'relative',
   },
   cards: {
-    gap: 14,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    minHeight: 72,
-  },
-  iconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardText: {
-    flex: 1,
-    gap: 3,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  cardDesc: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 17,
+    gap: DesignTokens.spacing.cardGap,
   },
   version: {
-    marginTop: 8,
+    marginTop: DesignTokens.spacing.xs,
     textAlign: 'center',
     fontSize: 12,
     fontFamily: 'Inter_400Regular',

@@ -23,6 +23,16 @@ export interface PuzzleManifest {
   ratingMax: number;
   seed?: number;
   notes?: string;
+  sourceUrl?: string;
+  license?: string;
+  bands?: Array<{
+    id: string;
+    label: string;
+    min: number;
+    max: number;
+    target: number;
+    count: number;
+  }>;
 }
 
 export type PuzzleSubmode = 'visual' | 'blind';
@@ -39,12 +49,18 @@ export interface PuzzleFilters {
   themes?: string[];
   /** Exact piece count after setup, when set. */
   pieceCount?: number;
+  /** Inclusive min piece count after setup (band). */
+  pieceCountMin?: number | null;
+  /** Inclusive max piece count after setup (band). */
+  pieceCountMax?: number | null;
 }
 
 export const DEFAULT_PUZZLE_FILTERS: PuzzleFilters = {
-  // Pack window for ~1800 Chess.com target (see PlayerDifficultyProfile).
-  ratingMin: 1600,
-  ratingMax: 2200,
+  // "Aléatoire / Tous" — pack spans the curated multi-Elo bands.
+  ratingMin: 0,
+  ratingMax: 4000,
+  pieceCountMin: null,
+  pieceCountMax: null,
 };
 
 export type PuzzleAttemptResult =
@@ -59,6 +75,8 @@ export interface PuzzleHelpUsage {
   blackReveal: boolean;
   solution: boolean;
   positionRepeat: boolean;
+  /** Revealed only the next correct move ("SHOW NEXT MOVE"). */
+  nextMove: boolean;
 }
 
 export interface PuzzleAttemptStats {
@@ -113,6 +131,7 @@ export function emptyPuzzleStats(userMoveCount = 0): PuzzleAttemptStats {
       blackReveal: false,
       solution: false,
       positionRepeat: false,
+      nextMove: false,
     },
     userMoveCount,
     correctOnFirstAttempt: 0,
@@ -121,13 +140,20 @@ export function emptyPuzzleStats(userMoveCount = 0): PuzzleAttemptStats {
 }
 
 export function anyHelpUsed(helps: PuzzleHelpUsage): boolean {
-  return helps.whiteReveal || helps.blackReveal || helps.solution || helps.positionRepeat;
+  return (
+    helps.whiteReveal ||
+    helps.blackReveal ||
+    helps.solution ||
+    helps.positionRepeat ||
+    helps.nextMove
+  );
 }
 
 export function formatHelpsUsed(helps: PuzzleHelpUsage): string {
   const parts: string[] = [];
   if (helps.whiteReveal) parts.push('pièces blanches');
   if (helps.blackReveal) parts.push('pièces noires');
+  if (helps.nextMove) parts.push('coup suivant');
   if (helps.solution) parts.push('solution');
   if (helps.positionRepeat) parts.push('répétition position');
   return parts.length ? parts.join(', ') : 'aucune';

@@ -1,30 +1,34 @@
 /**
- * Global audio output settings (sound on/off).
+ * Global audio settings.
  *
- * Independent from board visibility and microphone input. When sound is
- * disabled, TTS and SFX must be silent, but speech recognition may continue.
- * Persisted via AsyncStorage so the preference survives restarts.
+ * Voice mute (TTS) is independent from UI validation / error sound effects.
+ * Speech recognition is never blocked by voice mute.
  */
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { defaultKeyValueStorage } from '@/lib/storage/AsyncKeyValueStorage.ts';
+import { StorageKeys } from '@/lib/storage/StorageKeys.ts';
 
-const STORAGE_KEY = 'anychess.audio.soundEnabled.v1';
+const VOICE_KEY = StorageKeys.voiceEnabled.key;
+/** Legacy key — migrated once into voiceEnabled. */
+const LEGACY_SOUND_KEY = StorageKeys.voiceEnabledLegacy.key;
 
-type SoundListener = (enabled: boolean) => void;
+type VoiceListener = (enabled: boolean) => void;
 
 class AudioSettings {
-  private soundEnabled = true;
+  private voiceEnabled = true;
   private loaded = false;
   private loadPromise: Promise<void> | null = null;
-  private listeners = new Set<SoundListener>();
+  private listeners = new Set<VoiceListener>();
 
   async ensureLoaded(): Promise<void> {
     if (this.loaded) return;
     if (!this.loadPromise) {
       this.loadPromise = (async () => {
         try {
-          const raw = await AsyncStorage.getItem(STORAGE_KEY);
-          if (raw === '0' || raw === 'false') this.soundEnabled = false;
-          else if (raw === '1' || raw === 'true') this.soundEnabled = true;
+          const raw =
+            (await defaultKeyValueStorage.getItem(VOICE_KEY)) ??
+            (await defaultKeyValueStorage.getItem(LEGACY_SOUND_KEY));
+          if (raw === '0' || raw === 'false') this.voiceEnabled = false;
+          else if (raw === '1' || raw === 'true') this.voiceEnabled = true;
         } catch {
           /* keep default */
         } finally {
@@ -36,29 +40,48 @@ class AudioSettings {
     await this.loadPromise;
   }
 
-  isSoundEnabled(): boolean {
-    return this.soundEnabled;
+  /** Whether spoken TTS voice is enabled. */
+  isVoiceEnabled(): boolean {
+    return this.voiceEnabled;
   }
 
-  async setSoundEnabled(enabled: boolean): Promise<void> {
-    if (this.soundEnabled === enabled && this.loaded) return;
-    this.soundEnabled = enabled;
+  /**
+   * @deprecated Prefer isVoiceEnabled(). Kept so existing call sites compile
+   * during the Major Update migration; maps to voice mute only.
+   */
+  isSoundEnabled(): boolean {
+    return this.voiceEnabled;
+  }
+
+  async setVoiceEnabled(enabled: boolean): Promise<void> {
+    if (this.voiceEnabled === enabled && this.loaded) return;
+    this.voiceEnabled = enabled;
     this.listeners.forEach((l) => l(enabled));
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, enabled ? '1' : '0');
+      await defaultKeyValueStorage.setItem(VOICE_KEY, enabled ? '1' : '0');
     } catch {
       /* non-critical */
     }
   }
 
-  async toggleSound(): Promise<boolean> {
+  /** @deprecated Prefer setVoiceEnabled */
+  async setSoundEnabled(enabled: boolean): Promise<void> {
+    await this.setVoiceEnabled(enabled);
+  }
+
+  async toggleVoice(): Promise<boolean> {
     await this.ensureLoaded();
-    const next = !this.soundEnabled;
-    await this.setSoundEnabled(next);
+    const next = !this.voiceEnabled;
+    await this.setVoiceEnabled(next);
     return next;
   }
 
-  onChange(listener: SoundListener): () => void {
+  /** @deprecated Prefer toggleVoice */
+  async toggleSound(): Promise<boolean> {
+    return this.toggleVoice();
+  }
+
+  onChange(listener: VoiceListener): () => void {
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);

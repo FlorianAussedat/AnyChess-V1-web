@@ -90,6 +90,15 @@ export function useRepertoireLibrary() {
     [bump],
   );
 
+  const setFileEnabled = useCallback(
+    async (fileId: string, enabled: boolean) => {
+      const file = await repertoireService.setFileEnabled(fileId, enabled);
+      bump();
+      return file;
+    },
+    [bump],
+  );
+
   const getFolder = useCallback(
     (folderId: string) => repertoireService.getFolder(folderId),
     [tick],
@@ -127,6 +136,7 @@ export function useRepertoireLibrary() {
     importPgn,
     replacePgn,
     deletePgn,
+    setFileEnabled,
     setFolderSide,
     getTrainableFolders,
     getFoldersMissingSide,

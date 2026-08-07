@@ -1,31 +1,31 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import type { RepertoireFolder } from '@/lib/repertoire';
-import { sideLabel } from '@/components/RepertoireSidePicker';
+import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
+import { filterFoldersByReviewSide } from '@/lib/repertoire';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { FolderListRow } from '@/components/openings/FolderListRow';
+import { NameModal } from '@/components/openings/NameModal';
+import { OpeningsReviewBlock } from '@/components/openings/OpeningsReviewBlock';
+import { MixedTrainingModal } from '@/components/openings/MixedTrainingModal';
 
 export default function OpeningsFolderList() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   const {
     ready,
@@ -47,6 +47,19 @@ export default function OpeningsFolderList() {
   const [nameDraft, setNameDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const whiteFolders = useMemo(
+    () => folders.filter((f) => f.side === 'white'),
+    [folders],
+  );
+  const blackFolders = useMemo(
+    () => folders.filter((f) => f.side === 'black'),
+    [folders],
+  );
+  const unassignedFolders = useMemo(
+    () => folders.filter((f) => !f.side),
+    [folders],
+  );
 
   const openCreate = useCallback(() => {
     setNameDraft('');
@@ -105,9 +118,21 @@ export default function OpeningsFolderList() {
     if (ids.length === 0) return;
     setMixedOpen(false);
     router.push(
-      `/openings/continue?folderIds=${encodeURIComponent(ids.join(','))}` as Href,
+      `/openings/continue?folderIds=${encodeURIComponent(ids.join(','))}&side=all` as Href,
     );
   }, [mixedSelect, router]);
+
+  const startReview = useCallback(
+    (side: ReviewSideFilter) => {
+      const pool = filterFoldersByReviewSide(trainable, side);
+      if (pool.length === 0) return;
+      const ids = pool.map((f) => f.id).join(',');
+      router.push(
+        `/openings/continue?folderIds=${encodeURIComponent(ids)}&side=${side}` as Href,
+      );
+    },
+    [trainable, router],
+  );
 
   const confirmDelete = useCallback(
     (folder: RepertoireFolder) => {
@@ -138,75 +163,65 @@ export default function OpeningsFolderList() {
     [deleteFolder, getFiles],
   );
 
+  const renderFolderRow = useCallback(
+    (item: RepertoireFolder) => (
+      <FolderListRow
+        key={item.id}
+        folder={item}
+        fileCount={getFiles(item.id).length}
+        onOpen={() => router.push(`/openings/${item.id}` as Href)}
+        onRename={() => openRename(item)}
+        onDelete={() => confirmDelete(item)}
+      />
+    ),
+    [confirmDelete, getFiles, openRename, router],
+  );
+
+  const reviewDisabled = (side: ReviewSideFilter) =>
+    filterFoldersByReviewSide(trainable, side).length === 0;
+
   return (
     <View
       style={[
         styles.root,
         {
           backgroundColor: colors.background,
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
+          paddingTop: contentTop,
+          paddingBottom: contentBottom,
         },
       ]}
     >
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 },
-          ]}
-          testID="openings-back"
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>Ouvertures</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Répertoires PGN
-          </Text>
-        </View>
-        <Pressable
-          onPress={openCreate}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
-          ]}
-          testID="create-folder-btn"
-        >
-          <Ionicons name="add" size={18} color={colors.primaryForeground} />
-          <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
-            Nouveau
-          </Text>
-        </Pressable>
-      </View>
-
-      {trainable.length > 0 && (
-        <View style={[styles.mixedBlock, { borderColor: colors.border, backgroundColor: colors.card }]}>
-          <Text style={[styles.mixedTitle, { color: colors.foreground }]}>
-            Entraînement mixte
-          </Text>
-          <Text style={[styles.mixedHint, { color: colors.mutedForeground }]}>
-            Combine plusieurs répertoires — l’orientation change selon le côté de chaque ligne.
-          </Text>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title="Ouvertures"
+        subtitle="Répertoires PGN"
+        backTestID="openings-back"
+        trailing={
           <Pressable
-            onPress={() => {
-              if (mixedSelect.size === 0) selectAllTrainable();
-              setMixedOpen(true);
-            }}
+            onPress={openCreate}
             style={({ pressed }) => [
-              styles.mixedBtn,
+              styles.primaryBtn,
               { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
             ]}
-            testID="mixed-training-btn"
+            testID="create-folder-btn"
           >
-            <Ionicons name="shuffle-outline" size={18} color={colors.primaryForeground} />
-            <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              Continue la ligne (mixte)
+            <Ionicons name="add" size={18} color={colors.primaryForeground} />
+            <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
+              Nouveau
             </Text>
           </Pressable>
-        </View>
+        }
+      />
+
+      {trainable.length > 0 && (
+        <OpeningsReviewBlock
+          reviewDisabled={reviewDisabled}
+          onStartReview={startReview}
+          onOpenMixed={() => {
+            if (mixedSelect.size === 0) selectAllTrainable();
+            setMixedOpen(true);
+          }}
+        />
       )}
 
       {!ready ? (
@@ -228,58 +243,35 @@ export default function OpeningsFolderList() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={folders}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => {
-            const files = getFiles(item.id);
-            return (
-              <Pressable
-                onPress={() => router.push(`/openings/${item.id}` as Href)}
-                style={({ pressed }) => [
-                  styles.card,
-                  {
-                    backgroundColor: colors.card,
-                    borderColor: colors.border,
-                    opacity: pressed ? 0.75 : 1,
-                  },
-                ]}
-                testID={`folder-${item.id}`}
-              >
-                <View style={[styles.folderIcon, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="folder" size={22} color={colors.primaryForeground} />
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>{item.name}</Text>
-                  <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
-                    {files.length === 0
-                      ? 'Aucun fichier PGN'
-                      : `${files.length} fichier${files.length > 1 ? 's' : ''} PGN`}
-                    {item.side ? ` · ${sideLabel(item.side)}` : ''}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => openRename(item)}
-                  hitSlop={8}
-                  style={styles.iconOnly}
-                  testID={`rename-folder-${item.id}`}
-                >
-                  <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
-                </Pressable>
-                <Pressable
-                  onPress={() => confirmDelete(item)}
-                  hitSlop={8}
-                  style={styles.iconOnly}
-                  testID={`delete-folder-${item.id}`}
-                >
-                  <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-                </Pressable>
-                <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-              </Pressable>
-            );
-          }}
-        />
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+          {whiteFolders.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                RÉPERTOIRE BLANCS
+              </Text>
+              {whiteFolders.map(renderFolderRow)}
+            </View>
+          )}
+          {blackFolders.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                RÉPERTOIRE NOIRS
+              </Text>
+              {blackFolders.map(renderFolderRow)}
+            </View>
+          )}
+          {unassignedFolders.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+                SANS CÔTÉ
+              </Text>
+              <Text style={[styles.sectionHint, { color: colors.mutedForeground }]}>
+                Ouvre chaque dossier et choisis « Je joue Blancs » ou « Je joue Noirs » à l’import.
+              </Text>
+              {unassignedFolders.map(renderFolderRow)}
+            </View>
+          )}
+        </ScrollView>
       )}
 
       <NameModal
@@ -308,183 +300,22 @@ export default function OpeningsFolderList() {
         submitLabel="Enregistrer"
       />
 
-      <Modal visible={mixedOpen} transparent animationType="fade" onRequestClose={() => setMixedOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              Répertoires à mélanger
-            </Text>
-            <Pressable onPress={selectAllTrainable} hitSlop={8}>
-              <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
-                Tout sélectionner
-              </Text>
-            </Pressable>
-            <View style={{ gap: 8, maxHeight: 280 }}>
-              {trainable.map((folder) => {
-                const selected = mixedSelect.has(folder.id);
-                return (
-                  <Pressable
-                    key={folder.id}
-                    onPress={() => toggleMixedFolder(folder.id)}
-                    style={[
-                      styles.mixedRow,
-                      {
-                        borderColor: colors.border,
-                        backgroundColor: selected ? colors.input : colors.card,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={selected ? 'checkbox' : 'square-outline'}
-                      size={20}
-                      color={selected ? colors.primary : colors.mutedForeground}
-                    />
-                    <Text style={{ flex: 1, color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                      {folder.name}
-                    </Text>
-                    <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-                      {folder.side ? sideLabel(folder.side) : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setMixedOpen(false)}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                  Annuler
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={startMixedContinue}
-                disabled={mixedSelect.size === 0}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                    opacity: pressed || mixedSelect.size === 0 ? 0.6 : 1,
-                  },
-                ]}
-              >
-                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                  Commencer
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <MixedTrainingModal
+        visible={mixedOpen}
+        trainable={trainable}
+        mixedSelect={mixedSelect}
+        onClose={() => setMixedOpen(false)}
+        onSelectAll={selectAllTrainable}
+        onToggleFolder={toggleMixedFolder}
+        onStart={startMixedContinue}
+      />
     </View>
   );
 }
 
-// ── Shared name modal ───────────────────────────────────────────────────────
-
-interface NameModalProps {
-  visible: boolean;
-  title: string;
-  placeholder: string;
-  value: string;
-  onChangeText: (t: string) => void;
-  onCancel: () => void;
-  onSubmit: () => void;
-  busy: boolean;
-  error: string | null;
-  submitLabel: string;
-}
-
-function NameModal({
-  visible,
-  title,
-  placeholder,
-  value,
-  onChangeText,
-  onCancel,
-  onSubmit,
-  busy,
-  error,
-  submitLabel,
-}: NameModalProps) {
-  const colors = useColors();
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.modalBackdrop}>
-        <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>{title}</Text>
-          <TextInput
-            value={value}
-            onChangeText={onChangeText}
-            placeholder={placeholder}
-            placeholderTextColor={colors.mutedForeground}
-            autoFocus
-            style={[
-              styles.modalInput,
-              {
-                backgroundColor: colors.input,
-                color: colors.foreground,
-                borderColor: colors.border,
-              },
-            ]}
-            onSubmitEditing={onSubmit}
-            editable={!busy}
-          />
-          {!!error && (
-            <Text style={[styles.modalError, { color: colors.destructive }]}>{error}</Text>
-          )}
-          <View style={styles.modalActions}>
-            <Pressable
-              onPress={onCancel}
-              disabled={busy}
-              style={({ pressed }) => [
-                styles.modalBtn,
-                { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
-              ]}
-            >
-              <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                Annuler
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={onSubmit}
-              disabled={busy || !value.trim()}
-              style={({ pressed }) => [
-                styles.modalBtn,
-                {
-                  backgroundColor: colors.primary,
-                  borderColor: colors.primary,
-                  opacity: pressed || busy || !value.trim() ? 0.6 : 1,
-                },
-              ]}
-            >
-              <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                {busy ? '…' : submitLabel}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    paddingHorizontal: 14,
-    gap: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
+  root: { flex: 1, paddingHorizontal: 14, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconBtn: {
     width: 34,
     height: 34,
@@ -493,15 +324,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 18,
-    fontFamily: 'Inter_700Bold',
-  },
-  subtitle: {
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 1,
-  },
+  title: { fontSize: 18, fontFamily: 'Inter_700Bold' },
+  subtitle: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 1 },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -510,43 +334,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  primaryBtnLabel: {
-    fontSize: 13,
+  primaryBtnLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
+  list: { gap: 16, paddingBottom: 20 },
+  section: { gap: 10 },
+  sectionTitle: {
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.8,
   },
-  list: {
-    gap: 10,
-    paddingBottom: 20,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  folderIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardBody: {
-    flex: 1,
-    gap: 2,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  cardMeta: {
+  sectionHint: {
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
-  },
-  iconOnly: {
-    padding: 4,
+    lineHeight: 17,
+    marginTop: -4,
   },
   centered: {
     flex: 1,
@@ -565,78 +365,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     textAlign: 'center',
     lineHeight: 19,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 18,
-    gap: 12,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  modalInput: {
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-  },
-  modalError: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  modalBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  mixedBlock: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-  },
-  mixedTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  mixedHint: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 17,
-  },
-  mixedBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  mixedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
   },
 });

@@ -14,8 +14,19 @@ export {
 } from './RepertoireBranchSelector.ts';
 export { ContinueLineSession } from './ContinueLineSession.ts';
 export type { ContinueLineAttemptResult } from './ContinueLineSession.ts';
+export { continueLineNotationDisplay } from './continueLineNotationDisplay.ts';
+export type {
+  ContinueLineNotationDisplay,
+  ContinueLineNotationKind,
+} from './continueLineNotationDisplay.ts';
 export {
   ContinueLineRecentStorage,
   createContinueLineRecentStorage,
 } from './ContinueLineRecentStorage.ts';
+export {
+  VOICE_SPEED_MIN,
+  VOICE_SPEED_MAX,
+  DEFAULT_VOICE_SPEED,
+  voiceSpeedToRate,
+} from './voiceSpeed.ts';
 

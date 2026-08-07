@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { Chess } from 'chess.js';
 import { normalizeOpeningName } from '../OpeningNameNormalizer.ts';
 import { validateOpeningAnswer } from '../OpeningAnswerValidator.ts';
 import {
@@ -13,6 +14,7 @@ import {
 import { OpeningIdentificationSession } from '../OpeningIdentificationSession.ts';
 import { findOpeningTarget } from '../OpeningLineBuilder.ts';
 import { OpeningConstructionSession } from '../OpeningConstructionSession.ts';
+import { groupOpeningSans } from '../groupOpeningSans.ts';
 import { replayLine } from '../../replay/replayLine.ts';
 
 describe('opening answer normalization and hierarchy', () => {
@@ -87,6 +89,25 @@ describe('opening construction', () => {
     assert.match(fail.feedback ?? '', /reconnu|Ambigu/i);
   });
 
+  it('attemptMove uses the same exact-SAN matcher as text', () => {
+    const target = findOpeningTarget('Italian Game') ?? availableOpeningQuizLines()[0];
+    assert.ok(target);
+    const session = new OpeningConstructionSession(target);
+    const probe = new Chess();
+    const played = probe.move(target.sans[0]);
+    assert.ok(played);
+    const ok = session.attemptMove({ from: played.from, to: played.to });
+    assert.equal(ok.phase, 'playing');
+    assert.deepEqual(ok.playedSans, [played.san]);
+    assert.equal(ok.feedback, 'Correct.');
+    assert.equal('expectedSan' in session.snapshotForPlayer(), false);
+
+    const wrongSession = new OpeningConstructionSession(target);
+    const bad = wrongSession.attemptMove({ from: 'a2', to: 'a4' });
+    assert.equal(bad.phase, 'wrong');
+    assert.match(bad.feedback ?? '', /Incorrect/);
+  });
+
   it('cancels line replay cleanly', async () => {
     let completed = false;
     const handle = replayLine({
@@ -101,5 +122,21 @@ describe('opening construction', () => {
     handle.cancel();
     await new Promise((r) => setTimeout(r, 120));
     assert.equal(completed, false);
+  });
+});
+
+describe('groupOpeningSans', () => {
+  it('pairs full moves with white and black columns', () => {
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Nf3', 'Nc6']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Nf3', black: 'Nc6' },
+    ]);
+  });
+
+  it('leaves black empty on an odd ply count', () => {
+    assert.deepEqual(groupOpeningSans(['e4', 'e5', 'Nf3']), [
+      { moveNumber: 1, white: 'e4', black: 'e5' },
+      { moveNumber: 2, white: 'Nf3' },
+    ]);
   });
 });

@@ -46,6 +46,8 @@ export interface ContinueLineSessionSnapshot {
   currentFen: string;
   /** How many correct user half-moves so far. */
   correctCount: number;
+  /** Correct half-moves played since startFen (board.history()). */
+  recitedSans: string[];
   /** Book moves still available at the current node (SAN). */
   availableSans: string[];
   /** First wrong attempt, if any. */

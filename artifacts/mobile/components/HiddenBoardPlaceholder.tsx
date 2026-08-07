@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 interface Props {
   onReveal?: () => void;
@@ -25,7 +25,12 @@ export function HiddenBoardPlaceholder({ onReveal }: Props) {
         { width: size, height: size, backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
-      <Ionicons name="eye-off-outline" size={40} color={colors.mutedForeground} />
+      <Image
+        source={BrandAssets.toggles.boardOff}
+        style={styles.boardIcon}
+        resizeMode="contain"
+        accessibilityLabel="Échiquier masqué"
+      />
       <Text style={[styles.title, { color: colors.foreground }]}>Échiquier masqué</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         La partie continue normalement.
@@ -38,7 +43,11 @@ export function HiddenBoardPlaceholder({ onReveal }: Props) {
             { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
           ]}
         >
-          <Ionicons name="eye-outline" size={16} color={colors.foreground} />
+          <Image
+            source={BrandAssets.toggles.boardOn}
+            style={styles.revealIcon}
+            resizeMode="contain"
+          />
           <Text style={[styles.revealLabel, { color: colors.foreground }]}>Afficher</Text>
         </Pressable>
       )}
@@ -55,6 +64,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  boardIcon: {
+    width: 72,
+    height: 72,
   },
   title: {
     fontSize: 16,
@@ -73,6 +86,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 999,
     borderWidth: 1,
+  },
+  revealIcon: {
+    width: 18,
+    height: 18,
   },
   revealLabel: {
     fontSize: 13,

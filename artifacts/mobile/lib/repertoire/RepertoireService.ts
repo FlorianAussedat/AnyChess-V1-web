@@ -158,7 +158,9 @@ export class RepertoireService {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
       if (!folder.side) return false;
-      return this.getFiles(folder.id).some((f) => f.summary.parseSucceeded);
+      return this.getFiles(folder.id).some(
+        (f) => f.summary.parseSucceeded && f.enabled !== false,
+      );
     });
   }
 
@@ -167,7 +169,9 @@ export class RepertoireService {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
       if (folder.side) return false;
-      return this.getFiles(folder.id).some((f) => f.summary.parseSucceeded);
+      return this.getFiles(folder.id).some(
+        (f) => f.summary.parseSucceeded && f.enabled !== false,
+      );
     });
   }
 
@@ -192,6 +196,7 @@ export class RepertoireService {
       importedAt: nowIso(),
       pgnText: text,
       summary: summariseParse(text),
+      enabled: true,
     };
 
     this.snapshot!.files.push(file);
@@ -221,6 +226,18 @@ export class RepertoireService {
     return file;
   }
 
+  /** Enable/disable a PGN for training without deleting it. */
+  async setFileEnabled(fileId: string, enabled: boolean): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error('Fichier PGN introuvable.');
+    file.enabled = enabled;
+    const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
+    if (folder) folder.updatedAt = nowIso();
+    await this.persist();
+    return file;
+  }
+
   /** Remove one PGN file without deleting its parent folder. */
   async deletePgn(fileId: string): Promise<void> {
     await this.ensureLoaded();
@@ -246,7 +263,7 @@ export class RepertoireService {
     issues: RepertoireIssue[];
   }> {
     await this.ensureLoaded();
-    const files = this.getFiles(folderId);
+    const files = this.getFiles(folderId).filter((f) => f.enabled !== false);
     if (files.length === 0) {
       return {
         repertoire: {
@@ -258,7 +275,7 @@ export class RepertoireService {
           positionCount: 0,
         },
         fileCount: 0,
-        issues: [{ message: 'Aucun fichier PGN dans ce dossier.' }],
+        issues: [{ message: 'Aucun fichier PGN actif dans ce dossier.' }],
       };
     }
 

@@ -2,7 +2,7 @@
  * Timed solution replay — fixed 2000 ms between half-moves.
  * First move fires immediately. cancel() clears pending timers.
  */
-import type { PuzzleReplayMove } from './types';
+import type { PuzzleReplayMove } from './types.ts';
 
 export const PUZZLE_REPLAY_DELAY_MS = 2000;
 

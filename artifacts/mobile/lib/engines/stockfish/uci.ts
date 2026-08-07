@@ -27,7 +27,14 @@ export const DEFAULT_STOCKFISH_CONFIG: StockfishConfig = {
   varietyMarginCp: 50,
 };
 
-/** Stockfish's supported UCI_Elo range; values are clamped to this window. */
+/**
+ * Stockfish's supported UCI_Elo range; values are clamped to this window.
+ *
+ * `UCI_Elo` never goes below `MIN_UCI_ELO` (1320). Strength bands that target
+ * weaker ratings still call `clampElo(target)` / pass `MIN_UCI_ELO`, and should
+ * compensate with higher `multiPv` + `varietyMarginCp` so play still feels weak
+ * when the Elo floor is hit (see GameContext / createOpponentEngine).
+ */
 export const MIN_UCI_ELO = 1320;
 export const MAX_UCI_ELO = 3190;
 

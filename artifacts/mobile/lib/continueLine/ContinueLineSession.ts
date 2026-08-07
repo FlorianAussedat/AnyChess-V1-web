@@ -1,16 +1,17 @@
 /**
  * Session engine for Continue la ligne.
- * Accepts any repertoire move at the current node; forks follow the chosen branch.
+ *
+ * One fixed PGN branch is followed strictly.
+ * The user only recites THEIR side; opponent half-moves are auto-played
+ * from the selected branch (no Stockfish, no free forks).
  */
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
-import { DEFAULT_FEN, movesForPosition } from '../repertoire/repertoireTree.ts';
+import { DEFAULT_FEN } from '../repertoire/repertoireTree.ts';
 import type { ParsedRepertoire } from '../repertoire/types.ts';
 import {
   fenAfterSans,
-  isBookUci,
   pickStartPly,
-  proposedContinuationSans,
   sampleRandomPath,
 } from './RepertoireBranchSelector.ts';
 import type {
@@ -24,6 +25,8 @@ import type {
 export type ContinueLineAttemptResult = {
   kind: ContinueLineAttemptKind;
   snapshot: ContinueLineSessionSnapshot;
+  /** Opponent SANs auto-played after a correct user move (or at session start). */
+  autoPlayedSans?: string[];
 };
 
 export class ContinueLineSession {
@@ -44,12 +47,44 @@ export class ContinueLineSession {
   private errorMessage: string | null = null;
   private folderId: string | undefined;
   private trainingSide: 'white' | 'black' | undefined;
-  /** Remaining preferred SANs from the original sample (advisory). */
-  private preferTail: string[] = [];
+  /** Remaining SANs on the fixed branch (strict order). */
+  private branchTail: string[] = [];
 
   loadError(message: string): void {
     this.phase = 'error';
     this.errorMessage = message;
+  }
+
+  private userColor(): 'w' | 'b' {
+    return this.trainingSide === 'black' ? 'b' : 'w';
+  }
+
+  private isUserToMove(): boolean {
+    return this.board.turn() === this.userColor();
+  }
+
+  /**
+   * Play opponent moves from the fixed branch until it is the user's turn
+   * or the branch is exhausted. Does not increment correctCount.
+   */
+  private autoPlayOpponentFromBranch(): string[] {
+    const played: string[] = [];
+    while (
+      this.phase === 'reciting' &&
+      !this.isUserToMove() &&
+      this.branchTail.length > 0
+    ) {
+      const san = this.branchTail[0]!;
+      const move = this.board.move(san);
+      if (!move) break;
+      this.branchTail = this.branchTail.slice(1);
+      played.push(move.san);
+    }
+    if (this.branchTail.length === 0) {
+      this.phase = 'completed';
+      this.lineCompleted = true;
+    }
+    return played;
   }
 
   start(
@@ -97,21 +132,25 @@ export class ContinueLineSession {
       pickStartPly(path.sans.length, { rng: options.rng, minTail: 3 });
     this.startPly = startPly;
     this.preambleSans = path.sans.slice(0, startPly);
-    this.preferTail = path.sans.slice(startPly);
+    this.branchTail = path.sans.slice(startPly);
     this.startFen = fenAfterSans(DEFAULT_FEN, this.preambleSans);
     this.board = new Chess(this.startFen);
     this.phase = 'ready';
     return this.snapshot();
   }
 
-  beginRecitation(): ContinueLineSessionSnapshot {
-    if (this.phase !== 'ready' && this.phase !== 'reciting') return this.snapshot();
+  beginRecitation(): ContinueLineAttemptResult {
+    if (this.phase !== 'ready' && this.phase !== 'reciting') {
+      return { kind: 'correct', snapshot: this.snapshot(), autoPlayedSans: [] };
+    }
     this.phase = 'reciting';
-    if (this.rep && movesForPosition(this.rep, this.board.fen()).length === 0) {
+    if (this.branchTail.length === 0) {
       this.phase = 'completed';
       this.lineCompleted = true;
+      return { kind: 'correct', snapshot: this.snapshot(), autoPlayedSans: [] };
     }
-    return this.snapshot();
+    const autoPlayedSans = this.autoPlayOpponentFromBranch();
+    return { kind: 'correct', snapshot: this.snapshot(), autoPlayedSans };
   }
 
   applyChessMove(move: Move): ContinueLineAttemptResult {
@@ -119,19 +158,16 @@ export class ContinueLineSession {
       return { kind: 'wrong', snapshot: this.snapshot() };
     }
 
-    const fen = this.board.fen();
-    const bookMoves = movesForPosition(this.rep, fen);
+    if (!this.isUserToMove()) {
+      return { kind: 'wrong', snapshot: this.snapshot() };
+    }
 
-    if (!isBookUci(this.rep, fen, move.from, move.to, move.promotion ?? null)) {
+    const expected = this.branchTail[0] ?? null;
+    if (!expected || move.san !== expected) {
       this.phase = 'failed';
       this.incorrectSan = move.san;
-      this.validAlternatives = bookMoves.map((m) => m.san);
-      this.proposedContinuation = proposedContinuationSans(
-        this.rep,
-        fen,
-        12,
-        this.preferTail,
-      );
+      this.validAlternatives = expected ? [expected] : [];
+      this.proposedContinuation = [...this.branchTail];
       return { kind: 'wrong', snapshot: this.snapshot() };
     }
 
@@ -140,23 +176,27 @@ export class ContinueLineSession {
       to: move.to,
       promotion: move.promotion || 'q',
     });
-    if (!played) {
+    if (!played || played.san !== expected) {
+      // Undo partial if SAN mismatched after apply
+      if (played) this.board.undo();
+      this.phase = 'failed';
+      this.incorrectSan = move.san;
+      this.validAlternatives = [expected];
+      this.proposedContinuation = [...this.branchTail];
       return { kind: 'wrong', snapshot: this.snapshot() };
     }
 
+    this.branchTail = this.branchTail.slice(1);
     this.correctCount += 1;
-    if (this.preferTail[0] === played.san) {
-      this.preferTail = this.preferTail.slice(1);
-    } else {
-      this.preferTail = proposedContinuationSans(this.rep, this.board.fen(), 40);
-    }
 
-    if (movesForPosition(this.rep, this.board.fen()).length === 0) {
+    if (this.branchTail.length === 0) {
       this.phase = 'completed';
       this.lineCompleted = true;
+      return { kind: 'correct', snapshot: this.snapshot(), autoPlayedSans: [] };
     }
 
-    return { kind: 'correct', snapshot: this.snapshot() };
+    const autoPlayedSans = this.autoPlayOpponentFromBranch();
+    return { kind: 'correct', snapshot: this.snapshot(), autoPlayedSans };
   }
 
   recordRecognitionFailure(): ContinueLineSessionSnapshot {
@@ -179,10 +219,7 @@ export class ContinueLineSession {
 
   snapshot(): ContinueLineSessionSnapshot {
     const fen = this.board.fen();
-    const available =
-      this.rep && (this.phase === 'reciting' || this.phase === 'ready')
-        ? movesForPosition(this.rep, fen).map((m) => m.san)
-        : [];
+    const expected = this.phase === 'reciting' ? (this.branchTail[0] ?? null) : null;
     return {
       phase: this.phase,
       repertoireName: this.repertoireName,
@@ -192,7 +229,8 @@ export class ContinueLineSession {
       startPly: this.startPly,
       currentFen: fen,
       correctCount: this.correctCount,
-      availableSans: available,
+      recitedSans: this.board.history(),
+      availableSans: expected ? [expected] : [],
       incorrectSan: this.incorrectSan,
       validAlternatives: this.validAlternatives,
       proposedContinuation: this.proposedContinuation,

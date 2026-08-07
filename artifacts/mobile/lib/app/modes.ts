@@ -10,7 +10,7 @@ export type MainModeId =
   | 'visualisation'
   | 'quiz-ouverture';
 
-export type VisualisationExerciseId = 'mental' | 'nommer' | 'records';
+export type VisualisationExerciseId = 'mental' | 'nommer' | 'jouer' | 'records';
 
 export type QuizOuvertureExerciseId = 'quelle' | 'construis';
 

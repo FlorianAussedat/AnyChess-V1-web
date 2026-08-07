@@ -4,7 +4,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,12 +11,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
-import { BackButton } from '@/components/BackButton';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
+import { OptionChip } from '@/components/ui/OptionChip';
+import { AppButton } from '@/components/ui/AppButton';
 import { ChessBoard } from '@/components/ChessBoard';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
@@ -26,15 +28,15 @@ import {
   MentalPositionSession,
   type MentalSnapshot,
 } from '@/lib/mentalPosition';
-import { createOpponentEngine } from '@/lib/engines';
+import { OwnedEngine, createOpponentEngine } from '@/lib/engines';
 import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
-import { defaultKeyValueStorage } from '@/lib/storage';
+import { defaultKeyValueStorage, StorageKeys } from '@/lib/storage';
 import { replayLine } from '@/lib/replay/replayLine';
 
-const RECENT_KEY = 'anychess.mental.recent.v1';
+const RECENT_KEY = StorageKeys.mentalRecent.key;
 
 function fenToBoard(fen: string): (BoardPiece | null)[][] {
   return new Chess(fen).board() as (BoardPiece | null)[][];
@@ -42,14 +44,12 @@ function fenToBoard(fen: string): (BoardPiece | null)[][] {
 
 export default function MentalPositionScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
   const { soundEnabled } = useAudioSettings();
 
   const sessionRef = useRef(new MentalPositionSession());
+  const engineOwnerRef = useRef(new OwnedEngine(() => createOpponentEngine()));
   const replayRef = useRef<ReturnType<typeof replayLine> | null>(null);
   const presentationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [snap, setSnap] = useState<MentalSnapshot>(() => sessionRef.current.snapshot());
@@ -79,8 +79,18 @@ export default function MentalPositionScreen() {
       speechService.stop();
       replayRef.current?.cancel();
       if (presentationTimerRef.current) clearTimeout(presentationTimerRef.current);
+      engineOwnerRef.current.destroy();
     };
   }, []);
+
+  // Stack may keep this screen mounted — tear down Stockfish when leaving.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        engineOwnerRef.current.destroy();
+      };
+    }, []),
+  );
 
   const dictateSequence = useCallback(
     async (sans: string[]) => {
@@ -132,7 +142,7 @@ export default function MentalPositionScreen() {
         previousKey = null;
       }
 
-      const engine = createOpponentEngine();
+      const engine = engineOwnerRef.current.ensure();
       const { sans, key } = await generateMentalSequenceWithQuestions({
         fullMoves,
         engine,
@@ -227,86 +237,61 @@ export default function MentalPositionScreen() {
       }}
       keyboardShouldPersistTaps="handled"
     >
-      <BackButton onPress={() => router.back()} label="Retour" />
-
-      <Text style={[styles.title, { color: colors.foreground }]}>Suivi mental de position</Text>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title="Suivi mental de position"
+        showSound
+      />
 
       {snap.phase === 'setup' || snap.phase === 'error' ? (
         <View style={{ gap: 12 }}>
           {snap.errorMessage ? (
             <Text style={{ color: '#c44' }}>{snap.errorMessage}</Text>
           ) : null}
-          <Text style={{ color: colors.mutedForeground }}>Coups complets</Text>
+          <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 0.5 }}>
+            COUPS COMPLETS
+          </Text>
           <View style={styles.row}>
             {[3, 4, 5, 6].map((n) => (
-              <Pressable
+              <OptionChip
                 key={n}
+                label={String(n)}
+                active={fullMoves === n}
                 onPress={() => setFullMoves(n)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: fullMoves === n ? colors.primary : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: fullMoves === n ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {n}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
-          <Text style={{ color: colors.mutedForeground }}>Orientation</Text>
+          <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 0.5 }}>
+            PERSPECTIVE
+          </Text>
           <View style={styles.row}>
             {(['w', 'b'] as const).map((c) => (
-              <Pressable
+              <OptionChip
                 key={c}
+                label={c === 'w' ? 'Blancs' : 'Noirs'}
+                active={orientation === c}
                 onPress={() => setOrientation(c)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: orientation === c ? colors.primary : colors.card,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: orientation === c ? colors.primaryForeground : colors.foreground,
-                  }}
-                >
-                  {c === 'w' ? 'Blancs' : 'Noirs'}
-                </Text>
-              </Pressable>
+              />
             ))}
           </View>
-          <Pressable onPress={() => setDictate((v) => !v)}>
-            <Text style={{ color: colors.foreground }}>
-              Dicter la séquence : {dictate ? 'oui' : 'non'}
-            </Text>
-          </Pressable>
-          <Pressable onPress={() => setShowBoard((v) => !v)}>
-            <Text style={{ color: colors.foreground }}>
-              Afficher l'échiquier pendant la séquence : {showBoard ? 'oui' : 'non'}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={start}
-            disabled={busy}
-            style={[styles.btn, { backgroundColor: colors.primary, opacity: busy ? 0.6 : 1 }]}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.primaryForeground} />
-            ) : (
-              <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                Commencer
-              </Text>
-            )}
-          </Pressable>
+          <BooleanSettingRow
+            label="Dicter la séquence"
+            value={dictate}
+            onToggle={() => setDictate((v) => !v)}
+            activeIcon="volume-high"
+            inactiveIcon="volume-mute-outline"
+            testID="mental-dictate-toggle"
+          />
+          <BooleanSettingRow
+            label="Afficher l'échiquier pendant la séquence"
+            value={showBoard}
+            onToggle={() => setShowBoard((v) => !v)}
+            activeIcon="eye"
+            inactiveIcon="eye-off-outline"
+            testID="mental-board-toggle"
+          />
+          <AppButton label="Commencer" onPress={start} disabled={busy} testID="mental-start" />
+          {busy ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
       ) : null}
 
@@ -420,19 +405,8 @@ export default function MentalPositionScreen() {
               </View>
             </View>
           ))}
-          <Pressable onPress={start} style={[styles.btn, { backgroundColor: colors.primary }]}>
-            <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              Nouvelle séquence
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.btn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
-          >
-            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-              Retour Visualisation
-            </Text>
-          </Pressable>
+          <AppButton label="Nouvelle séquence" onPress={start} />
+          <AppButton label="Retour" variant="secondary" onPress={() => router.back()} />
         </View>
       )}
     </ScrollView>
@@ -440,16 +414,7 @@ export default function MentalPositionScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 24, fontFamily: 'Inter_700Bold' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    minHeight: 44,
-    justifyContent: 'center',
-  },
   btn: {
     minHeight: 48,
     borderRadius: 12,

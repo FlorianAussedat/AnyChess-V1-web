@@ -2,9 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
-import { BackButton } from '@/components/BackButton';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { DesignTokens } from '@/constants/designTokens';
+import { AppButton } from '@/components/ui/AppButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
+import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { replayLine, type ReplayLineHandle } from '@/lib/replay';
@@ -98,7 +102,10 @@ function Dropdown({
 
 export default function ConstruisOuvertureScreen() {
   const colors = useColors();
+  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
+  useCancelSpeechOnLeave('/quiz-ouverture/construis');
+
   const families = useMemo(() => openingFamilyNames(), []);
   const [family, setFamily] = useState(families[0] ?? '');
   const variations = useMemo(() => openingTargetsForFamily(family), [family]);
@@ -112,6 +119,9 @@ export default function ConstruisOuvertureScreen() {
   const [replayBoard, setReplayBoard] = useState<(BoardPiece | null)[][] | null>(null);
   const [replayLastMove, setReplayLastMove] = useState<{ from: string; to: string } | null>(null);
   const [isReplaying, setIsReplaying] = useState(false);
+  const [touchSelected, setTouchSelected] = useState<string | null>(null);
+  const [legalDests, setLegalDests] = useState<string[]>([]);
+  const [configExpanded, setConfigExpanded] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -119,28 +129,34 @@ export default function ConstruisOuvertureScreen() {
     };
   }, []);
 
-  function selectFamily(nextFamily: string) {
-    setFamily(nextFamily);
-    setRandomAnnouncement(null);
-    const vars = openingTargetsForFamily(nextFamily);
-    const next = vars[0] ?? null;
+  function clearTouch() {
+    setTouchSelected(null);
+    setLegalDests([]);
+  }
+
+  function resetSession(next: OpeningTarget | null) {
     setTarget(next);
     session.current = next ? makeSession(next) : null;
     setSnap(session.current?.snapshotForPlayer() ?? null);
     replayHandle.current?.cancel();
     setReplayBoard(null);
+    setReplayLastMove(null);
     setIsReplaying(false);
+    clearTouch();
+    setConfigExpanded(false);
+  }
+
+  function selectFamily(nextFamily: string) {
+    setFamily(nextFamily);
+    setRandomAnnouncement(null);
+    const vars = openingTargetsForFamily(nextFamily);
+    resetSession(vars[0] ?? null);
   }
 
   function selectVariation(name: string) {
     const next = variations.find((v) => v.identity.name === name) ?? null;
     setRandomAnnouncement(null);
-    setTarget(next);
-    session.current = next ? makeSession(next) : null;
-    setSnap(session.current?.snapshotForPlayer() ?? null);
-    replayHandle.current?.cancel();
-    setReplayBoard(null);
-    setIsReplaying(false);
+    resetSession(next);
   }
 
   function pickRandom() {
@@ -148,18 +164,14 @@ export default function ConstruisOuvertureScreen() {
     if (!pick) return;
     setFamily(pick.family);
     const nextTarget = { identity: pick.line.identity, sans: pick.line.sans };
-    setTarget(nextTarget);
-    session.current = makeSession(nextTarget);
-    setSnap(session.current.snapshotForPlayer());
     setRandomAnnouncement(`Construis : ${pick.line.identity.name}`);
-    replayHandle.current?.cancel();
-    setReplayBoard(null);
-    setIsReplaying(false);
+    resetSession(nextTarget);
   }
 
   function startReplay(line: string[]) {
     replayHandle.current?.cancel();
     setIsReplaying(true);
+    clearTouch();
     replayHandle.current = replayLine({
       moves: line,
       intervalMs: 1000,
@@ -174,12 +186,41 @@ export default function ConstruisOuvertureScreen() {
     });
   }
 
-  function answer(raw: string) {
-    if (!session.current) return;
-    const next = session.current.answer(raw);
-    setSnap(session.current.snapshotForPlayer());
+  function applySnapshot(next: ReturnType<OpeningConstructionSession['answer']>) {
+    setSnap(session.current?.snapshotForPlayer() ?? null);
+    clearTouch();
     if (next.phase === 'wrong' || next.phase === 'complete') {
       startReplay(next.target.sans);
+    }
+  }
+
+  function answer(raw: string) {
+    if (!session.current) return;
+    applySnapshot(session.current.answer(raw));
+  }
+
+  const canTouch = snap?.phase === 'playing' && !isReplaying;
+
+  function onSquarePress(square: string) {
+    if (!canTouch || !session.current) return;
+    if (touchSelected === null) {
+      const dests = session.current.getLegalDestinations(square);
+      if (dests.length > 0) {
+        setTouchSelected(square);
+        setLegalDests(dests);
+      }
+    } else if (square === touchSelected) {
+      clearTouch();
+    } else if (legalDests.includes(square)) {
+      applySnapshot(session.current.attemptMove({ from: touchSelected, to: square }));
+    } else {
+      const dests = session.current.getLegalDestinations(square);
+      if (dests.length > 0) {
+        setTouchSelected(square);
+        setLegalDests(dests);
+      } else {
+        clearTouch();
+      }
     }
   }
 
@@ -198,50 +239,73 @@ export default function ConstruisOuvertureScreen() {
     <ScrollView
       contentContainerStyle={{
         flexGrow: 1,
-        padding: 20,
-        gap: 14,
+        paddingHorizontal: DesignTokens.spacing.xl,
+        paddingTop: topPad + DesignTokens.spacing.md,
+        paddingBottom: bottomPad + DesignTokens.spacing.xl,
+        gap: DesignTokens.spacing.md,
         backgroundColor: colors.background,
       }}
+      keyboardShouldPersistTaps="handled"
     >
-      <BackButton
-        onPress={() => {
+      <ScreenHeader
+        onBack={() => {
           replayHandle.current?.cancel();
           router.back();
         }}
+        title="Construis l’ouverture"
+        subtitle={
+          target
+            ? `${family} · ${target.identity.name}`
+            : 'Joue la ligne de référence exacte, coup par coup.'
+        }
+        showSound
       />
-      <Text style={{ color: colors.foreground, fontSize: 25, fontWeight: '700' }}>
-        Construis l’ouverture
-      </Text>
-      <Text style={{ color: colors.mutedForeground }}>
-        Joue la ligne de référence exacte, coup par coup.
-      </Text>
 
-      <Dropdown label="Ouverture" value={family} options={families} onSelect={selectFamily} />
-      {variations.length > 0 && target && (
-        <Dropdown
-          label="Variation"
-          value={target.identity.name}
-          options={variations.map((v) => v.identity.name)}
-          onSelect={selectVariation}
-        />
+      {(configExpanded || !snap || snap.phase !== 'playing') && (
+        <View style={{ gap: 10 }}>
+          <Dropdown label="Ouverture" value={family} options={families} onSelect={selectFamily} />
+          {variations.length > 0 && target && (
+            <Dropdown
+              label="Variation"
+              value={target.identity.name}
+              options={variations.map((v) => v.identity.name)}
+              onSelect={selectVariation}
+            />
+          )}
+          <AppButton label="Aléatoire" onPress={pickRandom} variant="secondary" />
+          {!!randomAnnouncement && (
+            <Text style={{ color: colors.primary, fontWeight: '600' }}>{randomAnnouncement}</Text>
+          )}
+        </View>
       )}
 
-      <Pressable
-        onPress={pickRandom}
-        style={{
-          padding: 12,
-          borderRadius: 10,
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: colors.card,
-          alignItems: 'center',
-        }}
-      >
-        <Text style={{ color: colors.foreground, fontWeight: '600' }}>Aléatoire</Text>
-      </Pressable>
-
-      {!!randomAnnouncement && (
-        <Text style={{ color: colors.primary, fontWeight: '600' }}>{randomAnnouncement}</Text>
+      {snap?.phase === 'playing' && target && !configExpanded && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 13 }} numberOfLines={2}>
+            {family}
+            {'\n'}
+            {target.identity.name}
+          </Text>
+          <AppButton
+            label="Changer"
+            variant="secondary"
+            onPress={() => setConfigExpanded(true)}
+            style={{ paddingHorizontal: 12, minHeight: 40 }}
+          />
+          <AppButton
+            label="Aléatoire"
+            variant="secondary"
+            onPress={pickRandom}
+            style={{ paddingHorizontal: 12, minHeight: 40 }}
+          />
+        </View>
       )}
 
       {boardToShow && (
@@ -249,7 +313,9 @@ export default function ConstruisOuvertureScreen() {
           <ChessBoard
             board={boardToShow}
             lastMove={replayLastMove}
-            onSquarePress={() => {}}
+            selectedSquare={canTouch ? touchSelected : null}
+            legalDots={canTouch ? legalDests : []}
+            onSquarePress={canTouch ? onSquarePress : () => {}}
           />
         </View>
       )}
@@ -259,6 +325,16 @@ export default function ConstruisOuvertureScreen() {
           <Text style={{ color: colors.mutedForeground }}>
             Joué : {snap.playedSans.join(' ') || '—'}
           </Text>
+          {!!snap.feedback && snap.phase === 'playing' && (
+            <Text
+              style={{
+                color: snap.feedback === 'Correct.' ? '#398a55' : colors.mutedForeground,
+                fontWeight: snap.feedback === 'Correct.' ? '600' : '400',
+              }}
+            >
+              {snap.feedback}
+            </Text>
+          )}
           {snap.phase === 'playing' ? (
             <>
               <ChessAnswerInput

@@ -330,3 +330,56 @@ describe('diagnoseVoiceTranscript', () => {
     assert.equal(d.moveSan?.replace(/[+#]/g, ''), 'e4');
   });
 });
+
+describe('piece over pawn preference', () => {
+  it('Nc3 / Knight c3 / Cavalier c3 from start → Nc3 (not pawn)', () => {
+    for (const raw of ['Nc3', 'Knight c3', 'Cavalier c3']) {
+      const r = parse(raw);
+      assert.equal(r.type, 'move', `expected move for «${raw}», got ${r.type}`);
+      if (r.type === 'move') {
+        assert.equal(r.move.san.replace(/[+#]/g, ''), 'Nc3');
+        assert.equal(r.move.piece, 'n');
+      }
+    }
+  });
+
+  it('Nf6 / Cavalier f6 after e4 e5 → Nf6', () => {
+    const fen = 'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 2';
+    for (const raw of ['Nf6', 'Cavalier f6', 'Knight f6']) {
+      expectMove(raw, fen, 'Nf6');
+    }
+  });
+
+  it('Bishop b4 / Fou b4 wins when pawn can also go to b4', () => {
+    // White bishop on c3 and pawn on b2 — both Bb4 and b4 are legal.
+    const fen = '4k3/8/8/8/8/2B5/1P6/4K3 w - - 0 1';
+    const game = new Chess(fen);
+    assert.ok(game.moves().includes('Bb4'));
+    assert.ok(game.moves().includes('b4'));
+    for (const raw of ['Bishop b4', 'Fou b4', 'Bb4']) {
+      const r = parse(raw, fen);
+      assert.equal(r.type, 'move', `expected move for «${raw}», got ${r.type}`);
+      if (r.type === 'move') {
+        assert.equal(r.move.san.replace(/[+#]/g, ''), 'Bb4');
+        assert.equal(r.move.piece, 'b');
+      }
+    }
+  });
+
+  it('"en c 3" STT corruption → Nc3', () => {
+    assert.equal(normalizeTranscript('en c 3'), 'nc3');
+    expectMove('en c 3', undefined, 'Nc3');
+    expectMove('en c3', undefined, 'Nc3');
+    expectMove('enne c3', undefined, 'Nc3');
+  });
+
+  it('bare square stays pawn when only a pawn can go there', () => {
+    // From start only the c-pawn can reach c3 (knight goes Nc3 with piece letter).
+    const r = parse('c3');
+    assert.equal(r.type, 'move');
+    if (r.type === 'move') {
+      assert.equal(r.move.san.replace(/[+#]/g, ''), 'c3');
+      assert.equal(r.move.piece, 'p');
+    }
+  });
+});

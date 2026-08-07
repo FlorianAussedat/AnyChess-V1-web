@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { DesignTokens } from '@/constants/designTokens';
 
 interface Props {
   visible: boolean;
@@ -9,13 +10,7 @@ interface Props {
 }
 
 /**
- * Eye toggle that shows / hides the visual chessboard.
- *
- * Open eye  = board visible.
- * Closed eye = board hidden.
- *
- * This only controls presentation — hiding the board must never reset or
- * pause the game. Reused by Classic and Opening modes.
+ * Board show/hide — temporary Ionicons until custom assets arrive.
  */
 export function BoardVisibilityToggle({ visible, onToggle }: Props) {
   const colors = useColors();
@@ -30,16 +25,16 @@ export function BoardVisibilityToggle({ visible, onToggle }: Props) {
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: visible ? colors.card : colors.primary,
-          borderColor: visible ? colors.border : colors.primary,
-          opacity: pressed ? 0.6 : 1,
+          backgroundColor: visible ? colors.primary : colors.card,
+          borderColor: visible ? colors.primary : colors.border,
+          opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
       <Ionicons
         name={visible ? 'eye-outline' : 'eye-off-outline'}
         size={20}
-        color={visible ? colors.foreground : colors.primaryForeground}
+        color={visible ? colors.primaryForeground : colors.mutedForeground}
       />
     </Pressable>
   );
@@ -47,9 +42,9 @@ export function BoardVisibilityToggle({ visible, onToggle }: Props) {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: DesignTokens.headerIconButton + 4,
+    height: DesignTokens.headerIconButton + 4,
+    borderRadius: DesignTokens.radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

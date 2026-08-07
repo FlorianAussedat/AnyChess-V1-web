@@ -3,47 +3,34 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { StoredPgnFile, RepertoireSide } from '@/lib/repertoire';
-import { RepertoireSidePicker, sideLabel } from '@/components/RepertoireSidePicker';
+import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
+import { sideLabel } from '@/components/RepertoireSidePicker';
 import type { PlayerColor } from '@/contexts/GameContext';
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { HubModeCard } from '@/components/HubModeCard';
+import { PgnFileRow } from '@/components/openings/PgnFileRow';
+import { ImportPgnModal } from '@/components/openings/ImportPgnModal';
+import { PlayOpeningModal } from '@/components/openings/PlayOpeningModal';
+import { SideMigrationModal } from '@/components/openings/SideMigrationModal';
+import { PgnFileDetailModal } from '@/components/openings/PgnFileDetailModal';
 
 export default function FolderDetailScreen() {
   const colors = useColors();
-  const insets = useSafeAreaInsets();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { folderId } = useLocalSearchParams<{ folderId: string }>();
-  const isWeb = Platform.OS === 'web';
-  const topPad = isWeb ? 67 : insets.top;
-  const bottomPad = isWeb ? 34 : insets.bottom;
 
   const {
     ready,
@@ -53,6 +40,7 @@ export default function FolderDetailScreen() {
     replacePgn,
     deletePgn,
     setFolderSide,
+    setFileEnabled,
   } = useRepertoireLibrary();
 
   const folder = folderId ? getFolder(folderId) : null;
@@ -113,14 +101,17 @@ export default function FolderDetailScreen() {
     }
   }, [folderId, migrationSide, pendingAction, setFolderSide, router]);
 
-  const startPlay = useCallback(() => {
-    if (!folderId || !canPlay || !folder?.side) return;
-    setPlayOpen(false);
-    const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
-    router.push(
-      `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}` as Href,
-    );
-  }, [folderId, canPlay, folder?.side, router]);
+  const startPlay = useCallback(
+    (strengthBandId: string) => {
+      if (!folderId || !canPlay || !folder?.side) return;
+      setPlayOpen(false);
+      const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
+      router.push(
+        `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}&band=${encodeURIComponent(strengthBandId)}` as Href,
+      );
+    },
+    [folderId, canPlay, folder?.side, router],
+  );
 
   const openImport = useCallback(() => {
     setFilename('lignes.pgn');
@@ -138,8 +129,9 @@ export default function FolderDetailScreen() {
     setPgnText(file.pgnText);
     setFormError(null);
     setLastImportResult(null);
+    setImportSide(folder?.side ?? null);
     setImportOpen(true);
-  }, []);
+  }, [folder?.side]);
 
   const submitImport = useCallback(async () => {
     if (!folderId) return;
@@ -198,29 +190,29 @@ export default function FolderDetailScreen() {
     [deletePgn],
   );
 
-  const onPickFileWeb = useCallback(() => {
-    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.pgn,text/plain,application/x-chess-pgn';
-    input.multiple = false;
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        setFilename(file.name);
-        setPgnText(text);
-      } catch {
-        setFormError('Impossible de lire le fichier.');
-      }
-    };
-    input.click();
+  const onPickFile = useCallback(async () => {
+    setFormError(null);
+    try {
+      const picked = await pickPgnFile();
+      if (!picked) return;
+      setFilename(picked.filename);
+      setPgnText(picked.text);
+    } catch {
+      setFormError('Impossible de lire le fichier.');
+    }
   }, []);
+
+  const onToggleEnabled = useCallback(
+    (file: StoredPgnFile) => {
+      const next = file.enabled === false;
+      setFileEnabled(file.id, next).catch(() => {});
+    },
+    [setFileEnabled],
+  );
 
   if (!ready) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
+      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       </View>
     );
@@ -228,16 +220,8 @@ export default function FolderDetailScreen() {
 
   if (!folder) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-          </Pressable>
-          <Text style={[styles.title, { color: colors.foreground }]}>Dossier introuvable</Text>
-        </View>
+      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
+        <ScreenHeader onBack={() => router.back()} title="Dossier introuvable" />
       </View>
     );
   }
@@ -248,45 +232,36 @@ export default function FolderDetailScreen() {
         styles.root,
         {
           backgroundColor: colors.background,
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
+          paddingTop: contentTop,
+          paddingBottom: contentBottom,
         },
       ]}
     >
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={({ pressed }) => [
-            styles.iconBtn,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.6 : 1 },
-          ]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.foreground} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
-            {folder.name}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {files.length} fichier{files.length !== 1 ? 's' : ''} PGN
-            {folder.side ? ` · ${sideLabel(folder.side)}` : ''}
-          </Text>
-        </View>
-        <Pressable
-          onPress={openImport}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1, opacity: pressed ? 0.75 : 1 },
-          ]}
-          testID="import-pgn-btn"
-        >
-          <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
-          <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>
-            Importer
-          </Text>
-        </Pressable>
-      </View>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={folder.name}
+        subtitle={`${files.length} fichier${files.length !== 1 ? 's' : ''} PGN${
+          folder.side ? ` · ${sideLabel(folder.side)}` : ''
+        }`}
+        trailing={
+          <Pressable
+            onPress={openImport}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderWidth: 1,
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+            testID="import-pgn-btn"
+          >
+            <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
+            <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>Importer</Text>
+          </Pressable>
+        }
+      />
 
       <Text style={[styles.hint, { color: colors.mutedForeground }]}>
         Plusieurs PGN dans ce dossier seront fusionnés en un seul arbre de répertoire
@@ -295,54 +270,22 @@ export default function FolderDetailScreen() {
 
       <View style={styles.exerciseBlock}>
         <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>Exercices</Text>
-        <Pressable
+        <HubModeCard
+          title="Jouer contre le répertoire"
+          description="L’adversaire suit tes lignes importées, puis Stockfish hors livre."
+          iconName="play-circle-outline"
           onPress={() => ensureSideThen('play')}
           disabled={!canPlay}
           testID="play-opening-btn"
-          style={({ pressed }) => [
-            styles.exerciseCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
-            },
-          ]}
-        >
-          <Ionicons name="play-circle-outline" size={22} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.exerciseTitle, { color: colors.foreground }]}>
-              Jouer contre le répertoire
-            </Text>
-            <Text style={[styles.exerciseDesc, { color: colors.mutedForeground }]}>
-              L’adversaire suit tes lignes importées, puis Stockfish hors livre.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable
+        />
+        <HubModeCard
+          title="Continue la ligne"
+          description="Récite la suite d’une branche choisie dans ce répertoire."
+          iconName="mic-outline"
           onPress={() => ensureSideThen('continue')}
           disabled={!canPlay}
           testID="continue-line-btn"
-          style={({ pressed }) => [
-            styles.exerciseCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: !canPlay ? 0.45 : pressed ? 0.75 : 1,
-            },
-          ]}
-        >
-          <Ionicons name="mic-outline" size={22} color={colors.primary} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.exerciseTitle, { color: colors.foreground }]}>
-              Continue la ligne
-            </Text>
-            <Text style={[styles.exerciseDesc, { color: colors.mutedForeground }]}>
-              Récite la suite d’une branche choisie dans ce répertoire.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-        </Pressable>
+        />
         <Text style={[styles.exerciseHeading, { color: colors.foreground, marginTop: 8 }]}>
           Gérer les PGN
         </Text>
@@ -364,446 +307,63 @@ export default function FolderDetailScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <View
-              style={[styles.fileCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-            >
-              <Pressable
-                onPress={() => setDetailFile(item)}
-                style={styles.fileMain}
-                testID={`pgn-file-${item.id}`}
-              >
-                <View style={styles.fileHeader}>
-                  <Ionicons
-                    name={item.summary.parseSucceeded ? 'document-text-outline' : 'warning-outline'}
-                    size={20}
-                    color={item.summary.parseSucceeded ? colors.primary : '#F5A623'}
-                  />
-                  <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>
-                    {item.filename}
-                  </Text>
-                </View>
-                <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                  Importé le {formatDate(item.importedAt)}
-                </Text>
-                <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                  {item.summary.gameCount} partie{item.summary.gameCount !== 1 ? 's' : ''}
-                  {' · '}
-                  {item.summary.positionCount} position{item.summary.positionCount !== 1 ? 's' : ''}
-                  {item.summary.errors.length > 0
-                    ? ` · ${item.summary.errors.length} erreur${item.summary.errors.length > 1 ? 's' : ''}`
-                    : ''}
-                </Text>
-                <Text
-                  style={[
-                    styles.fileStatus,
-                    {
-                      color: item.summary.parseSucceeded
-                        ? '#27AE60'
-                        : colors.destructive,
-                    },
-                  ]}
-                >
-                  {item.summary.parseSucceeded
-                    ? item.summary.errors.length > 0
-                      ? 'Import partiel'
-                      : 'Import réussi'
-                    : 'Échec d’import'}
-                </Text>
-              </Pressable>
-              <View style={styles.fileActions}>
-                <Pressable
-                  onPress={() => openReplace(item)}
-                  hitSlop={8}
-                  style={styles.iconOnly}
-                  testID={`replace-pgn-${item.id}`}
-                >
-                  <Ionicons name="swap-horizontal-outline" size={18} color={colors.mutedForeground} />
-                </Pressable>
-                <Pressable
-                  onPress={() => confirmDeleteFile(item)}
-                  hitSlop={8}
-                  style={styles.iconOnly}
-                  testID={`delete-pgn-${item.id}`}
-                >
-                  <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-                </Pressable>
-              </View>
-            </View>
+            <PgnFileRow
+              file={item}
+              onOpenDetail={setDetailFile}
+              onToggleEnabled={onToggleEnabled}
+              onReplace={openReplace}
+              onDelete={confirmDeleteFile}
+            />
           )}
         />
       )}
 
-      {/* Import / replace modal */}
-      <Modal
+      <ImportPgnModal
         visible={importOpen}
-        transparent
-        animationType="fade"
+        replaceTarget={replaceTarget}
+        filename={filename}
+        onFilenameChange={setFilename}
+        pgnText={pgnText}
+        onPgnTextChange={setPgnText}
+        busy={busy}
+        formError={formError}
+        showSidePicker={!folder.side}
+        importSide={importSide}
+        onImportSideChange={setImportSide}
+        lastImportResult={lastImportResult}
+        onPickFile={onPickFile}
+        onCancel={() => {
+          setImportOpen(false);
+          setReplaceTarget(null);
+        }}
+        onSubmit={submitImport}
         onRequestClose={() => setImportOpen(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View
-            style={[
-              styles.modalCard,
-              { backgroundColor: colors.card, borderColor: colors.border, maxHeight: '90%' },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {replaceTarget ? 'Remplacer le PGN' : 'Importer un PGN'}
-            </Text>
+      />
 
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-              Nom du fichier
-            </Text>
-            <TextInput
-              value={filename}
-              onChangeText={setFilename}
-              placeholder="lignes.pgn"
-              placeholderTextColor={colors.mutedForeground}
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: colors.input,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                },
-              ]}
-              editable={!busy}
-            />
-
-            <View style={styles.pgnHeaderRow}>
-              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-                Contenu PGN
-              </Text>
-              {isWeb && (
-                <Pressable onPress={onPickFileWeb} hitSlop={6}>
-                  <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
-                    Choisir un fichier…
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-            <TextInput
-              value={pgnText}
-              onChangeText={setPgnText}
-              placeholder={'[Event "…"]\n1. e4 e5 2. Nf3 …'}
-              placeholderTextColor={colors.mutedForeground}
-              multiline
-              textAlignVertical="top"
-              style={[
-                styles.pgnInput,
-                {
-                  backgroundColor: colors.input,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                },
-              ]}
-              editable={!busy}
-            />
-
-            {!!formError && (
-              <Text style={[styles.modalError, { color: colors.destructive }]}>{formError}</Text>
-            )}
-
-            {!folder?.side && !replaceTarget && (
-              <>
-                <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 4 }]}>
-                  De quel côté travaillez-vous ce répertoire ?
-                </Text>
-                <RepertoireSidePicker
-                  value={importSide}
-                  onChange={setImportSide}
-                  disabled={busy}
-                />
-              </>
-            )}
-
-            {lastImportResult && (
-              <View
-                style={[
-                  styles.resultBox,
-                  {
-                    borderColor: lastImportResult.summary.parseSucceeded
-                      ? '#27AE60'
-                      : colors.destructive,
-                  },
-                ]}
-              >
-                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 13 }}>
-                  {lastImportResult.summary.parseSucceeded
-                    ? `Importé : ${lastImportResult.summary.gameCount} partie(s), ${lastImportResult.summary.positionCount} position(s)`
-                    : 'Aucune position valide importée'}
-                </Text>
-                {lastImportResult.summary.errors.slice(0, 3).map((err, i) => (
-                  <Text
-                    key={i}
-                    style={{ color: colors.destructive, fontSize: 11, fontFamily: 'Inter_400Regular' }}
-                  >
-                    • {err.message}
-                  </Text>
-                ))}
-              </View>
-            )}
-
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => {
-                  setImportOpen(false);
-                  setReplaceTarget(null);
-                }}
-                disabled={busy}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                  Annuler
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={submitImport}
-                disabled={busy || !pgnText.trim() || (!folder?.side && !importSide && !replaceTarget)}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                    opacity: pressed || busy || !pgnText.trim() ? 0.6 : 1,
-                  },
-                ]}
-                testID="confirm-import-btn"
-              >
-                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                  {busy ? 'Analyse…' : replaceTarget ? 'Remplacer' : 'Importer'}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Play setup modal */}
-      <Modal
+      <PlayOpeningModal
         visible={playOpen}
-        transparent
-        animationType="fade"
+        folderName={folder.name}
+        folderSide={folder.side}
+        onCancel={() => setPlayOpen(false)}
+        onConfirm={startPlay}
         onRequestClose={() => setPlayOpen(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              Lancer une partie
-            </Text>
-            <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-              Répertoire : {folder.name}
-              {folder.side ? ` · ${sideLabel(folder.side)}` : ''}
-            </Text>
-            <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 8 }]}>
-              L’échiquier s’oriente selon le côté enregistré pour ce répertoire.
-              L’adversaire suit le répertoire tant que tu restes dans la théorie.
-            </Text>
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setPlayOpen(false)}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                  Annuler
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={startPlay}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-                testID="confirm-play-btn"
-              >
-                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                  Commencer
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      />
 
-      {/* Side migration for existing repertoires without side */}
-      <Modal
+      <SideMigrationModal
         visible={sideMigrationOpen}
-        transparent
-        animationType="fade"
+        folderName={folder.name}
+        migrationSide={migrationSide}
+        onMigrationSideChange={setMigrationSide}
+        busy={busy}
+        onCancel={() => {
+          setSideMigrationOpen(false);
+          setPendingAction(null);
+        }}
+        onSave={saveMigrationSide}
         onRequestClose={() => setSideMigrationOpen(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              Côté du répertoire
-            </Text>
-            <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-              De quel côté travaillez-vous « {folder.name} » ?
-            </Text>
-            <RepertoireSidePicker
-              value={migrationSide}
-              onChange={setMigrationSide}
-              disabled={busy}
-            />
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => {
-                  setSideMigrationOpen(false);
-                  setPendingAction(null);
-                }}
-                disabled={busy}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                  Annuler
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={saveMigrationSide}
-                disabled={busy || !migrationSide}
-                style={({ pressed }) => [
-                  styles.modalBtn,
-                  {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                    opacity: pressed || busy || !migrationSide ? 0.6 : 1,
-                  },
-                ]}
-              >
-                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                  Enregistrer
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      />
 
-      {/* File detail modal (errors list) */}
-      <Modal
-        visible={detailFile != null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDetailFile(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View
-            style={[
-              styles.modalCard,
-              { backgroundColor: colors.card, borderColor: colors.border, maxHeight: '85%' },
-            ]}
-          >
-            {detailFile && (
-              <>
-                <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-                  {detailFile.filename}
-                </Text>
-                <ScrollView style={{ maxHeight: 360 }}>
-                  <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                    Importé le {formatDate(detailFile.importedAt)}
-                  </Text>
-                  <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 6 }]}>
-                    Parties / chapitres : {detailFile.summary.gameCount}
-                  </Text>
-                  <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                    Positions parsées : {detailFile.summary.positionCount}
-                  </Text>
-                  <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                    Branches : {detailFile.summary.branchCount}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.fileStatus,
-                      {
-                        marginTop: 8,
-                        color: detailFile.summary.parseSucceeded ? '#27AE60' : colors.destructive,
-                      },
-                    ]}
-                  >
-                    {detailFile.summary.parseSucceeded
-                      ? detailFile.summary.errors.length > 0
-                        ? 'Import partiel — certaines lignes rejetées'
-                        : 'Import réussi'
-                      : 'Échec d’import'}
-                  </Text>
-
-                  {detailFile.summary.errors.length > 0 && (
-                    <View style={{ marginTop: 12, gap: 4 }}>
-                      <Text style={[styles.fieldLabel, { color: colors.destructive }]}>
-                        Erreurs ({detailFile.summary.errors.length})
-                      </Text>
-                      {detailFile.summary.errors.map((err, i) => (
-                        <Text
-                          key={i}
-                          style={{
-                            color: colors.foreground,
-                            fontSize: 12,
-                            fontFamily: 'Inter_400Regular',
-                            lineHeight: 17,
-                          }}
-                        >
-                          • {err.message}
-                          {err.context ? ` (« ${err.context} »)` : ''}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-
-                  {detailFile.summary.warnings.length > 0 && (
-                    <View style={{ marginTop: 12, gap: 4 }}>
-                      <Text style={[styles.fieldLabel, { color: '#F5A623' }]}>
-                        Avertissements ({detailFile.summary.warnings.length})
-                      </Text>
-                      {detailFile.summary.warnings.map((w, i) => (
-                        <Text
-                          key={i}
-                          style={{
-                            color: colors.foreground,
-                            fontSize: 12,
-                            fontFamily: 'Inter_400Regular',
-                          }}
-                        >
-                          • {w.message}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-                </ScrollView>
-                <View style={styles.modalActions}>
-                  <Pressable
-                    onPress={() => setDetailFile(null)}
-                    style={({ pressed }) => [
-                      styles.modalBtn,
-                      {
-                        backgroundColor: colors.primary,
-                        borderColor: colors.primary,
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                      Fermer
-                    </Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <PgnFileDetailModal file={detailFile} onClose={() => setDetailFile(null)} />
     </View>
   );
 }
@@ -885,43 +445,6 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 24,
   },
-  fileCard: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-    gap: 8,
-  },
-  fileMain: {
-    flex: 1,
-    gap: 3,
-  },
-  fileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  fileName: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  fileMeta: {
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-  },
-  fileStatus: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    marginTop: 2,
-  },
-  fileActions: {
-    justifyContent: 'center',
-    gap: 10,
-  },
-  iconOnly: {
-    padding: 4,
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -939,75 +462,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     textAlign: 'center',
     lineHeight: 19,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 18,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 480,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 10,
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  fieldLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  pgnHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalInput: {
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    fontFamily: 'Inter_400Regular',
-  },
-  pgnInput: {
-    minHeight: 160,
-    maxHeight: 260,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 12,
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Inter_400Regular',
-  },
-  modalError: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-  },
-  resultBox: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
-    gap: 4,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 4,
-  },
-  modalBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
   },
 });

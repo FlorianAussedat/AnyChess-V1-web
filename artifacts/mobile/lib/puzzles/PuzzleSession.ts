@@ -6,7 +6,7 @@
  *   app plays moves[2], user finds moves[3], …
  */
 import { Chess } from 'chess.js';
-import type { Move } from 'chess.js';
+import type { Move, Square } from 'chess.js';
 import { sanToVerbal, verbalMove } from '../chessParser.ts';
 import { isExpectedMove, normalizeUci, uciFromSquares } from './PuzzleMoveValidator.ts';
 import {
@@ -218,14 +218,49 @@ export class PuzzleSession {
   }
 
   /**
-   * Attempt a user move from chess.js Move fields / squares.
+   * Whether a pawn move from→to reaches the promotion rank.
+   */
+  private needsPromotion(from: string, to: string): boolean {
+    const piece = this.game.get(from as Square);
+    if (!piece || piece.type !== 'p') return false;
+    const rank = to[1];
+    return (
+      (piece.color === 'w' && rank === '8') || (piece.color === 'b' && rank === '1')
+    );
+  }
+
+  /**
+   * Attempt a user move from board squares (touch path).
+   * Canonical: if from/to match the expected solution squares, validate via
+   * the expected UCI (correct promotion). Never append a spurious promotion
+   * letter on non-promoting moves — that used to reject correct touches.
    */
   attemptMove(from: string, to: string, promotion?: string | null): PuzzleAttemptOutcome {
-    return this.attemptUserUci(uciFromSquares(from, to, promotion));
+    const f = from.toLowerCase();
+    const t = to.toLowerCase();
+    const expected = this.expectedUci();
+    if (expected && expected.slice(0, 2) === f && expected.slice(2, 4) === t) {
+      return this.attemptUserUci(expected);
+    }
+    const promo = this.needsPromotion(f, t) ? (promotion || 'q') : null;
+    return this.attemptUserUci(uciFromSquares(f, t, promo));
   }
 
   attemptFromChessMove(move: Move): PuzzleAttemptOutcome {
     return this.attemptUserUci(uciFromSquares(move.from, move.to, move.promotion));
+  }
+
+  /**
+   * Describe the next correct move (SAN + verbal) without advancing the line.
+   * Caller is responsible for marking help usage.
+   */
+  peekNextMove(): { san: string; verbal: string; uci: string } | null {
+    const expected = this.expectedUci();
+    if (!expected || !this.puzzle) return null;
+    const clone = new Chess(this.game.fen());
+    const m = tryApplyUci(clone, expected);
+    if (!m) return null;
+    return { san: m.san, verbal: verbalMove(m), uci: expected };
   }
 
   /**
