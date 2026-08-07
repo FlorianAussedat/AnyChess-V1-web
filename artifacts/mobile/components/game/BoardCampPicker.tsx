@@ -17,8 +17,7 @@ type Props = {
 
 /**
  * Pre-game camp selector: tap White/Black pieces on the starting board,
- * or the central « Camp aléatoire » button.
- * Orange zone highlights exist ONLY in this pre-game mode.
+ * or the discreet central « Camp aléatoire » button.
  */
 export function BoardCampPicker({ onSelect, isFlipped = false }: Props) {
   const colors = useColors();
@@ -45,7 +44,6 @@ export function BoardCampPicker({ onSelect, isFlipped = false }: Props) {
             if (camp) onSelect(camp);
           }}
         />
-        {/* Zone emphasis — pointerEvents none so piece taps still reach ChessBoard */}
         <View
           testID="camp-zone-black"
           pointerEvents="none"
@@ -83,13 +81,14 @@ export function BoardCampPicker({ onSelect, isFlipped = false }: Props) {
             style={({ pressed }) => [
               styles.randomBtn,
               {
-                backgroundColor: colors.primary,
+                backgroundColor: colors.card,
+                borderColor: colors.primary,
                 opacity: pressed ? 0.85 : 1,
               },
             ]}
           >
-            <Text style={[styles.randomLine, { color: colors.primaryForeground }]}>Camp</Text>
-            <Text style={[styles.randomLine, { color: colors.primaryForeground }]}>aléatoire</Text>
+            <Text style={[styles.randomLine, { color: colors.primary }]}>Camp</Text>
+            <Text style={[styles.randomLine, { color: colors.primary }]}>aléatoire</Text>
           </Pressable>
         </View>
       </View>
@@ -112,9 +111,9 @@ const styles = StyleSheet.create({
   boardHost: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   zone: {
     position: 'absolute',
-    borderWidth: 2,
+    borderWidth: 3,
     borderRadius: 6,
-    backgroundColor: 'rgba(245, 166, 35, 0.12)',
+    backgroundColor: 'rgba(245, 166, 35, 0.2)',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -125,6 +124,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,

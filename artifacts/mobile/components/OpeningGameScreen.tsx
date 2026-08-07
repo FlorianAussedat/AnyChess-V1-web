@@ -38,7 +38,7 @@ import { DesignTokens } from '@/constants/designTokens';
 
 export function OpeningGameScreen() {
   const colors = useColors();
-  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   useCancelSpeechOnLeave('/openings/play');
@@ -118,7 +118,7 @@ export function OpeningGameScreen() {
 
   if (loadError) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
+      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ScreenHeader onBack={() => router.back()} title="Répertoire" />
         <Text style={[styles.errorText, { color: colors.destructive }]}>{loadError}</Text>
       </View>
@@ -132,7 +132,7 @@ export function OpeningGameScreen() {
           styles.root,
           {
             backgroundColor: colors.background,
-            paddingTop: topPad + 6,
+            paddingTop: contentTop,
           },
         ]}
       >
@@ -153,8 +153,8 @@ export function OpeningGameScreen() {
       contentContainerStyle={[
         styles.root,
         {
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
+          paddingTop: contentTop,
+          paddingBottom: contentBottom,
         },
       ]}
       keyboardShouldPersistTaps="handled"

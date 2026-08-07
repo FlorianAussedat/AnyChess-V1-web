@@ -23,6 +23,7 @@ import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
+import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
@@ -31,9 +32,13 @@ import { sanToVerbal } from '@/lib/chessParser';
 import { parseChessVoice } from '@/lib/voice';
 import {
   ContinueLineSession,
+  DEFAULT_VOICE_SPEED,
+  VOICE_SPEED_MAX,
+  VOICE_SPEED_MIN,
+  continueLineNotationDisplay,
+  voiceSpeedToRate,
   type ContinueLineSessionSnapshot,
 } from '@/lib/continueLine';
-import { continueLineNotationDisplay } from '@/lib/continueLine/continueLineNotationDisplay';
 import { continueLineRecentStorage } from '@/lib/continueLine/recentStore';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { speechService } from '@/services/SpeechService';
@@ -48,7 +53,7 @@ function formatLine(sans: string[], startPly = 0): string {
 export default function ContinueLineScreen() {
   useCancelSpeechOnLeave('/openings/continue');
   const colors = useColors();
-  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
 
@@ -81,12 +86,18 @@ export default function ContinueLineScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceSpeed, setVoiceSpeed] = useState(DEFAULT_VOICE_SPEED);
+  const voiceSpeedRef = useRef(voiceSpeed);
   const folderIdRef = useRef(mixedFolderIds[0]);
   const activeFolderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     folderIdRef.current = mixedFolderIds[0];
   }, [mixedFolderIds.join(',')]);
+
+  useEffect(() => {
+    voiceSpeedRef.current = voiceSpeed;
+  }, [voiceSpeed]);
 
   useEffect(() => {
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
@@ -106,7 +117,10 @@ export default function ContinueLineScreen() {
   const speak = useCallback(
     (text: string) => {
       if (!soundEnabled) return;
-      speechService.speak(text, { flush: true });
+      speechService.speak(text, {
+        flush: true,
+        rate: voiceSpeedToRate(voiceSpeedRef.current),
+      });
     },
     [soundEnabled],
   );
@@ -204,7 +218,8 @@ export default function ContinueLineScreen() {
         return;
       }
 
-      next = session.beginRecitation();
+      const begun = session.beginRecitation();
+      next = begun.snapshot;
       setSnap(next);
       setLoading(false);
 
@@ -260,14 +275,15 @@ export default function ContinueLineScreen() {
         folderId: folder.id,
         trainingSide: folder.side,
       });
-      const next = session.beginRecitation();
-      setSnap(next);
+      const begun = session.beginRecitation();
+      setSnap(begun.snapshot);
       setLoading(false);
       setFeedback(null);
       if (soundEnabled) {
         speak(
-          next.preambleSans.length > 0
-            ? next.preambleSans.map((s) => sanToVerbal(s)).join('. ') + '. Continue la ligne.'
+          begun.snapshot.preambleSans.length > 0
+            ? begun.snapshot.preambleSans.map((s) => sanToVerbal(s)).join('. ') +
+                '. Continue la ligne.'
             : 'Continue la ligne.',
         );
       }
@@ -313,7 +329,6 @@ export default function ContinueLineScreen() {
       }
 
       const move = parsed.move as Move;
-      // Ensure move object has san — chess.js Move does
       const result = session.applyChessMove(move);
       setSnap(result.snapshot);
 
@@ -339,7 +354,7 @@ export default function ContinueLineScreen() {
       );
       setFeedback(
         `Votre coup : ${formatNumberedSan(result.snapshot.startPly + result.snapshot.correctCount, result.snapshot.incorrectSan ?? '?')}\n\n` +
-          `Coups du répertoire disponibles :\n• ${alts || '(aucun)'}\n\n` +
+          `Coup attendu sur cette ligne :\n• ${alts || '(aucun)'}\n\n` +
           `Suite proposée :\n${suite || '(fin de ligne)'}`,
       );
       if (soundEnabled) {
@@ -373,7 +388,7 @@ export default function ContinueLineScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: topPad }]}>
+      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ActivityIndicator color={colors.primary} />
         <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>Préparation…</Text>
       </View>
@@ -382,7 +397,16 @@ export default function ContinueLineScreen() {
 
   if (loadError || snap.phase === 'error') {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: topPad, paddingHorizontal: 18 }]}>
+      <View
+        style={[
+          styles.center,
+          {
+            backgroundColor: colors.background,
+            paddingTop: contentTop,
+            paddingHorizontal: 18,
+          },
+        ]}
+      >
         <Text style={[styles.title, { color: colors.foreground }]}>Continue la ligne</Text>
         <Text style={{ color: colors.mutedForeground, textAlign: 'center', marginTop: 8 }}>
           {loadError ?? snap.errorMessage}
@@ -403,8 +427,8 @@ export default function ContinueLineScreen() {
     <ScrollView
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={{
-        paddingTop: topPad + 12,
-        paddingBottom: bottomPad + 24,
+        paddingTop: contentTop,
+        paddingBottom: contentBottom,
         paddingHorizontal: 18,
         gap: 14,
       }}
@@ -478,6 +502,20 @@ export default function ContinueLineScreen() {
 
       {!finished && (
         <>
+          <DiscreteSlider
+            testID="continue-voice-speed"
+            label="Vitesse de la voix (1–10)"
+            valueLabel={String(voiceSpeed)}
+            minimumValue={VOICE_SPEED_MIN}
+            maximumValue={VOICE_SPEED_MAX}
+            step={1}
+            value={voiceSpeed}
+            onValueChange={setVoiceSpeed}
+            leftHint="Lent"
+            rightHint="Rapide"
+            accessibilityLabel="Vitesse de la voix"
+          />
+
           <Pressable
             onPress={toggleMic}
             testID="continue-mic"
@@ -553,19 +591,9 @@ export default function ContinueLineScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  back: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: { fontSize: 22, fontFamily: 'Inter_700Bold' },
   card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 4 },
   cardLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', textTransform: 'uppercase' },
-  mono: { fontFamily: 'Inter_500Medium', fontSize: 15, lineHeight: 22 },
   micBtn: {
     minHeight: 52,
     borderRadius: 14,
@@ -573,22 +601,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },
-  manualRow: { flexDirection: 'row', gap: 8 },
-  input: {
-    flex: 1,
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    fontFamily: 'Inter_400Regular',
-  },
-  sendBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   btn: {
     minHeight: 48,

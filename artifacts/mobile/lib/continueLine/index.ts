@@ -23,4 +23,10 @@ export {
   ContinueLineRecentStorage,
   createContinueLineRecentStorage,
 } from './ContinueLineRecentStorage.ts';
+export {
+  VOICE_SPEED_MIN,
+  VOICE_SPEED_MAX,
+  DEFAULT_VOICE_SPEED,
+  voiceSpeedToRate,
+} from './voiceSpeed.ts';
 

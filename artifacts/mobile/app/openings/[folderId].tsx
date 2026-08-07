@@ -28,7 +28,7 @@ import { PgnFileDetailModal } from '@/components/openings/PgnFileDetailModal';
 
 export default function FolderDetailScreen() {
   const colors = useColors();
-  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { folderId } = useLocalSearchParams<{ folderId: string }>();
 
@@ -101,14 +101,17 @@ export default function FolderDetailScreen() {
     }
   }, [folderId, migrationSide, pendingAction, setFolderSide, router]);
 
-  const startPlay = useCallback(() => {
-    if (!folderId || !canPlay || !folder?.side) return;
-    setPlayOpen(false);
-    const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
-    router.push(
-      `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}` as Href,
-    );
-  }, [folderId, canPlay, folder?.side, router]);
+  const startPlay = useCallback(
+    (strengthBandId: string) => {
+      if (!folderId || !canPlay || !folder?.side) return;
+      setPlayOpen(false);
+      const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
+      router.push(
+        `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}&band=${encodeURIComponent(strengthBandId)}` as Href,
+      );
+    },
+    [folderId, canPlay, folder?.side, router],
+  );
 
   const openImport = useCallback(() => {
     setFilename('lignes.pgn');
@@ -209,7 +212,7 @@ export default function FolderDetailScreen() {
 
   if (!ready) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
+      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       </View>
     );
@@ -217,7 +220,7 @@ export default function FolderDetailScreen() {
 
   if (!folder) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: topPad + 6 }]}>
+      <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ScreenHeader onBack={() => router.back()} title="Dossier introuvable" />
       </View>
     );
@@ -229,8 +232,8 @@ export default function FolderDetailScreen() {
         styles.root,
         {
           backgroundColor: colors.background,
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
+          paddingTop: contentTop,
+          paddingBottom: contentBottom,
         },
       ]}
     >

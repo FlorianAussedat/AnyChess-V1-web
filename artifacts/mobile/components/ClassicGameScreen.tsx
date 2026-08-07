@@ -26,7 +26,7 @@ import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
-import { OptionChip } from '@/components/ui/OptionChip';
+import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor, SideChoice } from '@/lib/game/types';
 import { beginGameFromCampChoice, pairMoveHistory, resolveSideChoice } from '@/lib/game';
@@ -36,12 +36,12 @@ import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import {
   DEFAULT_STRENGTH_BAND_ID,
-  STOCKFISH_STRENGTH_BANDS,
+  getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
 
 export function ClassicGameScreen() {
   const colors = useColors();
-  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   useCancelSpeechOnLeave('/classic');
@@ -140,12 +140,10 @@ export function ClassicGameScreen() {
     else newGame();
   }, [setupBandId, setStrengthBandId, pendingSide, playerColor, applySide, changeColor, newGame]);
 
-  const activeBand =
-    STOCKFISH_STRENGTH_BANDS.find((b) => b.id === setupBandId) ??
-    STOCKFISH_STRENGTH_BANDS.find((b) => b.id === DEFAULT_STRENGTH_BAND_ID);
+  const activeBand = getStrengthBand(setupBandId);
   const campLabel = playerColor === 'w' ? 'Blancs' : 'Noirs';
   const contextLine = campLocked
-    ? `${campLabel} · adversaire ${activeBand?.label ?? ''}`
+    ? `${campLabel} · adversaire ${activeBand.label}`
     : 'Configure la partie';
 
   const moveRows = pairMoveHistory(history);
@@ -156,8 +154,8 @@ export function ClassicGameScreen() {
       contentContainerStyle={[
         styles.root,
         {
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
+          paddingTop: contentTop,
+          paddingBottom: contentBottom,
         },
       ]}
       keyboardShouldPersistTaps="handled"
@@ -194,24 +192,7 @@ export function ClassicGameScreen() {
 
       {!campLocked ? (
         <View style={styles.setupBlock}>
-          <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>
-            Niveau adversaire
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.bandRow}
-            testID="classic-elo-scroll"
-          >
-            {STOCKFISH_STRENGTH_BANDS.map((band) => (
-              <OptionChip
-                key={band.id}
-                label={band.label}
-                active={setupBandId === band.id}
-                onPress={() => onPickSetupBand(band.id)}
-              />
-            ))}
-          </ScrollView>
+          <StrengthBandSlider bandId={setupBandId} onBandIdChange={onPickSetupBand} />
           <BoardCampPicker onSelect={onPickSide} />
         </View>
       ) : (
@@ -303,19 +284,6 @@ export function ClassicGameScreen() {
 const styles = StyleSheet.create({
   root: { flexGrow: 1, paddingHorizontal: 10, gap: 8 },
   setupBlock: { gap: DesignTokens.spacing.md },
-  setupLabel: {
-    fontSize: 11,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  bandRow: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    gap: 6,
-    paddingVertical: 2,
-    paddingRight: 28,
-  },
   boardBlock: { gap: 4 },
   boardRow: { alignItems: 'center' },
   sideIndicator: {

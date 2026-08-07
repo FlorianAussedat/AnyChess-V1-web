@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import type { RepertoireSide } from '@/lib/repertoire';
 import { sideLabel } from '@/components/RepertoireSidePicker';
+import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
+import { DEFAULT_STRENGTH_BAND_ID } from '@/lib/difficulty/StockfishStrengthBands';
 
 type Props = {
   visible: boolean;
   folderName: string;
   folderSide?: RepertoireSide;
+  initialBandId?: string;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (strengthBandId: string) => void;
   onRequestClose: () => void;
 };
 
@@ -17,11 +20,13 @@ export function PlayOpeningModal({
   visible,
   folderName,
   folderSide,
+  initialBandId = DEFAULT_STRENGTH_BAND_ID,
   onCancel,
   onConfirm,
   onRequestClose,
 }: Props) {
   const colors = useColors();
+  const [bandId, setBandId] = useState(initialBandId);
 
   return (
     <Modal
@@ -29,6 +34,7 @@ export function PlayOpeningModal({
       transparent
       animationType="fade"
       onRequestClose={onRequestClose}
+      onShow={() => setBandId(initialBandId)}
     >
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -45,6 +51,9 @@ export function PlayOpeningModal({
             L’adversaire suit ton répertoire tant que tu restes dans la théorie. Dès que tu en
             sors, Stockfish prend le relais.
           </Text>
+
+          <StrengthBandSlider bandId={bandId} onBandIdChange={setBandId} />
+
           <View style={styles.modalActions}>
             <Pressable
               onPress={onCancel}
@@ -58,7 +67,7 @@ export function PlayOpeningModal({
               </Text>
             </Pressable>
             <Pressable
-              onPress={onConfirm}
+              onPress={() => onConfirm(bandId)}
               style={({ pressed }) => [
                 styles.modalBtn,
                 {
@@ -94,7 +103,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    gap: 10,
+    gap: 12,
   },
   modalTitle: {
     fontSize: 16,

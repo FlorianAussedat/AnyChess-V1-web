@@ -24,7 +24,7 @@ import { MixedTrainingModal } from '@/components/openings/MixedTrainingModal';
 
 export default function OpeningsFolderList() {
   const colors = useColors();
-  const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
 
   const {
@@ -186,8 +186,8 @@ export default function OpeningsFolderList() {
         styles.root,
         {
           backgroundColor: colors.background,
-          paddingTop: topPad + 6,
-          paddingBottom: bottomPad + 6,
+          paddingTop: contentTop,
+          paddingBottom: contentBottom,
         },
       ]}
     >

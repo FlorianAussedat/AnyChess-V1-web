@@ -9,6 +9,12 @@ import { useFocusEffect } from 'expo-router';
 import type { Move } from 'chess.js';
 import { gameStateAnnouncement, verbalMove } from '@/lib/chessParser';
 import { createOpponentEngine } from '@/lib/engines';
+import { MIN_UCI_ELO } from '@/lib/engines/stockfish/uci';
+import {
+  DEFAULT_STRENGTH_BAND_ID,
+  eloForBand,
+  getStrengthBand,
+} from '@/lib/difficulty/StockfishStrengthBands';
 import { OpeningOpponent, type TheoryExit } from '@/lib/moves/OpeningOpponent';
 import type { ParsedRepertoire } from '@/lib/repertoire';
 import {
@@ -73,6 +79,16 @@ interface ProviderProps {
   repertoire: ParsedRepertoire | null;
   repertoireName: string;
   loadError?: string | null;
+  /** Stockfish strength band after leaving book. */
+  strengthBandId?: string;
+}
+
+function engineOptionsForBand(bandId: string) {
+  const targetElo = eloForBand(getStrengthBand(bandId));
+  if (targetElo < MIN_UCI_ELO) {
+    return { elo: MIN_UCI_ELO, multiPv: 8, varietyMarginCp: 120 };
+  }
+  return { elo: targetElo };
 }
 
 export function OpeningGameProvider({
@@ -80,6 +96,7 @@ export function OpeningGameProvider({
   repertoire,
   repertoireName,
   loadError = null,
+  strengthBandId = DEFAULT_STRENGTH_BAND_ID,
 }: ProviderProps) {
   const opponentRef = useRef<OpeningOpponent | null>(null);
   const [phase, setPhase] = React.useState<'book' | 'engine'>('book');
@@ -125,7 +142,7 @@ export function OpeningGameProvider({
         return () => {};
       }
 
-      const engine = createOpponentEngine();
+      const engine = createOpponentEngine(engineOptionsForBand(strengthBandId));
       const opponent = new OpeningOpponent(repertoire, engine);
       opponentRef.current = opponent;
       setReady(false);
@@ -145,7 +162,7 @@ export function OpeningGameProvider({
         if (opponentRef.current === opponent) opponentRef.current = null;
         setReady(false);
       };
-    }, [repertoire]),
+    }, [repertoire, strengthBandId]),
   );
 
   const syncTheoryUi = useCallback(() => {

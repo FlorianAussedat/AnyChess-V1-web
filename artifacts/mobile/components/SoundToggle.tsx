@@ -6,8 +6,8 @@ import { useAudioSettings } from '@/hooks/useAudioSettings';
 
 /**
  * Voice / speech mute toggle (TTS only).
+ * Temporary person-circle placeholder (oral / profile) until custom assets arrive.
  * Does NOT mute validation/error SFX or haptics.
- * Uses speech-oriented Ionicons (chatbubbles), never volume/speaker glyphs.
  */
 export function SoundToggle() {
   const colors = useColors();
@@ -33,7 +33,7 @@ export function SoundToggle() {
       ]}
     >
       <Ionicons
-        name={voiceEnabled ? 'chatbubbles' : 'chatbubbles-outline'}
+        name={voiceEnabled ? 'person-circle' : 'person-circle-outline'}
         size={22}
         color={voiceEnabled ? colors.primary : colors.mutedForeground}
       />
