@@ -267,6 +267,61 @@ describe('MentalPositionSession', () => {
     assert.equal(mid.answerLog[0].correct, true);
   });
 
+  it('hides correctness and expected answer during the test', () => {
+    const session = new MentalPositionSession();
+    session.configure({
+      orientation: 'w',
+      showBoardDuringSequence: true,
+      dictateSequence: true,
+    });
+    const loaded = session.loadSequence(ITALIAN_LINE);
+    session.beginQuestions();
+    const first = loaded.questions[0];
+    const second = loaded.questions[1];
+    // Wrong answer — must not leak expected text into live feedback.
+    session.answer('__definitely-wrong__');
+    let mid = session.snapshot();
+    assert.equal(mid.lastFeedback, 'Réponse enregistrée');
+    assert.doesNotMatch(mid.lastFeedback ?? '', /Incorrect|Attendu|Réponse :/i);
+    assert.doesNotMatch(mid.lastFeedback ?? '', new RegExp(first.displayAnswer, 'i'));
+    assert.equal(mid.answerLog[0]!.correct, false);
+    assert.equal(mid.answerLog[0]!.expectedDisplay, first.displayAnswer);
+    assert.equal(mid.questionIndex, 1);
+    assert.ok(mid.currentPrompt);
+
+    session.answer(second.displayAnswer);
+    mid = session.snapshot();
+    assert.equal(mid.lastFeedback, 'Réponse enregistrée');
+    assert.doesNotMatch(mid.lastFeedback ?? '', /Correct/i);
+    assert.equal(mid.score, 1);
+    // Live score stays in session state but is not meant for mid-test UI.
+    assert.equal(mid.answered, 2);
+  });
+
+  it('keeps full review data for the final screen', () => {
+    const session = new MentalPositionSession();
+    session.configure({
+      orientation: 'w',
+      showBoardDuringSequence: true,
+      dictateSequence: true,
+    });
+    const loaded = session.loadSequence(ITALIAN_LINE);
+    session.beginQuestions();
+    for (const q of loaded.questions) {
+      session.answer(q.displayAnswer);
+    }
+    const done = session.snapshot();
+    assert.equal(done.phase, 'done');
+    assert.equal(done.score, MENTAL_MAX_QUESTIONS);
+    assert.equal(done.answerLog.length, MENTAL_MAX_QUESTIONS);
+    for (const entry of done.answerLog) {
+      assert.ok(entry.question.promptFr);
+      assert.ok(entry.userAnswer);
+      assert.ok(entry.expectedDisplay);
+      assert.equal(entry.correct, true);
+    }
+  });
+
   it('records help usage', () => {
     const session = new MentalPositionSession();
     session.loadSequence(ITALIAN_LINE);

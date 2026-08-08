@@ -111,17 +111,15 @@ export class MentalPositionSession {
     }
     const verdict = validatePositionAnswer(q, raw);
     if (verdict.recognitionFailure) {
+      // Recognition failures do not reveal the expected answer.
       this.lastFeedback = 'Non reconnu — réessaie (non compté).';
       return this.snapshot();
     }
     this.answered += 1;
     const correct = verdict.correct;
-    if (correct) {
-      this.score += 1;
-      this.lastFeedback = 'Correct.';
-    } else {
-      this.lastFeedback = `Incorrect. Réponse : ${q.displayAnswer}`;
-    }
+    if (correct) this.score += 1;
+    // Defer correctness / expected answers to the final review screen.
+    this.lastFeedback = 'Réponse enregistrée';
     this.answerLog.push({
       question: q,
       userAnswer: raw.trim(),
@@ -131,6 +129,7 @@ export class MentalPositionSession {
     this.questionIndex += 1;
     if (this.questionIndex >= this.questions.length) {
       this.phase = 'done';
+      this.lastFeedback = null;
     }
     return this.snapshot();
   }

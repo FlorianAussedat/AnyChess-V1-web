@@ -8,8 +8,10 @@ import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
 import { AppButton } from '@/components/ui/AppButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
+import { GameMicButton } from '@/components/game/GameMicButton';
 import type { BoardPiece } from '@/contexts/GameContext';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
@@ -23,6 +25,7 @@ import {
   isFlippedForPerspective,
   type MoveNamingSnapshot,
 } from '@/lib/moveNaming';
+import { sideToMoveLabel } from '@/lib/playMove';
 
 const records = new MoveNamingRecordsStore(defaultKeyValueStorage);
 
@@ -31,9 +34,11 @@ export default function NommerLeCoupScreen() {
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const boardSize = useBoardSize('wide');
   const sessionRef = useRef(new MoveNamingSession({ pickChallenge: pickMoveNamingChallenge }));
   const micPrimedRef = useRef(false);
   const [snap, setSnap] = useState<MoveNamingSnapshot>(() => sessionRef.current.snapshot());
+  const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
 
   const sync = useCallback(() => {
     setSnap(sessionRef.current.snapshot());
@@ -77,11 +82,13 @@ export default function NommerLeCoupScreen() {
     sync();
   }, [sync]);
 
-  const { micActive, status, toggleMic, stopListening } = useSpeechInput({
+  const { micActive, isListening, status, toggleMic, stopListening } = useSpeechInput({
     forceOff: snap.phase !== 'playing',
     enabled: snap.voiceEnabled,
     isSpeaking: false,
     onTranscript: (raw) => {
+      setShowRecognizedFlash(true);
+      setTimeout(() => setShowRecognizedFlash(false), 900);
       sessionRef.current.answer(raw);
       sync();
     },
@@ -98,6 +105,7 @@ export default function NommerLeCoupScreen() {
   const perspective = snap.challenge?.boardPerspective ?? 'w';
   const perspectiveLabel = boardPerspectiveLabel(perspective);
   const boardFlipped = isFlippedForPerspective(perspective);
+  const turnLabel = display ? sideToMoveLabel(display.turn()) : null;
 
   return (
     <ScrollView
@@ -179,12 +187,35 @@ export default function NommerLeCoupScreen() {
             }}
           />
           {display && (
-            <ChessBoard
-              board={display.board() as (BoardPiece | null)[][]}
-              lastMove={snap.challenge?.setupMove ?? null}
-              showCoordinates={showCoordinates}
-              isFlipped={boardFlipped}
-            />
+            <View
+              style={{
+                alignItems: 'center',
+                alignSelf: 'center',
+                width: boardSize,
+                gap: 6,
+              }}
+            >
+              <ChessBoard
+                board={display.board() as (BoardPiece | null)[][]}
+                lastMove={snap.challenge?.setupMove ?? null}
+                showCoordinates={showCoordinates}
+                isFlipped={boardFlipped}
+                sizeMode="wide"
+                size={boardSize}
+              />
+              {turnLabel ? (
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontFamily: DesignTokens.typography.weightSemiBold,
+                    fontSize: 14,
+                  }}
+                  testID="nommer-side-to-move"
+                >
+                  {turnLabel}
+                </Text>
+              ) : null}
+            </View>
           )}
           <Text style={{ color: colors.mutedForeground }}>Quel était le dernier coup ?</Text>
           {snap.lastFeedback === 'wrong' ? (
@@ -203,26 +234,14 @@ export default function NommerLeCoupScreen() {
             placeholder="ex. Cavalier prend e5"
           />
           {snap.voiceEnabled && (
-            <>
-              <Pressable
-                onPress={toggleMic}
-                style={[
-                  styles.button,
-                  {
-                    backgroundColor: micActive ? '#b33' : colors.card,
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <Text style={{ color: colors.foreground }}>
-                  {micActive ? 'Écoute…' : 'Répondre à voix haute'}
-                </Text>
-              </Pressable>
-              {status.message ? (
-                <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{status.message}</Text>
-              ) : null}
-            </>
+            <GameMicButton
+              showRecognized={showRecognizedFlash}
+              isListening={isListening}
+              micActive={micActive}
+              micMessage={status.message}
+              onToggle={toggleMic}
+              testID="nommer-mic"
+            />
           )}
         </View>
       )}

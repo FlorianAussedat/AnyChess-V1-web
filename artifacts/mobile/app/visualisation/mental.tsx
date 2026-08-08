@@ -1,14 +1,13 @@
 /**
  * Suivi mental de position — setup + question flow.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,14 +19,23 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
 import { OptionChip } from '@/components/ui/OptionChip';
 import { AppButton } from '@/components/ui/AppButton';
+import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import { ChessBoard } from '@/components/ChessBoard';
+import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { GameMicButton } from '@/components/game/GameMicButton';
+import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
-import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import {
   generateMentalSequenceWithQuestions,
   MentalPositionSession,
+  MENTAL_FULL_MOVES_MAX,
+  MENTAL_FULL_MOVES_MIN,
+  mentalHalfMoveCount,
+  toggleMentalPresentation,
   type MentalSnapshot,
 } from '@/lib/mentalPosition';
+import { sideToMoveLabel } from '@/lib/playMove';
 import { OwnedEngine, createOpponentEngine } from '@/lib/engines';
 import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
@@ -47,6 +55,7 @@ export default function MentalPositionScreen() {
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
+  const boardSize = useBoardSize('wide');
 
   const sessionRef = useRef(new MentalPositionSession());
   const engineOwnerRef = useRef(new OwnedEngine(() => createOpponentEngine()));
@@ -58,19 +67,24 @@ export default function MentalPositionScreen() {
   const [dictate, setDictate] = useState(true);
   const [showBoard, setShowBoard] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [manual, setManual] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [sequenceLabel, setSequenceLabel] = useState('');
   const [displayFen, setDisplayFen] = useState<string | null>(null);
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
+  const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
 
   const questioning = snap.phase === 'questioning';
   const showing = snap.phase === 'showing';
   const done = snap.phase === 'done';
-  const showSequenceText = showing || done;
   const showBoardPanel = (showing && showBoard) || done;
 
-  const { inputRef, afterSubmit } = usePersistentAnswerFocus({ enabled: questioning });
+  const sideToMove = useMemo(() => {
+    if (!displayFen) return null;
+    try {
+      return new Chess(displayFen).turn();
+    } catch {
+      return null;
+    }
+  }, [displayFen]);
 
   useEffect(() => {
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
@@ -83,7 +97,6 @@ export default function MentalPositionScreen() {
     };
   }, []);
 
-  // Stack may keep this screen mounted — tear down Stockfish when leaving.
   useFocusEffect(
     useCallback(() => {
       return () => {
@@ -157,7 +170,6 @@ export default function MentalPositionScreen() {
         dictateSequence: dictate,
       });
       const next = session.loadSequence(sans);
-      setSequenceLabel(sans.join(' '));
       setSnap(next);
       if (next.phase === 'error') {
         setBusy(false);
@@ -187,15 +199,12 @@ export default function MentalPositionScreen() {
     }
   }, [fullMoves, orientation, dictate, showBoard, soundEnabled, dictateSequence, startReplay]);
 
-  const answer = useCallback(
-    (raw: string) => {
-      const trimmed = raw.trim();
-      if (!trimmed) return;
-      const next = sessionRef.current.answer(trimmed);
-      setSnap({ ...next });
-    },
-    [],
-  );
+  const answer = useCallback((raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+    const next = sessionRef.current.answer(trimmed);
+    setSnap({ ...next });
+  }, []);
 
   const answerRef = useRef(answer);
   useEffect(() => {
@@ -208,16 +217,15 @@ export default function MentalPositionScreen() {
     setSnap({ ...sessionRef.current.snapshot() });
   }, [dictateSequence, snap.sans]);
 
-  const { micActive, toggleMic, status: micStatus } = useSpeechInput({
+  const { micActive, isListening, toggleMic, status: micStatus } = useSpeechInput({
     isSpeaking,
     forceOff: !questioning,
-    onTranscript: (t) => answerRef.current(t),
+    onTranscript: (t) => {
+      setShowRecognizedFlash(true);
+      setTimeout(() => setShowRecognizedFlash(false), 900);
+      answerRef.current(t);
+    },
   });
-
-  const submitManual = useCallback(() => {
-    answer(manual);
-    afterSubmit(() => setManual(''));
-  }, [answer, manual, afterSubmit]);
 
   useEffect(() => {
     if (done) {
@@ -225,6 +233,20 @@ export default function MentalPositionScreen() {
       setLastMove(null);
     }
   }, [done, snap.finalFen]);
+
+  const onToggleDictate = () => {
+    const next = toggleMentalPresentation({ dictate, showBoard }, 'dictate');
+    if (!next) return;
+    setDictate(next.dictate);
+    setShowBoard(next.showBoard);
+  };
+
+  const onToggleBoard = () => {
+    const next = toggleMentalPresentation({ dictate, showBoard }, 'showBoard');
+    if (!next) return;
+    setDictate(next.dictate);
+    setShowBoard(next.showBoard);
+  };
 
   return (
     <ScrollView
@@ -236,6 +258,7 @@ export default function MentalPositionScreen() {
         gap: 12,
       }}
       keyboardShouldPersistTaps="handled"
+      testID="mental-screen"
     >
       <ScreenHeader
         onBack={() => router.back()}
@@ -248,20 +271,32 @@ export default function MentalPositionScreen() {
           {snap.errorMessage ? (
             <Text style={{ color: '#c44' }}>{snap.errorMessage}</Text>
           ) : null}
-          <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 0.5 }}>
-            COUPS COMPLETS
+
+          <DiscreteSlider
+            testID="mental-full-moves-slider"
+            label="Coups complets"
+            valueLabel={String(fullMoves)}
+            minimumValue={MENTAL_FULL_MOVES_MIN}
+            maximumValue={MENTAL_FULL_MOVES_MAX}
+            step={1}
+            value={fullMoves}
+            onValueChange={setFullMoves}
+            leftHint={String(MENTAL_FULL_MOVES_MIN)}
+            rightHint={String(MENTAL_FULL_MOVES_MAX)}
+            accessibilityLabel="Coups complets"
+          />
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+            {fullMoves} coups complets = {mentalHalfMoveCount(fullMoves)} demi-coups
           </Text>
-          <View style={styles.row}>
-            {[3, 4, 5, 6].map((n) => (
-              <OptionChip
-                key={n}
-                label={String(n)}
-                active={fullMoves === n}
-                onPress={() => setFullMoves(n)}
-              />
-            ))}
-          </View>
-          <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 0.5 }}>
+
+          <Text
+            style={{
+              color: colors.mutedForeground,
+              fontFamily: 'Inter_600SemiBold',
+              fontSize: 11,
+              letterSpacing: 0.5,
+            }}
+          >
             PERSPECTIVE
           </Text>
           <View style={styles.row}>
@@ -274,10 +309,11 @@ export default function MentalPositionScreen() {
               />
             ))}
           </View>
+
           <BooleanSettingRow
             label="Dicter la séquence"
             value={dictate}
-            onToggle={() => setDictate((v) => !v)}
+            onToggle={onToggleDictate}
             activeIcon="volume-high"
             inactiveIcon="volume-mute-outline"
             testID="mental-dictate-toggle"
@@ -285,7 +321,7 @@ export default function MentalPositionScreen() {
           <BooleanSettingRow
             label="Afficher l'échiquier pendant la séquence"
             value={showBoard}
-            onToggle={() => setShowBoard((v) => !v)}
+            onToggle={onToggleBoard}
             activeIcon="eye"
             inactiveIcon="eye-off-outline"
             testID="mental-board-toggle"
@@ -295,31 +331,57 @@ export default function MentalPositionScreen() {
         </View>
       ) : null}
 
-      {showSequenceText && sequenceLabel ? (
+      {(showing || done) && snap.sans.length > 0 ? (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Séquence</Text>
-          <Text style={{ color: colors.foreground }}>{sequenceLabel}</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, marginBottom: 6 }}>
+            Séquence
+          </Text>
+          <NumberedSanRows sans={snap.sans} testID="mental-sequence-rows" />
         </View>
       ) : null}
 
       {showBoardPanel && displayFen ? (
-        <ChessBoard
-          board={fenToBoard(displayFen)}
-          lastMove={lastMove}
-          isFlipped={orientation === 'b'}
-          showCoordinates={false}
-        />
+        <View
+          style={{
+            alignItems: 'center',
+            alignSelf: 'center',
+            width: boardSize,
+            gap: 6,
+          }}
+          testID="mental-board-panel"
+        >
+          <ChessBoard
+            board={fenToBoard(displayFen)}
+            lastMove={lastMove}
+            isFlipped={orientation === 'b'}
+            showCoordinates={false}
+            sizeMode="wide"
+            size={boardSize}
+          />
+          {sideToMove ? (
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: 'Inter_600SemiBold',
+                fontSize: 14,
+              }}
+              testID="mental-side-to-move"
+            >
+              {sideToMoveLabel(sideToMove)}
+            </Text>
+          ) : null}
+        </View>
       ) : null}
 
-      {(showing || questioning) && (
-        <Text style={{ color: colors.mutedForeground }}>
-          Question {Math.min(snap.questionIndex + 1, snap.questions.length)}/{snap.questions.length}
-          {questioning ? ` · Score ${snap.score}/${snap.answered}` : ''}
+      {questioning && (
+        <Text style={{ color: colors.mutedForeground }} testID="mental-question-progress">
+          Question {Math.min(snap.questionIndex + 1, snap.questions.length)} /{' '}
+          {snap.questions.length}
         </Text>
       )}
 
       {questioning && (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 10 }} testID="mental-question-phase">
           <Pressable
             onPress={handleHelp}
             style={[styles.helpBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
@@ -329,50 +391,38 @@ export default function MentalPositionScreen() {
           </Pressable>
           <Text style={[styles.prompt, { color: colors.foreground }]}>{snap.currentPrompt}</Text>
           {snap.lastFeedback ? (
-            <Text style={{ color: colors.mutedForeground }}>{snap.lastFeedback}</Text>
-          ) : null}
-          <Pressable
-            onPress={toggleMic}
-            style={[styles.btn, { backgroundColor: micActive ? '#C44' : colors.primary }]}
-          >
-            <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              {micActive ? 'Écoute…' : 'Répondre à voix haute'}
-            </Text>
-          </Pressable>
-          {micStatus.message ? (
-            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{micStatus.message}</Text>
-          ) : null}
-          <View style={styles.row}>
-            <TextInput
-              ref={inputRef}
-              style={[
-                styles.input,
-                {
-                  flex: 1,
-                  color: colors.foreground,
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                },
-              ]}
-              value={manual}
-              onChangeText={setManual}
-              placeholder="Réponse écrite…"
-              placeholderTextColor={colors.mutedForeground}
-              onSubmitEditing={submitManual}
-            />
-            <Pressable
-              onPress={submitManual}
-              style={[styles.send, { backgroundColor: colors.primary }]}
+            <Text
+              style={{ color: colors.mutedForeground }}
+              testID="mental-neutral-feedback"
             >
-              <Ionicons name="send" size={18} color={colors.primaryForeground} />
-            </Pressable>
-          </View>
+              {snap.lastFeedback}
+            </Text>
+          ) : null}
+
+          <GameMicButton
+            showRecognized={showRecognizedFlash}
+            isListening={isListening}
+            micActive={micActive}
+            micMessage={micStatus.message}
+            onToggle={toggleMic}
+            testID="mental-mic"
+          />
+
+          <ChessAnswerInput
+            onSubmit={(raw) => answer(raw)}
+            enabled
+            persistFocus
+            placeholder="Réponse écrite…"
+          />
         </View>
       )}
 
       {done && (
-        <View style={{ gap: 10 }}>
-          <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 18 }}>
+        <View style={{ gap: 10 }} testID="mental-results">
+          <Text
+            style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 18 }}
+            testID="mental-final-score"
+          >
             Terminé — score {snap.score}/{snap.questions.length}
             {snap.helpUsed ? ' · aide utilisée' : ''}
           </Text>
@@ -397,11 +447,14 @@ export default function MentalPositionScreen() {
                 <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
                   Ta réponse : {entry.userAnswer || '—'}
                 </Text>
-                {!entry.correct ? (
-                  <Text style={{ color: '#c44', fontSize: 13 }}>
-                    Attendu : {entry.expectedDisplay}
-                  </Text>
-                ) : null}
+                <Text
+                  style={{
+                    color: entry.correct ? colors.mutedForeground : '#c44',
+                    fontSize: 13,
+                  }}
+                >
+                  Attendu : {entry.expectedDisplay}
+                </Text>
               </View>
             </View>
           ))}
@@ -415,13 +468,6 @@ export default function MentalPositionScreen() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  btn: {
-    minHeight: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
   helpBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -434,19 +480,6 @@ const styles = StyleSheet.create({
   },
   card: { borderWidth: 1, borderRadius: 14, padding: 14 },
   prompt: { fontSize: 18, fontFamily: 'Inter_600SemiBold', lineHeight: 26 },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
-  send: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   resultRow: {
     flexDirection: 'row',
     gap: 10,

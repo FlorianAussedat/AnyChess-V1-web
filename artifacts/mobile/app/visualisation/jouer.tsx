@@ -8,6 +8,7 @@ import { AppButton } from '@/components/ui/AppButton';
 import { ChessBoard } from '@/components/ChessBoard';
 import type { BoardPiece } from '@/contexts/GameContext';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -33,6 +34,7 @@ export default function JouerLeCoupScreen() {
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave();
 
   const sessionRef = useRef(new PlayMoveSession({ pickChallenge: pickPlayMoveChallenge }));
@@ -184,21 +186,41 @@ export default function JouerLeCoupScreen() {
             </Text>
           ) : null}
           <BoardToolbar
-            label={turnLabel}
             showCoordinates={showCoordinates}
             onToggleCoordinates={() => {
               void toggleCoordinates();
             }}
           />
-          <ChessBoard
-            board={game.board() as (BoardPiece | null)[][]}
-            lastMove={null}
-            selectedSquare={touchSelected}
-            legalDots={legalDests}
-            onSquarePress={onSquarePress}
-            showCoordinates={showCoordinates}
-            isFlipped={boardFlipped}
-          />
+          <View
+            style={{
+              alignItems: 'center',
+              alignSelf: 'center',
+              width: boardSize,
+              gap: 6,
+            }}
+          >
+            <ChessBoard
+              board={game.board() as (BoardPiece | null)[][]}
+              lastMove={null}
+              selectedSquare={touchSelected}
+              legalDots={legalDests}
+              onSquarePress={onSquarePress}
+              showCoordinates={showCoordinates}
+              isFlipped={boardFlipped}
+              sizeMode="wide"
+              size={boardSize}
+            />
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: DesignTokens.typography.weightSemiBold,
+                fontSize: 14,
+              }}
+              testID="jouer-side-to-move"
+            >
+              {turnLabel}
+            </Text>
+          </View>
         </View>
       )}
 
