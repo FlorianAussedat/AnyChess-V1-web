@@ -90,6 +90,7 @@ describe('vision UX opt-ins', () => {
     assert.match(mental, /mental-mic/);
     assert.match(nommer, /GameMicButton/);
     assert.match(nommer, /nommer-mic/);
+    assert.doesNotMatch(nommer, /BooleanSettingRow|Réponse vocale/);
   });
 
   it('hides live score during mental questioning UI', () => {

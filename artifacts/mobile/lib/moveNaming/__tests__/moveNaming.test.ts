@@ -209,6 +209,7 @@ describe('move naming session — 60s model', () => {
     assert.equal(snap.score.correct, 1);
     assert.equal(snap.score.score, 1);
     assert.notEqual(snap.challenge?.puzzleId, first.puzzleId);
+    assert.equal(snap.lastFeedback, 'correct');
     session.dispose();
   });
 
