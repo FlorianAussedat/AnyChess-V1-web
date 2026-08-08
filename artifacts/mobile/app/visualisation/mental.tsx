@@ -57,6 +57,7 @@ export default function MentalPositionScreen() {
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
+  const { chessNotation } = usePreferences();
   const boardSize = useBoardSize('wide');
 
   const sessionRef = useRef(new MentalPositionSession());
@@ -455,7 +456,7 @@ export default function MentalPositionScreen() {
                     fontSize: 13,
                   }}
                 >
-                  Attendu : {entry.expectedDisplay}
+                  Attendu : {formatSanForDisplay(entry.expectedDisplay, chessNotation)}
                 </Text>
               </View>
             </View>
