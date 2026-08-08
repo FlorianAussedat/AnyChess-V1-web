@@ -56,7 +56,8 @@ interface GameContextValue {
   isSpeaking: boolean;
   strengthBandId: string;
   setStrengthBandId: (id: string) => void;
-  applyUserMove: (raw: string, source?: MoveInputSource) => void;
+  /** Returns true only when a legal move was played. */
+  applyUserMove: (raw: string, source?: MoveInputSource) => boolean;
   movePieceBySquare: (from: string, to: string) => boolean;
   getLegalDestinations: (square: string) => string[];
   newGame: () => void;
@@ -289,7 +290,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   const applyUserMove = useCallback(
-    (raw: string, source: MoveInputSource = 'voice') => {
+    (raw: string, source: MoveInputSource = 'voice'): boolean => {
       const result = applyUserMoveInput({
         raw,
         game: gameRef.current,
@@ -303,31 +304,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (result.command === 'repeat') repeatLast();
         else if (result.command === 'summarize') summarizeGameHistory();
         else if (result.command === 'undo') undoMove();
-        return;
+        return false;
       }
 
       speechService.cancel('move');
-      if (result.kind === 'ignored-busy') return;
+      if (result.kind === 'ignored-busy') return false;
 
       setHeardText(result.heardText);
 
       if (result.kind === 'unrecognized') {
         setStatus('Coup non reconnu. Répète.');
         if (result.emitError) emitEvent('error', source);
-        return;
+        return false;
       }
       if (result.kind === 'ambiguous') {
         setStatus('Coup ambigu. Précise la case de départ.');
         emitEvent('error', source);
-        return;
+        return false;
       }
       if (result.kind === 'illegal') {
         setStatus('Coup illégal. Répète.');
         emitEvent('error', source);
-        return;
+        return false;
       }
 
       finishPlayerMove(result.played, source);
+      return true;
     },
     [
       gameRef,
