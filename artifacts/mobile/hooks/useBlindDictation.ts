@@ -42,7 +42,7 @@ export function useBlindDictation(speedRef: React.MutableRefObject<number>) {
         }
         // Already cancelled above when flush; avoid a second hardStop that would
         // bump generation and invalidate myGen.
-        speechService.speak(moves[i].verbal, { rate: 0.92, flush: false });
+        speechService.speak(moves[i].verbal, { flush: false });
         i += 1;
         handlers.onSpokenCount?.(i, moves.length);
         if (i < moves.length) {

@@ -14,6 +14,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useBoardSize } from '@/hooks/useBoardSize';
+import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   useBoardTouchSelection,
@@ -49,6 +50,7 @@ export function ClassicGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const { chessNotation } = usePreferences();
   const { t } = useTranslation();
   const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave('/classic');
@@ -97,6 +99,11 @@ export function ClassicGameScreen() {
   const [useSystemKeyboard, setUseSystemKeyboard] = useState(false);
   /** Show/hide AnyChess keypad when not in system-keyboard mode. */
   const [anyChessKeypadVisible, setAnyChessKeypadVisible] = useState(true);
+
+  // Clear in-progress compose when piece-letter system changes (FR C… ↔ EN N…).
+  useEffect(() => {
+    setDraftMove('');
+  }, [chessNotation]);
 
   const {
     micActive,

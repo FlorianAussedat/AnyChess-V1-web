@@ -112,7 +112,7 @@ export default function MentalPositionScreen() {
     async (sans: string[]) => {
       if (!dictate || !soundEnabled) return;
       for (const san of sans) {
-        await speechService.speak(sanToVerbal(san), { rate: 0.92 });
+        await speechService.speak(sanToVerbal(san));
       }
     },
     [dictate, soundEnabled],

@@ -38,6 +38,8 @@ import { useBlindDictation } from '@/hooks/useBlindDictation';
 import { useBlindVisualReplay } from '@/hooks/useBlindVisualReplay';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
+import { formatSanForDisplay } from '@/lib/chess/notation';
 import { defaultKeyValueStorage } from '@/lib/storage';
 
 const blindRecordsStore = new BlindRecordsStore(defaultKeyValueStorage);
@@ -604,8 +606,10 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       const parsed = parseChessVoice(raw, probe, { mode: 'blind' });
 
       // Surface recognized interpretation before outcome validation.
+      // Format SAN for display notation; keep non-SAN transcripts as-is.
+      const notation = preferencesStore.getPreferences().chessNotation;
       if (parsed.type === 'move') {
-        showRecognized(parsed.move.san);
+        showRecognized(formatSanForDisplay(parsed.move.san, notation));
       } else if (parsed.type === 'illegal') {
         showRecognized(
           parsed.intendedDescription ??
@@ -613,7 +617,9 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
             parsed.rawTranscript,
         );
       } else if (parsed.type === 'ambiguous' && parsed.candidates[0]) {
-        showRecognized(parsed.candidates[0].san);
+        showRecognized(
+          formatSanForDisplay(parsed.candidates[0].san, notation),
+        );
       } else if (parsed.type === 'unrecognized') {
         showRecognized(parsed.normalizedTranscript || parsed.rawTranscript || null);
       } else {

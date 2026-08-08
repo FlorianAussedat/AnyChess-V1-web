@@ -17,6 +17,8 @@ import { parseChessVoice } from '@/lib/voice';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
+import { formatSanForDisplay } from '@/lib/chess/notation';
 import {
   DEFAULT_PUZZLE_FILTERS,
   DEFAULT_PUZZLE_RATING_BAND_ID,
@@ -363,7 +365,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const announceBlindPosition = useCallback((fen: string) => {
     const text = narratePosition(fen);
     setPositionNarration(text);
-    speechService.speak(narratePositionSpoken(fen), { flush: true, rate: 0.92 });
+    speechService.speak(narratePositionSpoken(fen), { flush: true });
   }, []);
 
   const finishSolved = useCallback(() => {
@@ -559,7 +561,9 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     current.nextMoveUses = (current.nextMoveUses ?? 0) + 1;
     session.setStats(current);
     setStats(session.getStats());
-    const hint = `Coup suivant : ${next.san}`;
+    const { chessNotation } = preferencesStore.getPreferences();
+    const displaySan = formatSanForDisplay(next.san, chessNotation);
+    const hint = `Coup suivant : ${displaySan}`;
     setNextMoveHint(hint);
     setLastFeedback(hint);
     speechService.speak(`Coup suivant : ${next.verbal}`, { flush: true });
