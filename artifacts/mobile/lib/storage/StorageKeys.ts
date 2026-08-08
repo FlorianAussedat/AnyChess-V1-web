@@ -132,6 +132,24 @@ export const StorageKeys = {
       'ChessCultureFeedbackSnapshot { version: 1, questions: Record<questionId, feedback> }',
     documentVersion: 1,
   },
+  /**
+   * Local-only user profile (pseudo + optional Elo ranges + practice years).
+   * No account / cloud — syncable later via stable id + updatedAt.
+   */
+  userProfile: {
+    key: 'anychess.profile.user.v1',
+    feature: 'profile',
+    shape:
+      'UserProfile { version: 1, id, username, rapidRangeId, blitzRangeId, bulletRangeId, chessYears, updatedAt }',
+    documentVersion: 1,
+  },
+  /** Default TTS voice speed (1–10) for exercises that speak moves. */
+  defaultVoiceSpeed: {
+    key: 'anychess.preferences.defaultVoiceSpeed.v1',
+    feature: 'preferences/voice',
+    shape: 'integer string 1..10',
+    documentVersion: 1,
+  },
 } as const satisfies Record<string, StorageKeyMeta>;
 
 export type StorageKeyId = keyof typeof StorageKeys;

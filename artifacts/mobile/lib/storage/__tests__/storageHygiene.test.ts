@@ -49,6 +49,11 @@ describe('StorageKeys registry', () => {
       StorageKeys.chessCultureFeedback.key,
       'anychess.chess-culture.feedback.v1',
     );
+    assert.equal(StorageKeys.userProfile.key, 'anychess.profile.user.v1');
+    assert.equal(
+      StorageKeys.defaultVoiceSpeed.key,
+      'anychess.preferences.defaultVoiceSpeed.v1',
+    );
   });
 });
 
