@@ -1,17 +1,21 @@
 /**
  * Chess move keypad V3 — Classic Mode opt-in.
  * Auto-submits form-complete moves; validation stays in applyUserMove.
+ * Piece letters follow the global chessNotation preference.
  */
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import {
-  MOVE_KEYPAD_A11Y,
   applyMoveKeypadToken,
   backspaceMoveKeypad,
   clearMoveKeypad,
+  moveKeypadA11y,
+  moveKeypadPiecesForNotation,
   priorityMoveKeypadKeys,
   type MoveKeypadInsertToken,
 } from '@/lib/moveInput/chessMoveKeypad';
@@ -40,45 +44,6 @@ type KeyDef = {
   a11y: string;
 };
 
-const ROWS: KeyDef[][] = [
-  [
-    { id: 'C', label: 'C', token: 'C', a11y: MOVE_KEYPAD_A11Y.C },
-    { id: 'a', label: 'a', token: 'a', a11y: MOVE_KEYPAD_A11Y.a },
-    { id: 'b', label: 'b', token: 'b', a11y: MOVE_KEYPAD_A11Y.b },
-    { id: '1', label: '1', token: '1', a11y: MOVE_KEYPAD_A11Y['1'] },
-    { id: '2', label: '2', token: '2', a11y: MOVE_KEYPAD_A11Y['2'] },
-    { id: 'x', label: 'x', token: 'x', a11y: MOVE_KEYPAD_A11Y.x },
-  ],
-  [
-    { id: 'F', label: 'F', token: 'F', a11y: MOVE_KEYPAD_A11Y.F },
-    { id: 'c', label: 'c', token: 'c', a11y: MOVE_KEYPAD_A11Y.c },
-    { id: 'd', label: 'd', token: 'd', a11y: MOVE_KEYPAD_A11Y.d },
-    { id: '3', label: '3', token: '3', a11y: MOVE_KEYPAD_A11Y['3'] },
-    { id: '4', label: '4', token: '4', a11y: MOVE_KEYPAD_A11Y['4'] },
-    { id: 'backspace', label: '⌫', action: 'backspace', a11y: MOVE_KEYPAD_A11Y.backspace },
-  ],
-  [
-    { id: 'T', label: 'T', token: 'T', a11y: MOVE_KEYPAD_A11Y.T },
-    { id: 'e', label: 'e', token: 'e', a11y: MOVE_KEYPAD_A11Y.e },
-    { id: 'f', label: 'f', token: 'f', a11y: MOVE_KEYPAD_A11Y.f },
-    { id: '5', label: '5', token: '5', a11y: MOVE_KEYPAD_A11Y['5'] },
-    { id: '6', label: '6', token: '6', a11y: MOVE_KEYPAD_A11Y['6'] },
-    { id: 'clear', label: 'Eff', action: 'clear', a11y: MOVE_KEYPAD_A11Y.clear },
-  ],
-  [
-    { id: 'D', label: 'D', token: 'D', a11y: MOVE_KEYPAD_A11Y.D },
-    { id: 'g', label: 'g', token: 'g', a11y: MOVE_KEYPAD_A11Y.g },
-    { id: 'h', label: 'h', token: 'h', a11y: MOVE_KEYPAD_A11Y.h },
-    { id: '7', label: '7', token: '7', a11y: MOVE_KEYPAD_A11Y['7'] },
-    { id: '8', label: '8', token: '8', a11y: MOVE_KEYPAD_A11Y['8'] },
-    { id: 'R', label: 'R', token: 'R', a11y: MOVE_KEYPAD_A11Y.R },
-  ],
-  [
-    { id: 'O-O', label: 'O-O', token: 'O-O', flex: 1, a11y: MOVE_KEYPAD_A11Y['O-O'] },
-    { id: 'O-O-O', label: 'O-O-O', token: 'O-O-O', flex: 1, a11y: MOVE_KEYPAD_A11Y['O-O-O'] },
-  ],
-];
-
 function lightTap() {
   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 }
@@ -97,10 +62,66 @@ export function ChessMoveKeypad({
   testID = 'chess-move-keypad',
 }: Props) {
   const colors = useColors();
-  const priority = useMemo(() => priorityMoveKeypadKeys(value), [value]);
+  const { chessNotation, language } = usePreferences();
+  const { t } = useTranslation();
+
+  const pieces = moveKeypadPiecesForNotation(chessNotation);
+  const priority = useMemo(
+    () => priorityMoveKeypadKeys(value, chessNotation),
+    [value, chessNotation],
+  );
   const keyMinHeight = compact ? 38 : DesignTokens.minTouchTarget;
   const rowGap = compact ? 4 : 6;
   const panelPad = compact ? 6 : DesignTokens.spacing.sm;
+
+  const rows: KeyDef[][] = useMemo(() => {
+    const a11y = (token: MoveKeypadInsertToken | 'backspace' | 'clear') =>
+      moveKeypadA11y(token, language, chessNotation);
+    const [p0, p1, p2, p3, p4] = pieces;
+    return [
+      [
+        { id: p0, label: p0, token: p0, a11y: a11y(p0) },
+        { id: 'a', label: 'a', token: 'a', a11y: a11y('a') },
+        { id: 'b', label: 'b', token: 'b', a11y: a11y('b') },
+        { id: '1', label: '1', token: '1', a11y: a11y('1') },
+        { id: '2', label: '2', token: '2', a11y: a11y('2') },
+        { id: 'x', label: 'x', token: 'x', a11y: a11y('x') },
+      ],
+      [
+        { id: p1, label: p1, token: p1, a11y: a11y(p1) },
+        { id: 'c', label: 'c', token: 'c', a11y: a11y('c') },
+        { id: 'd', label: 'd', token: 'd', a11y: a11y('d') },
+        { id: '3', label: '3', token: '3', a11y: a11y('3') },
+        { id: '4', label: '4', token: '4', a11y: a11y('4') },
+        { id: 'backspace', label: '⌫', action: 'backspace', a11y: a11y('backspace') },
+      ],
+      [
+        { id: p2, label: p2, token: p2, a11y: a11y(p2) },
+        { id: 'e', label: 'e', token: 'e', a11y: a11y('e') },
+        { id: 'f', label: 'f', token: 'f', a11y: a11y('f') },
+        { id: '5', label: '5', token: '5', a11y: a11y('5') },
+        { id: '6', label: '6', token: '6', a11y: a11y('6') },
+        {
+          id: 'clear',
+          label: t('keypad.clear'),
+          action: 'clear',
+          a11y: a11y('clear'),
+        },
+      ],
+      [
+        { id: p3, label: p3, token: p3, a11y: a11y(p3) },
+        { id: 'g', label: 'g', token: 'g', a11y: a11y('g') },
+        { id: 'h', label: 'h', token: 'h', a11y: a11y('h') },
+        { id: '7', label: '7', token: '7', a11y: a11y('7') },
+        { id: '8', label: '8', token: '8', a11y: a11y('8') },
+        { id: p4, label: p4, token: p4, a11y: a11y(p4) },
+      ],
+      [
+        { id: 'O-O', label: 'O-O', token: 'O-O', flex: 1, a11y: a11y('O-O') },
+        { id: 'O-O-O', label: 'O-O-O', token: 'O-O-O', flex: 1, a11y: a11y('O-O-O') },
+      ],
+    ];
+  }, [chessNotation, language, pieces, t]);
 
   const pressKey = useCallback(
     (key: KeyDef) => {
@@ -118,14 +139,18 @@ export function ChessMoveKeypad({
       if (!key.token) return;
 
       lightTap();
-      const { value: next, readyToSubmit } = applyMoveKeypadToken(value, key.token);
+      const { value: next, readyToSubmit } = applyMoveKeypadToken(
+        value,
+        key.token,
+        chessNotation,
+      );
       onChangeText(next);
       if (autoSubmit && readyToSubmit) {
         confirmTap();
         onSubmit(next);
       }
     },
-    [autoSubmit, enabled, onChangeText, onSubmit, value],
+    [autoSubmit, chessNotation, enabled, onChangeText, onSubmit, value],
   );
 
   return (
@@ -140,9 +165,9 @@ export function ChessMoveKeypad({
         },
       ]}
       testID={testID}
-      accessibilityLabel="Clavier coups d’échecs"
+      accessibilityLabel={t('keypad.a11y')}
     >
-      {ROWS.map((row, rowIndex) => (
+      {rows.map((row, rowIndex) => (
         <View key={`row-${rowIndex}`} style={[styles.row, { gap: rowGap }]}>
           {row.map((key) => {
             const isPriority = priority.has(key.id);

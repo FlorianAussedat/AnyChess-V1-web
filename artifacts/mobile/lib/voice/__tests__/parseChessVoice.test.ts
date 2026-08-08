@@ -383,3 +383,75 @@ describe('piece over pawn preference', () => {
     }
   });
 });
+
+describe('chessNotation-aware R collision (EN rook vs FR Roi)', () => {
+  /** Both Rd2 (rook) and Kd2 (king) are legal. */
+  const fenBoth = '4k3/8/8/8/8/8/8/3RK3 w - - 0 1';
+
+  it('EN notation: Rd2 prefers rook when king can also go to d2', () => {
+    const game = new Chess(fenBoth);
+    const r = parseChessVoice('Rd2', game, { mode: 'classic', chessNotation: 'en' });
+    assert.equal(r.type, 'move');
+    if (r.type === 'move') {
+      assert.equal(r.move.san.replace(/[+#]/g, ''), 'Rd2');
+      assert.equal(r.move.piece, 'r');
+    }
+  });
+
+  it('FR notation: Rd2 means Roi → Kd2 when both are legal', () => {
+    const game = new Chess(fenBoth);
+    const r = parseChessVoice('Rd2', game, { mode: 'classic', chessNotation: 'fr' });
+    assert.equal(r.type, 'move');
+    if (r.type === 'move') {
+      assert.equal(r.move.san.replace(/[+#]/g, ''), 'Kd2');
+      assert.equal(r.move.piece, 'k');
+    }
+  });
+
+  it('EN still accepts standard piece SANs', () => {
+    const start = new Chess();
+    for (const [raw, san] of [
+      ['Nf3', 'Nf3'],
+      ['Nc3', 'Nc3'],
+    ] as const) {
+      const r = parseChessVoice(raw, start, { chessNotation: 'en' });
+      assert.equal(r.type, 'move', raw);
+      if (r.type === 'move') {
+        assert.equal(r.move.san.replace(/[+#]/g, ''), san);
+      }
+    }
+    const afterE4 = new Chess();
+    afterE4.move('e4');
+    afterE4.move('e5');
+    const bc4 = parseChessVoice('Bc4', afterE4, { chessNotation: 'en' });
+    assert.equal(bc4.type, 'move');
+    if (bc4.type === 'move') assert.equal(bc4.move.san.replace(/[+#]/g, ''), 'Bc4');
+  });
+
+  it('FR still accepts French piece SANs', () => {
+    const start = new Chess();
+    const cf3 = parseChessVoice('Cf3', start, { chessNotation: 'fr' });
+    assert.equal(cf3.type, 'move');
+    if (cf3.type === 'move') {
+      assert.equal(cf3.move.san.replace(/[+#]/g, ''), 'Nf3');
+    }
+    const after = new Chess();
+    after.move('e4');
+    after.move('e5');
+    const fc4 = parseChessVoice('Fc4', after, { chessNotation: 'fr' });
+    assert.equal(fc4.type, 'move');
+    if (fc4.type === 'move') {
+      assert.equal(fc4.move.san.replace(/[+#]/g, ''), 'Bc4');
+    }
+  });
+
+  it('castling unchanged under both notations', () => {
+    const fen = 'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1';
+    for (const notation of ['en', 'fr'] as const) {
+      const g = new Chess(fen);
+      const r = parseChessVoice('O-O', g, { chessNotation: notation });
+      assert.equal(r.type, 'move', notation);
+      if (r.type === 'move') assert.equal(r.move.san, 'O-O');
+    }
+  });
+});

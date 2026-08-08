@@ -84,7 +84,6 @@ export default function JouerLeCoupScreen() {
     speechService.speak(snap.challenge.promptVerbal, {
       flush: true,
       ownerId: 'play-move',
-      rate: 0.95,
     });
   }, [snap.phase, snap.challenge?.puzzleId, snap.challenge?.promptVerbal]);
 

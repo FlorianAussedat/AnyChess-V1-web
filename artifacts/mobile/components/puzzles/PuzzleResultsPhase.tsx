@@ -8,6 +8,8 @@ import { PuzzleStatRow } from '@/components/puzzles/PuzzleStatRow';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
 import { useBoardSize } from '@/hooks/useBoardSize';
+import { usePreferences } from '@/hooks/usePreferences';
+import { formatSanLineForDisplay } from '@/lib/chess/notation';
 import {
   countPuzzleIndices,
   puzzleResultState,
@@ -17,6 +19,7 @@ import {
 export function PuzzleResultsPhase() {
   const colors = useColors();
   const boardSize = useBoardSize('wide');
+  const { chessNotation } = usePreferences();
   const {
     stats,
     solutionLine,
@@ -97,7 +100,7 @@ export function PuzzleResultsPhase() {
 
         {!!solutionLine && (
           <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
-            {solutionLine}
+            {formatSanLineForDisplay(solutionLine, chessNotation)}
           </Text>
         )}
 

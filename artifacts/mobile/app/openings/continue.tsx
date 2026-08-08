@@ -28,6 +28,11 @@ import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
+import {
+  formatNumberedSanForDisplay,
+  formatSanForDisplay,
+} from '@/lib/chess/notation';
+import { usePreferences } from '@/hooks/usePreferences';
 import { sanToVerbal } from '@/lib/chessParser';
 import { parseChessVoice } from '@/lib/voice';
 import { voiceSpeedSettings } from '@/lib/preferences/VoiceSpeedSettings';
@@ -45,9 +50,15 @@ import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 
-function formatLine(sans: string[], startPly = 0): string {
+function formatLine(
+  sans: string[],
+  startPly = 0,
+  notation: 'fr' | 'en' = 'fr',
+): string {
   return sans
-    .map((san, i) => formatNumberedSan(startPly + i, san))
+    .map((san, i) =>
+      formatNumberedSanForDisplay(formatNumberedSan(startPly + i, san), notation),
+    )
     .join('  ');
 }
 
@@ -57,6 +68,7 @@ export default function ContinueLineScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
+  const { chessNotation } = usePreferences();
 
   const { folderId, folderIds, side: sideParam } = useLocalSearchParams<{
     folderId?: string;
@@ -349,7 +361,7 @@ export default function ContinueLineScreen() {
           setFeedback('Ligne complète.');
           speak('Ligne complète.');
         } else {
-          setFeedback(`OK : ${move.san}`);
+          setFeedback(`OK : ${formatSanForDisplay(move.san, chessNotation)}`);
         }
         return;
       }
@@ -357,14 +369,29 @@ export default function ContinueLineScreen() {
       // wrong
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       const alts = result.snapshot.validAlternatives
-        .map((s) => formatNumberedSan(result.snapshot.startPly + result.snapshot.correctCount, s))
+        .map((s) =>
+          formatNumberedSanForDisplay(
+            formatNumberedSan(
+              result.snapshot.startPly + result.snapshot.correctCount,
+              s,
+            ),
+            chessNotation,
+          ),
+        )
         .join('\n• ');
       const suite = formatLine(
         result.snapshot.proposedContinuation,
         result.snapshot.startPly + result.snapshot.correctCount,
+        chessNotation,
       );
       setFeedback(
-        `Votre coup : ${formatNumberedSan(result.snapshot.startPly + result.snapshot.correctCount, result.snapshot.incorrectSan ?? '?')}\n\n` +
+        `Votre coup : ${formatNumberedSanForDisplay(
+          formatNumberedSan(
+            result.snapshot.startPly + result.snapshot.correctCount,
+            result.snapshot.incorrectSan ?? '?',
+          ),
+          chessNotation,
+        )}\n\n` +
           `Coup attendu sur cette ligne :\n• ${alts || '(aucun)'}\n\n` +
           `Suite proposée :\n${suite || '(fin de ligne)'}`,
       );
@@ -376,7 +403,7 @@ export default function ContinueLineScreen() {
         speak(verbal);
       }
     },
-    [soundEnabled, speak],
+    [chessNotation, soundEnabled, speak],
   );
 
   const applyRef = useRef(applyRaw);

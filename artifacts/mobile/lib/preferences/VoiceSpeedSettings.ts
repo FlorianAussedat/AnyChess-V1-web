@@ -1,73 +1,48 @@
 /**
- * Global default TTS voice speed (1–10).
+ * Global default TTS voice speed (1–10) — facade over PreferencesStore.
  * Exercises may keep a local session value after reading this default.
  */
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
-import { StorageKeys } from '../storage/StorageKeys.ts';
-import {
-  DEFAULT_VOICE_SPEED,
-  VOICE_SPEED_MAX,
-  VOICE_SPEED_MIN,
-} from '../continueLine/voiceSpeed.ts';
+import { DEFAULT_VOICE_SPEED } from '../continueLine/voiceSpeed.ts';
+import { PreferencesStore, preferencesStore } from './PreferencesStore.ts';
 
 type SpeedListener = (speed: number) => void;
 
-function clampSpeed(value: number): number {
-  if (!Number.isFinite(value)) return DEFAULT_VOICE_SPEED;
-  return Math.max(
-    VOICE_SPEED_MIN,
-    Math.min(VOICE_SPEED_MAX, Math.round(value)),
-  );
-}
-
 export class VoiceSpeedSettings {
-  private speed = DEFAULT_VOICE_SPEED;
-  private loaded = false;
-  private loadPromise: Promise<void> | null = null;
   private listeners = new Set<SpeedListener>();
-  private readonly storage: KeyValueStorage;
+  private unsubStore: (() => void) | null = null;
+  private readonly store: PreferencesStore;
 
-  constructor(storage: KeyValueStorage = defaultKeyValueStorage) {
-    this.storage = storage;
+  constructor(
+    storage: KeyValueStorage = defaultKeyValueStorage,
+    store?: PreferencesStore,
+  ) {
+    this.store = store ?? (storage === defaultKeyValueStorage
+      ? preferencesStore
+      : new PreferencesStore(storage));
+  }
+
+  private ensureStoreSubscription(): void {
+    if (this.unsubStore) return;
+    this.unsubStore = this.store.onChange((prefs) => {
+      this.listeners.forEach((l) => l(prefs.voiceSpeed));
+    });
   }
 
   async ensureLoaded(): Promise<void> {
-    if (this.loaded) return;
-    if (!this.loadPromise) {
-      this.loadPromise = (async () => {
-        try {
-          const raw = await this.storage.getItem(StorageKeys.defaultVoiceSpeed.key);
-          if (raw != null && raw !== '') {
-            const n = Number(raw);
-            if (Number.isFinite(n)) this.speed = clampSpeed(n);
-          }
-        } catch {
-          /* keep default */
-        } finally {
-          this.loaded = true;
-          this.loadPromise = null;
-        }
-      })();
-    }
-    await this.loadPromise;
+    this.ensureStoreSubscription();
+    await this.store.ensureLoaded();
   }
 
   getDefaultSpeed(): number {
-    return this.speed;
+    return this.store.getPreferences().voiceSpeed;
   }
 
   async setDefaultSpeed(speed: number): Promise<number> {
-    const next = clampSpeed(speed);
-    if (this.speed === next && this.loaded) return next;
-    this.speed = next;
-    this.listeners.forEach((l) => l(next));
-    try {
-      await this.storage.setItem(StorageKeys.defaultVoiceSpeed.key, String(next));
-    } catch {
-      /* non-critical */
-    }
-    return next;
+    this.ensureStoreSubscription();
+    const next = await this.store.update({ voiceSpeed: speed });
+    return next.voiceSpeed;
   }
 
   async resetToDefault(): Promise<number> {
@@ -75,6 +50,7 @@ export class VoiceSpeedSettings {
   }
 
   onChange(listener: SpeedListener): () => void {
+    this.ensureStoreSubscription();
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);

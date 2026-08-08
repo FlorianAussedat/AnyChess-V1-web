@@ -81,10 +81,13 @@ describe('Profil screen scope', () => {
     assert.match(src, /profil-row-username/);
     assert.match(src, /profil-row-repertoires/);
     assert.match(src, /profil-row-records/);
+    assert.match(src, /profil-row-language/);
+    assert.match(src, /profil-row-notation/);
     assert.match(src, /profil-pref-voice/);
     assert.match(src, /profil-pref-coordinates/);
     assert.match(src, /profil-row-voice-speed/);
-    assert.match(src, /Données enregistrées sur cet appareil/);
+    assert.match(src, /profil\.saveTitle/);
+    assert.match(src, /usePreferences/);
     assert.doesNotMatch(src, /Supabase|Firebase|OAuth|mot de passe|signup/i);
     assert.doesNotMatch(src, /localStorage|AsyncStorage/);
   });

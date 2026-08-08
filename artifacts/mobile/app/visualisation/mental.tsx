@@ -40,6 +40,8 @@ import { OwnedEngine, createOpponentEngine } from '@/lib/engines';
 import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
+import { usePreferences } from '@/hooks/usePreferences';
+import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage, StorageKeys } from '@/lib/storage';
 import { replayLine } from '@/lib/replay/replayLine';
@@ -55,6 +57,7 @@ export default function MentalPositionScreen() {
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
+  const { chessNotation } = usePreferences();
   const boardSize = useBoardSize('wide');
 
   const sessionRef = useRef(new MentalPositionSession());
@@ -109,7 +112,7 @@ export default function MentalPositionScreen() {
     async (sans: string[]) => {
       if (!dictate || !soundEnabled) return;
       for (const san of sans) {
-        await speechService.speak(sanToVerbal(san), { rate: 0.92 });
+        await speechService.speak(sanToVerbal(san));
       }
     },
     [dictate, soundEnabled],
@@ -453,7 +456,7 @@ export default function MentalPositionScreen() {
                     fontSize: 13,
                   }}
                 >
-                  Attendu : {entry.expectedDisplay}
+                  Attendu : {formatSanForDisplay(entry.expectedDisplay, chessNotation)}
                 </Text>
               </View>
             </View>

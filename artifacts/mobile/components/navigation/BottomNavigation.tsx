@@ -13,6 +13,7 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useTranslation } from '@/hooks/useTranslation';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import { NAV_HOME_ART, artHeight } from '@/constants/brandArtBounds';
@@ -71,6 +72,7 @@ export function BottomNavigation() {
   const router = useRouter();
   const pathname = usePathname();
   const active = resolveActiveTab(pathname);
+  const { t } = useTranslation();
 
   const goHome = () => {
     if (pathname === '/' || pathname === '/index') return;
@@ -105,7 +107,7 @@ export function BottomNavigation() {
         accessibilityRole="tablist"
       >
         <NavItem
-          label="Accueil"
+          label={t('nav.home')}
           active={active === 'home'}
           onPress={goHome}
           testID="nav-home"
@@ -114,7 +116,7 @@ export function BottomNavigation() {
           inactiveColor={colors.mutedForeground}
         />
         <NavItem
-          label="Records"
+          label={t('nav.records')}
           active={active === 'records'}
           onPress={goRecords}
           testID="nav-records"
@@ -125,7 +127,7 @@ export function BottomNavigation() {
           inactiveColor={colors.mutedForeground}
         />
         <NavItem
-          label="Profil"
+          label={t('nav.profil')}
           active={active === 'profil'}
           onPress={goProfil}
           testID="nav-profil"

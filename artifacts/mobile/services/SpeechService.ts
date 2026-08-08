@@ -1,5 +1,8 @@
 import * as Speech from 'expo-speech';
 import { audioSettings } from './AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
+import { speechLocaleForLanguage } from '@/lib/i18n';
+import { voiceSpeedToRate } from '@/lib/continueLine/voiceSpeed';
 
 /**
  * Centralised text-to-speech service.
@@ -9,6 +12,7 @@ import { audioSettings } from './AudioSettings';
  *  - Expose a single `isSpeaking` signal for the mic layer
  *  - Honour voice-mute (TTS only) via AudioSettings — SFX are independent
  *  - Cancel obsolete multi-step sequences when the user acts or navigates away
+ *  - Use global voiceSpeed preference as the default rate (per utterance)
  *
  * Rule: live user action always has priority over queued speech.
  */
@@ -16,9 +20,13 @@ import { audioSettings } from './AudioSettings';
 export interface SpeakOptions {
   /** Clear the queue and stop current speech before speaking this text. */
   flush?: boolean;
-  /** Language override (defaults to French). */
+  /** Language override (defaults to app language preference). */
   language?: string;
-  /** Rate override. */
+  /**
+   * Rate override for THIS utterance only.
+   * When omitted, uses voiceSpeedToRate(preferences.voiceSpeed).
+   * Does not permanently change the global default.
+   */
   rate?: number;
   /**
    * Optional owner id. When a newer cancel() targets another owner or a global
@@ -27,14 +35,20 @@ export interface SpeakOptions {
   ownerId?: string;
 }
 
+type QueueItem = {
+  text: string;
+  ownerId?: string;
+  language: string;
+  rate: number;
+};
+
 type SpeakingListener = (speaking: boolean) => void;
 type CancelListener = () => void;
 
-const DEFAULT_LANGUAGE = 'fr-FR';
-const DEFAULT_RATE = 0.95;
+const FALLBACK_LANGUAGE = 'fr-FR';
 
 class SpeechService {
-  private queue: Array<{ text: string; ownerId?: string }> = [];
+  private queue: QueueItem[] = [];
   private speaking = false;
   private listeners = new Set<SpeakingListener>();
   private cancelListeners = new Set<CancelListener>();
@@ -46,8 +60,6 @@ class SpeechService {
    */
   private token = 0;
 
-  private currentLanguage = DEFAULT_LANGUAGE;
-  private currentRate = DEFAULT_RATE;
   private activeOwnerId: string | undefined;
 
   /** Subscribe to speaking-state changes. Returns an unsubscribe function. */
@@ -83,6 +95,24 @@ class SpeechService {
     this.listeners.forEach((l) => l(value));
   }
 
+  private resolveLanguage(override?: string): string {
+    if (override) return override;
+    try {
+      return speechLocaleForLanguage(preferencesStore.getPreferences().language);
+    } catch {
+      return FALLBACK_LANGUAGE;
+    }
+  }
+
+  private resolveRate(override?: number): number {
+    if (override != null && Number.isFinite(override)) return override;
+    try {
+      return voiceSpeedToRate(preferencesStore.getPreferences().voiceSpeed);
+    } catch {
+      return voiceSpeedToRate(5);
+    }
+  }
+
   /**
    * Enqueue text to be spoken. Utterances play sequentially. Pass
    * `{ flush: true }` to interrupt whatever is playing and speak now.
@@ -100,11 +130,14 @@ class SpeechService {
       this.hardStop({ notify: true });
     }
 
-    if (options.language) this.currentLanguage = options.language;
-    if (options.rate != null) this.currentRate = options.rate;
     if (options.ownerId) this.activeOwnerId = options.ownerId;
 
-    this.queue.push({ text, ownerId: options.ownerId ?? this.activeOwnerId });
+    this.queue.push({
+      text,
+      ownerId: options.ownerId ?? this.activeOwnerId,
+      language: this.resolveLanguage(options.language),
+      rate: this.resolveRate(options.rate),
+    });
     if (!this.speaking) {
       this.startLoop();
     }
@@ -200,8 +233,8 @@ class SpeechService {
 
     try {
       Speech.speak(next.text, {
-        language: this.currentLanguage,
-        rate: this.currentRate,
+        language: next.language,
+        rate: next.rate,
         onDone: advance,
         onStopped: () => {
           /* Stops are driven by hardStop(), which bumps the token; ignore. */

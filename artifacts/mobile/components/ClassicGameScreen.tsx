@@ -14,6 +14,8 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useBoardSize } from '@/hooks/useBoardSize';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   useBoardTouchSelection,
   useMoveEventFeedback,
@@ -48,6 +50,8 @@ export function ClassicGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const { chessNotation } = usePreferences();
+  const { t } = useTranslation();
   const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave('/classic');
 
@@ -95,6 +99,11 @@ export function ClassicGameScreen() {
   const [useSystemKeyboard, setUseSystemKeyboard] = useState(false);
   /** Show/hide AnyChess keypad when not in system-keyboard mode. */
   const [anyChessKeypadVisible, setAnyChessKeypadVisible] = useState(true);
+
+  // Clear in-progress compose when piece-letter system changes (FR C… ↔ EN N…).
+  useEffect(() => {
+    setDraftMove('');
+  }, [chessNotation]);
 
   const {
     micActive,
@@ -298,6 +307,11 @@ export function ClassicGameScreen() {
               variant="compact"
             />
 
+            {/*
+              Single AnyChess keypad visibility control (keypad / keypad-outline).
+              System-keyboard fallback uses a distinct desktop icon — never keypad —
+              so the show/hide control cannot appear twice.
+            */}
             <Pressable
               onPress={() => {
                 if (useSystemKeyboard) {
@@ -309,8 +323,8 @@ export function ClassicGameScreen() {
               }}
               accessibilityLabel={
                 anyChessKeypadVisible && keypadMode
-                  ? 'Masquer le clavier coups d’échecs'
-                  : 'Afficher le clavier coups d’échecs'
+                  ? t('keypad.hide')
+                  : t('keypad.show')
               }
               testID="classic-keypad-visibility-toggle"
               style={({ pressed }) => [
@@ -340,9 +354,7 @@ export function ClassicGameScreen() {
                 });
               }}
               accessibilityLabel={
-                useSystemKeyboard
-                  ? 'Revenir au clavier coups d’échecs'
-                  : 'Utiliser le clavier système'
+                useSystemKeyboard ? t('keypad.systemOn') : t('keypad.systemOff')
               }
               testID="classic-keyboard-mode-toggle"
               style={({ pressed }) => [
@@ -355,7 +367,7 @@ export function ClassicGameScreen() {
               ]}
             >
               <Ionicons
-                name={useSystemKeyboard ? 'keypad-outline' : 'desktop-outline'}
+                name={useSystemKeyboard ? 'desktop' : 'desktop-outline'}
                 size={20}
                 color={colors.foreground}
               />

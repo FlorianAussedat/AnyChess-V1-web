@@ -1,48 +1,32 @@
 /**
- * Global audio settings.
+ * Global audio settings facade over PreferencesStore.
  *
  * Voice mute (TTS) is independent from UI validation / error sound effects.
  * Speech recognition is never blocked by voice mute.
  */
-import { defaultKeyValueStorage } from '@/lib/storage/AsyncKeyValueStorage.ts';
-import { StorageKeys } from '@/lib/storage/StorageKeys.ts';
-
-const VOICE_KEY = StorageKeys.voiceEnabled.key;
-/** Legacy key — migrated once into voiceEnabled. */
-const LEGACY_SOUND_KEY = StorageKeys.voiceEnabledLegacy.key;
+import { preferencesStore } from '@/lib/preferences';
 
 type VoiceListener = (enabled: boolean) => void;
 
 class AudioSettings {
-  private voiceEnabled = true;
-  private loaded = false;
-  private loadPromise: Promise<void> | null = null;
   private listeners = new Set<VoiceListener>();
+  private unsubStore: (() => void) | null = null;
+
+  private ensureStoreSubscription(): void {
+    if (this.unsubStore) return;
+    this.unsubStore = preferencesStore.onChange((prefs) => {
+      this.listeners.forEach((l) => l(prefs.voiceEnabled));
+    });
+  }
 
   async ensureLoaded(): Promise<void> {
-    if (this.loaded) return;
-    if (!this.loadPromise) {
-      this.loadPromise = (async () => {
-        try {
-          const raw =
-            (await defaultKeyValueStorage.getItem(VOICE_KEY)) ??
-            (await defaultKeyValueStorage.getItem(LEGACY_SOUND_KEY));
-          if (raw === '0' || raw === 'false') this.voiceEnabled = false;
-          else if (raw === '1' || raw === 'true') this.voiceEnabled = true;
-        } catch {
-          /* keep default */
-        } finally {
-          this.loaded = true;
-          this.loadPromise = null;
-        }
-      })();
-    }
-    await this.loadPromise;
+    this.ensureStoreSubscription();
+    await preferencesStore.ensureLoaded();
   }
 
   /** Whether spoken TTS voice is enabled. */
   isVoiceEnabled(): boolean {
-    return this.voiceEnabled;
+    return preferencesStore.getPreferences().voiceEnabled;
   }
 
   /**
@@ -50,18 +34,12 @@ class AudioSettings {
    * during the Major Update migration; maps to voice mute only.
    */
   isSoundEnabled(): boolean {
-    return this.voiceEnabled;
+    return this.isVoiceEnabled();
   }
 
   async setVoiceEnabled(enabled: boolean): Promise<void> {
-    if (this.voiceEnabled === enabled && this.loaded) return;
-    this.voiceEnabled = enabled;
-    this.listeners.forEach((l) => l(enabled));
-    try {
-      await defaultKeyValueStorage.setItem(VOICE_KEY, enabled ? '1' : '0');
-    } catch {
-      /* non-critical */
-    }
+    this.ensureStoreSubscription();
+    await preferencesStore.update({ voiceEnabled: enabled });
   }
 
   /** @deprecated Prefer setVoiceEnabled */
@@ -71,7 +49,7 @@ class AudioSettings {
 
   async toggleVoice(): Promise<boolean> {
     await this.ensureLoaded();
-    const next = !this.voiceEnabled;
+    const next = !this.isVoiceEnabled();
     await this.setVoiceEnabled(next);
     return next;
   }
@@ -82,6 +60,7 @@ class AudioSettings {
   }
 
   onChange(listener: VoiceListener): () => void {
+    this.ensureStoreSubscription();
     this.listeners.add(listener);
     return () => {
       this.listeners.delete(listener);

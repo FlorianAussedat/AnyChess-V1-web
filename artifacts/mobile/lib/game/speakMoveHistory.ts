@@ -23,6 +23,6 @@ export function speakMoveHistorySummary(
     const pairNum = Math.floor(i / 2) + 1;
     const isWhite = i % 2 === 0;
     const verbal = sanToVerbal(san);
-    speechService.speak(isWhite ? `${pairNum}. ${verbal}` : verbal, { rate: 0.9 });
+    speechService.speak(isWhite ? `${pairNum}. ${verbal}` : verbal);
   });
 }

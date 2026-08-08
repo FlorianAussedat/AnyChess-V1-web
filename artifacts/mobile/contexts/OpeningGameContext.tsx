@@ -157,12 +157,13 @@ export function OpeningGameProvider({
 
       return () => {
         cancelled = true;
-        opponent.cancel();
+        // Invalidate in-flight opponentMove callbacks (mirrors Classic GameContext).
+        cancelPendingOpponent(() => opponent.cancel());
         opponent.destroy();
         if (opponentRef.current === opponent) opponentRef.current = null;
         setReady(false);
       };
-    }, [repertoire, strengthBandId]),
+    }, [repertoire, strengthBandId, cancelPendingOpponent]),
   );
 
   const syncTheoryUi = useCallback(() => {
