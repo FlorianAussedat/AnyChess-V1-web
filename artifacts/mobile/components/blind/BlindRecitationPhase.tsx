@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
@@ -11,6 +12,7 @@ import { useSpeechInput } from '@/services/SpeechRecognitionService';
 
 export function BlindRecitationPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const {
     sequence,
     expectedIndex,
@@ -37,8 +39,8 @@ export function BlindRecitationPhase() {
       return;
     }
     setShowRecognizedFlash(true);
-    const t = setTimeout(() => setShowRecognizedFlash(false), 900);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShowRecognizedFlash(false), 900);
+    return () => clearTimeout(timer);
   }, [recognizedText]);
 
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
@@ -49,7 +51,7 @@ export function BlindRecitationPhase() {
   });
 
   return (
-    <ModeScreenShell title="Récitation" onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.recitation')} onBack={backToSettings}>
       <ScrollView
         contentContainerStyle={blindStyles.phaseBody}
         keyboardShouldPersistTaps="handled"
@@ -61,14 +63,17 @@ export function BlindRecitationPhase() {
           ]}
         >
           <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-            Coup {Math.min(expectedIndex + 1, sequence.length)} / {sequence.length}
+            {t('blind.moveProgress', {
+              current: Math.min(expectedIndex + 1, sequence.length),
+              total: sequence.length,
+            })}
           </Text>
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
-            {lastFeedback ?? 'Dis le prochain coup à voix haute.'}
+            {lastFeedback ?? t('blind.recitePrompt')}
           </Text>
           {!!recognizedText && (
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
-              Reconnu : {recognizedText}
+              {t('blind.recognized', { san: recognizedText })}
             </Text>
           )}
           {!!revealedHint && (
@@ -105,7 +110,7 @@ export function BlindRecitationPhase() {
           onSubmit={(text) => attemptSpoken(text)}
           enabled
           persistFocus
-          placeholder="Ex. e4, Cf3, petit roque…"
+          placeholder={t('blind.movePlaceholder')}
         />
 
         <View style={blindStyles.compactActionRow}>
@@ -123,7 +128,7 @@ export function BlindRecitationPhase() {
           >
             <Ionicons name="play-skip-forward-outline" size={16} color={colors.mutedForeground} />
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
-              Passer
+              {t('blind.skip')}
             </Text>
           </Pressable>
           <Pressable
@@ -140,7 +145,7 @@ export function BlindRecitationPhase() {
           >
             <Ionicons name="help-circle-outline" size={16} color={colors.mutedForeground} />
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
-              Aide
+              {t('blind.hint')}
             </Text>
           </Pressable>
         </View>

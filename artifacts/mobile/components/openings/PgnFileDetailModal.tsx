@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { StoredPgnFile } from '@/lib/repertoire';
 import { formatDate } from '@/components/openings/formatDate';
 
@@ -11,6 +12,7 @@ type Props = {
 
 export function PgnFileDetailModal({ file, onClose }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
 
   return (
     <Modal
@@ -33,16 +35,16 @@ export function PgnFileDetailModal({ file, onClose }: Props) {
               </Text>
               <ScrollView style={{ maxHeight: 360 }}>
                 <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                  Importé le {formatDate(file.importedAt)}
+                  {t('openings.importedOn', { date: formatDate(file.importedAt) })}
                 </Text>
                 <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 6 }]}>
-                  Parties / chapitres : {file.summary.gameCount}
+                  {t('openings.gamesChapters', { count: file.summary.gameCount })}
                 </Text>
                 <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                  Positions parsées : {file.summary.positionCount}
+                  {t('openings.positionsParsed', { count: file.summary.positionCount })}
                 </Text>
                 <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-                  Branches : {file.summary.branchCount}
+                  {t('openings.branches', { count: file.summary.branchCount })}
                 </Text>
                 <Text
                   style={[
@@ -55,15 +57,15 @@ export function PgnFileDetailModal({ file, onClose }: Props) {
                 >
                   {file.summary.parseSucceeded
                     ? file.summary.errors.length > 0
-                      ? 'Import partiel — certaines lignes rejetées'
-                      : 'Import réussi'
-                    : 'Échec d’import'}
+                      ? t('openings.importPartialDetail')
+                      : t('openings.importSuccess')
+                    : t('openings.importFailed')}
                 </Text>
 
                 {file.summary.errors.length > 0 && (
                   <View style={{ marginTop: 12, gap: 4 }}>
                     <Text style={[styles.fieldLabel, { color: colors.destructive }]}>
-                      Erreurs ({file.summary.errors.length})
+                      {t('openings.errorsLabel', { count: file.summary.errors.length })}
                     </Text>
                     {file.summary.errors.map((err, i) => (
                       <Text
@@ -85,7 +87,7 @@ export function PgnFileDetailModal({ file, onClose }: Props) {
                 {file.summary.warnings.length > 0 && (
                   <View style={{ marginTop: 12, gap: 4 }}>
                     <Text style={[styles.fieldLabel, { color: '#F5A623' }]}>
-                      Avertissements ({file.summary.warnings.length})
+                      {t('openings.warningsLabel', { count: file.summary.warnings.length })}
                     </Text>
                     {file.summary.warnings.map((w, i) => (
                       <Text
@@ -115,7 +117,7 @@ export function PgnFileDetailModal({ file, onClose }: Props) {
                   ]}
                 >
                   <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                    Fermer
+                    {t('common.close')}
                   </Text>
                 </Pressable>
               </View>

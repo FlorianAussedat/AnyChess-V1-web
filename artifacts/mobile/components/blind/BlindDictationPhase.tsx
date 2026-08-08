@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { AppButton } from '@/components/ui/AppButton';
 import { blindStyles } from '@/components/blind/blindStyles';
@@ -10,6 +11,7 @@ import { halfMoveCount } from '@/lib/blind';
 
 export function BlindDictationPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const {
     fullMoves,
     sequence,
@@ -26,7 +28,7 @@ export function BlindDictationPhase() {
   const showInProgress = !showReady;
 
   return (
-    <ModeScreenShell title="Dictée" onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.dictation')} onBack={backToSettings}>
       <View style={blindStyles.phaseBody}>
         <View
           style={[
@@ -36,17 +38,17 @@ export function BlindDictationPhase() {
         >
           <Ionicons name="ear-outline" size={48} color={colors.mutedForeground} />
           <Text style={[blindStyles.hiddenTitle, { color: colors.foreground }]}>
-            Échiquier masqué
+            {t('a11y.boardHidden')}
           </Text>
           <Text style={[blindStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-            Écoute les {total} demi-coups. Aucune notation affichée.
+            {t('blind.dictationListen', { total })}
           </Text>
           {showInProgress && (
             <Text
               style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold', marginTop: 8 }}
               testID="blind-dictation-progress"
             >
-              Dictée en cours
+              {t('blind.dictationInProgress')}
               {dictationSpokenCount > 0 ? ` · ${dictationSpokenCount} / ${total}` : ''}
             </Text>
           )}
@@ -56,16 +58,16 @@ export function BlindDictationPhase() {
                 style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', marginTop: 10 }}
                 testID="blind-dictation-done"
               >
-                Dictée terminée
+                {t('blind.dictationDone')}
               </Text>
               <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 16 }}>
-                À ton tour
+                {t('blind.yourTurn')}
               </Text>
             </>
           )}
         </View>
         <AppButton
-          label="Rejouer la séquence"
+          label={t('blind.replaySequence')}
           variant="secondary"
           onPress={replayDictation}
           disabled={isSpeaking}
@@ -79,7 +81,7 @@ export function BlindDictationPhase() {
         >
           <Ionicons name="grid-outline" size={18} color={colors.primaryForeground} />
           <Text style={[blindStyles.ctaLabel, { color: colors.primaryForeground }]}>
-            Commencer la reconstruction
+            {t('blind.startReconstruction')}
           </Text>
         </Pressable>
       </View>

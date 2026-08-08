@@ -19,6 +19,7 @@ import { ChessCultureVisual } from '@/components/chessCulture/ChessCultureVisual
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import {
   CHESS_CULTURE_QUESTIONS,
@@ -37,6 +38,7 @@ type Phase = 'loading' | 'playing' | 'finished';
 
 export default function CultureGeneraleQuizScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const insets = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
   const router = useRouter();
@@ -141,8 +143,8 @@ export default function CultureGeneraleQuizScreen() {
     >
       <ScreenHeader
         onBack={() => router.back()}
-        title="Quiz"
-        subtitle="Culture échiquéenne — 10 questions mixtes"
+        title={t('quiz.quiz')}
+        subtitle={t('quiz.cultureMixed')}
         backTestID="culture-quiz-back"
       />
 
@@ -155,7 +157,7 @@ export default function CultureGeneraleQuizScreen() {
       {phase === 'playing' && current ? (
         <View style={styles.block}>
           <Text style={[styles.progress, { color: colors.mutedForeground }]}>
-            Question {index + 1} / {total}
+            {t('vision.questionProgress', { current: index + 1, total })}
           </Text>
           <View
             style={[styles.progressTrack, { backgroundColor: colors.border }]}
@@ -246,12 +248,14 @@ export default function CultureGeneraleQuizScreen() {
                 }}
               >
                 {selectedDisplayIndex === current.correctDisplayIndex
-                  ? 'Bonne réponse'
-                  : 'Mauvaise réponse'}
+                  ? t('quiz.goodAnswer')
+                  : t('quiz.badAnswer')}
               </Text>
               {selectedDisplayIndex !== current.correctDisplayIndex ? (
                 <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                  Bonne réponse : {current.displayAnswers[current.correctDisplayIndex]}
+                  {t('quiz.correctWas', {
+                    answer: current.displayAnswers[current.correctDisplayIndex],
+                  })}
                 </Text>
               ) : null}
               <Text style={[styles.explanation, { color: colors.mutedForeground }]}>
@@ -260,12 +264,12 @@ export default function CultureGeneraleQuizScreen() {
 
               <View style={styles.qualityBlock}>
                 <Text style={[styles.qualityLabel, { color: colors.mutedForeground }]}>
-                  Cette question était-elle correcte ?
+                  {t('quiz.wasQuestionCorrect')}
                 </Text>
                 <View style={styles.qualityRow}>
                   <Pressable
                     testID="culture-feedback-up"
-                    accessibilityLabel="Question correcte"
+                    accessibilityLabel={t('a11y.questionCorrect')}
                     onPress={() => void onFeedbackVote('up')}
                     style={({ pressed }) => [
                       styles.qualityBtn,
@@ -285,7 +289,7 @@ export default function CultureGeneraleQuizScreen() {
                   </Pressable>
                   <Pressable
                     testID="culture-feedback-down"
-                    accessibilityLabel="Question incorrecte / mauvaise qualité"
+                    accessibilityLabel={t('a11y.questionIncorrect')}
                     onPress={() => void onFeedbackVote('down')}
                     style={({ pressed }) => [
                       styles.qualityBtn,
@@ -320,7 +324,7 @@ export default function CultureGeneraleQuizScreen() {
                 ]}
               >
                 <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                  {isLast ? 'Voir les résultats' : 'Question suivante'}
+                  {isLast ? t('quiz.seeResults') : t('quiz.nextQuestion')}
                 </Text>
               </Pressable>
             </View>
@@ -331,16 +335,19 @@ export default function CultureGeneraleQuizScreen() {
       {phase === 'finished' ? (
         <View style={styles.results}>
           <Text style={[styles.resultsTitle, { color: colors.foreground }]}>
-            Quiz terminé
+            {t('quiz.finished')}
           </Text>
           {total === 0 ? (
             <Text style={{ color: colors.mutedForeground }}>
-              Aucune question disponible pour le moment.
+              {t('quiz.noQuestions')}
             </Text>
           ) : (
             <>
               <Text style={[styles.scoreLine, { color: colors.foreground }]}>
-                Score {scoreSummary.correct} / {scoreSummary.total}
+                {t('quiz.score', {
+                  correct: scoreSummary.correct,
+                  total: scoreSummary.total,
+                })}
               </Text>
               <Text style={[styles.percent, { color: colors.mutedForeground }]}>
                 {scoreSummary.percentage} %
@@ -359,7 +366,7 @@ export default function CultureGeneraleQuizScreen() {
             ]}
           >
             <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              Rejouer
+              {t('quiz.replay')}
             </Text>
           </Pressable>
           <Pressable
@@ -375,7 +382,7 @@ export default function CultureGeneraleQuizScreen() {
             ]}
           >
             <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-              Retour à Culture générale
+              {t('quiz.backToHub')}
             </Text>
           </Pressable>
         </View>

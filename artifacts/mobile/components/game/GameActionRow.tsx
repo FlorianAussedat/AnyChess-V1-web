@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
@@ -27,11 +28,36 @@ type Action = {
  */
 export function GameActionRow({ onRepeat, onUndo, onSummarize, onNewGame }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const actions: Action[] = [
-    { id: 'repeat', label: 'Répéter', icon: 'volume-medium-outline', onPress: onRepeat, testID: 'repeat-btn' },
-    { id: 'undo', label: 'Annuler', icon: 'arrow-undo-outline', onPress: onUndo, testID: 'undo-btn' },
-    { id: 'summary', label: 'Résumé', icon: 'list-outline', onPress: onSummarize, testID: 'summary-btn' },
-    { id: 'new', label: 'Nouvelle', icon: 'refresh-outline', onPress: onNewGame, testID: 'new-game-btn' },
+    {
+      id: 'repeat',
+      label: t('game.repeat'),
+      icon: 'volume-medium-outline',
+      onPress: onRepeat,
+      testID: 'repeat-btn',
+    },
+    {
+      id: 'undo',
+      label: t('game.undoAction'),
+      icon: 'arrow-undo-outline',
+      onPress: onUndo,
+      testID: 'undo-btn',
+    },
+    {
+      id: 'summary',
+      label: t('game.summary'),
+      icon: 'list-outline',
+      onPress: onSummarize,
+      testID: 'summary-btn',
+    },
+    {
+      id: 'new',
+      label: t('game.newShort'),
+      icon: 'refresh-outline',
+      onPress: onNewGame,
+      testID: 'new-game-btn',
+    },
   ];
 
   return (

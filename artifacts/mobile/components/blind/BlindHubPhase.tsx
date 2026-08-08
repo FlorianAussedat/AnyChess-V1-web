@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { HubModeCard } from '@/components/HubModeCard';
 import { blindStyles } from '@/components/blind/blindStyles';
@@ -9,27 +10,28 @@ import { useBlindSequence } from '@/contexts/BlindSequenceContext';
 
 export function BlindHubPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { selectSubmode } = useBlindSequence();
   const router = useRouter();
 
   return (
-    <ModeScreenShell title="Mémorisation" onBack={() => router.back()}>
+    <ModeScreenShell title={t('blind.title')} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
         <Text style={[blindStyles.lead, { color: colors.mutedForeground }]}>
-          Choisis un exercice. Les séquences sont générées par Stockfish (1 à 20 coups complets).
+          {t('blind.hubLead')}
         </Text>
 
         <HubModeCard
-          title="Écouter puis reconstruire"
-          description="Écoute une séquence, puis rejoue les coups sur l’échiquier."
+          title={t('blind.listenReconstruct')}
+          description={t('blind.listenReconstructDesc')}
           iconName="ear-outline"
           onPress={() => selectSubmode('listen-reconstruct')}
           testID="blind-mode-listen"
         />
 
         <HubModeCard
-          title="Regarder puis réciter"
-          description="Observe une séquence, puis récite les coups de mémoire."
+          title={t('blind.watchRecite')}
+          description={t('blind.watchReciteDesc')}
           iconName="eye-outline"
           onPress={() => selectSubmode('watch-recite')}
           testID="blind-mode-watch"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { computeBoardSize, type BoardSizeMode } from '@/lib/game/boardSize';
 
@@ -24,8 +25,10 @@ export function HiddenBoardPlaceholder({
   size,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const edge = size ?? computeBoardSize(width, sizeMode);
+  const hiddenLabel = t('a11y.boardHidden');
 
   return (
     <View
@@ -38,9 +41,9 @@ export function HiddenBoardPlaceholder({
         source={BrandAssets.toggles.boardOff}
         style={styles.boardIcon}
         resizeMode="contain"
-        accessibilityLabel="Échiquier masqué"
+        accessibilityLabel={hiddenLabel}
       />
-      <Text style={[styles.title, { color: colors.foreground }]}>Échiquier masqué</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>{hiddenLabel}</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         La partie continue normalement.
       </Text>

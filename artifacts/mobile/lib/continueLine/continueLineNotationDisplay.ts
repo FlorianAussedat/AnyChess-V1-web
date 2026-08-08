@@ -2,11 +2,13 @@
  * Pure UI-state helper for Continue la ligne notation cards.
  * Avoids duplicating the initial reference line before the first correct move.
  */
+import { tMsg } from '../i18n/tMsg.ts';
+
 export type ContinueLineNotationKind = 'start' | 'reached' | 'none';
 
 export type ContinueLineNotationDisplay = {
   kind: ContinueLineNotationKind;
-  /** Section heading for the card (French). */
+  /** Section heading for the card (UI language). */
   heading: string | null;
   /** SAN plies to render as numbered rows. */
   sans: string[];
@@ -28,13 +30,13 @@ export function continueLineNotationDisplay(
     }
     return {
       kind: 'start',
-      heading: 'Ligne de départ',
+      heading: tMsg('openings.startLine'),
       sans: [...preambleSans],
     };
   }
   return {
     kind: 'reached',
-    heading: 'Position atteinte',
+    heading: tMsg('openings.positionReached'),
     sans: [...preambleSans, ...recitedSans],
   };
 }

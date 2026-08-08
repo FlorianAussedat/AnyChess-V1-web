@@ -6,6 +6,7 @@ import React from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { resolveChessCultureImageSource } from '@/lib/chessCulture/visualRegistry';
 import type { ChessCulturePresentation } from '@/lib/chessCulture/types';
@@ -17,6 +18,7 @@ type Props = {
 
 export function ChessCultureVisual({ presentation, testID = 'culture-visual' }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const imageId = presentation?.imageId;
   const source = resolveChessCultureImageSource(imageId);
@@ -44,7 +46,7 @@ export function ChessCultureVisual({ presentation, testID = 'culture-visual' }: 
           source={source}
           style={{ width: '100%', height: maxHeight - 2 }}
           contentFit={fit}
-          accessibilityLabel={presentation?.imageAlt ?? 'Illustration'}
+          accessibilityLabel={presentation?.imageAlt ?? t('a11y.illustration')}
           recyclingKey={imageId}
         />
       </View>

@@ -17,6 +17,7 @@ import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { legalDestinationsForSquare } from '@/lib/game';
 import { defaultKeyValueStorage } from '@/lib/storage';
@@ -36,6 +37,7 @@ const styles = timedVisionStyles;
 
 export default function JouerLeCoupScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
@@ -147,13 +149,13 @@ export default function JouerLeCoupScreen() {
           sync();
           router.back();
         }}
-        title="Jouer le coup"
+        title={t('vision.jouer')}
         showSound
       />
 
       {snap.phase === 'idle' && (
         <TimedVisionStart
-          description="Joue le coup demandé sur l’échiquier, le plus rapidement possible, pendant 60 secondes."
+          description={t('vision.jouerIntro')}
           record={snap.previousRecord}
           onStart={() => void beginSession()}
           onRecords={goRecords}
@@ -182,7 +184,7 @@ export default function JouerLeCoupScreen() {
           </Text>
           {snap.lastFeedback === 'wrong' ? (
             <Text style={{ color: '#BE3030' }} testID="jouer-wrong">
-              Incorrect — réessaie
+              {t('vision.incorrectRetry')}
             </Text>
           ) : null}
           <View style={[styles.boardWrap, { width: boardSize }]}>
@@ -206,7 +208,7 @@ export default function JouerLeCoupScreen() {
         <TimedVisionResults
           score={snap.score.score}
           isNewRecord={snap.isNewRecord}
-          correctLabel="Coups correctement joués"
+          correctLabel={t('vision.playedCorrect')}
           correctCount={snap.score.correct}
           wrongCount={snap.score.wrong}
           record={Math.max(snap.previousRecord, snap.score.score)}

@@ -11,6 +11,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Props = {
   showRecognized: boolean;
@@ -33,6 +34,7 @@ export function GameMicButton({
   variant = 'default',
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const scale = useSharedValue(1);
   const compact = variant === 'compact';
 
@@ -56,19 +58,19 @@ export function GameMicButton({
   if (showRecognized) {
     micBg = '#27AE60';
     micIconName = 'checkmark-circle';
-    micLabel = compact ? 'OK' : 'Coup reconnu';
+    micLabel = compact ? 'OK' : t('a11y.moveRecognized');
   } else if (isListening) {
     micBg = '#C0392B';
     micIconName = 'mic';
-    micLabel = 'Écoute…';
+    micLabel = t('a11y.listening');
   } else if (micActive) {
     micBg = '#D4880A';
     micIconName = 'mic-outline';
-    micLabel = 'Parler';
+    micLabel = t('a11y.speak');
   } else {
     micBg = colors.primary;
     micIconName = 'mic-off-outline';
-    micLabel = 'Parler';
+    micLabel = t('a11y.speak');
   }
 
   return (

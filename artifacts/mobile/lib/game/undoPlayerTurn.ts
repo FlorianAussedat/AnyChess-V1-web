@@ -1,5 +1,6 @@
 import type { Chess, Move } from 'chess.js';
 import { verbalMove } from '../chessParser.ts';
+import { tMsg } from '../i18n/tMsg.ts';
 import type { LastMove, PlayerColor } from './types.ts';
 
 export type UndoPlayerTurnResult =
@@ -32,8 +33,8 @@ export function undoPlayerTurn(
       game.undo();
       return {
         kind: 'undone-to-start',
-        status: 'À toi de jouer.',
-        speak: 'Coup annulé. Début de la partie.',
+        status: tMsg('game.undoToStartStatus'),
+        speak: tMsg('game.undoToStartSpeak'),
       };
     }
     return { kind: 'noop' };
@@ -61,7 +62,7 @@ export function undoPlayerTurn(
       kind: 'undone',
       lastMove,
       status: announcement,
-      speak: `Coup annulé. Dernier coup de l'adversaire : ${announcement}`,
+      speak: tMsg('game.undoOpponentSpeak', { move: announcement }),
       plyAfter: remaining.length,
     };
   }
@@ -69,8 +70,8 @@ export function undoPlayerTurn(
   return {
     kind: 'undone',
     lastMove,
-    status: 'À toi de jouer.',
-    speak: 'Coup annulé. Début de la partie.',
+    status: tMsg('game.undoToStartStatus'),
+    speak: tMsg('game.undoToStartSpeak'),
     plyAfter: remaining.length,
   };
 }

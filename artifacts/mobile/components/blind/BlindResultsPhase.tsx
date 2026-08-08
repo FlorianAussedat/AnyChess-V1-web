@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ChessBoard } from '@/components/ChessBoard';
 import { AppButton } from '@/components/ui/AppButton';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
@@ -13,6 +14,7 @@ import { blindRecordFullMoves } from '@/lib/blind';
 
 export function BlindResultsPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const boardSize = useBoardSize('wide');
   const {
     score,
@@ -37,7 +39,7 @@ export function BlindResultsPhase() {
 
   if (!score) {
     return (
-      <ModeScreenShell title="Résultat" onBack={backToSettings}>
+      <ModeScreenShell title={t('blind.result')} onBack={backToSettings}>
         <ActivityIndicator color={colors.primary} />
       </ModeScreenShell>
     );
@@ -50,19 +52,19 @@ export function BlindResultsPhase() {
     score.correctOnFirstAttempt === score.totalHalfMoves &&
     recordEligible;
   const statusLine = perfect
-    ? 'Sans aide'
+    ? t('blind.withoutHelp')
     : score.helpsUsed > 0
-      ? 'Aide utilisée'
-      : 'Avec erreur';
+      ? t('blind.hintUsed')
+      : t('blind.withError');
 
   return (
-    <ModeScreenShell title="Résultat" onBack={() => router.push('/' as Href)}>
+    <ModeScreenShell title={t('blind.result')} onBack={() => router.push('/' as Href)}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
         <Text
           style={[blindStyles.scoreHero, { color: colors.primary }]}
           testID="blind-result-full-moves"
         >
-          {completedFullMoves} / {targetFullMoves} réussis
+          {t('blind.succeeded', { done: completedFullMoves, total: targetFullMoves })}
         </Text>
         <Text
           style={{
@@ -97,13 +99,13 @@ export function BlindResultsPhase() {
             }}
             testID="blind-new-record"
           >
-            Nouveau record : {targetFullMoves} coups complets
+            {t('blind.newRecord', { count: targetFullMoves })}
           </Text>
         ) : (
           <Text
             style={[blindStyles.recordLine, { color: colors.mutedForeground, textAlign: 'center' }]}
           >
-            Record : {modeRecordBest} coups complets
+            {t('blind.recordLine', { count: modeRecordBest })}
           </Text>
         )}
 
@@ -116,7 +118,7 @@ export function BlindResultsPhase() {
               fontSize: 12,
             }}
           >
-            Record non éligible pour cette tentative
+            {t('blind.recordIneligible')}
           </Text>
         )}
 
@@ -124,8 +126,8 @@ export function BlindResultsPhase() {
           <View style={{ alignItems: 'center', gap: 8, alignSelf: 'center', width: boardSize }}>
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
               {isReplaying
-                ? `Relecture ${observationIndex} / ${sequence.length}`
-                : 'Position finale'}
+                ? t('blind.replaying', { current: observationIndex, total: sequence.length })
+                : t('blind.finalPosition')}
             </Text>
             <ChessBoard
               board={board}
@@ -152,36 +154,36 @@ export function BlindResultsPhase() {
               marginBottom: 4,
             }}
           >
-            Détail
+            {t('blind.detail')}
           </Text>
           {perfect ? null : (
             <BlindStatRow
-              label="Coups corrects au premier essai"
+              label={t('blind.correctFirstTry')}
               value={score.correctOnFirstAttempt}
             />
           )}
           {submode === 'listen-reconstruct' ? (
             <>
-              <BlindStatRow label="Erreurs de pièce" value={score.wrongPiece} />
-              <BlindStatRow label="Erreurs de destination" value={score.wrongDestination} />
-              <BlindStatRow label="Erreurs d’ordre" value={score.wrongOrder} />
-              <BlindStatRow label="Aides utilisées" value={score.helpsUsed} />
+              <BlindStatRow label={t('blind.wrongPiece')} value={score.wrongPiece} />
+              <BlindStatRow label={t('blind.wrongDestination')} value={score.wrongDestination} />
+              <BlindStatRow label={t('blind.wrongOrder')} value={score.wrongOrder} />
+              <BlindStatRow label={t('blind.helpsUsed')} value={score.helpsUsed} />
             </>
           ) : (
             <>
-              <BlindStatRow label="Erreurs de coup" value={score.wrongMove} />
-              <BlindStatRow label="Erreurs d’ordre" value={score.wrongOrder} />
+              <BlindStatRow label={t('blind.wrongMove')} value={score.wrongMove} />
+              <BlindStatRow label={t('blind.wrongOrder')} value={score.wrongOrder} />
               <BlindStatRow
-                label="Erreurs de reconnaissance non comptabilisées"
+                label={t('blind.recognitionFailures')}
                 value={score.recognitionFailures}
               />
-              <BlindStatRow label="Aides utilisées" value={score.helpsUsed} />
+              <BlindStatRow label={t('blind.helpsUsed')} value={score.helpsUsed} />
             </>
           )}
         </View>
 
         <AppButton
-          label="Refaire la même séquence"
+          label={t('blind.retrySame')}
           variant="secondary"
           onPress={retrySameSequence}
           disabled={isReplaying}
@@ -190,7 +192,7 @@ export function BlindResultsPhase() {
 
         {submode === 'watch-recite' && (
           <AppButton
-            label="Revoir la séquence"
+            label={t('blind.reviewSequence')}
             variant="secondary"
             onPress={reviewSequenceVisually}
             disabled={isReplaying}
@@ -209,12 +211,12 @@ export function BlindResultsPhase() {
           ]}
         >
           <Text style={[blindStyles.ctaLabel, { color: colors.primaryForeground }]}>
-            Nouvelle séquence
+            {t('blind.newSequence')}
           </Text>
         </Pressable>
 
         <AppButton
-          label="Menu des exercices"
+          label={t('blind.exercisesMenu')}
           variant="secondary"
           onPress={backToHub}
           disabled={isReplaying}

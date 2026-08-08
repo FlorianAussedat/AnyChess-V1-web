@@ -18,6 +18,7 @@ import type { Move } from 'chess.js';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
@@ -65,6 +66,7 @@ function formatLine(
 export default function ContinueLineScreen() {
   useCancelSpeechOnLeave('/openings/continue');
   const colors = useColors();
+  const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
@@ -140,6 +142,7 @@ export default function ContinueLineScreen() {
   const speak = useCallback(
     (text: string) => {
       if (!soundEnabled) return;
+      // Intentional session override: continue-line voice speed is local to this exercise.
       speechService.speak(text, {
         flush: true,
         rate: voiceSpeedToRate(voiceSpeedRef.current),
@@ -150,7 +153,7 @@ export default function ContinueLineScreen() {
 
   const startExercise = useCallback(async () => {
     if (mixedFolderIds.length === 0) {
-      setLoadError('Dossier manquant.');
+      setLoadError(t('openings.folderIdMissing'));
       setLoading(false);
       return;
     }
@@ -164,14 +167,12 @@ export default function ContinueLineScreen() {
       for (const id of mixedFolderIds) {
         const folder = repertoireService.getFolder(id);
         if (!folder) {
-          setLoadError('Répertoire introuvable.');
+          setLoadError(t('openings.repertoireNotFound'));
           setLoading(false);
           return;
         }
         if (!folder.side) {
-          setLoadError(
-            `« ${folder.name} » n’a pas de côté enregistré. Ouvre le répertoire et indique Blancs ou Noirs.`,
-          );
+          setLoadError(t('openings.noSideAssigned', { name: folder.name }));
           setLoading(false);
           return;
         }
@@ -180,7 +181,7 @@ export default function ContinueLineScreen() {
         if (fileCount === 0 || rep.positionCount === 0) {
           setLoadError(
             issues[0]?.message ??
-              `« ${folder.name} » ne contient aucune position jouable.`,
+              t('openings.noPlayablePositions', { name: folder.name }),
           );
           setLoading(false);
           return;
@@ -194,10 +195,10 @@ export default function ContinueLineScreen() {
       if (pool.length === 0) {
         setLoadError(
           reviewSide === 'white'
-            ? 'Aucun répertoire Blancs à réviser.'
+            ? t('openings.noWhiteToReview')
             : reviewSide === 'black'
-              ? 'Aucun répertoire Noirs à réviser.'
-              : 'Aucun répertoire à réviser.',
+              ? t('openings.noBlackToReview')
+              : t('openings.noToReview'),
         );
         setLoading(false);
         return;
@@ -210,7 +211,7 @@ export default function ContinueLineScreen() {
       if (useMixed) {
         const pick = pickMixedLine(pool, { recentPathIds: recent });
         if (!pick) {
-          setLoadError('Impossible de tirer une ligne dans la sélection mixte.');
+          setLoadError(t('openings.mixedPickFailed'));
           setLoading(false);
           return;
         }
@@ -235,7 +236,7 @@ export default function ContinueLineScreen() {
 
       let next = session.snapshot();
       if (next.phase === 'error') {
-        setLoadError(next.errorMessage ?? 'Impossible de démarrer.');
+        setLoadError(next.errorMessage ?? t('openings.startFailed'));
         setLoading(false);
         setSnap(next);
         return;
@@ -260,15 +261,16 @@ export default function ContinueLineScreen() {
         const verbalCue =
           next.preambleSans.length > 0
             ? next.preambleSans.map((s) => sanToVerbal(s)).join('. ') +
-              `. Continue la ligne${sideHint}.`
-            : `Continue la ligne depuis le début${sideHint}.`;
+              '. ' +
+              t('openings.continueSpeak', { side: sideHint })
+            : t('openings.continueFromStartSpeak', { side: sideHint });
         speak(verbalCue);
       }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak]);
+  }, [mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak, t]);
 
   // Dedicated retry that keeps the current path if still available
   const retrySame = useCallback(async () => {
@@ -283,7 +285,7 @@ export default function ContinueLineScreen() {
       const activeId = activeFolderIdRef.current ?? mixedFolderIds[0];
       const folder = repertoireService.getFolder(activeId);
       if (!folder) {
-        setLoadError('Répertoire introuvable.');
+        setLoadError(t('openings.repertoireNotFound'));
         setLoading(false);
         return;
       }
@@ -306,15 +308,16 @@ export default function ContinueLineScreen() {
         speak(
           begun.snapshot.preambleSans.length > 0
             ? begun.snapshot.preambleSans.map((s) => sanToVerbal(s)).join('. ') +
-                '. Continue la ligne.'
-            : 'Continue la ligne.',
+                '. ' +
+                t('openings.continueSpeak', { side: '' })
+            : t('openings.continueSpeak', { side: '' }),
         );
       }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [mixedFolderIds, soundEnabled, speak, startExercise]);
+  }, [mixedFolderIds, soundEnabled, speak, startExercise, t]);
 
   useEffect(() => {
     startExercise();
@@ -340,14 +343,14 @@ export default function ContinueLineScreen() {
         session.recordRecognitionFailure();
         setFeedback(
           parsed.type === 'ambiguous'
-            ? 'Ambigu — reformule le coup (non compté comme erreur).'
-            : 'Non reconnu — réessaie (non compté comme erreur).',
+            ? t('openings.ambiguousRetry')
+            : t('openings.unrecognizedRetry'),
         );
         return;
       }
       if (parsed.type === 'illegal') {
         session.recordRecognitionFailure();
-        setFeedback('Coup non jouable ici — réessaie.');
+        setFeedback(t('openings.notPlayable'));
         return;
       }
 
@@ -358,10 +361,10 @@ export default function ContinueLineScreen() {
       if (result.kind === 'correct') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         if (result.snapshot.phase === 'completed') {
-          setFeedback('Ligne complète.');
-          speak('Ligne complète.');
+          setFeedback(t('openings.lineComplete'));
+          speak(t('openings.lineComplete'));
         } else {
-          setFeedback(`OK : ${formatSanForDisplay(move.san, chessNotation)}`);
+          setFeedback(t('openings.okMove', { san: formatSanForDisplay(move.san, chessNotation) }));
         }
         return;
       }
@@ -384,26 +387,29 @@ export default function ContinueLineScreen() {
         result.snapshot.startPly + result.snapshot.correctCount,
         chessNotation,
       );
+      const played = formatNumberedSanForDisplay(
+        formatNumberedSan(
+          result.snapshot.startPly + result.snapshot.correctCount,
+          result.snapshot.incorrectSan ?? '?',
+        ),
+        chessNotation,
+      );
       setFeedback(
-        `Votre coup : ${formatNumberedSanForDisplay(
-          formatNumberedSan(
-            result.snapshot.startPly + result.snapshot.correctCount,
-            result.snapshot.incorrectSan ?? '?',
-          ),
-          chessNotation,
-        )}\n\n` +
-          `Coup attendu sur cette ligne :\n• ${alts || '(aucun)'}\n\n` +
-          `Suite proposée :\n${suite || '(fin de ligne)'}`,
+        `${t('openings.yourMove', { move: played })}\n\n` +
+          `${t('openings.expectedOnLine')}\n• ${alts || t('openings.none')}\n\n` +
+          `${t('openings.proposedContinuation')}\n${suite || t('openings.endOfLine')}`,
       );
       if (soundEnabled) {
-        const verbal =
-          `Incorrect. Votre coup : ${sanToVerbal(result.snapshot.incorrectSan ?? '')}. ` +
-          `Suite proposée : ` +
-          result.snapshot.proposedContinuation.map((s) => sanToVerbal(s)).join('. ');
+        const verbal = t('openings.incorrectSpeak', {
+          move: sanToVerbal(result.snapshot.incorrectSan ?? ''),
+          suite: result.snapshot.proposedContinuation
+            .map((s) => sanToVerbal(s))
+            .join('. '),
+        });
         speak(verbal);
       }
     },
-    [chessNotation, soundEnabled, speak],
+    [chessNotation, soundEnabled, speak, t],
   );
 
   const applyRef = useRef(applyRaw);
@@ -428,7 +434,7 @@ export default function ContinueLineScreen() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ActivityIndicator color={colors.primary} />
-        <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>Préparation…</Text>
+        <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>{t('openings.preparing')}</Text>
       </View>
     );
   }
@@ -445,7 +451,7 @@ export default function ContinueLineScreen() {
           },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>Continue la ligne</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>{t('openings.continueLine')}</Text>
         <Text style={{ color: colors.mutedForeground, textAlign: 'center', marginTop: 8 }}>
           {loadError ?? snap.errorMessage}
         </Text>
@@ -454,7 +460,7 @@ export default function ContinueLineScreen() {
           style={[styles.btn, { backgroundColor: colors.primary, marginTop: 20 }]}
         >
           <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-            Retour au répertoire
+            {t('openings.returnToRepertoire')}
           </Text>
         </Pressable>
       </View>
@@ -474,7 +480,7 @@ export default function ContinueLineScreen() {
     >
       <ScreenHeader
         onBack={() => router.back()}
-        title="Continue la ligne"
+        title={t('openings.continueLine')}
         subtitle={`${snap.repertoireName}${
           snap.trainingSide ? ` · ${sideLabel(snap.trainingSide)}` : ''
         }`}
@@ -482,14 +488,14 @@ export default function ContinueLineScreen() {
       />
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>Statut</Text>
+        <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>{t('openings.status')}</Text>
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-          {snap.phase === 'reciting' && 'À toi de continuer'}
-          {snap.phase === 'completed' && 'Ligne complète'}
-          {snap.phase === 'failed' && 'Erreur — exercice arrêté'}
+          {snap.phase === 'reciting' && t('openings.yourTurnContinue')}
+          {snap.phase === 'completed' && t('openings.lineComplete')}
+          {snap.phase === 'failed' && t('openings.failed')}
         </Text>
         <Text style={{ color: colors.mutedForeground, marginTop: 4 }}>
-          Coups corrects : {snap.correctCount}
+          {t('openings.correctMoves', { count: snap.correctCount })}
         </Text>
       </View>
 
@@ -506,8 +512,9 @@ export default function ContinueLineScreen() {
               testID="continue-start-empty"
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_400Regular' }}>
-                Continue la ligne depuis le début
-                {snap.trainingSide ? ` (${sideLabel(snap.trainingSide)})` : ''}.
+                {t('openings.fromStart', {
+                  side: snap.trainingSide ? ` (${sideLabel(snap.trainingSide)})` : '',
+                })}
               </Text>
             </View>
           );
@@ -542,16 +549,16 @@ export default function ContinueLineScreen() {
         <>
           <DiscreteSlider
             testID="continue-voice-speed"
-            label="Vitesse de la voix (1–10)"
+            label={t('openings.voiceSpeedRange')}
             valueLabel={String(voiceSpeed)}
             minimumValue={VOICE_SPEED_MIN}
             maximumValue={VOICE_SPEED_MAX}
             step={1}
             value={voiceSpeed}
             onValueChange={setVoiceSpeed}
-            leftHint="Lent"
-            rightHint="Rapide"
-            accessibilityLabel="Vitesse de la voix"
+            leftHint={t('openings.slow')}
+            rightHint={t('openings.fast')}
+            accessibilityLabel={t('a11y.voiceSpeed')}
           />
 
           <Pressable
@@ -571,7 +578,7 @@ export default function ContinueLineScreen() {
               color={colors.primaryForeground}
             />
             <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              {micActive ? 'Écoute…' : 'Parler'}
+              {micActive ? t('a11y.listening') : t('a11y.speak')}
             </Text>
           </Pressable>
           {micStatus.message ? (
@@ -582,7 +589,7 @@ export default function ContinueLineScreen() {
             onSubmit={onPlayManual}
             enabled={snap.phase === 'reciting'}
             persistFocus={snap.phase === 'reciting'}
-            placeholder="Ex. Cf3, petit roque, e4…"
+            placeholder={t('openings.movePlaceholder')}
           />
         </>
       )}
@@ -594,7 +601,7 @@ export default function ContinueLineScreen() {
             style={[styles.btn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
             <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-              Rejouer la même ligne
+              {t('openings.replaySameLine')}
             </Text>
           </Pressable>
           <Pressable
@@ -602,7 +609,7 @@ export default function ContinueLineScreen() {
             style={[styles.btn, { backgroundColor: colors.primary }]}
           >
             <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-              Nouvelle ligne
+              {t('openings.newLine')}
             </Text>
           </Pressable>
           <Pressable
@@ -618,7 +625,7 @@ export default function ContinueLineScreen() {
             style={[styles.btn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
           >
             <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-              Retour au répertoire
+              {t('openings.returnToRepertoire')}
             </Text>
           </Pressable>
         </View>

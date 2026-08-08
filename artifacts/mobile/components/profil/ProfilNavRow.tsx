@@ -24,17 +24,28 @@ export function ProfilNavRow({
   const colors = useColors();
   const content = (
     <>
-      <Text style={[styles.label, { color: colors.foreground }]} numberOfLines={1}>
+      <Text
+        style={[styles.label, { color: colors.foreground }]}
+        numberOfLines={2}
+      >
         {label}
       </Text>
       <View style={styles.trailing}>
         {value ? (
-          <Text style={[styles.value, { color: colors.mutedForeground }]} numberOfLines={1}>
+          <Text
+            style={[styles.value, { color: colors.mutedForeground }]}
+            numberOfLines={2}
+          >
             {value}
           </Text>
         ) : null}
         {interactive ? (
-          <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={colors.mutedForeground}
+            style={styles.chevron}
+          />
         ) : null}
       </View>
     </>
@@ -83,18 +94,28 @@ const styles = StyleSheet.create({
     minHeight: DesignTokens.minTouchTarget,
   },
   label: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
     fontSize: 14,
     fontFamily: DesignTokens.typography.weightSemiBold,
   },
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     gap: 6,
-    maxWidth: '55%',
+    maxWidth: '48%',
   },
   value: {
+    flexShrink: 1,
+    minWidth: 0,
+    textAlign: 'right',
     fontSize: 13,
     fontFamily: DesignTokens.typography.weightRegular,
+  },
+  chevron: {
+    flexShrink: 0,
   },
 });

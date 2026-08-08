@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { ChessBoard } from '@/components/ChessBoard';
 import { PuzzleStatRow } from '@/components/puzzles/PuzzleStatRow';
@@ -13,11 +14,11 @@ import { formatSanLineForDisplay } from '@/lib/chess/notation';
 import {
   countPuzzleIndices,
   puzzleResultState,
-  puzzleResultTitle,
 } from '@/lib/puzzles';
 
 export function PuzzleResultsPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const boardSize = useBoardSize('wide');
   const { chessNotation } = usePreferences();
   const {
@@ -36,13 +37,18 @@ export function PuzzleResultsPhase() {
   const router = useRouter();
 
   const state = stats ? puzzleResultState(stats) : 'unsolved';
-  const title = puzzleResultTitle(state);
+  const title =
+    state === 'solved'
+      ? t('puzzle.solved')
+      : state === 'solved-with-help'
+        ? t('puzzle.solvedWithHelp')
+        : t('puzzle.unsolved');
   const indices = stats
     ? countPuzzleIndices(stats.helps, stats.nextMoveUses)
     : 0;
 
   return (
-    <ModeScreenShell title="Résultat" onBack={() => router.push('/' as Href)}>
+    <ModeScreenShell title={t('puzzle.result')} onBack={() => router.push('/' as Href)}>
       <ScrollView contentContainerStyle={puzzleStyles.body}>
         <Text
           style={[
@@ -62,7 +68,7 @@ export function PuzzleResultsPhase() {
             ]}
             testID="puzzle-solution-consulted"
           >
-            Solution consultée
+            {t('puzzle.solutionConsulted')}
           </Text>
         )}
 
@@ -72,7 +78,7 @@ export function PuzzleResultsPhase() {
             { color: colors.mutedForeground, textAlign: 'center' },
           ]}
         >
-          Série : {currentStreak}
+          {t('puzzle.streak', { count: currentStreak })}
         </Text>
 
         {!!stats && (
@@ -85,16 +91,16 @@ export function PuzzleResultsPhase() {
             {state !== 'unsolved' && (
               <>
                 <PuzzleStatRow
-                  label="Erreurs de coup"
+                  label={t('puzzle.wrongMoves')}
                   value={String(stats.wrongChessMoves)}
                 />
                 <PuzzleStatRow
-                  label="Erreurs de reconnaissance"
+                  label={t('puzzle.recognitionErrors')}
                   value={String(stats.recognitionFailures)}
                 />
               </>
             )}
-            <PuzzleStatRow label="Indices utilisés" value={String(indices)} />
+            <PuzzleStatRow label={t('puzzle.hintsUsed')} value={String(indices)} />
           </View>
         )}
 
@@ -130,7 +136,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={[puzzleStyles.ctaLabel, { color: colors.primaryForeground }]}>
-            Problème suivant
+            {t('puzzle.nextPuzzle')}
           </Text>
         </Pressable>
 
@@ -147,7 +153,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Refaire ce problème
+            {t('puzzle.retryPuzzle')}
           </Text>
         </Pressable>
 
@@ -164,7 +170,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Rejouer la solution
+            {t('puzzle.replaySolution')}
           </Text>
         </Pressable>
 
@@ -176,7 +182,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Menu des problèmes
+            {t('puzzle.menu')}
           </Text>
         </Pressable>
       </ScrollView>

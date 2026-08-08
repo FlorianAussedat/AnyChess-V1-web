@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
 import { filterFoldersByReviewSide } from '@/lib/repertoire';
@@ -24,6 +25,7 @@ import { MixedTrainingModal } from '@/components/openings/MixedTrainingModal';
 
 export default function OpeningsFolderList() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
 
@@ -136,11 +138,7 @@ export default function OpeningsFolderList() {
 
   const confirmDelete = useCallback(
     (folder: RepertoireFolder) => {
-      const fileCount = getFiles(folder.id).length;
-      const message =
-        fileCount > 0
-          ? `Supprimer « ${folder.name} » et ses ${fileCount} fichier${fileCount > 1 ? 's' : ''} PGN ? Cette action est irréversible.`
-          : `Supprimer le dossier « ${folder.name} » ?`;
+      const message = t('openings.deleteFolderBody', { name: folder.name });
 
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && window.confirm(message)) {
@@ -149,10 +147,10 @@ export default function OpeningsFolderList() {
         return;
       }
 
-      Alert.alert('Supprimer le dossier', message, [
-        { text: 'Annuler', style: 'cancel' },
+      Alert.alert(t('openings.deleteFolderTitle'), message, [
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('profil.erase'),
           style: 'destructive',
           onPress: () => {
             deleteFolder(folder.id).catch(() => {});
@@ -160,7 +158,7 @@ export default function OpeningsFolderList() {
         },
       ]);
     },
-    [deleteFolder, getFiles],
+    [deleteFolder, t],
   );
 
   const renderFolderRow = useCallback(
@@ -193,8 +191,8 @@ export default function OpeningsFolderList() {
     >
       <ScreenHeader
         onBack={() => router.back()}
-        title="Ouvertures"
-        subtitle="Répertoires PGN"
+        title={t('openings.title')}
+        subtitle={t('openings.repertoires')}
         backTestID="openings-back"
         trailing={
           <Pressable
@@ -207,7 +205,7 @@ export default function OpeningsFolderList() {
           >
             <Ionicons name="add" size={18} color={colors.primaryForeground} />
             <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
-              Nouveau
+              {t('openings.new')}
             </Text>
           </Pressable>
         }
@@ -236,10 +234,10 @@ export default function OpeningsFolderList() {
         <View style={styles.centered}>
           <Ionicons name="folder-open-outline" size={48} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            Aucun répertoire
+            {t('openings.emptyTitle')}
           </Text>
           <Text style={[styles.emptyMsg, { color: colors.mutedForeground }]}>
-            Crée un dossier (ex. Dragon accéléré, Caro-Kann) puis importe tes fichiers PGN.
+            {t('openings.emptyBody')}
           </Text>
         </View>
       ) : (
@@ -247,7 +245,7 @@ export default function OpeningsFolderList() {
           {whiteFolders.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
-                RÉPERTOIRE BLANCS
+                {t('openings.sectionWhite')}
               </Text>
               {whiteFolders.map(renderFolderRow)}
             </View>
@@ -255,7 +253,7 @@ export default function OpeningsFolderList() {
           {blackFolders.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
-                RÉPERTOIRE NOIRS
+                {t('openings.sectionBlack')}
               </Text>
               {blackFolders.map(renderFolderRow)}
             </View>
@@ -263,10 +261,10 @@ export default function OpeningsFolderList() {
           {unassignedFolders.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
-                SANS CÔTÉ
+                {t('openings.sectionUnassigned')}
               </Text>
               <Text style={[styles.sectionHint, { color: colors.mutedForeground }]}>
-                Ouvre chaque dossier et choisis « Je joue Blancs » ou « Je joue Noirs » à l’import.
+                {t('openings.sectionUnassignedHint')}
               </Text>
               {unassignedFolders.map(renderFolderRow)}
             </View>
@@ -276,28 +274,28 @@ export default function OpeningsFolderList() {
 
       <NameModal
         visible={createOpen}
-        title="Nouveau répertoire"
-        placeholder="Ex. Dragon accéléré"
+        title={t('openings.newRepertoire')}
+        placeholder={t('openings.namePlaceholder')}
         value={nameDraft}
         onChangeText={setNameDraft}
         onCancel={() => setCreateOpen(false)}
         onSubmit={submitCreate}
         busy={busy}
         error={formError}
-        submitLabel="Créer"
+        submitLabel={t('openings.create')}
       />
 
       <NameModal
         visible={renameTarget != null}
-        title="Renommer le répertoire"
-        placeholder="Nouveau nom"
+        title={t('openings.renameRepertoire')}
+        placeholder={t('openings.renamePlaceholder')}
         value={nameDraft}
         onChangeText={setNameDraft}
         onCancel={() => setRenameTarget(null)}
         onSubmit={submitRename}
         busy={busy}
         error={formError}
-        submitLabel="Enregistrer"
+        submitLabel={t('common.save')}
       />
 
       <MixedTrainingModal

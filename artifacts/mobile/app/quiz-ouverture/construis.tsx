@@ -13,6 +13,7 @@ import { useBoardSize } from '@/hooks/useBoardSize';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { replayLine, type ReplayLineHandle } from '@/lib/replay';
@@ -124,6 +125,7 @@ function Dropdown({
 
 export default function ConstruisOuvertureScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { chessNotation } = usePreferences();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
@@ -211,7 +213,7 @@ export default function ConstruisOuvertureScreen() {
       },
       onComplete: () => {
         setIsReplaying(false);
-        if (promptRestart) setPostReplayHint('À toi de recommencer');
+        if (promptRestart) setPostReplayHint(t('quiz.yourTurnRestart'));
       },
     });
   }
@@ -315,19 +317,15 @@ export default function ConstruisOuvertureScreen() {
           replayHandle.current?.cancel();
           router.back();
         }}
-        title="Construis l’ouverture"
-        subtitle={
-          inTraining
-            ? undefined
-            : 'Joue la ligne de référence exacte, coup par coup.'
-        }
+        title={t('quiz.construis')}
+        subtitle={inTraining ? undefined : t('quiz.buildSubtitle')}
         showSound
       />
 
       {configExpanded && (
         <View style={{ gap: 8 }} testID="construis-selection">
           <Dropdown
-            label="OUVERTURE"
+            label={t('quiz.opening')}
             value={family}
             options={families}
             onSelect={selectFamily}
@@ -335,7 +333,7 @@ export default function ConstruisOuvertureScreen() {
           />
           {variations.length > 0 && target && (
             <Dropdown
-              label="VARIATION"
+              label={t('quiz.variation')}
               value={target.identity.name}
               options={variations.map((v) => v.identity.name)}
               onSelect={selectVariation}
@@ -343,7 +341,7 @@ export default function ConstruisOuvertureScreen() {
             />
           )}
           <AppButton
-            label="Aléatoire"
+            label={t('common.random')}
             onPress={pickRandom}
             variant="secondary"
             testID="construis-random"
@@ -389,7 +387,7 @@ export default function ConstruisOuvertureScreen() {
                 fontSize: 13,
               }}
             >
-              Changer
+              {t('quiz.change')}
             </Text>
           </Pressable>
         </View>
@@ -419,15 +417,23 @@ export default function ConstruisOuvertureScreen() {
       {inTraining && snap && (
         <View style={{ gap: 10 }}>
           <Text style={{ color: colors.mutedForeground }}>
-            Joué : {snap.playedSans.join(' ') || '—'}
+            {t('quiz.played', {
+              moves:
+                snap.playedSans
+                  .map((san) => formatSanForDisplay(san, chessNotation))
+                  .join(' ') || '—',
+            })}
           </Text>
 
           {snap.phase === 'playing' && !!snap.feedback && (
             <Text
               style={{
-                color: snap.feedback === 'Correct.' ? '#398a55' : colors.mutedForeground,
+                color:
+                  snap.feedback === t('quiz.correct')
+                    ? '#398a55'
+                    : colors.mutedForeground,
                 fontFamily:
-                  snap.feedback === 'Correct.'
+                  snap.feedback === t('quiz.correct')
                     ? DesignTokens.typography.weightSemiBold
                     : DesignTokens.typography.weightRegular,
               }}
@@ -445,11 +451,13 @@ export default function ConstruisOuvertureScreen() {
                   fontSize: 16,
                 }}
               >
-                Incorrect
+                {t('common.incorrect')}
               </Text>
               {!!snap.expectedSan && (
                 <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                  Attendu : {formatSanForDisplay(snap.expectedSan, chessNotation)}
+                  {t('quiz.expected', {
+                    san: formatSanForDisplay(snap.expectedSan, chessNotation),
+                  })}
                 </Text>
               )}
             </View>
@@ -469,7 +477,7 @@ export default function ConstruisOuvertureScreen() {
 
           {isReplaying && (
             <Text style={{ color: colors.mutedForeground }} testID="construis-replaying">
-              Relecture de l’ouverture…
+              {t('quiz.replaying')}
             </Text>
           )}
 
@@ -485,7 +493,7 @@ export default function ConstruisOuvertureScreen() {
                 onSubmit={answer}
                 enabled={!isReplaying}
                 persistFocus
-                placeholder="Dicte ou écris le coup"
+                placeholder={t('quiz.dictatePlaceholder')}
               />
               <GameMicButton
                 showRecognized={showRecognizedFlash}
@@ -499,14 +507,14 @@ export default function ConstruisOuvertureScreen() {
           ) : (
             <View style={{ gap: 8 }}>
               <AppButton
-                label="Revoir l’ouverture"
+                label={t('quiz.reviewOpening')}
                 variant="secondary"
                 onPress={reviewOpening}
                 disabled={isReplaying}
                 testID="construis-review"
               />
               <AppButton
-                label="Recommencer"
+                label={t('common.restart')}
                 onPress={restartTraining}
                 disabled={isReplaying}
                 testID="construis-restart"

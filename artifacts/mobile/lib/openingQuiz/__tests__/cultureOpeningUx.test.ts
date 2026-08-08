@@ -85,7 +85,7 @@ describe('quelle ouverture harmonization', () => {
 describe('culture quiz polish', () => {
   it('keeps immediate feedback and places visual between question and answers', () => {
     const src = readFileSync(join(quizDir, 'culture.tsx'), 'utf8');
-    assert.match(src, /Bonne réponse|Mauvaise réponse/);
+    assert.match(src, /Bonne réponse|Mauvaise réponse|quiz\.goodAnswer|quiz\.badAnswer/);
     assert.match(src, /culture-progress-bar/);
     assert.match(src, /sizeMode=["']wide["']/);
     // Question text appears before ChessCultureVisual / board in source order.

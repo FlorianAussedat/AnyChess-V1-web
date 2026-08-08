@@ -16,6 +16,7 @@ import {
 } from './voice/index.ts';
 import type { AppLanguage } from './preferences/types.ts';
 import { preferencesStore } from './preferences/PreferencesStore.ts';
+import { tMsg } from './i18n/tMsg.ts';
 
 export { CHESS_CONTEXT_STRINGS };
 export { normalizeTranscript as normalize };
@@ -162,12 +163,12 @@ export function sanToVerbal(san: string, language?: AppLanguage): string {
 /** Produce a status/announcement for end-of-game and check conditions. */
 export function gameStateAnnouncement(game: Chess, prefix = ''): string {
   const base = prefix ? prefix + ' ' : '';
-  if (game.isCheckmate()) return (base + 'Échec et mat. Partie terminée.').trim();
-  if (game.isStalemate()) return (base + 'Pat. Partie nulle.').trim();
-  if (game.isThreefoldRepetition()) return (base + 'Partie nulle par répétition.').trim();
-  if (game.isInsufficientMaterial()) return (base + 'Partie nulle, matériel insuffisant.').trim();
-  if (game.isDraw()) return (base + 'Partie nulle.').trim();
-  if (game.isCheck()) return (base + 'Échec.').trim();
+  if (game.isCheckmate()) return (base + tMsg('game.checkmate')).trim();
+  if (game.isStalemate()) return (base + tMsg('game.stalemate')).trim();
+  if (game.isThreefoldRepetition()) return (base + tMsg('game.drawRepetition')).trim();
+  if (game.isInsufficientMaterial()) return (base + tMsg('game.drawMaterial')).trim();
+  if (game.isDraw()) return (base + tMsg('game.draw')).trim();
+  if (game.isCheck()) return (base + tMsg('game.check')).trim();
   return prefix.trim();
 }
 

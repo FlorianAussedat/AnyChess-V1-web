@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { StoredPgnFile, RepertoireSide } from '@/lib/repertoire';
@@ -28,6 +29,7 @@ import { PgnFileDetailModal } from '@/components/openings/PgnFileDetailModal';
 
 export default function FolderDetailScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { folderId } = useLocalSearchParams<{ folderId: string }>();
@@ -136,7 +138,7 @@ export default function FolderDetailScreen() {
   const submitImport = useCallback(async () => {
     if (!folderId) return;
     if (!folder?.side && !importSide) {
-      setFormError('Indique de quel côté tu travailles ce répertoire.');
+      setFormError(t('openings.importSideRequired'));
       return;
     }
     setBusy(true);
@@ -165,21 +167,21 @@ export default function FolderDetailScreen() {
     } finally {
       setBusy(false);
     }
-  }, [folderId, folder?.side, importSide, filename, pgnText, replaceTarget, importPgn, replacePgn, setFolderSide]);
+  }, [folderId, folder?.side, importSide, filename, pgnText, replaceTarget, importPgn, replacePgn, setFolderSide, t]);
 
   const confirmDeleteFile = useCallback(
     (file: StoredPgnFile) => {
-      const message = `Retirer « ${file.filename} » de ce répertoire ? Le dossier lui-même sera conservé.`;
+      const message = t('openings.removeFileBody', { name: file.filename });
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && window.confirm(message)) {
           deletePgn(file.id).catch(() => {});
         }
         return;
       }
-      Alert.alert('Retirer le fichier', message, [
-        { text: 'Annuler', style: 'cancel' },
+      Alert.alert(t('openings.removeFileTitle'), message, [
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Retirer',
+          text: t('profil.erase'),
           style: 'destructive',
           onPress: () => {
             deletePgn(file.id).catch(() => {});
@@ -187,7 +189,7 @@ export default function FolderDetailScreen() {
         },
       ]);
     },
-    [deletePgn],
+    [deletePgn, t],
   );
 
   const onPickFile = useCallback(async () => {
@@ -198,9 +200,9 @@ export default function FolderDetailScreen() {
       setFilename(picked.filename);
       setPgnText(picked.text);
     } catch {
-      setFormError('Impossible de lire le fichier.');
+      setFormError(t('openings.fileReadError'));
     }
-  }, []);
+  }, [t]);
 
   const onToggleEnabled = useCallback(
     (file: StoredPgnFile) => {
@@ -221,7 +223,7 @@ export default function FolderDetailScreen() {
   if (!folder) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title="Dossier introuvable" />
+        <ScreenHeader onBack={() => router.back()} title={t('openings.folderMissing')} />
       </View>
     );
   }
@@ -240,7 +242,7 @@ export default function FolderDetailScreen() {
       <ScreenHeader
         onBack={() => router.back()}
         title={folder.name}
-        subtitle={`${files.length} fichier${files.length !== 1 ? 's' : ''} PGN${
+        subtitle={`${t('openings.filesCount', { count: files.length })}${
           folder.side ? ` · ${sideLabel(folder.side)}` : ''
         }`}
         trailing={
@@ -258,36 +260,35 @@ export default function FolderDetailScreen() {
             testID="import-pgn-btn"
           >
             <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
-            <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>Importer</Text>
+            <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>{t('openings.import')}</Text>
           </Pressable>
         }
       />
 
       <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-        Plusieurs PGN dans ce dossier seront fusionnés en un seul arbre de répertoire
-        (transpositions reconnues, doublons évités).
+        {t('openings.folderHint')}
       </Text>
 
       <View style={styles.exerciseBlock}>
-        <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>Exercices</Text>
+        <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>{t('openings.exercises')}</Text>
         <HubModeCard
-          title="Jouer contre le répertoire"
-          description="L’adversaire suit tes lignes importées, puis Stockfish hors livre."
+          title={t('openings.playVsRepertoire')}
+          description={t('openings.playVsDesc')}
           iconName="play-circle-outline"
           onPress={() => ensureSideThen('play')}
           disabled={!canPlay}
           testID="play-opening-btn"
         />
         <HubModeCard
-          title="Continue la ligne"
-          description="Récite la suite d’une branche choisie dans ce répertoire."
+          title={t('openings.continueLine')}
+          description={t('openings.continueLineDesc')}
           iconName="mic-outline"
           onPress={() => ensureSideThen('continue')}
           disabled={!canPlay}
           testID="continue-line-btn"
         />
         <Text style={[styles.exerciseHeading, { color: colors.foreground, marginTop: 8 }]}>
-          Gérer les PGN
+          {t('openings.managePgn')}
         </Text>
       </View>
 
@@ -295,10 +296,10 @@ export default function FolderDetailScreen() {
         <View style={styles.centered}>
           <Ionicons name="document-outline" size={44} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            Aucun PGN importé
+            {t('errors.noPgn')}
           </Text>
           <Text style={[styles.emptyMsg, { color: colors.mutedForeground }]}>
-            Importe un ou plusieurs fichiers .pgn (collage ou sélection de fichier).
+            {t('openings.emptyPgnBody')}
           </Text>
         </View>
       ) : (

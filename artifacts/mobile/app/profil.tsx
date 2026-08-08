@@ -206,7 +206,7 @@ export default function ProfileScreen() {
           value={
             repertoireCount === 0
               ? t('profil.repertoiresNone')
-              : `${repertoireCount} ${language === 'en' ? (repertoireCount > 1 ? 'repertoires' : 'repertoire') : `répertoire${repertoireCount > 1 ? 's' : ''}`}`
+              : t('profil.repertoiresCount', { count: repertoireCount })
           }
           onPress={() => router.push('/openings')}
           testID="profil-row-repertoires"

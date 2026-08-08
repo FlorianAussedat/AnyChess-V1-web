@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { RepertoireFolder } from '@/lib/repertoire';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 
@@ -15,6 +16,7 @@ type Props = {
 
 export function FolderListRow({ folder, fileCount, onOpen, onRename, onDelete }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onOpen}
@@ -35,8 +37,8 @@ export function FolderListRow({ folder, fileCount, onOpen, onRename, onDelete }:
         <Text style={[styles.cardTitle, { color: colors.foreground }]}>{folder.name}</Text>
         <Text style={[styles.cardMeta, { color: colors.mutedForeground }]}>
           {fileCount === 0
-            ? 'Aucun fichier PGN'
-            : `${fileCount} fichier${fileCount > 1 ? 's' : ''} PGN`}
+            ? t('openings.noPgnFiles')
+            : t('openings.pgnFileCount', { count: fileCount })}
           {folder.side ? ` · ${sideLabel(folder.side)}` : ''}
         </Text>
       </View>

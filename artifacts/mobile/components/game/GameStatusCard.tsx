@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Props = {
   status: string;
@@ -19,17 +20,19 @@ export function GameStatusCard({
   heardText,
   isGameOver,
   isOpponentThinking,
-  thinkingLabel = "L'adversaire réfléchit…",
+  thinkingLabel,
   composeText = null,
   compact = false,
   testID = 'game-status-card',
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
+  const resolvedThinkingLabel = thinkingLabel ?? t('game.opponentThinking');
   const composing = !!composeText && composeText.length > 0;
   const primary = composing
     ? composeText
     : isOpponentThinking
-      ? thinkingLabel
+      ? resolvedThinkingLabel
       : status;
 
   return (
@@ -62,7 +65,7 @@ export function GameStatusCard({
       </Text>
       {!composing && !!heardText && (
         <Text numberOfLines={1} style={[styles.heardText, { color: '#7BC8FF' }]}>
-          Entendu : {heardText}
+          {t('game.heard', { text: heardText })}
         </Text>
       )}
     </View>

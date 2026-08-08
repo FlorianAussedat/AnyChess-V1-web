@@ -1,4 +1,5 @@
 import type { PlayerColor } from '../game/types.ts';
+import { tMsg } from '../i18n/tMsg.ts';
 
 /**
  * Board viewpoint for Nommer le coup (display only).
@@ -7,7 +8,9 @@ import type { PlayerColor } from '../game/types.ts';
 export type BoardPerspective = PlayerColor;
 
 export function boardPerspectiveLabel(perspective: BoardPerspective): string {
-  return perspective === 'w' ? 'Vision côté Blancs' : 'Vision côté Noirs';
+  return perspective === 'w'
+    ? tMsg('game.perspectiveWhite')
+    : tMsg('game.perspectiveBlack');
 }
 
 export function isFlippedForPerspective(perspective: BoardPerspective): boolean {

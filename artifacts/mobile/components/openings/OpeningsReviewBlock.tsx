@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { ReviewSideFilter } from '@/lib/repertoire';
 
 type Props = {
@@ -16,12 +17,14 @@ export function OpeningsReviewBlock({
   onOpenMixed,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <View style={[styles.mixedBlock, { borderColor: colors.border, backgroundColor: colors.card }]}>
-      <Text style={[styles.mixedTitle, { color: colors.foreground }]}>Révision</Text>
+      <Text style={[styles.mixedTitle, { color: colors.foreground }]}>
+        {t('openings.review')}
+      </Text>
       <Text style={[styles.mixedHint, { color: colors.mutedForeground }]}>
-        Continue la ligne sur un ou plusieurs répertoires — l’orientation suit le côté de chaque
-        ligne.
+        {t('openings.reviewHint')}
       </Text>
       <View style={styles.reviewRow}>
         <Pressable
@@ -39,7 +42,7 @@ export function OpeningsReviewBlock({
           <Text
             style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}
           >
-            Tout réviser
+            {t('openings.reviewAll')}
           </Text>
         </Pressable>
         <Pressable
@@ -57,7 +60,7 @@ export function OpeningsReviewBlock({
           testID="review-white-btn"
         >
           <Text style={[styles.reviewBtnLabelMuted, { color: colors.foreground }]}>
-            Réviser Blancs
+            {t('openings.reviewWhite')}
           </Text>
         </Pressable>
         <Pressable
@@ -75,7 +78,7 @@ export function OpeningsReviewBlock({
           testID="review-black-btn"
         >
           <Text style={[styles.reviewBtnLabelMuted, { color: colors.foreground }]}>
-            Réviser Noirs
+            {t('openings.reviewBlack')}
           </Text>
         </Pressable>
       </View>
@@ -94,7 +97,7 @@ export function OpeningsReviewBlock({
       >
         <Ionicons name="shuffle-outline" size={18} color={colors.foreground} />
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-          Sélection personnalisée…
+          {t('openings.customSelection')}
         </Text>
       </Pressable>
     </View>

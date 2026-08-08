@@ -5,6 +5,7 @@ import {
   analyzeDeviation,
   type DeviationAnalysis,
 } from '@/lib/repertoire/RepertoireDeviationAnalyzer';
+import { tMsg } from '@/lib/i18n';
 import { formatNumberedSan } from './formatNumberedSan';
 import { OpeningMoveProvider, StockfishMoveProvider } from './MoveProviders';
 
@@ -16,7 +17,7 @@ export interface TheoryExit {
   /** 0-based half-move index of the move that triggered the exit. */
   ply: number;
   san: string;
-  /** Human-readable French message. */
+  /** Human-readable message (app language); numbered SAN stays English for TTS. */
   message: string;
   /** Compact PGN comment body (without braces). */
   pgnComment: string;
@@ -38,7 +39,7 @@ function buildTheoryExit(
       kind,
       ply,
       san,
-      message: `Vous êtes sorti de la théorie avec ${numbered}.`,
+      message: tMsg('openings.theoryDeviation', { move: numbered }),
       pgnComment: `Sortie du répertoire avec ${numbered}`,
       analysis,
     };
@@ -47,7 +48,7 @@ function buildTheoryExit(
     kind,
     ply,
     san,
-    message: 'Ligne théorique complète.',
+    message: tMsg('openings.theoryComplete'),
     pgnComment: `Fin de la ligne théorique importée après ${numbered}`,
   };
 }

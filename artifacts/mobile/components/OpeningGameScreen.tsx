@@ -14,6 +14,8 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   useBoardTouchSelection,
   useMoveEventFeedback,
@@ -32,6 +34,8 @@ import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
 import { pairMoveHistory } from '@/lib/game';
+import { formatNumberedSan } from '@/lib/moves/OpeningOpponent';
+import { formatNumberedSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { BrandAssets } from '@/constants/BrandAssets';
@@ -42,6 +46,8 @@ export function OpeningGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const { chessNotation } = usePreferences();
+  const { t } = useTranslation();
   const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave('/openings/play');
 
@@ -113,15 +119,26 @@ export function OpeningGameScreen() {
   });
 
   const moveRows = pairMoveHistory(history);
-  const campLabel = playerColor === 'w' ? 'Blancs' : 'Noirs';
-  const phaseLabel = phase === 'book' ? 'Théorie' : 'Stockfish';
-  const headerTitle = repertoireName || 'Répertoire';
+  const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
+  const phaseLabel = phase === 'book' ? t('openings.theory') : t('openings.stockfish');
+  const headerTitle = repertoireName || t('openings.repertoire');
   const headerSubtitle = `${campLabel} · ${phaseLabel}`;
+  const theoryExitDisplay =
+    theoryExit == null
+      ? null
+      : theoryExit.kind === 'player-deviation'
+        ? t('openings.theoryDeviation', {
+            move: formatNumberedSanForDisplay(
+              formatNumberedSan(theoryExit.ply, theoryExit.san),
+              chessNotation,
+            ),
+          })
+        : t('openings.theoryComplete');
 
   if (loadError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title="Répertoire" />
+        <ScreenHeader onBack={() => router.back()} title={t('openings.repertoire')} />
         <Text style={[styles.errorText, { color: colors.destructive }]}>{loadError}</Text>
       </View>
     );
@@ -142,7 +159,7 @@ export function OpeningGameScreen() {
         <View style={styles.loadingBody}>
           <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.mutedForeground, marginTop: 12, fontFamily: 'Inter_400Regular' }}>
-            Chargement du répertoire…
+            {t('openings.loadingRepertoire')}
           </Text>
         </View>
       </View>
@@ -170,7 +187,9 @@ export function OpeningGameScreen() {
           !boardVisible ? (
             <View
               style={styles.sideIndicator}
-              accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
+              accessibilityLabel={
+                playerColor === 'w' ? t('common.whites') : t('common.blacks')
+              }
               testID="opening-side-indicator"
             >
               <Image
@@ -191,7 +210,7 @@ export function OpeningGameScreen() {
         }
       />
 
-      {theoryExit && (
+      {theoryExit && theoryExitDisplay && (
         <View
           style={[
             styles.theoryBanner,
@@ -202,7 +221,7 @@ export function OpeningGameScreen() {
           ]}
         >
           <Text style={[styles.theoryText, { color: colors.foreground }]} numberOfLines={2}>
-            {theoryExit.message}
+            {theoryExitDisplay}
           </Text>
           {theoryExit.kind === 'player-deviation' && theoryExit.analysis && (
             <Pressable onPress={() => setTheoryOpen(true)} hitSlop={6}>
@@ -214,7 +233,7 @@ export function OpeningGameScreen() {
                   marginTop: 4,
                 }}
               >
-                Voir la ligne théorique
+                {t('openings.viewTheoryLine')}
               </Text>
             </Pressable>
           )}
@@ -266,7 +285,11 @@ export function OpeningGameScreen() {
         heardText={heardText}
         isGameOver={isGameOver}
         isOpponentThinking={isOpponentThinking}
-        thinkingLabel={phase === 'book' ? 'Répertoire…' : "L'adversaire réfléchit…"}
+        thinkingLabel={
+          phase === 'book'
+            ? t('openings.repertoireThinking')
+            : t('game.opponentThinking')
+        }
       />
 
       <GameMicButton
@@ -281,14 +304,14 @@ export function OpeningGameScreen() {
         onSubmit={(text) => applyRef.current(text)}
         enabled={canAct}
         persistFocus={canAct}
-        placeholder="Ex. e4, Cf3, petit roque…"
+        placeholder={t('openings.movePlaceholder')}
         testID="opening-manual-input"
       />
 
       <GameMoveHistoryCard
         moveRows={moveRows}
         opening={openingIdentity}
-        emptyMessage="L’adversaire suit ton répertoire"
+        emptyMessage={t('openings.followsRepertoire')}
         onExportPress={() => {
           setExportedText(exportPgn());
           setExportOpen(true);

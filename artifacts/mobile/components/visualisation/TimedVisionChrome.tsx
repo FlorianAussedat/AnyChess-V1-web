@@ -5,6 +5,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 
 export function TimedVisionStart({
@@ -21,6 +22,7 @@ export function TimedVisionStart({
   startTestID: string;
 }) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <View style={styles.gap} testID="timed-vision-start">
       <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', lineHeight: 20 }}>
@@ -30,11 +32,11 @@ export function TimedVisionStart({
         style={{ color: colors.foreground, fontFamily: DesignTokens.typography.weightSemiBold }}
         testID="timed-vision-record"
       >
-        Record actuel : {record}
+        {t('vision.currentRecord', { record })}
       </Text>
-      <AppButton label="Commencer" onPress={onStart} testID={startTestID} />
+      <AppButton label={t('common.start')} onPress={onStart} testID={startTestID} />
       <AppButton
-        label="Voir les records"
+        label={t('vision.viewRecords')}
         variant="secondary"
         onPress={onRecords}
         testID="timed-vision-records"
@@ -55,13 +57,14 @@ export function TimedVisionHud({
   scoreTestID: string;
 }) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <View style={styles.hudRow} testID="timed-vision-hud">
       <Text style={[styles.hudValue, { color: colors.foreground }]} testID={timerTestID}>
         {remainingSeconds}s
       </Text>
       <Text style={[styles.hudValue, { color: colors.foreground }]} testID={scoreTestID}>
-        Score : {score}
+        {t('vision.scoreLabel', { score })}
       </Text>
     </View>
   );
@@ -93,28 +96,35 @@ export function TimedVisionResults({
   onBack: () => void;
 }) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <View style={styles.gap} testID={resultsTestID}>
-      <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>SCORE</Text>
+      <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>
+        {t('vision.scoreHeading')}
+      </Text>
       <Text style={[styles.scoreValue, { color: colors.foreground }]}>{score}</Text>
       {isNewRecord ? (
         <Text style={[styles.newRecord, { color: colors.primary }]} testID={newRecordTestID}>
-          Nouveau record !
+          {t('vision.newRecord')}
         </Text>
       ) : null}
       <Text style={{ color: colors.foreground }}>
         {correctLabel} : {correctCount}
       </Text>
-      <Text style={{ color: colors.foreground }}>Incorrect : {wrongCount}</Text>
-      <Text style={{ color: colors.mutedForeground }}>Record : {record}</Text>
-      <AppButton label="Recommencer" onPress={onRestart} testID="timed-vision-restart" />
+      <Text style={{ color: colors.foreground }}>
+        {t('vision.wrongCount', { count: wrongCount })}
+      </Text>
+      <Text style={{ color: colors.mutedForeground }}>
+        {t('vision.recordValue', { record })}
+      </Text>
+      <AppButton label={t('common.restart')} onPress={onRestart} testID="timed-vision-restart" />
       <AppButton
-        label="Voir les records"
+        label={t('vision.viewRecords')}
         variant="secondary"
         onPress={onRecords}
         testID="timed-vision-results-records"
       />
-      <AppButton label="Retour" variant="secondary" onPress={onBack} />
+      <AppButton label={t('common.return')} variant="secondary" onPress={onBack} />
     </View>
   );
 }

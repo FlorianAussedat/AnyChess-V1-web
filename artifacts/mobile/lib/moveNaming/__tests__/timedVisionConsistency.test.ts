@@ -21,9 +21,9 @@ describe('timed vision start screens', () => {
   it('share start structure without pre-game voice config', () => {
     const chrome = readFileSync(chromePath, 'utf8');
     assert.match(chrome, /TimedVisionStart/);
-    assert.match(chrome, /Record actuel/);
-    assert.match(chrome, /Commencer/);
-    assert.match(chrome, /Voir les records/);
+    assert.match(chrome, /vision\.currentRecord/);
+    assert.match(chrome, /common\.start/);
+    assert.match(chrome, /vision\.viewRecords/);
     assert.match(chrome, /variant=\"secondary\"/);
 
     for (const file of ['nommer.tsx', 'jouer.tsx']) {
@@ -67,8 +67,8 @@ describe('timed vision session chrome', () => {
     }
     const chrome = readFileSync(chromePath, 'utf8');
     assert.match(chrome, /timed-vision-hud/);
-    assert.match(chrome, /Score :/);
-    assert.match(chrome, /Recommencer/);
+    assert.match(chrome, /vision\.scoreLabel/);
+    assert.match(chrome, /common\.restart/);
     assert.match(chrome, /timed-vision-restart/);
   });
 
@@ -78,8 +78,8 @@ describe('timed vision session chrome', () => {
     assert.match(nommer, /GameMicButton/);
     assert.match(nommer, /nommer-mic/);
     assert.match(nommer, /ChessAnswerInput/);
-    assert.match(mic, /Parler/);
-    assert.match(mic, /Écoute…/);
+    assert.match(mic, /a11y\.speak/);
+    assert.match(mic, /a11y\.listening/);
     assert.doesNotMatch(mic, /J'écoute|Activer le micro|Micro actif/);
   });
 

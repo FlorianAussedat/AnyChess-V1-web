@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
 import { defaultKeyValueStorage } from '@/lib/storage';
@@ -15,6 +16,7 @@ const playMoveStore = new PlayMoveRecordsStore(defaultKeyValueStorage);
 
 export default function VisualisationRecordsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const [moveNamingBest, setMoveNamingBest] = useState(0);
@@ -40,12 +42,12 @@ export default function VisualisationRecordsScreen() {
 
   const resetAll = () =>
     Alert.alert(
-      'Réinitialiser tous les records ?',
-      'Cette action remettra à zéro les records 60 secondes. Les anciens scores par délai (legacy) restent conservés séparément.',
+      t('records.visionResetTitle'),
+      t('records.visionResetBody'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Réinitialiser',
+          text: t('common.reset'),
           style: 'destructive',
           onPress: () =>
             Promise.all([moveNamingStore.reset(), playMoveStore.reset()]).then(load),
@@ -64,19 +66,19 @@ export default function VisualisationRecordsScreen() {
         },
       ]}
     >
-      <ScreenHeader onBack={() => router.back()} title="Records" />
+      <ScreenHeader onBack={() => router.back()} title={t('records.title')} />
       <Text style={{ color: colors.mutedForeground }}>
-        Meilleurs scores sur 60 secondes — Vision de l’échiquier
+        {t('records.visionSubtitle')}
       </Text>
 
       <View style={[styles.row, { borderColor: colors.border }]} testID="record-move-naming-60">
-        <Text style={{ color: colors.foreground, flex: 1 }}>Nommer le coup</Text>
+        <Text style={{ color: colors.foreground, flex: 1 }}>{t('records.cat.naming')}</Text>
         <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightBold }}>
           {moveNamingBest}
         </Text>
       </View>
       <View style={[styles.row, { borderColor: colors.border }]} testID="record-play-move-60">
-        <Text style={{ color: colors.foreground, flex: 1 }}>Jouer le coup</Text>
+        <Text style={{ color: colors.foreground, flex: 1 }}>{t('records.cat.play')}</Text>
         <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightBold }}>
           {playMoveBest}
         </Text>
@@ -84,11 +86,11 @@ export default function VisualisationRecordsScreen() {
 
       {hasLegacy ? (
         <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-          Anciens records par délai encore présents en stockage (legacy).
+          {t('records.legacyNote')}
         </Text>
       ) : null}
 
-      <AppButton label="Réinitialiser" variant="destructive" onPress={resetAll} />
+      <AppButton label={t('common.reset')} variant="destructive" onPress={resetAll} />
     </ScrollView>
   );
 }

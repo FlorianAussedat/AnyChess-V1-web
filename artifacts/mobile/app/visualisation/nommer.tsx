@@ -17,6 +17,7 @@ import type { BoardPiece } from '@/contexts/GameContext';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage } from '@/lib/storage';
@@ -35,6 +36,7 @@ const styles = timedVisionStyles;
 
 export default function NommerLeCoupScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
@@ -132,13 +134,13 @@ export default function NommerLeCoupScreen() {
           sync();
           router.back();
         }}
-        title="Nommer le coup"
+        title={t('vision.nommer')}
         showSound
       />
 
       {snap.phase === 'idle' && (
         <TimedVisionStart
-          description="Identifie autant de coups que possible en 60 secondes. Pas de limite de temps par question."
+          description={t('vision.nommerIntro')}
           record={snap.previousRecord}
           onStart={() => void beginSession()}
           onRecords={goRecords}
@@ -183,17 +185,17 @@ export default function NommerLeCoupScreen() {
               ) : null}
             </View>
           )}
-          <Text style={{ color: colors.mutedForeground }}>Quel était le dernier coup ?</Text>
+          <Text style={{ color: colors.mutedForeground }}>{t('vision.lastMovePrompt')}</Text>
           {snap.lastFeedback === 'correct' ? (
             <Text style={{ color: colors.primary }} testID="nommer-correct">
-              Correct
+              {t('vision.correct')}
             </Text>
           ) : null}
           {snap.lastFeedback === 'wrong' ? (
-            <Text style={{ color: '#BE3030' }}>Incorrect — réessaie</Text>
+            <Text style={{ color: '#BE3030' }}>{t('vision.incorrectRetry')}</Text>
           ) : null}
           {snap.lastFeedback === 'recognition-failure' ? (
-            <Text style={{ color: colors.mutedForeground }}>Coup non reconnu — réessaie</Text>
+            <Text style={{ color: colors.mutedForeground }}>{t('vision.unrecognizedRetry')}</Text>
           ) : null}
           <ChessAnswerInput
             onSubmit={(raw) => {
@@ -202,7 +204,7 @@ export default function NommerLeCoupScreen() {
             }}
             enabled
             persistFocus
-            placeholder="ex. Cavalier prend e5"
+            placeholder={t('vision.nommerPlaceholder')}
           />
           <GameMicButton
             showRecognized={showRecognizedFlash}
@@ -219,7 +221,7 @@ export default function NommerLeCoupScreen() {
         <TimedVisionResults
           score={snap.score.score}
           isNewRecord={snap.isNewRecord}
-          correctLabel="Coups correctement nommés"
+          correctLabel={t('vision.namedCorrect')}
           correctCount={snap.score.correct}
           wrongCount={snap.score.wrong}
           record={Math.max(snap.previousRecord, snap.score.score)}

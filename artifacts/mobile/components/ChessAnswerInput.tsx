@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
 
 export type ChessAnswerInputProps = {
@@ -51,6 +52,7 @@ export function ChessAnswerInput({
   inputProps,
 }: ChessAnswerInputProps) {
   const colors = useColors();
+  const { t } = useTranslation();
   const [internal, setInternal] = useState('');
   const isControlled = controlledValue !== undefined;
   const text = isControlled ? controlledValue : internal;
@@ -103,7 +105,7 @@ export function ChessAnswerInput({
         onPress={submit}
         disabled={!enabled}
         testID={`${testID}-send`}
-        accessibilityLabel="Valider le coup"
+        accessibilityLabel={t('a11y.validateMove')}
       >
         <Ionicons name="arrow-forward" size={20} color="#fff" />
       </Pressable>
