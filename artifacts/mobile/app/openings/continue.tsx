@@ -30,6 +30,7 @@ import type { ReviewSideFilter } from '@/lib/repertoire';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
 import { sanToVerbal } from '@/lib/chessParser';
 import { parseChessVoice } from '@/lib/voice';
+import { voiceSpeedSettings } from '@/lib/preferences/VoiceSpeedSettings';
 import {
   ContinueLineSession,
   DEFAULT_VOICE_SPEED,
@@ -88,6 +89,16 @@ export default function ContinueLineScreen() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceSpeed, setVoiceSpeed] = useState(DEFAULT_VOICE_SPEED);
   const voiceSpeedRef = useRef(voiceSpeed);
+  // Session-local speed; seed from Profil default once (does not write back).
+  useEffect(() => {
+    let cancelled = false;
+    voiceSpeedSettings.ensureLoaded().then(() => {
+      if (!cancelled) setVoiceSpeed(voiceSpeedSettings.getDefaultSpeed());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const folderIdRef = useRef(mixedFolderIds[0]);
   const activeFolderIdRef = useRef<string | null>(null);
 

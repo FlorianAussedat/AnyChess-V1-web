@@ -92,3 +92,32 @@ export async function resetBlindMemoryRecords(): Promise<void> {
 export async function resetMoveNamingCategory(seconds: number): Promise<void> {
   await moveNamingStore.resetCategory(seconds);
 }
+
+/** How many catalog categories currently have at least one non-zero score. */
+export async function countActiveRecordCategories(): Promise<number> {
+  const [tactics, naming, play, blind] = await Promise.all([
+    loadTacticsRecords(),
+    loadMoveNamingBest(),
+    loadPlayMoveBest(),
+    loadBlindMemoryRecords(),
+  ]);
+  let n = 0;
+  const tacticsHas =
+    Object.values(tactics.bestByBand).some((v) => (v ?? 0) > 0) ||
+    Object.values(tactics.currentByBand).some((v) => (v ?? 0) > 0);
+  if (tacticsHas) n += 1;
+  if (naming > 0) n += 1;
+  if (play > 0) n += 1;
+  if (blind.listenReconstruct > 0 || blind.watchRecite > 0) n += 1;
+  return n;
+}
+
+/** Reset every catalogued record store (local only). */
+export async function resetAllCatalogRecords(): Promise<void> {
+  await Promise.all([
+    resetTacticsRecords(),
+    resetMoveNamingRecords(),
+    resetPlayMoveRecords(),
+    resetBlindMemoryRecords(),
+  ]);
+}
