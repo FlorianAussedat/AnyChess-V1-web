@@ -6,9 +6,11 @@ import { ChessBoard } from '@/components/ChessBoard';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { blindStyles } from '@/components/blind/blindStyles';
 import { useBlindSequence } from '@/contexts/BlindSequenceContext';
+import { useBoardSize } from '@/hooks/useBoardSize';
 
 export function BlindObservingPhase() {
   const colors = useColors();
+  const boardSize = useBoardSize('wide');
   const {
     board,
     lastMove,
@@ -20,7 +22,8 @@ export function BlindObservingPhase() {
     backToSettings,
   } = useBlindSequence();
 
-  const observationDone = !isReplaying && observationIndex >= sequence.length && sequence.length > 0;
+  const observationDone =
+    !isReplaying && observationIndex >= sequence.length && sequence.length > 0;
 
   return (
     <ModeScreenShell title="Observation" onBack={backToSettings}>
@@ -28,35 +31,64 @@ export function BlindObservingPhase() {
         <Text style={[blindStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
           Regarde la séquence — aucune annonce orale.
         </Text>
-        <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', textAlign: 'center' }}>
-          Coup {observationIndex} / {sequence.length}
-        </Text>
-        <View style={{ alignItems: 'center' }}>
+        {!observationDone ? (
+          <Text
+            style={{
+              color: colors.foreground,
+              fontFamily: 'Inter_600SemiBold',
+              textAlign: 'center',
+            }}
+            testID="blind-observation-progress"
+          >
+            Observation · Coup {observationIndex} / {sequence.length}
+          </Text>
+        ) : (
+          <>
+            <Text
+              style={{
+                color: colors.foreground,
+                fontFamily: 'Inter_600SemiBold',
+                textAlign: 'center',
+              }}
+              testID="blind-observation-done"
+            >
+              Séquence terminée
+            </Text>
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: 'Inter_700Bold',
+                textAlign: 'center',
+                fontSize: 16,
+              }}
+            >
+              À ton tour de réciter
+            </Text>
+          </>
+        )}
+        <View style={{ alignItems: 'center', alignSelf: 'center', width: boardSize }}>
           <ChessBoard
             board={board}
             lastMove={lastMove}
             isFlipped={orientation === 'b'}
             showCoordinates={false}
+            sizeMode="wide"
+            size={boardSize}
           />
         </View>
         {observationDone && (
-          <>
-            <Text style={[blindStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-              Séquence terminée. Mémorise la position finale, puis commence la récitation.
+          <Pressable
+            onPress={startRecitation}
+            style={({ pressed }) => [
+              blindStyles.cta,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+            ]}
+          >
+            <Ionicons name="mic-outline" size={18} color={colors.primaryForeground} />
+            <Text style={[blindStyles.ctaLabel, { color: colors.primaryForeground }]}>
+              Passer à la récitation
             </Text>
-            <Pressable
-              onPress={startRecitation}
-              style={({ pressed }) => [
-                blindStyles.cta,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
-              ]}
-            >
-              <Ionicons name="mic-outline" size={18} color={colors.primaryForeground} />
-              <Text style={[blindStyles.ctaLabel, { color: colors.primaryForeground }]}>
-                Passer à la récitation
-              </Text>
-            </Pressable>
-          </>
+          </Pressable>
         )}
       </View>
     </ModeScreenShell>

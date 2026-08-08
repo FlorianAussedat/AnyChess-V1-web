@@ -83,6 +83,16 @@ export const StorageKeys = {
     shape: '{ best: number }',
     documentVersion: 1,
   },
+  /**
+   * Mémorisation records — best perfect full-move counts per mode
+   * (Écouter puis reconstruire / Regarder puis réciter). Not split by perspective.
+   */
+  blindMemoryRecords: {
+    key: 'anychess.blind.memoryRecords.v1',
+    feature: 'blind/memorisation',
+    shape: '{ listenReconstruct: number, watchRecite: number }',
+    documentVersion: 1,
+  },
   continueLineRecent: {
     key: 'anychess.continueLine.recent.v1',
     feature: 'openings/continue-line',

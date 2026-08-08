@@ -35,6 +35,10 @@ describe('StorageKeys registry', () => {
     assert.equal(StorageKeys.moveNamingRecords.key, 'anychess.move-naming.records.v1');
     assert.equal(StorageKeys.moveNamingSession60.key, 'anychess.move-naming.session60.v1');
     assert.equal(StorageKeys.playMoveSession60.key, 'anychess.play-move.session60.v1');
+    assert.equal(
+      StorageKeys.blindMemoryRecords.key,
+      'anychess.blind.memoryRecords.v1',
+    );
     assert.equal(StorageKeys.continueLineRecent.key, 'anychess.continueLine.recent.v1');
     assert.equal(StorageKeys.mentalRecent.key, 'anychess.mental.recent.v1');
     assert.equal(StorageKeys.boardCoordinatesVisible.key, 'anychess.board.coordinatesVisible.v1');

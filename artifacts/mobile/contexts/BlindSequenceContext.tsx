@@ -22,6 +22,9 @@ import {
   BLIND_SPEED_MIN,
   BLIND_SPEED_MAX,
   resolveBlindOrientation,
+  BlindRecordsStore,
+  BLIND_RECORD_INELIGIBLE_MESSAGE,
+  evaluateBlindRecordResult,
   type BlindAttemptRecord,
   type BlindOrientation,
   type BlindPerspective,
@@ -35,6 +38,9 @@ import { useBlindDictation } from '@/hooks/useBlindDictation';
 import { useBlindVisualReplay } from '@/hooks/useBlindVisualReplay';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
+import { defaultKeyValueStorage } from '@/lib/storage';
+
+const blindRecordsStore = new BlindRecordsStore(defaultKeyValueStorage);
 
 interface BlindSequenceContextValue {
   phase: BlindPhase;
@@ -59,6 +65,18 @@ interface BlindSequenceContextValue {
   observationIndex: number;
   /** True while an automatic visual replay is running (observation or results). */
   isReplaying: boolean;
+  /** False after first mistake / help / skip — permanently for this attempt. */
+  recordEligible: boolean;
+  /** One-shot notice when eligibility is lost (null after dismiss / new attempt). */
+  recordIneligibleNotice: string | null;
+  /** Best perfect full-move count for the current submode. */
+  modeRecordBest: number;
+  /** Set on results when this attempt beat the previous record. */
+  isNewRecord: boolean;
+  /** Dictation: how many half-moves have been spoken (0…sequence.length). */
+  dictationSpokenCount: number;
+  /** Dictation: last move of the sequence has been queued. */
+  dictationComplete: boolean;
   setPerspective: (p: BlindPerspective) => void;
   setFullMoves: (n: number) => void;
   setSpeed: (level: number) => void;
@@ -118,8 +136,41 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
   const [revealedHint, setRevealedHint] = useState<string | null>(null);
   const [recognizedText, setRecognizedText] = useState<string | null>(null);
+  const [recordEligible, setRecordEligible] = useState(true);
+  const [recordIneligibleNotice, setRecordIneligibleNotice] = useState<string | null>(null);
+  const [modeRecordBest, setModeRecordBest] = useState(0);
+  const [isNewRecord, setIsNewRecord] = useState(false);
+  const [dictationSpokenCount, setDictationSpokenCount] = useState(0);
+  const [dictationComplete, setDictationComplete] = useState(false);
+  const recordEligibleRef = useRef(true);
 
   const { speakSequence, clearDictationTimer } = useBlindDictation(speedRef);
+
+  const refreshModeRecord = useCallback(async (m: BlindSubmode | null) => {
+    if (!m) {
+      setModeRecordBest(0);
+      return;
+    }
+    try {
+      setModeRecordBest(await blindRecordsStore.loadBest(m));
+    } catch {
+      setModeRecordBest(0);
+    }
+  }, []);
+
+  const resetRecordEligibility = useCallback(() => {
+    recordEligibleRef.current = true;
+    setRecordEligible(true);
+    setRecordIneligibleNotice(null);
+    setIsNewRecord(false);
+  }, []);
+
+  const markRecordIneligible = useCallback(() => {
+    if (!recordEligibleRef.current) return;
+    recordEligibleRef.current = false;
+    setRecordEligible(false);
+    setRecordIneligibleNotice(BLIND_RECORD_INELIGIBLE_MESSAGE);
+  }, []);
 
   const setFullMoves = useCallback((n: number) => {
     setFullMovesState(Math.max(1, Math.min(20, Math.round(n))));
@@ -241,16 +292,60 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     );
     setScore(s);
     setPhase('results');
-    speechService.speak(
-      `Exercice terminé. Précision au premier essai : ${s.accuracyPercent} pour cent.`,
-      { flush: true },
-    );
+    const mode = submodeRef.current;
+    const halfMoves = sequenceRef.current.length;
+    const firstOk = [...firstAttemptOkRef.current];
+    const attempts = [...attemptsRef.current];
+    if (mode) {
+      void (async () => {
+        let previous = 0;
+        try {
+          previous = await blindRecordsStore.loadBest(mode);
+        } catch {
+          previous = modeRecordBest;
+        }
+        const evaluation = evaluateBlindRecordResult(
+          mode,
+          halfMoves,
+          firstOk,
+          attempts,
+          previous,
+        );
+        setIsNewRecord(evaluation.isNewRecord);
+        if (evaluation.isNewRecord) {
+          try {
+            const best = await blindRecordsStore.saveFullMoves(
+              mode,
+              evaluation.fullMoves,
+            );
+            setModeRecordBest(best);
+          } catch {
+            /* ignore persist errors */
+          }
+          speechService.speak(
+            `Exercice terminé. Nouveau record : ${evaluation.fullMoves} coups complets.`,
+            { flush: true },
+          );
+        } else {
+          speechService.speak(
+            `Exercice terminé. Précision au premier essai : ${s.accuracyPercent} pour cent.`,
+            { flush: true },
+          );
+        }
+      })();
+    } else {
+      setIsNewRecord(false);
+      speechService.speak(
+        `Exercice terminé. Précision au premier essai : ${s.accuracyPercent} pour cent.`,
+        { flush: true },
+      );
+    }
     if (submodeRef.current === 'watch-recite') {
       playVisualReplayRef.current(sequenceRef.current, { after: 'keep-final' });
     } else if (submodeRef.current === 'listen-reconstruct') {
       playResultReplay(sequenceRef.current);
     }
-  }, [playResultReplay, playVisualReplayRef]);
+  }, [playResultReplay, playVisualReplayRef, modeRecordBest]);
 
   const beginListenPath = useCallback(
     (moves: BlindSequenceMove[]) => {
@@ -260,10 +355,16 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       firstAttemptOkRef.current = moves.map(() => false);
       attemptsRef.current = [];
       setScore(null);
+      resetRecordEligibility();
+      setDictationSpokenCount(0);
+      setDictationComplete(false);
       setPhase('dictation');
-      speakSequence(moves, true);
+      speakSequence(moves, true, {
+        onSpokenCount: (n) => setDictationSpokenCount(n),
+        onComplete: () => setDictationComplete(true),
+      });
     },
-    [speakSequence],
+    [speakSequence, resetRecordEligibility],
   );
 
   const runObservation = useCallback(
@@ -274,17 +375,21 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       firstAttemptOkRef.current = moves.map(() => false);
       attemptsRef.current = [];
       setScore(null);
+      resetRecordEligibility();
+      setDictationSpokenCount(0);
+      setDictationComplete(false);
       setPhase('observing');
       // Keep the final observed position visible until the user starts recitation.
       playVisualReplay(moves, { after: 'keep-final' });
     },
-    [playVisualReplay],
+    [playVisualReplay, resetRecordEligibility],
   );
 
   const selectSubmode = useCallback((m: BlindSubmode) => {
     setSubmode(m);
     setPhase('settings');
-  }, []);
+    void refreshModeRecord(m);
+  }, [refreshModeRecord]);
 
   const backToHub = useCallback(() => {
     speechService.cancel('back-hub');
@@ -341,7 +446,12 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
 
   const replayDictation = useCallback(() => {
     if (sequenceRef.current.length === 0) return;
-    speakSequence(sequenceRef.current, true);
+    setDictationSpokenCount(0);
+    setDictationComplete(false);
+    speakSequence(sequenceRef.current, true, {
+      onSpokenCount: (n) => setDictationSpokenCount(n),
+      onComplete: () => setDictationComplete(true),
+    });
   }, [speakSequence]);
 
   const startReconstruction = useCallback(() => {
@@ -368,6 +478,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     const expected = sequenceRef.current[expectedIndex];
     if (!expected) return;
     attemptsRef.current.push({ expectedIndex, kind: 'help', attemptedSan: '(passé)' });
+    markRecordIneligible();
     triedCurrentRef.current = false;
     // Apply the expected move on the board so the position stays consistent.
     try {
@@ -391,7 +502,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     } else {
       setExpectedIndex(next);
     }
-  }, [phase, expectedIndex, syncBoard, finishSession]);
+  }, [phase, expectedIndex, syncBoard, finishSession, markRecordIneligible]);
 
   const getLegalDestinations = useCallback(
     (square: string): string[] => {
@@ -425,6 +536,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
           kind: 'wrong-move',
           attemptedSan: `${from}${to}`,
         });
+        markRecordIneligible();
         triedCurrentRef.current = true;
         const msg = 'Coup illégal.';
         setLastFeedback(msg);
@@ -458,6 +570,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         kind: verdict.kind,
         attemptedSan: played.san,
       });
+      markRecordIneligible();
       triedCurrentRef.current = true;
       game.undo();
       syncBoard();
@@ -472,12 +585,12 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       speechService.speak(label, { flush: true });
       return false;
     },
-    [phase, expectedIndex, syncBoard, finishSession],
+    [phase, expectedIndex, syncBoard, finishSession, markRecordIneligible],
   );
 
   const attemptSpoken = useCallback(
     (raw: string): 'correct' | 'wrong' | 'illegal' | 'recognition-failure' => {
-      if (phase !== 'recitation') return 'recognition-failure';
+      if (phase !== 'recitation' && phase !== 'reconstruction') return 'recognition-failure';
       const expected = sequenceRef.current[expectedIndex];
       if (!expected) return 'recognition-failure';
 
@@ -529,6 +642,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
           kind: 'wrong-move',
           attemptedSan: parsed.intendedDescription ?? parsed.normalizedTranscript,
         });
+        markRecordIneligible();
         triedCurrentRef.current = true;
         const msg = 'Coup illégal.';
         setLastFeedback(msg);
@@ -550,6 +664,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
           kind: 'wrong-move',
           attemptedSan: moveToPlay.san,
         });
+        markRecordIneligible();
         triedCurrentRef.current = true;
         const msg = 'Coup illégal.';
         setLastFeedback(msg);
@@ -574,6 +689,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
           kind: 'wrong-move',
           attemptedSan: moveToPlay.san,
         });
+        markRecordIneligible();
         triedCurrentRef.current = true;
         const msg = 'Coup illégal.';
         setLastFeedback(msg);
@@ -622,6 +738,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         kind,
         attemptedSan: played.san,
       });
+      markRecordIneligible();
       triedCurrentRef.current = true;
       const label =
         kind === 'wrong-order' ? "Erreur d'ordre" : 'Erreur de coup';
@@ -629,7 +746,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       speechService.speak(label, { flush: true });
       return 'wrong';
     },
-    [phase, expectedIndex, syncBoard, finishSession, showRecognized],
+    [phase, expectedIndex, syncBoard, finishSession, showRecognized, markRecordIneligible],
   );
 
   const useHelp = useCallback(() => {
@@ -637,12 +754,13 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     const expected = sequenceRef.current[expectedIndex];
     if (!expected) return;
     attemptsRef.current.push({ expectedIndex, kind: 'help' });
+    markRecordIneligible();
     triedCurrentRef.current = true;
     const hint = `Coup attendu : ${expected.verbal}`;
     setRevealedHint(hint);
     setLastFeedback('Aide utilisée');
     speechService.speak(hint, { flush: true });
-  }, [phase, expectedIndex]);
+  }, [phase, expectedIndex, markRecordIneligible]);
 
   const retrySameSequence = useCallback(() => {
     speechService.cancel('retry');
@@ -653,9 +771,15 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     firstAttemptOkRef.current = sequenceRef.current.map(() => false);
     attemptsRef.current = [];
     setScore(null);
+    resetRecordEligibility();
     if (submode === 'listen-reconstruct') {
+      setDictationSpokenCount(0);
+      setDictationComplete(false);
       setPhase('dictation');
-      speakSequence(sequenceRef.current, true);
+      speakSequence(sequenceRef.current, true, {
+        onSpokenCount: (n) => setDictationSpokenCount(n),
+        onComplete: () => setDictationComplete(true),
+      });
     } else if (submode === 'watch-recite') {
       setPhase('observing');
       playVisualReplay(sequenceRef.current, { after: 'keep-final' });
@@ -668,6 +792,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     showRecognized,
     replayRef,
     setIsReplaying,
+    resetRecordEligibility,
   ]);
 
   const generateNewSequence = useCallback(async () => {
@@ -724,6 +849,12 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         recognizedText,
         observationIndex,
         isReplaying,
+        recordEligible,
+        recordIneligibleNotice,
+        modeRecordBest,
+        isNewRecord,
+        dictationSpokenCount,
+        dictationComplete,
         setPerspective,
         setFullMoves,
         setSpeed,
