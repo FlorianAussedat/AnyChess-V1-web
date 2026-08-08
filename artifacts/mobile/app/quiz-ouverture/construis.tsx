@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -8,6 +8,8 @@ import { DesignTokens } from '@/constants/designTokens';
 import { AppButton } from '@/components/ui/AppButton';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { ChessBoard } from '@/components/ChessBoard';
+import { GameMicButton } from '@/components/game/GameMicButton';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
@@ -22,6 +24,11 @@ import {
 } from '@/lib/openingQuiz';
 import type { BoardPiece } from '@/contexts/GameContext';
 
+/** Slower teaching replay after a wrong answer. */
+const WRONG_REPLAY_INTERVAL_MS = 2000;
+/** Faster celebration / review after a successful construction. */
+const SUCCESS_REPLAY_INTERVAL_MS = 1000;
+
 function makeSession(target: OpeningTarget): OpeningConstructionSession {
   return new OpeningConstructionSession(target);
 }
@@ -31,30 +38,42 @@ function Dropdown({
   value,
   options,
   onSelect,
+  testID,
 }: {
   label: string;
   value: string;
   options: string[];
   onSelect: (v: string) => void;
+  testID?: string;
 }) {
   const colors = useColors();
   const [open, setOpen] = useState(false);
   return (
-    <View style={{ gap: 6 }}>
-      <Text style={{ color: colors.mutedForeground, fontSize: 12, fontWeight: '600' }}>
+    <View style={{ gap: 4 }} testID={testID}>
+      <Text
+        style={{
+          color: colors.mutedForeground,
+          fontSize: 11,
+          fontFamily: DesignTokens.typography.weightSemiBold,
+          letterSpacing: 0.4,
+        }}
+      >
         {label}
       </Text>
       <Pressable
         onPress={() => setOpen((o) => !o)}
         style={{
-          padding: 12,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          minHeight: 40,
           borderWidth: 1,
           borderColor: colors.border,
           borderRadius: 10,
           backgroundColor: colors.card,
+          justifyContent: 'center',
         }}
       >
-        <Text style={{ color: colors.foreground }} numberOfLines={2}>
+        <Text style={{ color: colors.foreground, fontSize: 14 }} numberOfLines={2}>
           {value}
         </Text>
       </Pressable>
@@ -64,7 +83,7 @@ function Dropdown({
             borderWidth: 1,
             borderColor: colors.border,
             borderRadius: 10,
-            maxHeight: 220,
+            maxHeight: 180,
             backgroundColor: colors.card,
           }}
         >
@@ -77,7 +96,8 @@ function Dropdown({
                   setOpen(false);
                 }}
                 style={{
-                  padding: 10,
+                  paddingHorizontal: 10,
+                  paddingVertical: 9,
                   borderBottomWidth: 1,
                   borderBottomColor: colors.border,
                   backgroundColor: opt === value ? colors.primary : colors.card,
@@ -103,6 +123,7 @@ function Dropdown({
 export default function ConstruisOuvertureScreen() {
   const colors = useColors();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
+  const boardSize = useBoardSize('wide');
   const router = useRouter();
   useCancelSpeechOnLeave('/quiz-ouverture/construis');
 
@@ -110,7 +131,6 @@ export default function ConstruisOuvertureScreen() {
   const [family, setFamily] = useState(families[0] ?? '');
   const variations = useMemo(() => openingTargetsForFamily(family), [family]);
   const [target, setTarget] = useState<OpeningTarget | null>(variations[0] ?? null);
-  const [randomAnnouncement, setRandomAnnouncement] = useState<string | null>(null);
   const session = useRef(target ? makeSession(target) : null);
   const replayHandle = useRef<ReplayLineHandle | null>(null);
   const [snap, setSnap] = useState<PlayerConstructionSnapshot | null>(() =>
@@ -119,9 +139,13 @@ export default function ConstruisOuvertureScreen() {
   const [replayBoard, setReplayBoard] = useState<(BoardPiece | null)[][] | null>(null);
   const [replayLastMove, setReplayLastMove] = useState<{ from: string; to: string } | null>(null);
   const [isReplaying, setIsReplaying] = useState(false);
+  const [postReplayHint, setPostReplayHint] = useState<string | null>(null);
   const [touchSelected, setTouchSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [configExpanded, setConfigExpanded] = useState(true);
+  const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+
+  const inTraining = !!target && !configExpanded;
 
   useEffect(() => {
     return () => {
@@ -142,20 +166,19 @@ export default function ConstruisOuvertureScreen() {
     setReplayBoard(null);
     setReplayLastMove(null);
     setIsReplaying(false);
+    setPostReplayHint(null);
     clearTouch();
     setConfigExpanded(false);
   }
 
   function selectFamily(nextFamily: string) {
     setFamily(nextFamily);
-    setRandomAnnouncement(null);
     const vars = openingTargetsForFamily(nextFamily);
     resetSession(vars[0] ?? null);
   }
 
   function selectVariation(name: string) {
     const next = variations.find((v) => v.identity.name === name) ?? null;
-    setRandomAnnouncement(null);
     resetSession(next);
   }
 
@@ -164,17 +187,18 @@ export default function ConstruisOuvertureScreen() {
     if (!pick) return;
     setFamily(pick.family);
     const nextTarget = { identity: pick.line.identity, sans: pick.line.sans };
-    setRandomAnnouncement(`Construis : ${pick.line.identity.name}`);
     resetSession(nextTarget);
   }
 
-  function startReplay(line: string[]) {
+  function startReplay(line: string[], intervalMs: number, opts?: { promptRestart?: boolean }) {
     replayHandle.current?.cancel();
     setIsReplaying(true);
+    setPostReplayHint(null);
     clearTouch();
+    const promptRestart = opts?.promptRestart ?? false;
     replayHandle.current = replayLine({
       moves: line,
-      intervalMs: 1000,
+      intervalMs,
       onPosition: (fen) => {
         const game = new Chess(fen);
         setReplayBoard(game.board() as (BoardPiece | null)[][]);
@@ -182,15 +206,46 @@ export default function ConstruisOuvertureScreen() {
       onMove: (m) => {
         setReplayLastMove({ from: m.from, to: m.to });
       },
-      onComplete: () => setIsReplaying(false),
+      onComplete: () => {
+        setIsReplaying(false);
+        if (promptRestart) setPostReplayHint('À toi de recommencer');
+      },
     });
+  }
+
+  function reviewOpening() {
+    if (!target) return;
+    startReplay(target.sans, WRONG_REPLAY_INTERVAL_MS, { promptRestart: true });
+  }
+
+  function restartTraining() {
+    if (!session.current) return;
+    replayHandle.current?.cancel();
+    setReplayBoard(null);
+    setReplayLastMove(null);
+    setIsReplaying(false);
+    setPostReplayHint(null);
+    clearTouch();
+    setSnap(session.current.restart());
+  }
+
+  function onChanger() {
+    replayHandle.current?.cancel();
+    setReplayBoard(null);
+    setReplayLastMove(null);
+    setIsReplaying(false);
+    setPostReplayHint(null);
+    clearTouch();
+    setConfigExpanded(true);
   }
 
   function applySnapshot(next: ReturnType<OpeningConstructionSession['answer']>) {
     setSnap(session.current?.snapshotForPlayer() ?? null);
     clearTouch();
-    if (next.phase === 'wrong' || next.phase === 'complete') {
-      startReplay(next.target.sans);
+    if (next.phase === 'wrong') {
+      startReplay(next.target.sans, WRONG_REPLAY_INTERVAL_MS, { promptRestart: true });
+    } else if (next.phase === 'complete') {
+      startReplay(next.target.sans, SUCCESS_REPLAY_INTERVAL_MS);
     }
   }
 
@@ -199,7 +254,7 @@ export default function ConstruisOuvertureScreen() {
     applySnapshot(session.current.answer(raw));
   }
 
-  const canTouch = snap?.phase === 'playing' && !isReplaying;
+  const canTouch = snap?.phase === 'playing' && !isReplaying && inTraining;
 
   function onSquarePress(square: string) {
     if (!canTouch || !session.current) return;
@@ -224,10 +279,14 @@ export default function ConstruisOuvertureScreen() {
     }
   }
 
-  const { micActive, toggleMic } = useSpeechInput({
-    forceOff: snap?.phase !== 'playing' || isReplaying,
+  const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
+    forceOff: snap?.phase !== 'playing' || isReplaying || !inTraining,
     isSpeaking: false,
-    onTranscript: answer,
+    onTranscript: (raw) => {
+      setShowRecognizedFlash(true);
+      setTimeout(() => setShowRecognizedFlash(false), 900);
+      answer(raw);
+    },
   });
 
   const boardToShow =
@@ -246,6 +305,7 @@ export default function ConstruisOuvertureScreen() {
         backgroundColor: colors.background,
       }}
       keyboardShouldPersistTaps="handled"
+      testID="construis-screen"
     >
       <ScreenHeader
         onBack={() => {
@@ -254,87 +314,168 @@ export default function ConstruisOuvertureScreen() {
         }}
         title="Construis l’ouverture"
         subtitle={
-          target
-            ? `${family} · ${target.identity.name}`
+          inTraining
+            ? undefined
             : 'Joue la ligne de référence exacte, coup par coup.'
         }
         showSound
       />
 
-      {(configExpanded || !snap || snap.phase !== 'playing') && (
-        <View style={{ gap: 10 }}>
-          <Dropdown label="Ouverture" value={family} options={families} onSelect={selectFamily} />
+      {configExpanded && (
+        <View style={{ gap: 8 }} testID="construis-selection">
+          <Dropdown
+            label="OUVERTURE"
+            value={family}
+            options={families}
+            onSelect={selectFamily}
+            testID="construis-family"
+          />
           {variations.length > 0 && target && (
             <Dropdown
-              label="Variation"
+              label="VARIATION"
               value={target.identity.name}
               options={variations.map((v) => v.identity.name)}
               onSelect={selectVariation}
+              testID="construis-variation"
             />
           )}
-          <AppButton label="Aléatoire" onPress={pickRandom} variant="secondary" />
-          {!!randomAnnouncement && (
-            <Text style={{ color: colors.primary, fontWeight: '600' }}>{randomAnnouncement}</Text>
-          )}
-        </View>
-      )}
-
-      {snap?.phase === 'playing' && target && !configExpanded && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-          }}
-        >
-          <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 13 }} numberOfLines={2}>
-            {family}
-            {'\n'}
-            {target.identity.name}
-          </Text>
-          <AppButton
-            label="Changer"
-            variant="secondary"
-            onPress={() => setConfigExpanded(true)}
-            style={{ paddingHorizontal: 12, minHeight: 40 }}
-          />
           <AppButton
             label="Aléatoire"
-            variant="secondary"
             onPress={pickRandom}
-            style={{ paddingHorizontal: 12, minHeight: 40 }}
+            variant="secondary"
+            testID="construis-random"
           />
         </View>
       )}
 
-      {boardToShow && (
-        <View style={{ alignItems: 'center' }}>
+      {inTraining && target && (
+        <View
+          style={[
+            styles.summary,
+            { borderColor: colors.border, backgroundColor: colors.card },
+          ]}
+          testID="construis-summary"
+        >
+          <Text
+            style={{
+              flex: 1,
+              color: colors.foreground,
+              fontFamily: DesignTokens.typography.weightSemiBold,
+              fontSize: 13,
+            }}
+            numberOfLines={2}
+          >
+            {family} · {target.identity.name}
+          </Text>
+          <Pressable
+            onPress={onChanger}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.changer,
+              {
+                borderColor: colors.border,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+            testID="construis-changer"
+          >
+            <Text
+              style={{
+                color: colors.mutedForeground,
+                fontFamily: DesignTokens.typography.weightSemiBold,
+                fontSize: 13,
+              }}
+            >
+              Changer
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {inTraining && boardToShow && (
+        <View
+          style={{
+            alignItems: 'center',
+            alignSelf: 'center',
+            width: boardSize,
+          }}
+          testID="construis-board"
+        >
           <ChessBoard
             board={boardToShow}
             lastMove={replayLastMove}
             selectedSquare={canTouch ? touchSelected : null}
             legalDots={canTouch ? legalDests : []}
             onSquarePress={canTouch ? onSquarePress : () => {}}
+            sizeMode="wide"
+            size={boardSize}
           />
         </View>
       )}
 
-      {snap && (
-        <>
+      {inTraining && snap && (
+        <View style={{ gap: 10 }}>
           <Text style={{ color: colors.mutedForeground }}>
             Joué : {snap.playedSans.join(' ') || '—'}
           </Text>
-          {!!snap.feedback && snap.phase === 'playing' && (
+
+          {snap.phase === 'playing' && !!snap.feedback && (
             <Text
               style={{
                 color: snap.feedback === 'Correct.' ? '#398a55' : colors.mutedForeground,
-                fontWeight: snap.feedback === 'Correct.' ? '600' : '400',
+                fontFamily:
+                  snap.feedback === 'Correct.'
+                    ? DesignTokens.typography.weightSemiBold
+                    : DesignTokens.typography.weightRegular,
               }}
             >
               {snap.feedback}
             </Text>
           )}
+
+          {snap.phase === 'wrong' && (
+            <View style={{ gap: 4 }} testID="construis-wrong-feedback">
+              <Text
+                style={{
+                  color: '#c44',
+                  fontFamily: DesignTokens.typography.weightSemiBold,
+                  fontSize: 16,
+                }}
+              >
+                Incorrect
+              </Text>
+              {!!snap.expectedSan && (
+                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                  Attendu : {snap.expectedSan}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {snap.phase === 'complete' && (
+            <Text
+              style={{
+                color: '#398a55',
+                fontFamily: DesignTokens.typography.weightSemiBold,
+                fontSize: 16,
+              }}
+            >
+              {snap.feedback}
+            </Text>
+          )}
+
+          {isReplaying && (
+            <Text style={{ color: colors.mutedForeground }} testID="construis-replaying">
+              Relecture de l’ouverture…
+            </Text>
+          )}
+
+          {!isReplaying && !!postReplayHint && (
+            <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightSemiBold }}>
+              {postReplayHint}
+            </Text>
+          )}
+
           {snap.phase === 'playing' ? (
             <>
               <ChessAnswerInput
@@ -343,30 +484,55 @@ export default function ConstruisOuvertureScreen() {
                 persistFocus
                 placeholder="Dicte ou écris le coup"
               />
-              <Pressable
-                onPress={toggleMic}
-                style={{
-                  padding: 13,
-                  borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
-              >
-                <Text style={{ color: colors.foreground }}>
-                  {micActive ? 'Écoute…' : 'Répondre à voix haute'}
-                </Text>
-              </Pressable>
+              <GameMicButton
+                showRecognized={showRecognizedFlash}
+                isListening={isListening}
+                micActive={micActive}
+                micMessage={micStatus.message}
+                onToggle={toggleMic}
+                testID="construis-mic"
+              />
             </>
           ) : (
-            <Text style={{ color: snap.phase === 'complete' ? '#398a55' : '#c44' }}>
-              {snap.feedback}
-            </Text>
+            <View style={{ gap: 8 }}>
+              <AppButton
+                label="Revoir l’ouverture"
+                variant="secondary"
+                onPress={reviewOpening}
+                disabled={isReplaying}
+                testID="construis-review"
+              />
+              <AppButton
+                label="Recommencer"
+                onPress={restartTraining}
+                disabled={isReplaying}
+                testID="construis-restart"
+              />
+            </View>
           )}
-          {isReplaying && (
-            <Text style={{ color: colors.mutedForeground }}>Relecture de la ligne attendue…</Text>
-          )}
-        </>
+        </View>
       )}
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  summary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 44,
+  },
+  changer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+});

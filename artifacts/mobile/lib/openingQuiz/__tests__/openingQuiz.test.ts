@@ -68,17 +68,24 @@ describe('opening construction', () => {
     assert.ok(internal.expectedSan);
   });
 
-  it('requires its exact reference line and reveals it on first wrong move', () => {
+  it('requires its exact reference line and exposes expected move without dumping the full line', () => {
     const target = findOpeningTarget('Italian Game') ?? availableOpeningQuizLines()[0];
     assert.ok(target);
     const session = new OpeningConstructionSession(target);
     const wrong = session.answer('a4');
     assert.equal(wrong.phase, 'wrong');
     assert.equal(wrong.lastAttemptedSan, 'a4');
-    assert.match(wrong.feedback ?? '', /Incorrect/);
-    assert.match(wrong.feedback ?? '', /Ligne complète/);
+    assert.equal(wrong.feedback, 'Incorrect');
+    assert.doesNotMatch(wrong.feedback ?? '', /Ligne complète/);
+    assert.ok(wrong.expectedSan);
+    assert.doesNotMatch(wrong.feedback ?? '', new RegExp(target.sans.join(' ')));
     const after = session.snapshotForPlayer();
     assert.ok(after.expectedSan);
+
+    const restarted = session.restart();
+    assert.equal(restarted.phase, 'playing');
+    assert.deepEqual(restarted.playedSans, []);
+    assert.equal(restarted.feedback, null);
   });
 
   it('does not stop on recognition failure', () => {

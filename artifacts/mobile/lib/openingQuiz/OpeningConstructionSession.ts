@@ -109,8 +109,9 @@ export class OpeningConstructionSession {
     if (!verdict.correct) {
       this.phase = 'wrong';
       this.lastAttemptedSan = san;
-      const expected = verdict.expectedSan ?? '?';
-      this.feedback = `Incorrect : ${san}. Attendu : ${expected}. Ligne complète : ${this.target.sans.join(' ')}`;
+      // Keep feedback short — expected SAN is exposed via snapshot.expectedSan.
+      // Full-line teaching is done by the board replay, not dumped as text.
+      this.feedback = 'Incorrect';
       return this.snapshot();
     }
 
@@ -123,6 +124,16 @@ export class OpeningConstructionSession {
     } else {
       this.feedback = 'Correct.';
     }
+    return this.snapshot();
+  }
+
+  /** Reset to the start of the same target line after a wrong attempt / review. */
+  restart(): ConstructionSnapshot {
+    this.game.reset();
+    this.playedSans = [];
+    this.phase = 'playing';
+    this.feedback = null;
+    this.lastAttemptedSan = null;
     return this.snapshot();
   }
 
