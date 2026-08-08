@@ -297,12 +297,6 @@ const styles = StyleSheet.create({
     gap: DesignTokens.spacing.lg,
   },
   gap: { gap: DesignTokens.spacing.md },
-  button: {
-    padding: DesignTokens.spacing.md,
-    borderRadius: DesignTokens.radius.sm,
-    alignItems: 'center',
-    minHeight: DesignTokens.minTouchTarget,
-  },
   countdownWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 220 },
   countdown: { fontSize: 96, fontFamily: DesignTokens.typography.weightBold },
   hudRow: {
