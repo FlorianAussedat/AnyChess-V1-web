@@ -1,13 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { BoardToolbar } from '@/components/BoardToolbar';
-import { AppButton } from '@/components/ui/AppButton';
 import { ChessBoard } from '@/components/ChessBoard';
+import {
+  TimedVisionHud,
+  TimedVisionResults,
+  TimedVisionSideToMove,
+  TimedVisionStart,
+  timedVisionStyles,
+} from '@/components/visualisation/TimedVisionChrome';
 import type { BoardPiece } from '@/contexts/GameContext';
-import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -27,12 +32,13 @@ import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 
 const records = new PlayMoveRecordsStore(defaultKeyValueStorage);
+const styles = timedVisionStyles;
 
 export default function JouerLeCoupScreen() {
   const colors = useColors();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
-  const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave();
 
   const sessionRef = useRef(new PlayMoveSession({ pickChallenge: pickPlayMoveChallenge }));
@@ -100,6 +106,10 @@ export default function JouerLeCoupScreen() {
     sync();
   }, [sync]);
 
+  const goRecords = useCallback(() => {
+    router.push('/visualisation/records');
+  }, [router]);
+
   const game = useMemo(() => (boardFen ? new Chess(boardFen) : null), [boardFen]);
   const sideToMove = game?.turn() ?? 'w';
   const turnLabel = sideToMoveLabel(sideToMove);
@@ -143,18 +153,13 @@ export default function JouerLeCoupScreen() {
       />
 
       {snap.phase === 'idle' && (
-        <View style={styles.gap}>
-          <Text style={{ color: colors.mutedForeground }}>
-            Joue le coup demandé sur l’échiquier, le plus rapidement possible, pendant 60 secondes.
-          </Text>
-          <Text style={{ color: colors.foreground }}>Record actuel : {snap.previousRecord}</Text>
-          <AppButton label="Commencer" onPress={() => void beginSession()} testID="jouer-start" />
-          <AppButton
-            label="Voir les records"
-            variant="secondary"
-            onPress={() => router.push('/visualisation/records')}
-          />
-        </View>
+        <TimedVisionStart
+          description="Joue le coup demandé sur l’échiquier, le plus rapidement possible, pendant 60 secondes."
+          record={snap.previousRecord}
+          onStart={() => void beginSession()}
+          onRecords={goRecords}
+          startTestID="jouer-start"
+        />
       )}
 
       {snap.phase === 'countdown' && (
@@ -167,14 +172,12 @@ export default function JouerLeCoupScreen() {
 
       {snap.phase === 'playing' && game && snap.challenge && (
         <View style={styles.gap}>
-          <View style={styles.hudRow}>
-            <Text style={[styles.hudValue, { color: colors.foreground }]} testID="jouer-timer">
-              {snap.remainingSeconds}s
-            </Text>
-            <Text style={[styles.hudValue, { color: colors.foreground }]} testID="jouer-score">
-              Score : {snap.score.score}
-            </Text>
-          </View>
+          <TimedVisionHud
+            remainingSeconds={snap.remainingSeconds}
+            score={snap.score.score}
+            timerTestID="jouer-timer"
+            scoreTestID="jouer-score"
+          />
           <Text style={[styles.prompt, { color: colors.primary }]} testID="jouer-prompt">
             {snap.challenge.promptVerbal}
           </Text>
@@ -183,102 +186,45 @@ export default function JouerLeCoupScreen() {
               Incorrect — réessaie
             </Text>
           ) : null}
-          <BoardToolbar
-            label={turnLabel}
-            showCoordinates={showCoordinates}
-            onToggleCoordinates={() => {
-              void toggleCoordinates();
-            }}
-          />
-          <ChessBoard
-            board={game.board() as (BoardPiece | null)[][]}
-            lastMove={null}
-            selectedSquare={touchSelected}
-            legalDots={legalDests}
-            onSquarePress={onSquarePress}
-            showCoordinates={showCoordinates}
-            isFlipped={boardFlipped}
-          />
+          <View style={[styles.boardWrap, { width: boardSize }]}>
+            <ChessBoard
+              board={game.board() as (BoardPiece | null)[][]}
+              lastMove={null}
+              selectedSquare={touchSelected}
+              legalDots={legalDests}
+              onSquarePress={onSquarePress}
+              showCoordinates={false}
+              isFlipped={boardFlipped}
+              sizeMode="wide"
+              size={boardSize}
+            />
+            <TimedVisionSideToMove label={turnLabel} testID="jouer-side-to-move" />
+          </View>
         </View>
       )}
 
       {snap.phase === 'completed' && (
-        <View style={styles.gap} testID="jouer-results">
-          <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>SCORE</Text>
-          <Text style={[styles.scoreValue, { color: colors.foreground }]}>{snap.score.score}</Text>
-          {snap.isNewRecord ? (
-            <Text style={[styles.newRecord, { color: colors.primary }]} testID="jouer-new-record">
-              Nouveau record !
-            </Text>
-          ) : null}
-          <Text style={{ color: colors.foreground }}>
-            Coups correctement joués : {snap.score.correct}
-          </Text>
-          <Text style={{ color: colors.foreground }}>Incorrect : {snap.score.wrong}</Text>
-          <Text style={{ color: colors.mutedForeground }}>
-            Record : {Math.max(snap.previousRecord, snap.score.score)}
-          </Text>
-          <AppButton
-            label="Retour"
-            onPress={() => {
-              sessionRef.current.returnToIdle();
-              sync();
-              router.back();
-            }}
-          />
-          <AppButton
-            label="Voir les records"
-            variant="secondary"
-            onPress={() => router.push('/visualisation/records')}
-          />
-          <AppButton
-            label="Rejouer"
-            variant="secondary"
-            onPress={() => {
-              sessionRef.current.replay();
-              void beginSession();
-            }}
-          />
-        </View>
+        <TimedVisionResults
+          score={snap.score.score}
+          isNewRecord={snap.isNewRecord}
+          correctLabel="Coups correctement joués"
+          correctCount={snap.score.correct}
+          wrongCount={snap.score.wrong}
+          record={Math.max(snap.previousRecord, snap.score.score)}
+          newRecordTestID="jouer-new-record"
+          resultsTestID="jouer-results"
+          onRestart={() => {
+            sessionRef.current.replay();
+            void beginSession();
+          }}
+          onRecords={goRecords}
+          onBack={() => {
+            sessionRef.current.returnToIdle();
+            sync();
+            router.back();
+          }}
+        />
       )}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  page: {
-    flexGrow: 1,
-    paddingHorizontal: DesignTokens.spacing.xl,
-    gap: DesignTokens.spacing.lg,
-  },
-  gap: { gap: DesignTokens.spacing.md },
-  countdownWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 220 },
-  countdown: { fontSize: 96, fontFamily: DesignTokens.typography.weightBold },
-  hudRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  hudValue: { fontSize: 22, fontFamily: DesignTokens.typography.weightBold },
-  prompt: {
-    fontSize: 28,
-    fontFamily: DesignTokens.typography.weightBold,
-    textAlign: 'center',
-  },
-  scoreLabel: {
-    fontSize: 14,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
-  scoreValue: {
-    fontSize: 64,
-    fontFamily: DesignTokens.typography.weightBold,
-    textAlign: 'center',
-  },
-  newRecord: {
-    fontSize: 20,
-    fontFamily: DesignTokens.typography.weightBold,
-    textAlign: 'center',
-  },
-});

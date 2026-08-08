@@ -2,9 +2,14 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { BrandAssets } from '@/constants/BrandAssets';
+import { computeBoardSize, type BoardSizeMode } from '@/lib/game/boardSize';
 
 interface Props {
   onReveal?: () => void;
+  /** Match ChessBoard footprint (default = compact historical size). */
+  sizeMode?: BoardSizeMode;
+  /** Optional explicit edge length (overrides sizeMode). */
+  size?: number;
 }
 
 /**
@@ -13,16 +18,20 @@ interface Props {
  * Occupies the same footprint as the board so the layout does not jump, and
  * makes clear the game is still running — only the visual board is hidden.
  */
-export function HiddenBoardPlaceholder({ onReveal }: Props) {
+export function HiddenBoardPlaceholder({
+  onReveal,
+  sizeMode = 'default',
+  size,
+}: Props) {
   const colors = useColors();
   const { width } = useWindowDimensions();
-  const size = Math.min(width - 20, 352);
+  const edge = size ?? computeBoardSize(width, sizeMode);
 
   return (
     <View
       style={[
         styles.wrapper,
-        { width: size, height: size, backgroundColor: colors.card, borderColor: colors.border },
+        { width: edge, height: edge, backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
       <Image

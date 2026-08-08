@@ -5,11 +5,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { useColors } from '@/hooks/useColors';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { OptionChip } from '@/components/ui/OptionChip';
 import { AppButton } from '@/components/ui/AppButton';
+import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import { blindStyles } from '@/components/blind/blindStyles';
 import { useBlindSequence } from '@/contexts/BlindSequenceContext';
 import { halfMoveCount } from '@/lib/blind';
@@ -19,8 +19,6 @@ import {
   DEFAULT_BLIND_SPEED,
   type BlindPerspective,
 } from '@/lib/blind';
-
-const FULL_MOVE_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
 
 const PERSPECTIVE_OPTIONS: { id: BlindPerspective; label: string }[] = [
   { id: 'white', label: 'Blancs' },
@@ -35,6 +33,7 @@ export function BlindSettingsPhase() {
     perspective,
     fullMoves,
     speed,
+    modeRecordBest,
     setPerspective,
     setFullMoves,
     setSpeed,
@@ -50,6 +49,15 @@ export function BlindSettingsPhase() {
   return (
     <ModeScreenShell title={title} onBack={backToHub}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
+        <Text
+          style={[blindStyles.recordLine, { color: colors.mutedForeground }]}
+          testID="blind-mode-record"
+        >
+          {modeRecordBest > 0
+            ? `Record : ${modeRecordBest} coups complets`
+            : 'Record : 0'}
+        </Text>
+
         <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
           PERSPECTIVE
         </Text>
@@ -67,52 +75,37 @@ export function BlindSettingsPhase() {
           Les Blancs jouent toujours en premier. 1 coup complet = 1 coup Blanc + 1 coup Noir.
         </Text>
 
-        <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          COUPS COMPLETS
-        </Text>
-        <View style={blindStyles.chipRow}>
-          {FULL_MOVE_OPTIONS.map((n) => (
-            <OptionChip
-              key={n}
-              label={String(n)}
-              active={fullMoves === n}
-              onPress={() => setFullMoves(n)}
-            />
-          ))}
-        </View>
+        <DiscreteSlider
+          testID="blind-full-moves-slider"
+          label="Coups complets"
+          valueLabel={String(fullMoves)}
+          minimumValue={1}
+          maximumValue={20}
+          step={1}
+          value={fullMoves}
+          onValueChange={setFullMoves}
+          leftHint="1"
+          rightHint="20"
+          accessibilityLabel="Coups complets"
+        />
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
           {fullMoves} coups complets = {halfMoveCount(fullMoves)} demi-coups
           {fullMoves === 20 ? ' (maximum)' : ''}
         </Text>
 
-        <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          VITESSE ({BLIND_SPEED_MIN}–{BLIND_SPEED_MAX})
-        </Text>
-        <View style={blindStyles.sliderBlock}>
-          <View style={blindStyles.sliderLabels}>
-            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-              Lent
-            </Text>
-            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
-              {speed}
-            </Text>
-            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-              Rapide
-            </Text>
-          </View>
-          <Slider
-            style={{ width: '100%', height: 40 }}
-            minimumValue={BLIND_SPEED_MIN}
-            maximumValue={BLIND_SPEED_MAX}
-            step={1}
-            value={speed}
-            onValueChange={(v) => setSpeed(v)}
-            minimumTrackTintColor={colors.primary}
-            maximumTrackTintColor={colors.border}
-            thumbTintColor={colors.primary}
-            accessibilityLabel="Vitesse"
-          />
-        </View>
+        <DiscreteSlider
+          testID="blind-speed-slider"
+          label={`Vitesse (${BLIND_SPEED_MIN}–${BLIND_SPEED_MAX})`}
+          valueLabel={String(speed)}
+          minimumValue={BLIND_SPEED_MIN}
+          maximumValue={BLIND_SPEED_MAX}
+          step={1}
+          value={speed}
+          onValueChange={setSpeed}
+          leftHint="Lent"
+          rightHint="Rapide"
+          accessibilityLabel="Vitesse"
+        />
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
           {speed <= 3
             ? 'Lent — plus de temps entre les coups'

@@ -71,11 +71,17 @@ export type PuzzleAttemptResult =
   | 'complete';
 
 export interface PuzzleHelpUsage {
+  /** First-time White piece reveal (counts as one index). */
   whiteReveal: boolean;
+  /** First-time Black piece reveal (counts as one index). */
   blackReveal: boolean;
   solution: boolean;
+  /**
+   * Position replay used — free training action (not an index).
+   * Kept for analytics only; does not void streak / clean solve.
+   */
   positionRepeat: boolean;
-  /** Revealed only the next correct move ("SHOW NEXT MOVE"). */
+  /** At least one "Coup suivant" reveal. */
   nextMove: boolean;
 }
 
@@ -88,6 +94,8 @@ export interface PuzzleAttemptStats {
   recognitionFailures: number;
   solutionRequested: boolean;
   helps: PuzzleHelpUsage;
+  /** Number of times "Coup suivant" was used (each counts as an index). */
+  nextMoveUses: number;
   /** Number of user plies in the solution line. */
   userMoveCount: number;
   correctOnFirstAttempt: number;
@@ -133,29 +141,33 @@ export function emptyPuzzleStats(userMoveCount = 0): PuzzleAttemptStats {
       positionRepeat: false,
       nextMove: false,
     },
+    nextMoveUses: 0,
     userMoveCount,
     correctOnFirstAttempt: 0,
     accuracyPercent: userMoveCount === 0 ? 0 : 0,
   };
 }
 
+/**
+ * True when any streak-disqualifying help was used.
+ * Position repeat is free and does not count.
+ */
 export function anyHelpUsed(helps: PuzzleHelpUsage): boolean {
   return (
     helps.whiteReveal ||
     helps.blackReveal ||
     helps.solution ||
-    helps.positionRepeat ||
     helps.nextMove
   );
 }
 
+/** @deprecated Prefer countPuzzleIndices for user-facing metrics. */
 export function formatHelpsUsed(helps: PuzzleHelpUsage): string {
   const parts: string[] = [];
   if (helps.whiteReveal) parts.push('pièces blanches');
   if (helps.blackReveal) parts.push('pièces noires');
   if (helps.nextMove) parts.push('coup suivant');
   if (helps.solution) parts.push('solution');
-  if (helps.positionRepeat) parts.push('répétition position');
   return parts.length ? parts.join(', ') : 'aucune';
 }
 
@@ -164,6 +176,8 @@ export function finalizePuzzleStats(stats: PuzzleAttemptStats): PuzzleAttemptSta
     stats.userMoveCount === 0
       ? 0
       : Math.round((stats.correctOnFirstAttempt / stats.userMoveCount) * 100);
+  const indexHelp =
+    helpsAsIndexDisqualifier(stats.helps) || stats.nextMoveUses > 0;
   return {
     ...stats,
     accuracyPercent,
@@ -171,6 +185,11 @@ export function finalizePuzzleStats(stats: PuzzleAttemptStats): PuzzleAttemptSta
       stats.userMoveCount > 0 &&
       stats.correctOnFirstAttempt === stats.userMoveCount &&
       !stats.solutionRequested,
-    solvedWithoutHelp: stats.solved && !stats.solutionRequested && !anyHelpUsed(stats.helps),
+    solvedWithoutHelp:
+      stats.solved && !stats.solutionRequested && !indexHelp,
   };
+}
+
+function helpsAsIndexDisqualifier(helps: PuzzleHelpUsage): boolean {
+  return helps.whiteReveal || helps.blackReveal || helps.nextMove || helps.solution;
 }

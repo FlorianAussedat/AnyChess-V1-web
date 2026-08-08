@@ -18,6 +18,15 @@ export {
   formatHelpsUsed,
   anyHelpUsed,
 } from './types.ts';
+export {
+  countPuzzleIndices,
+  anyPuzzleIndexUsed,
+  isCleanPuzzleSolve,
+  isAssistedPuzzleSolve,
+  puzzleResultState,
+  puzzleResultTitle,
+} from './puzzleResultEligibility.ts';
+export type { PuzzleResultState } from './puzzleResultEligibility.ts';
 export { filterBoardPieces, type PieceRevealFilter } from './boardDisplay.ts';
 
 export { PuzzleRepository, puzzleRepository } from './PuzzleRepository.ts';
@@ -43,6 +52,9 @@ export {
 export type { PuzzleSolutionReplayCallbacks } from './PuzzleSolutionReplay.ts';
 export {
   PUZZLE_RATING_BANDS,
+  PUZZLE_RATING_BANDS_SELECTABLE,
+  PUZZLE_RATING_BAND_ALL,
+  PUZZLE_RATING_SLIDER_NEUTRAL_INDEX,
   PIECE_COUNT_BANDS,
   DEFAULT_PUZZLE_RATING_BAND_ID,
   DEFAULT_PIECE_COUNT_BAND_ID,

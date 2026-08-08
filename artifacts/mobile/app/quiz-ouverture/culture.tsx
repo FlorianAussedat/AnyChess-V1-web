@@ -17,6 +17,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessCultureVisual } from '@/components/chessCulture/ChessCultureVisual';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
 import {
@@ -37,6 +38,7 @@ type Phase = 'loading' | 'playing' | 'finished';
 export default function CultureGeneraleQuizScreen() {
   const colors = useColors();
   const insets = useAppSafeInsets();
+  const boardSize = useBoardSize('wide');
   const router = useRouter();
 
   const [phase, setPhase] = useState<Phase>('loading');
@@ -155,15 +157,29 @@ export default function CultureGeneraleQuizScreen() {
           <Text style={[styles.progress, { color: colors.mutedForeground }]}>
             Question {index + 1} / {total}
           </Text>
-
-          <ChessCultureVisual presentation={current.question.presentation} />
+          <View
+            style={[styles.progressTrack, { backgroundColor: colors.border }]}
+            testID="culture-progress-bar"
+          >
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  backgroundColor: colors.primary,
+                  width: `${Math.round(((index + 1) / Math.max(total, 1)) * 100)}%`,
+                },
+              ]}
+            />
+          </View>
 
           <Text style={[styles.question, { color: colors.foreground }]}>
             {current.question.question}
           </Text>
 
+          <ChessCultureVisual presentation={current.question.presentation} />
+
           {board ? (
-            <View style={styles.boardWrap}>
+            <View style={[styles.boardWrap, { width: boardSize, alignSelf: 'center' }]}>
               <ChessBoard
                 board={board}
                 lastMove={null}
@@ -172,6 +188,8 @@ export default function CultureGeneraleQuizScreen() {
                   current.question.presentation?.showCoordinates !== false
                 }
                 onSquarePress={undefined}
+                sizeMode="wide"
+                size={boardSize}
               />
             </View>
           ) : null}
@@ -393,6 +411,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
   },
+  progressTrack: {
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 3,
+    borderRadius: 2,
+  },
   question: {
     fontSize: 18,
     fontFamily: DesignTokens.typography.weightSemiBold,
@@ -403,20 +430,20 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   answers: {
-    gap: 10,
+    gap: 8,
   },
   answer: {
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    minHeight: 44,
     justifyContent: 'center',
   },
   answerText: {
     fontSize: 15,
     fontFamily: 'Inter_500Medium',
-    lineHeight: 21,
+    lineHeight: 20,
   },
   feedbackBlock: {
     gap: 10,

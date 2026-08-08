@@ -1,14 +1,17 @@
 import React, { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
+import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { GameMicButton } from '@/components/game/GameMicButton';
+import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
+import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import {
   OpeningIdentificationSession,
-  groupOpeningSans,
   type OpeningIdentificationSnapshot,
 } from '@/lib/openingQuiz';
 
@@ -18,15 +21,24 @@ export default function QuelleOuvertureScreen() {
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const session = useRef(new OpeningIdentificationSession());
   const [snap, setSnap] = useState<OpeningIdentificationSnapshot>(() => session.current.start());
-  const [input, setInput] = useState('');
-  const answer = () => {
-    setSnap(session.current.answer(input));
-    setInput('');
+  const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+
+  const answer = (raw: string) => {
+    setSnap(session.current.answer(raw));
   };
+
   const next = () =>
     setSnap(session.current.start(snap.line ? [snap.line.identity.name] : []));
 
-  const moveRows = groupOpeningSans(snap.line?.sans ?? []);
+  const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
+    forceOff: snap.answered,
+    isSpeaking: false,
+    onTranscript: (raw) => {
+      setShowRecognizedFlash(true);
+      setTimeout(() => setShowRecognizedFlash(false), 900);
+      answer(raw);
+    },
+  });
 
   return (
     <ScrollView
@@ -39,8 +51,9 @@ export default function QuelleOuvertureScreen() {
         },
       ]}
       keyboardShouldPersistTaps="handled"
+      testID="quelle-screen"
     >
-      <ScreenHeader onBack={() => router.back()} title="Quelle ouverture ?" />
+      <ScreenHeader onBack={() => router.back()} title="Quelle ouverture ?" showSound />
       <Text style={{ color: colors.mutedForeground }}>
         Identifie l’ouverture après cette ligne :
       </Text>
@@ -48,38 +61,25 @@ export default function QuelleOuvertureScreen() {
         style={[styles.lineCard, { backgroundColor: colors.card, borderColor: colors.border }]}
         testID="quelle-move-rows"
       >
-        {moveRows.map((row) => (
-          <View key={row.moveNumber} style={styles.moveRow}>
-            <Text style={[styles.moveNum, { color: colors.mutedForeground }]}>
-              {row.moveNumber}.
-            </Text>
-            <Text style={[styles.moveSan, { color: colors.foreground }]}>
-              {row.white ?? ''}
-            </Text>
-            <Text style={[styles.moveSan, { color: colors.foreground }]}>
-              {row.black ? `...${row.black}` : ''}
-            </Text>
-          </View>
-        ))}
+        <NumberedSanRows sans={snap.line?.sans ?? []} />
       </View>
       {!snap.answered ? (
-        <View style={styles.inputRow}>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={answer}
+        <View style={{ gap: DesignTokens.spacing.md }}>
+          <ChessAnswerInput
+            onSubmit={answer}
+            enabled
+            persistFocus={false}
             placeholder="Nom de l’ouverture"
-            placeholderTextColor={colors.mutedForeground}
-            style={[
-              styles.input,
-              {
-                color: colors.foreground,
-                borderColor: colors.border,
-                backgroundColor: colors.card,
-              },
-            ]}
+            testID="quelle-answer-input"
           />
-          <AppButton label="Valider" onPress={answer} style={styles.validate} />
+          <GameMicButton
+            showRecognized={showRecognizedFlash}
+            isListening={isListening}
+            micActive={micActive}
+            micMessage={micStatus.message}
+            onToggle={toggleMic}
+            testID="quelle-mic"
+          />
         </View>
       ) : (
         <View style={{ gap: DesignTokens.spacing.sm }}>
@@ -105,27 +105,8 @@ const styles = StyleSheet.create({
   lineCard: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.md,
-    padding: DesignTokens.spacing.lg,
-    gap: DesignTokens.spacing.sm,
-  },
-  moveRow: { flexDirection: 'row', alignItems: 'center', gap: DesignTokens.spacing.md },
-  moveNum: {
-    width: 28,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    fontSize: 16,
-  },
-  moveSan: {
-    flex: 1,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    fontSize: 18,
-  },
-  inputRow: { flexDirection: 'row', gap: DesignTokens.spacing.sm, alignItems: 'center' },
-  input: {
-    flex: 1,
     paddingHorizontal: DesignTokens.spacing.md,
-    borderWidth: 1,
-    borderRadius: DesignTokens.radius.sm,
-    minHeight: DesignTokens.minTouchTarget,
+    paddingVertical: DesignTokens.spacing.md,
+    alignSelf: 'stretch',
   },
-  validate: { paddingHorizontal: DesignTokens.spacing.md },
 });

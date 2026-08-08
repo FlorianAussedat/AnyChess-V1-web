@@ -24,12 +24,15 @@ import { formatStreakBandLabel } from '@/lib/puzzles/streakBand';
 import {
   RECORDS_CATEGORIES,
   type RecordsCategoryId,
+  type BlindMemoryRecords,
   loadMoveNamingBest,
   loadPlayMoveBest,
   loadTacticsRecords,
+  loadBlindMemoryRecords,
   resetMoveNamingRecords,
   resetPlayMoveRecords,
   resetTacticsRecords,
+  resetBlindMemoryRecords,
 } from '@/lib/records/AnyChessRecords';
 
 function ratingLabel(id: string): string {
@@ -48,16 +51,22 @@ export default function RecordsHubScreen() {
   const [tactics, setTactics] = useState<PuzzleStreakState>(emptyStreakState());
   const [moveNamingBest, setMoveNamingBest] = useState(0);
   const [playMoveBest, setPlayMoveBest] = useState(0);
+  const [blindRecords, setBlindRecords] = useState<BlindMemoryRecords>({
+    listenReconstruct: 0,
+    watchRecite: 0,
+  });
 
   const reload = useCallback(async () => {
-    const [t, mn, pm] = await Promise.all([
+    const [t, mn, pm, br] = await Promise.all([
       loadTacticsRecords(),
       loadMoveNamingBest(),
       loadPlayMoveBest(),
+      loadBlindMemoryRecords(),
     ]);
     setTactics(t);
     setMoveNamingBest(mn);
     setPlayMoveBest(pm);
+    setBlindRecords(br);
   }, []);
 
   useEffect(() => {
@@ -107,6 +116,12 @@ export default function RecordsHubScreen() {
           resetTestID="reset-hub-play-move-records"
           colors={colors}
         />
+      ) : category === 'memorisation' ? (
+        <MemorisationRecordsPanel
+          records={blindRecords}
+          onReset={() => resetBlindMemoryRecords().then(reload)}
+          colors={colors}
+        />
       ) : (
         <Session60RecordsPanel
           label="Nommer le coup"
@@ -117,6 +132,70 @@ export default function RecordsHubScreen() {
         />
       )}
     </ScrollView>
+  );
+}
+
+function MemorisationRecordsPanel({
+  records,
+  onReset,
+  colors,
+}: {
+  records: BlindMemoryRecords;
+  onReset: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const resetAll = () =>
+    Alert.alert(
+      'Réinitialiser les records ?',
+      'Cette action remettra à zéro les records Écouter puis reconstruire et Regarder puis réciter.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Réinitialiser',
+          style: 'destructive',
+          onPress: onReset,
+        },
+      ],
+    );
+
+  const rows: { label: string; value: number; testID: string }[] = [
+    {
+      label: 'Écouter puis reconstruire',
+      value: records.listenReconstruct,
+      testID: 'records-blind-listen',
+    },
+    {
+      label: 'Regarder puis réciter',
+      value: records.watchRecite,
+      testID: 'records-blind-watch',
+    },
+  ];
+
+  return (
+    <View style={styles.panel}>
+      {rows.map((row) => (
+        <View
+          key={row.testID}
+          style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}
+          testID={row.testID}
+        >
+          <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', flex: 1 }}>
+            {row.label}
+          </Text>
+          <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 20 }}>
+            {row.value}
+          </Text>
+        </View>
+      ))}
+      <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+        Meilleur nombre de coups complets à 100 %, sans aide ni erreur.
+      </Text>
+      <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-hub-blind-records">
+        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+          Réinitialiser
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -242,14 +321,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    minHeight: DesignTokens.minTouchTarget - 4,
-    justifyContent: 'center',
   },
   catDesc: {
     fontSize: DesignTokens.typography.caption,

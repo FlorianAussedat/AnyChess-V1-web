@@ -7,10 +7,16 @@ import { ChessBoard } from '@/components/ChessBoard';
 import { PuzzleStatRow } from '@/components/puzzles/PuzzleStatRow';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
-import { formatHelpsUsed } from '@/lib/puzzles';
+import { useBoardSize } from '@/hooks/useBoardSize';
+import {
+  countPuzzleIndices,
+  puzzleResultState,
+  puzzleResultTitle,
+} from '@/lib/puzzles';
 
 export function PuzzleResultsPhase() {
   const colors = useColors();
+  const boardSize = useBoardSize('wide');
   const {
     stats,
     solutionLine,
@@ -26,30 +32,66 @@ export function PuzzleResultsPhase() {
   } = usePuzzle();
   const router = useRouter();
 
+  const state = stats ? puzzleResultState(stats) : 'unsolved';
+  const title = puzzleResultTitle(state);
+  const indices = stats
+    ? countPuzzleIndices(stats.helps, stats.nextMoveUses)
+    : 0;
+
   return (
     <ModeScreenShell title="Résultat" onBack={() => router.push('/' as Href)}>
       <ScrollView contentContainerStyle={puzzleStyles.body}>
-        <Text style={[puzzleStyles.scoreHero, { color: colors.primary }]}>
-          {stats?.solutionRequested && !stats.solved ? 'Solution affichée' : 'Problème résolu'}
+        <Text
+          style={[
+            puzzleStyles.scoreHero,
+            { color: state === 'unsolved' ? colors.mutedForeground : colors.primary },
+          ]}
+          testID="puzzle-result-title"
+        >
+          {title}
         </Text>
-        <Text style={[puzzleStyles.meta, { color: colors.mutedForeground, textAlign: 'center' }]}>
+
+        {state === 'unsolved' && (
+          <Text
+            style={[
+              puzzleStyles.meta,
+              { color: colors.mutedForeground, textAlign: 'center' },
+            ]}
+            testID="puzzle-solution-consulted"
+          >
+            Solution consultée
+          </Text>
+        )}
+
+        <Text
+          style={[
+            puzzleStyles.meta,
+            { color: colors.mutedForeground, textAlign: 'center' },
+          ]}
+        >
           Série : {currentStreak}
         </Text>
+
         {!!stats && (
-          <View style={[puzzleStyles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <PuzzleStatRow
-              label="Précision au premier essai"
-              value={`${stats.accuracyPercent} %`}
-            />
-            <PuzzleStatRow label="Erreurs de coup" value={String(stats.wrongChessMoves)} />
-            <PuzzleStatRow
-              label="Erreurs de reconnaissance"
-              value={String(stats.recognitionFailures)}
-            />
-            <PuzzleStatRow
-              label="Aides utilisées"
-              value={formatHelpsUsed(stats.helps)}
-            />
+          <View
+            style={[
+              puzzleStyles.listCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            {state !== 'unsolved' && (
+              <>
+                <PuzzleStatRow
+                  label="Erreurs de coup"
+                  value={String(stats.wrongChessMoves)}
+                />
+                <PuzzleStatRow
+                  label="Erreurs de reconnaissance"
+                  value={String(stats.recognitionFailures)}
+                />
+              </>
+            )}
+            <PuzzleStatRow label="Indices utilisés" value={String(indices)} />
           </View>
         )}
 
@@ -59,12 +101,20 @@ export function PuzzleResultsPhase() {
           </Text>
         )}
 
-        <View style={{ alignItems: 'center' }}>
+        <View
+          style={{
+            alignItems: 'center',
+            alignSelf: 'center',
+            width: boardSize,
+          }}
+        >
           <ChessBoard
             board={displayBoard}
             lastMove={lastMove}
             isFlipped={orientation === 'b'}
             onSquarePress={() => {}}
+            sizeMode="wide"
+            size={boardSize}
           />
         </View>
 

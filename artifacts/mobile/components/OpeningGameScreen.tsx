@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import {
   useBoardTouchSelection,
@@ -41,6 +42,7 @@ export function OpeningGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave('/openings/play');
 
   const {
@@ -226,7 +228,7 @@ export function OpeningGameScreen() {
         onNewGame={newGame}
       />
 
-      <View style={styles.boardBlock}>
+      <View style={[styles.boardBlock, { width: boardSize }]}>
         <BoardToolbar
           showCoordinates={showCoordinates}
           onToggleCoordinates={() => {
@@ -246,9 +248,15 @@ export function OpeningGameScreen() {
               legalDots={legalDests}
               onSquarePress={onSquarePress}
               showCoordinates={showCoordinates}
+              sizeMode="wide"
+              size={boardSize}
             />
           ) : (
-            <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
+            <HiddenBoardPlaceholder
+              onReveal={() => setBoardVisible(true)}
+              sizeMode="wide"
+              size={boardSize}
+            />
           )}
         </View>
       </View>
@@ -309,9 +317,9 @@ export function OpeningGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexGrow: 1, paddingHorizontal: 10, gap: 8 },
+  root: { flex: 1, flexGrow: 1, paddingHorizontal: 8, gap: 8 },
   loadingBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  boardBlock: { gap: 4 },
+  boardBlock: { gap: 4, alignSelf: 'center' },
   boardRow: { alignItems: 'center' },
   sideIndicator: {
     width: 32,

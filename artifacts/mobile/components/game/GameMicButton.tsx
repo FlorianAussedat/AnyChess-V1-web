@@ -56,11 +56,11 @@ export function GameMicButton({
   } else if (isListening) {
     micBg = '#C0392B';
     micIconName = 'mic';
-    micLabel = "J'écoute…";
+    micLabel = 'Écoute…';
   } else if (micActive) {
     micBg = '#D4880A';
     micIconName = 'mic-outline';
-    micLabel = 'Micro actif';
+    micLabel = 'Parler';
   } else {
     micBg = colors.primary;
     micIconName = 'mic-off-outline';
