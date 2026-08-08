@@ -8,6 +8,10 @@ type Props = {
   isGameOver: boolean;
   isOpponentThinking: boolean;
   thinkingLabel?: string;
+  /** When set (e.g. Classic keypad compose), shown as the primary line. */
+  composeText?: string | null;
+  compact?: boolean;
+  testID?: string;
 };
 
 export function GameStatusCard({
@@ -16,27 +20,47 @@ export function GameStatusCard({
   isGameOver,
   isOpponentThinking,
   thinkingLabel = "L'adversaire réfléchit…",
+  composeText = null,
+  compact = false,
+  testID = 'game-status-card',
 }: Props) {
   const colors = useColors();
+  const composing = !!composeText && composeText.length > 0;
+  const primary = composing
+    ? composeText
+    : isOpponentThinking
+      ? thinkingLabel
+      : status;
 
   return (
-    <View style={[styles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View
+      testID={testID}
+      style={[
+        styles.statusCard,
+        compact && styles.statusCardCompact,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
       <Text
-        numberOfLines={2}
+        numberOfLines={compact ? 1 : 2}
         style={[
           styles.statusText,
+          compact && styles.statusTextCompact,
           {
-            color: isGameOver
-              ? '#F5A623'
-              : isOpponentThinking
-                ? colors.mutedForeground
-                : colors.foreground,
+            color: composing
+              ? colors.primary
+              : isGameOver
+                ? '#F5A623'
+                : isOpponentThinking
+                  ? colors.mutedForeground
+                  : colors.foreground,
+            fontFamily: composing ? 'Inter_600SemiBold' : 'Inter_500Medium',
           },
         ]}
       >
-        {isOpponentThinking ? thinkingLabel : status}
+        {primary}
       </Text>
-      {!!heardText && (
+      {!composing && !!heardText && (
         <Text numberOfLines={1} style={[styles.heardText, { color: '#7BC8FF' }]}>
           Entendu : {heardText}
         </Text>
@@ -54,6 +78,13 @@ const styles = StyleSheet.create({
     minHeight: 46,
     justifyContent: 'center',
   },
+  statusCardCompact: {
+    minHeight: 36,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
   statusText: { fontSize: 14, fontFamily: 'Inter_500Medium', lineHeight: 20 },
+  statusTextCompact: { fontSize: 15, lineHeight: 20 },
   heardText: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 3 },
 });

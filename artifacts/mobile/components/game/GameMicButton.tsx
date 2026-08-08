@@ -19,6 +19,8 @@ type Props = {
   micMessage?: string | null;
   onToggle: () => void;
   testID?: string;
+  /** Compact icon+label for dense Classic keypad layouts. Default unchanged. */
+  variant?: 'default' | 'compact';
 };
 
 export function GameMicButton({
@@ -28,9 +30,11 @@ export function GameMicButton({
   micMessage,
   onToggle,
   testID = 'mic-btn',
+  variant = 'default',
 }: Props) {
   const colors = useColors();
   const scale = useSharedValue(1);
+  const compact = variant === 'compact';
 
   useEffect(() => {
     if (isListening) {
@@ -52,7 +56,7 @@ export function GameMicButton({
   if (showRecognized) {
     micBg = '#27AE60';
     micIconName = 'checkmark-circle';
-    micLabel = 'Coup reconnu';
+    micLabel = compact ? 'OK' : 'Coup reconnu';
   } else if (isListening) {
     micBg = '#C0392B';
     micIconName = 'mic';
@@ -68,7 +72,7 @@ export function GameMicButton({
   }
 
   return (
-    <View style={styles.micRow}>
+    <View style={[styles.micRow, compact && styles.micRowCompact]}>
       <Animated.View style={animStyle}>
         <Pressable
           onPress={() => {
@@ -76,10 +80,18 @@ export function GameMicButton({
             onToggle();
           }}
           testID={testID}
-          style={({ pressed }) => [styles.micBtn, { backgroundColor: micBg, opacity: pressed ? 0.82 : 1 }]}
+          accessibilityLabel={micLabel}
+          style={({ pressed }) => [
+            compact ? styles.micBtnCompact : styles.micBtn,
+            { backgroundColor: micBg, opacity: pressed ? 0.82 : 1 },
+          ]}
         >
-          <Ionicons name={micIconName as keyof typeof Ionicons.glyphMap} size={22} color="#fff" />
-          <Text style={styles.micLabel}>{micLabel}</Text>
+          <Ionicons
+            name={micIconName as keyof typeof Ionicons.glyphMap}
+            size={compact ? 18 : 22}
+            color="#fff"
+          />
+          <Text style={compact ? styles.micLabelCompact : styles.micLabel}>{micLabel}</Text>
         </Pressable>
       </Animated.View>
       {!!micMessage && (
@@ -91,6 +103,7 @@ export function GameMicButton({
 
 const styles = StyleSheet.create({
   micRow: { alignItems: 'center', gap: 6 },
+  micRowCompact: { alignItems: 'stretch', flex: 1 },
   micBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -99,6 +112,17 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     borderRadius: 999,
   },
+  micBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
   micLabel: { color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+  micLabelCompact: { color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   permWarn: { fontSize: 11, fontFamily: 'Inter_400Regular' },
 });

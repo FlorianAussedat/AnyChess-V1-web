@@ -1,6 +1,6 @@
 /**
- * Chess move keypad V2 — Classic Mode opt-in.
- * Builds a French move string; validation stays outside (parseChessVoice).
+ * Chess move keypad V3 — Classic Mode opt-in.
+ * Auto-submits form-complete moves; validation stays in applyUserMove.
  */
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,9 +9,8 @@ import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
 import {
   MOVE_KEYPAD_A11Y,
-  appendMoveKeypadToken,
+  applyMoveKeypadToken,
   backspaceMoveKeypad,
-  canSubmitMoveKeypad,
   clearMoveKeypad,
   priorityMoveKeypadKeys,
   type MoveKeypadInsertToken,
@@ -20,9 +19,15 @@ import {
 type Props = {
   value: string;
   onChangeText: (next: string) => void;
-  /** Same submit path as the ChessAnswerInput arrow. */
-  onSubmit: () => void;
+  /**
+   * Called with the completed buffer (auto-submit) — same validation path
+   * as text/voice submit. Parent clears on success.
+   */
+  onSubmit: (raw: string) => void;
+  /** When true (default), submit as soon as the buffer is form-complete. */
+  autoSubmit?: boolean;
   enabled?: boolean;
+  compact?: boolean;
   testID?: string;
 };
 
@@ -30,7 +35,7 @@ type KeyDef = {
   id: string;
   label: string;
   token?: MoveKeypadInsertToken;
-  action?: 'backspace' | 'clear' | 'submit';
+  action?: 'backspace' | 'clear';
   flex?: number;
   a11y: string;
 };
@@ -50,7 +55,7 @@ const ROWS: KeyDef[][] = [
     { id: 'd', label: 'd', token: 'd', a11y: MOVE_KEYPAD_A11Y.d },
     { id: '3', label: '3', token: '3', a11y: MOVE_KEYPAD_A11Y['3'] },
     { id: '4', label: '4', token: '4', a11y: MOVE_KEYPAD_A11Y['4'] },
-    { id: '+', label: '+', token: '+', a11y: MOVE_KEYPAD_A11Y['+'] },
+    { id: 'backspace', label: '⌫', action: 'backspace', a11y: MOVE_KEYPAD_A11Y.backspace },
   ],
   [
     { id: 'T', label: 'T', token: 'T', a11y: MOVE_KEYPAD_A11Y.T },
@@ -58,7 +63,7 @@ const ROWS: KeyDef[][] = [
     { id: 'f', label: 'f', token: 'f', a11y: MOVE_KEYPAD_A11Y.f },
     { id: '5', label: '5', token: '5', a11y: MOVE_KEYPAD_A11Y['5'] },
     { id: '6', label: '6', token: '6', a11y: MOVE_KEYPAD_A11Y['6'] },
-    { id: '#', label: '#', token: '#', a11y: MOVE_KEYPAD_A11Y['#'] },
+    { id: 'clear', label: 'Eff', action: 'clear', a11y: MOVE_KEYPAD_A11Y.clear },
   ],
   [
     { id: 'D', label: 'D', token: 'D', a11y: MOVE_KEYPAD_A11Y.D },
@@ -66,13 +71,11 @@ const ROWS: KeyDef[][] = [
     { id: 'h', label: 'h', token: 'h', a11y: MOVE_KEYPAD_A11Y.h },
     { id: '7', label: '7', token: '7', a11y: MOVE_KEYPAD_A11Y['7'] },
     { id: '8', label: '8', token: '8', a11y: MOVE_KEYPAD_A11Y['8'] },
-    { id: 'backspace', label: '⌫', action: 'backspace', a11y: MOVE_KEYPAD_A11Y.backspace },
+    { id: 'R', label: 'R', token: 'R', a11y: MOVE_KEYPAD_A11Y.R },
   ],
   [
-    { id: 'R', label: 'R', token: 'R', a11y: MOVE_KEYPAD_A11Y.R },
-    { id: 'O-O', label: 'O-O', token: 'O-O', flex: 2, a11y: MOVE_KEYPAD_A11Y['O-O'] },
-    { id: 'O-O-O', label: 'O-O-O', token: 'O-O-O', flex: 2, a11y: MOVE_KEYPAD_A11Y['O-O-O'] },
-    { id: 'submit', label: 'OK', action: 'submit', a11y: MOVE_KEYPAD_A11Y.submit },
+    { id: 'O-O', label: 'O-O', token: 'O-O', flex: 1, a11y: MOVE_KEYPAD_A11Y['O-O'] },
+    { id: 'O-O-O', label: 'O-O-O', token: 'O-O-O', flex: 1, a11y: MOVE_KEYPAD_A11Y['O-O-O'] },
   ],
 ];
 
@@ -88,12 +91,16 @@ export function ChessMoveKeypad({
   value,
   onChangeText,
   onSubmit,
+  autoSubmit = true,
   enabled = true,
+  compact = true,
   testID = 'chess-move-keypad',
 }: Props) {
   const colors = useColors();
   const priority = useMemo(() => priorityMoveKeypadKeys(value), [value]);
-  const canSubmit = enabled && canSubmitMoveKeypad(value);
+  const keyMinHeight = compact ? 38 : DesignTokens.minTouchTarget;
+  const rowGap = compact ? 4 : 6;
+  const panelPad = compact ? 6 : DesignTokens.spacing.sm;
 
   const pressKey = useCallback(
     (key: KeyDef) => {
@@ -108,18 +115,17 @@ export function ChessMoveKeypad({
         onChangeText(clearMoveKeypad());
         return;
       }
-      if (key.action === 'submit') {
-        if (!canSubmitMoveKeypad(value)) return;
+      if (!key.token) return;
+
+      lightTap();
+      const { value: next, readyToSubmit } = applyMoveKeypadToken(value, key.token);
+      onChangeText(next);
+      if (autoSubmit && readyToSubmit) {
         confirmTap();
-        onSubmit();
-        return;
-      }
-      if (key.token) {
-        lightTap();
-        onChangeText(appendMoveKeypadToken(value, key.token));
+        onSubmit(next);
       }
     },
-    [enabled, onChangeText, onSubmit, value],
+    [autoSubmit, enabled, onChangeText, onSubmit, value],
   );
 
   return (
@@ -129,39 +135,41 @@ export function ChessMoveKeypad({
         {
           backgroundColor: colors.card,
           borderColor: colors.border,
+          padding: panelPad,
+          gap: rowGap,
         },
       ]}
       testID={testID}
       accessibilityLabel="Clavier coups d’échecs"
     >
       {ROWS.map((row, rowIndex) => (
-        <View key={`row-${rowIndex}`} style={styles.row}>
+        <View key={`row-${rowIndex}`} style={[styles.row, { gap: rowGap }]}>
           {row.map((key) => {
-            const isSubmit = key.action === 'submit';
-            const isPriority = priority.has(key.id) || (isSubmit && priority.has('submit'));
-            const disabled = !enabled || (isSubmit && !canSubmit);
-            const bg = isSubmit
-              ? colors.primary
+            const isPriority = priority.has(key.id);
+            const isClear = key.action === 'clear';
+            const bg = isClear
+              ? colors.muted
               : isPriority
                 ? colors.accent
                 : colors.secondary;
-            const borderColor = isPriority && !isSubmit ? colors.primary : 'transparent';
-            const color = isSubmit ? colors.primaryForeground : colors.secondaryForeground;
+            const borderColor = isPriority ? colors.primary : 'transparent';
+            const color = isClear ? colors.mutedForeground : colors.secondaryForeground;
 
             return (
               <Pressable
                 key={key.id}
                 onPress={() => pressKey(key)}
-                disabled={disabled}
+                disabled={!enabled}
                 accessibilityLabel={key.a11y}
                 testID={`${testID}-key-${key.id}`}
                 style={({ pressed }) => [
                   styles.key,
                   {
                     flex: key.flex ?? 1,
+                    minHeight: keyMinHeight,
                     backgroundColor: bg,
                     borderColor,
-                    opacity: disabled ? 0.45 : pressed ? 0.82 : 1,
+                    opacity: !enabled ? 0.45 : pressed ? 0.82 : 1,
                   },
                 ]}
               >
@@ -170,7 +178,12 @@ export function ChessMoveKeypad({
                     styles.keyLabel,
                     {
                       color,
-                      fontSize: key.token === 'O-O-O' || key.token === 'O-O' ? 13 : 16,
+                      fontSize:
+                        key.token === 'O-O-O' || key.token === 'O-O' || key.action === 'clear'
+                          ? 12
+                          : compact
+                            ? 15
+                            : 16,
                     },
                   ]}
                   numberOfLines={1}
@@ -182,27 +195,6 @@ export function ChessMoveKeypad({
           })}
         </View>
       ))}
-
-      <Pressable
-        onPress={() => {
-          if (!enabled) return;
-          lightTap();
-          onChangeText(clearMoveKeypad());
-        }}
-        disabled={!enabled || !value}
-        accessibilityLabel={MOVE_KEYPAD_A11Y.clear}
-        testID={`${testID}-clear`}
-        style={({ pressed }) => [
-          styles.clearBtn,
-          {
-            borderColor: colors.border,
-            backgroundColor: colors.muted,
-            opacity: !enabled || !value ? 0.4 : pressed ? 0.8 : 1,
-          },
-        ]}
-      >
-        <Text style={[styles.clearLabel, { color: colors.mutedForeground }]}>Effacer</Text>
-      </Pressable>
     </View>
   );
 }
@@ -211,15 +203,11 @@ const styles = StyleSheet.create({
   panel: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.md,
-    padding: DesignTokens.spacing.sm,
-    gap: 6,
   },
   row: {
     flexDirection: 'row',
-    gap: 6,
   },
   key: {
-    minHeight: DesignTokens.minTouchTarget,
     borderRadius: DesignTokens.radius.sm,
     borderWidth: 1.5,
     alignItems: 'center',
@@ -227,18 +215,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   keyLabel: {
-    fontFamily: DesignTokens.typography.weightSemiBold,
-  },
-  clearBtn: {
-    minHeight: 40,
-    borderRadius: DesignTokens.radius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  clearLabel: {
-    fontSize: 14,
     fontFamily: DesignTokens.typography.weightSemiBold,
   },
 });

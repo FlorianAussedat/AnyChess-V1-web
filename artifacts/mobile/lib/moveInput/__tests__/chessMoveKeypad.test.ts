@@ -1,5 +1,5 @@
 /**
- * Chess move keypad V2 — buffer helpers + Classic scope contracts.
+ * Chess move keypad V3 — auto-submit form rules + Classic scope contracts.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -8,42 +8,74 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   appendMoveKeypadToken,
+  applyMoveKeypadToken,
   backspaceMoveKeypad,
   buildMoveKeypadValue,
-  canSubmitMoveKeypad,
   clearMoveKeypad,
+  isCompleteMoveKeypadBuffer,
   priorityMoveKeypadKeys,
   trimMoveKeypadBuffer,
 } from '../chessMoveKeypad.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const classicPath = join(here, '../../../components/ClassicGameScreen.tsx');
+const keypadUiPath = join(here, '../../../components/game/ChessMoveKeypad.tsx');
 const openingPath = join(here, '../../../components/OpeningGameScreen.tsx');
 const puzzlePath = join(here, '../../../components/puzzles/PuzzlePlayingPhase.tsx');
 
 describe('chess move keypad construction', () => {
-  it('builds e4, Cf3, Cxf7+, castling', () => {
+  it('builds e4, Cf3, Cxf7, Dxh7, castling', () => {
     assert.equal(buildMoveKeypadValue(['e', '4']), 'e4');
     assert.equal(buildMoveKeypadValue(['C', 'f', '3']), 'Cf3');
-    assert.equal(buildMoveKeypadValue(['C', 'x', 'f', '7', '+']), 'Cxf7+');
+    assert.equal(buildMoveKeypadValue(['F', 'e', '7']), 'Fe7');
+    assert.equal(buildMoveKeypadValue(['D', 'x', 'h', '7']), 'Dxh7');
+    assert.equal(buildMoveKeypadValue(['C', 'x', 'f', '7']), 'Cxf7');
     assert.equal(appendMoveKeypadToken('', 'O-O'), 'O-O');
     assert.equal(appendMoveKeypadToken('', 'O-O-O'), 'O-O-O');
-    assert.equal(appendMoveKeypadToken('C', 'O-O'), 'O-O');
   });
 
-  it('trims spaces and gates empty submit', () => {
+  it('trims spaces', () => {
     assert.equal(trimMoveKeypadBuffer('  Cf3  '), 'Cf3');
-    assert.equal(canSubmitMoveKeypad(''), false);
-    assert.equal(canSubmitMoveKeypad('   '), false);
-    assert.equal(canSubmitMoveKeypad('e4'), true);
+  });
+});
+
+describe('chess move keypad auto-submit readiness', () => {
+  it('marks complete moves ready and incomplete not ready', () => {
+    assert.equal(isCompleteMoveKeypadBuffer('e4'), true);
+    assert.equal(isCompleteMoveKeypadBuffer('Cf3'), true);
+    assert.equal(isCompleteMoveKeypadBuffer('Fe7'), true);
+    assert.equal(isCompleteMoveKeypadBuffer('Dxh7'), true);
+    assert.equal(isCompleteMoveKeypadBuffer('O-O'), true);
+    assert.equal(isCompleteMoveKeypadBuffer('O-O-O'), true);
+
+    assert.equal(isCompleteMoveKeypadBuffer('C'), false);
+    assert.equal(isCompleteMoveKeypadBuffer('Cx'), false);
+    assert.equal(isCompleteMoveKeypadBuffer('e'), false);
+    assert.equal(isCompleteMoveKeypadBuffer('Dxh'), false);
+    assert.equal(isCompleteMoveKeypadBuffer(''), false);
+  });
+
+  it('applyMoveKeypadToken reports readyToSubmit for auto-submit cases', () => {
+    assert.deepEqual(applyMoveKeypadToken('e', '4'), { value: 'e4', readyToSubmit: true });
+    assert.deepEqual(applyMoveKeypadToken('Cf', '3'), { value: 'Cf3', readyToSubmit: true });
+    assert.deepEqual(applyMoveKeypadToken('Fe', '7'), { value: 'Fe7', readyToSubmit: true });
+    assert.deepEqual(applyMoveKeypadToken('Dxh', '7'), { value: 'Dxh7', readyToSubmit: true });
+    assert.deepEqual(applyMoveKeypadToken('', 'O-O'), { value: 'O-O', readyToSubmit: true });
+    assert.deepEqual(applyMoveKeypadToken('', 'O-O-O'), {
+      value: 'O-O-O',
+      readyToSubmit: true,
+    });
+
+    assert.equal(applyMoveKeypadToken('', 'C').readyToSubmit, false);
+    assert.equal(applyMoveKeypadToken('C', 'x').readyToSubmit, false);
+    assert.equal(applyMoveKeypadToken('', 'e').readyToSubmit, false);
+    assert.equal(applyMoveKeypadToken('Dx', 'h').readyToSubmit, false);
   });
 });
 
 describe('chess move keypad backspace / clear', () => {
-  it('removes last character logically through Cxf7+', () => {
-    let v = 'Cxf7+';
-    v = backspaceMoveKeypad(v);
-    assert.equal(v, 'Cxf7');
+  it('removes last character through Cxf7', () => {
+    let v = 'Cxf7';
     v = backspaceMoveKeypad(v);
     assert.equal(v, 'Cxf');
     v = backspaceMoveKeypad(v);
@@ -61,12 +93,11 @@ describe('chess move keypad backspace / clear', () => {
 
   it('Effacer empties the buffer', () => {
     assert.equal(clearMoveKeypad(), '');
-    assert.equal(appendMoveKeypadToken(clearMoveKeypad(), 'C'), 'C');
   });
 });
 
 describe('chess move keypad contextual priority', () => {
-  it('highlights plausible keys without implying hard locks', () => {
+  it('highlights plausible keys without hard locks', () => {
     const empty = priorityMoveKeypadKeys('');
     assert.ok(empty.has('C'));
     assert.ok(empty.has('e'));
@@ -88,21 +119,33 @@ describe('chess move keypad contextual priority', () => {
   });
 });
 
-describe('classic keypad wiring scope', () => {
-  it('wires keypad + shared submit + system keyboard fallback in Classic only', () => {
+describe('classic keypad V3 wiring scope', () => {
+  it('uses auto-submit keypad mode without text field or Valider', () => {
     const classic = readFileSync(classicPath, 'utf8');
+    const keypadUi = readFileSync(keypadUiPath, 'utf8');
+
     assert.match(classic, /ChessMoveKeypad/);
     assert.match(classic, /classic-move-keypad/);
+    assert.match(classic, /classic-coup-banner/);
+    assert.match(classic, /classic-keypad-visibility-toggle/);
     assert.match(classic, /classic-keyboard-mode-toggle/);
-    assert.match(classic, /useSystemKeyboard/);
-    assert.match(classic, /commitTypedMove/);
-    assert.match(classic, /submitDraftFromKeypad/);
-    assert.match(classic, /Compose ou dicte le coup/);
-    assert.match(classic, /showSoftInputOnFocus:\s*useSystemKeyboard/);
-    assert.match(classic, /GameMicButton/);
-    assert.match(classic, /classic-mic/);
-    // Voice still goes through applyUserMove pipeline directly.
-    assert.match(classic, /onTranscript:\s*\(text\)\s*=>\s*applyRef\.current\(text\)/);
+    assert.match(classic, /onKeypadAutoSubmit/);
+    assert.match(classic, /keypadMode/);
+    assert.match(classic, /anyChessKeypadVisible/);
+    assert.match(classic, /variant=["']compact["']/);
+    // Text field only in system-keyboard fallback.
+    assert.match(classic, /useSystemKeyboard \? \(/);
+    assert.match(classic, /ChessAnswerInput/);
+    // Voice pipeline unchanged.
+    assert.match(classic, /onTranscript:/);
+
+    // Keypad UI: no + / # / OK submit key.
+    assert.doesNotMatch(keypadUi, /token:\s*'\+'/);
+    assert.doesNotMatch(keypadUi, /token:\s*'#'/);
+    assert.doesNotMatch(keypadUi, /action:\s*'submit'/);
+    assert.doesNotMatch(keypadUi, /label:\s*'OK'/);
+    assert.match(keypadUi, /autoSubmit/);
+    assert.match(keypadUi, /applyMoveKeypadToken/);
 
     const opening = readFileSync(openingPath, 'utf8');
     assert.doesNotMatch(opening, /ChessMoveKeypad/);
@@ -111,10 +154,10 @@ describe('classic keypad wiring scope', () => {
     assert.doesNotMatch(puzzle, /ChessMoveKeypad/);
   });
 
-  it('keypad Valider and arrow share commitTypedMove path', () => {
+  it('keeps system keyboard fallback with visible text input', () => {
     const classic = readFileSync(classicPath, 'utf8');
-    assert.match(classic, /onSubmit=\{commitTypedMove\}/);
-    assert.match(classic, /onSubmit=\{submitDraftFromKeypad\}/);
-    assert.match(classic, /commitTypedMove\(draftMove\)/);
+    assert.match(classic, /Compose ou dicte le coup/);
+    assert.match(classic, /onSystemKeyboardSubmit/);
+    assert.match(classic, /setUseSystemKeyboard/);
   });
 });
