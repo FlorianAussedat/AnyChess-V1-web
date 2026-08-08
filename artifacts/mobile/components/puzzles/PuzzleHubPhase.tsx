@@ -4,12 +4,12 @@ import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { PuzzleFilterChip } from '@/components/puzzles/PuzzleFilterChip';
+import { PuzzleRatingBandSlider } from '@/components/puzzles/PuzzleRatingBandSlider';
 import { AppButton } from '@/components/ui/AppButton';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
 import {
   PIECE_COUNT_BANDS,
-  PUZZLE_RATING_BANDS,
   puzzleRepository,
 } from '@/lib/puzzles';
 
@@ -66,18 +66,18 @@ export function PuzzleHubPhase() {
           />
         </View>
 
-        <Text style={[puzzleStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          Difficulté (cote puzzle Lichess)
-        </Text>
+        <PuzzleRatingBandSlider
+          bandId={ratingBandId}
+          onBandIdChange={setRatingBand}
+          label="Difficulté"
+        />
+
         <View style={puzzleStyles.row}>
-          {PUZZLE_RATING_BANDS.map((band) => (
-            <PuzzleFilterChip
-              key={band.id}
-              label={band.label}
-              active={ratingBandId === band.id}
-              onPress={() => setRatingBand(band.id)}
-            />
-          ))}
+          <PuzzleFilterChip
+            label="Aléatoire / Tous"
+            active={ratingBandId === 'all'}
+            onPress={() => setRatingBand('all')}
+          />
         </View>
 
         {submode === 'blind' && (

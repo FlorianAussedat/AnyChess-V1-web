@@ -25,7 +25,8 @@ export interface PuzzleRatingBand {
  */
 export const DEFAULT_PUZZLE_RATING_BAND_ID = 'all';
 
-export const PUZZLE_RATING_BANDS: PuzzleRatingBand[] = [
+/** Concrete Elo bands only — used by the difficulty DiscreteSlider. */
+export const PUZZLE_RATING_BANDS_SELECTABLE: PuzzleRatingBand[] = [
   { id: '600-799', label: '600–799', ratingMin: 600, ratingMax: 799 },
   { id: '800-999', label: '800–999', ratingMin: 800, ratingMax: 999 },
   { id: '1000-1199', label: '1000–1199', ratingMin: 1000, ratingMax: 1199 },
@@ -35,8 +36,24 @@ export const PUZZLE_RATING_BANDS: PuzzleRatingBand[] = [
   { id: '1800-1999', label: '1800–1999', ratingMin: 1800, ratingMax: 1999 },
   { id: '2000-2199', label: '2000–2199', ratingMin: 2000, ratingMax: 2199 },
   { id: '2200+', label: '2200+', ratingMin: 2200, ratingMax: 4000 },
-  { id: 'all', label: 'Aléatoire / Tous', ratingMin: 0, ratingMax: 4000 },
 ];
+
+export const PUZZLE_RATING_BAND_ALL: PuzzleRatingBand = {
+  id: 'all',
+  label: 'Aléatoire / Tous',
+  ratingMin: 0,
+  ratingMax: 4000,
+};
+
+export const PUZZLE_RATING_BANDS: PuzzleRatingBand[] = [
+  ...PUZZLE_RATING_BANDS_SELECTABLE,
+  PUZZLE_RATING_BAND_ALL,
+];
+
+/** Default thumb index when « Aléatoire / Tous » is selected (1200–1399). */
+export const PUZZLE_RATING_SLIDER_NEUTRAL_INDEX = PUZZLE_RATING_BANDS_SELECTABLE.findIndex(
+  (b) => b.id === '1200-1399',
+);
 
 /** Resolve a band id; falls back to the configured default. */
 export function getPuzzleRatingBand(bandId: string): PuzzleRatingBand {
