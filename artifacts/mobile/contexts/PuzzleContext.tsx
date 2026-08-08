@@ -369,6 +369,11 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const finishSolved = useCallback(() => {
     const finalStats = sessionRef.current.getFinalStats();
     setStats(finalStats);
+    // Results always show the full current position for review.
+    setWhitePiecesShown(true);
+    setBlackPiecesShown(true);
+    setBoardVisible(true);
+    setPieceRevealFilter('all');
     setPhase('results');
     const clean = isCleanPuzzleSolve(finalStats);
     const title = clean ? 'Problème résolu' : 'Problème résolu avec aide';
