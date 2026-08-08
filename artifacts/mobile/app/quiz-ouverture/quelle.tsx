@@ -8,6 +8,7 @@ import { GameMicButton } from '@/components/game/GameMicButton';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import {
@@ -17,6 +18,7 @@ import {
 
 export default function QuelleOuvertureScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const session = useRef(new OpeningIdentificationSession());
@@ -53,9 +55,9 @@ export default function QuelleOuvertureScreen() {
       keyboardShouldPersistTaps="handled"
       testID="quelle-screen"
     >
-      <ScreenHeader onBack={() => router.back()} title="Quelle ouverture ?" showSound />
+      <ScreenHeader onBack={() => router.back()} title={t('quiz.quelle')} showSound />
       <Text style={{ color: colors.mutedForeground }}>
-        Identifie l’ouverture après cette ligne :
+        {t('quiz.identifyPrompt')}
       </Text>
       <View
         style={[styles.lineCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -69,7 +71,7 @@ export default function QuelleOuvertureScreen() {
             onSubmit={answer}
             enabled
             persistFocus={false}
-            placeholder="Nom de l’ouverture"
+            placeholder={t('quiz.openingPlaceholder')}
             testID="quelle-answer-input"
           />
           <GameMicButton
@@ -85,11 +87,15 @@ export default function QuelleOuvertureScreen() {
         <View style={{ gap: DesignTokens.spacing.sm }}>
           <Text style={{ color: snap.verdict?.correct ? '#398a55' : '#c44' }}>
             {snap.verdict?.correct
-              ? `Correct${snap.verdict.acceptedAs === 'family' ? ' (famille acceptée)' : ''} !`
-              : 'Incorrect.'}
+              ? snap.verdict.acceptedAs === 'family'
+                ? t('quiz.correctFamily')
+                : t('quiz.correctExclaim')
+              : t('quiz.incorrect')}
           </Text>
-          <Text style={{ color: colors.foreground }}>Réponse : {snap.line?.identity.name}</Text>
-          <AppButton label="Nouvelle ouverture" onPress={next} />
+          <Text style={{ color: colors.foreground }}>
+            {t('quiz.answerIs', { name: snap.line?.identity.name ?? '' })}
+          </Text>
+          <AppButton label={t('quiz.newOpening')} onPress={next} />
         </View>
       )}
     </ScrollView>

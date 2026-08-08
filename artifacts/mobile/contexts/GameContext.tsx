@@ -38,6 +38,7 @@ import {
   type MoveEvent,
   type PlayerColor,
 } from '@/lib/game';
+import { tMsg } from '@/lib/i18n';
 import { useSharedPlayState } from '@/hooks/useSharedPlayState';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
@@ -313,17 +314,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setHeardText(result.heardText);
 
       if (result.kind === 'unrecognized') {
-        setStatus('Coup non reconnu. Répète.');
+        setStatus(tMsg('game.unrecognized'));
         if (result.emitError) emitEvent('error', source);
         return false;
       }
       if (result.kind === 'ambiguous') {
-        setStatus('Coup ambigu. Précise la case de départ.');
+        setStatus(tMsg('game.ambiguous'));
         emitEvent('error', source);
         return false;
       }
       if (result.kind === 'illegal') {
-        setStatus('Coup illégal. Répète.');
+        setStatus(tMsg('game.illegal'));
         emitEvent('error', source);
         return false;
       }
@@ -379,11 +380,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       if (color === 'b') {
         setWaitingForUser(false);
-        setStatus("L'adversaire prépare son coup…");
+        setStatus(tMsg('game.opponentPreparing'));
         scheduleOpponentKickoff(1200);
       } else {
         setWaitingForUser(true);
-        setStatus('À toi de jouer.');
+        setStatus(tMsg('game.yourTurn'));
       }
     },
     [

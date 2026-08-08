@@ -41,6 +41,7 @@ import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage, StorageKeys } from '@/lib/storage';
@@ -54,6 +55,7 @@ function fenToBoard(fen: string): (BoardPiece | null)[][] {
 
 export default function MentalPositionScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
@@ -265,7 +267,7 @@ export default function MentalPositionScreen() {
     >
       <ScreenHeader
         onBack={() => router.back()}
-        title="Suivi mental de position"
+        title={t('vision.mental')}
         showSound
       />
 
@@ -277,7 +279,7 @@ export default function MentalPositionScreen() {
 
           <DiscreteSlider
             testID="mental-full-moves-slider"
-            label="Coups complets"
+            label={t('blind.fullMoves')}
             valueLabel={String(fullMoves)}
             minimumValue={MENTAL_FULL_MOVES_MIN}
             maximumValue={MENTAL_FULL_MOVES_MAX}
@@ -286,10 +288,13 @@ export default function MentalPositionScreen() {
             onValueChange={setFullMoves}
             leftHint={String(MENTAL_FULL_MOVES_MIN)}
             rightHint={String(MENTAL_FULL_MOVES_MAX)}
-            accessibilityLabel="Coups complets"
+            accessibilityLabel={t('a11y.fullMoves')}
           />
           <Text style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-            {fullMoves} coups complets = {mentalHalfMoveCount(fullMoves)} demi-coups
+            {t('vision.fullMovesHint', {
+              full: fullMoves,
+              half: mentalHalfMoveCount(fullMoves),
+            })}
           </Text>
 
           <Text
@@ -300,13 +305,13 @@ export default function MentalPositionScreen() {
               letterSpacing: 0.5,
             }}
           >
-            PERSPECTIVE
+            {t('vision.perspective')}
           </Text>
           <View style={styles.row}>
             {(['w', 'b'] as const).map((c) => (
               <OptionChip
                 key={c}
-                label={c === 'w' ? 'Blancs' : 'Noirs'}
+                label={c === 'w' ? t('common.whites') : t('common.blacks')}
                 active={orientation === c}
                 onPress={() => setOrientation(c)}
               />
@@ -314,7 +319,7 @@ export default function MentalPositionScreen() {
           </View>
 
           <BooleanSettingRow
-            label="Dicter la séquence"
+            label={t('vision.dictate')}
             value={dictate}
             onToggle={onToggleDictate}
             activeIcon="volume-high"
@@ -322,14 +327,14 @@ export default function MentalPositionScreen() {
             testID="mental-dictate-toggle"
           />
           <BooleanSettingRow
-            label="Afficher l'échiquier pendant la séquence"
+            label={t('vision.showBoard')}
             value={showBoard}
             onToggle={onToggleBoard}
             activeIcon="eye"
             inactiveIcon="eye-off-outline"
             testID="mental-board-toggle"
           />
-          <AppButton label="Commencer" onPress={start} disabled={busy} testID="mental-start" />
+          <AppButton label={t('common.start')} onPress={start} disabled={busy} testID="mental-start" />
           {busy ? <ActivityIndicator color={colors.primary} /> : null}
         </View>
       ) : null}
@@ -337,7 +342,7 @@ export default function MentalPositionScreen() {
       {(showing || done) && snap.sans.length > 0 ? (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={{ color: colors.mutedForeground, fontSize: 12, marginBottom: 6 }}>
-            Séquence
+            {t('vision.sequence')}
           </Text>
           <NumberedSanRows sans={snap.sans} testID="mental-sequence-rows" />
         </View>
@@ -378,8 +383,10 @@ export default function MentalPositionScreen() {
 
       {questioning && (
         <Text style={{ color: colors.mutedForeground }} testID="mental-question-progress">
-          Question {Math.min(snap.questionIndex + 1, snap.questions.length)} /{' '}
-          {snap.questions.length}
+          {t('vision.questionProgress', {
+            current: Math.min(snap.questionIndex + 1, snap.questions.length),
+            total: snap.questions.length,
+          })}
         </Text>
       )}
 
@@ -390,7 +397,7 @@ export default function MentalPositionScreen() {
             style={[styles.helpBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
           >
             <Ionicons name="volume-high-outline" size={18} color={colors.foreground} />
-            <Text style={{ color: colors.foreground }}>Réécouter la séquence</Text>
+            <Text style={{ color: colors.foreground }}>{t('vision.relisten')}</Text>
           </Pressable>
           <Text style={[styles.prompt, { color: colors.foreground }]}>{snap.currentPrompt}</Text>
           {snap.lastFeedback ? (
@@ -415,7 +422,7 @@ export default function MentalPositionScreen() {
             onSubmit={(raw) => answer(raw)}
             enabled
             persistFocus
-            placeholder="Réponse écrite…"
+            placeholder={t('vision.answerPlaceholder')}
           />
         </View>
       )}
@@ -426,8 +433,11 @@ export default function MentalPositionScreen() {
             style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 18 }}
             testID="mental-final-score"
           >
-            Terminé — score {snap.score}/{snap.questions.length}
-            {snap.helpUsed ? ' · aide utilisée' : ''}
+            {t('vision.finishedScore', {
+              score: snap.score,
+              total: snap.questions.length,
+            })}
+            {snap.helpUsed ? t('vision.helpUsed') : ''}
           </Text>
           {snap.answerLog.map((entry, i) => (
             <View
@@ -448,7 +458,7 @@ export default function MentalPositionScreen() {
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={{ color: colors.foreground }}>{entry.question.promptFr}</Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-                  Ta réponse : {entry.userAnswer || '—'}
+                  {t('vision.yourAnswer', { answer: entry.userAnswer || '—' })}
                 </Text>
                 <Text
                   style={{
@@ -456,13 +466,15 @@ export default function MentalPositionScreen() {
                     fontSize: 13,
                   }}
                 >
-                  Attendu : {formatSanForDisplay(entry.expectedDisplay, chessNotation)}
+                  {t('quiz.expected', {
+                    san: formatSanForDisplay(entry.expectedDisplay, chessNotation),
+                  })}
                 </Text>
               </View>
             </View>
           ))}
-          <AppButton label="Nouvelle séquence" onPress={start} />
-          <AppButton label="Retour" variant="secondary" onPress={() => router.back()} />
+          <AppButton label={t('vision.newSequence')} onPress={start} />
+          <AppButton label={t('common.return')} variant="secondary" onPress={() => router.back()} />
         </View>
       )}
     </ScrollView>

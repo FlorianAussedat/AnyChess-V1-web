@@ -173,7 +173,7 @@ describe('classic keypad V3 wiring scope', () => {
 
   it('keeps system keyboard fallback with visible text input', () => {
     const classic = readFileSync(classicPath, 'utf8');
-    assert.match(classic, /Compose ou dicte le coup/);
+    assert.match(classic, /game\.composeOrDictate/);
     assert.match(classic, /onSystemKeyboardSubmit/);
     assert.match(classic, /setUseSystemKeyboard/);
   });

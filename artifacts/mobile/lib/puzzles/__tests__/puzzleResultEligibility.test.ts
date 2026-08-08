@@ -176,7 +176,7 @@ describe('puzzle UX opt-ins', () => {
     const hub = readFileSync(join(componentsDir, 'PuzzleHubPhase.tsx'), 'utf8');
     const slider = readFileSync(join(componentsDir, 'PuzzleRatingBandSlider.tsx'), 'utf8');
     assert.match(hub, /PuzzleRatingBandSlider/);
-    assert.match(hub, /Aléatoire \/ Tous/);
+    assert.match(hub, /puzzle\.randomAll/);
     assert.match(slider, /DiscreteSlider/);
     assert.match(slider, /PUZZLE_RATING_BANDS_SELECTABLE/);
   });

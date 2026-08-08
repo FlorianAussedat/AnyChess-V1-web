@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
  */
 export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onToggle}
@@ -22,7 +24,7 @@ export function BoardCoordinatesToggle({ visible, onToggle }: Props) {
       accessibilityRole="switch"
       accessibilityState={{ checked: visible }}
       accessibilityLabel={
-        visible ? 'Masquer les coordonnées' : 'Afficher les coordonnées'
+        visible ? t('a11y.coordsHide') : t('a11y.coordsShow')
       }
       style={({ pressed }) => [
         styles.btn,

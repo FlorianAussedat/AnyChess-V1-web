@@ -29,7 +29,12 @@ export type {
   RepertoireSelectionSettings,
   PgnHeaders,
 } from './types';
-export { RepertoireService, repertoireService } from './RepertoireService';
+export {
+  RepertoireService,
+  repertoireService,
+  normaliseFilename,
+  uniquePgnFilename,
+} from './RepertoireService';
 export type { RepertoireStorage } from './storage/RepertoireStorage';
 export { AsyncStorageRepertoireStorage, defaultRepertoireStorage } from './storage/AsyncStorageRepertoireStorage';
 export type {

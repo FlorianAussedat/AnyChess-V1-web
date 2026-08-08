@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { GameMicButton } from '@/components/game/GameMicButton';
@@ -14,6 +15,7 @@ import { sfxService } from '@/services/SfxService';
 
 export function BlindReconstructionPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const boardSize = useBoardSize('wide');
   const {
     board,
@@ -48,8 +50,8 @@ export function BlindReconstructionPhase() {
       return;
     }
     setShowRecognizedFlash(true);
-    const t = setTimeout(() => setShowRecognizedFlash(false), 900);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShowRecognizedFlash(false), 900);
+    return () => clearTimeout(timer);
   }, [recognizedText]);
 
   const attemptSpokenRef = useRef(attemptSpoken);
@@ -98,7 +100,7 @@ export function BlindReconstructionPhase() {
   );
 
   return (
-    <ModeScreenShell title="Reconstruction" onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.reconstruction')} onBack={backToSettings}>
       <ScrollView
         contentContainerStyle={blindStyles.phaseBody}
         keyboardShouldPersistTaps="handled"
@@ -110,14 +112,17 @@ export function BlindReconstructionPhase() {
           ]}
         >
           <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-            Coup {Math.min(expectedIndex + 1, sequence.length)} / {sequence.length}
+            {t('blind.moveProgress', {
+              current: Math.min(expectedIndex + 1, sequence.length),
+              total: sequence.length,
+            })}
           </Text>
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
-            {lastFeedback ?? 'Reproduis le prochain coup.'}
+            {lastFeedback ?? t('blind.reconstructPrompt')}
           </Text>
           {!!recognizedText && (
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
-              Reconnu : {recognizedText}
+              {t('blind.recognized', { san: recognizedText })}
             </Text>
           )}
           {!!revealedHint && (
@@ -171,7 +176,7 @@ export function BlindReconstructionPhase() {
           }}
           enabled
           persistFocus
-          placeholder="Ex. e4, Cf3, petit roque…"
+          placeholder={t('blind.movePlaceholder')}
         />
 
         <Pressable
@@ -189,7 +194,7 @@ export function BlindReconstructionPhase() {
         >
           <Ionicons name="help-circle-outline" size={16} color={colors.mutedForeground} />
           <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
-            Aide
+            {t('blind.hint')}
           </Text>
         </Pressable>
       </ScrollView>

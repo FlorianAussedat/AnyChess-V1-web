@@ -18,7 +18,11 @@ import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 import { preferencesStore } from '@/lib/preferences';
-import { formatSanForDisplay } from '@/lib/chess/notation';
+import {
+  formatSanForDisplay,
+  formatSanLineForDisplay,
+} from '@/lib/chess/notation';
+import { tMsg } from '@/lib/i18n';
 import {
   DEFAULT_PUZZLE_FILTERS,
   DEFAULT_PUZZLE_RATING_BAND_ID,
@@ -378,7 +382,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setPieceRevealFilter('all');
     setPhase('results');
     const clean = isCleanPuzzleSolve(finalStats);
-    const title = clean ? 'Problème résolu' : 'Problème résolu avec aide';
+    const title = clean ? tMsg('puzzle.solved') : tMsg('puzzle.solvedWithHelp');
     setLastFeedback(title);
     speechService.speak(title, { flush: true });
     if (clean) {
@@ -412,13 +416,13 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       const { result, userMove, opponentMove } = outcome;
 
       if (result === 'illegal') {
-        const msg = 'Coup illégal.';
+        const msg = tMsg('puzzle.illegal');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         return;
       }
       if (result === 'wrong-legal') {
-        const msg = 'Coup incorrect. Réessaie.';
+        const msg = tMsg('puzzle.incorrect');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         if (preview && submodeRef.current === 'visual' && !isPreviewing) {
@@ -433,7 +437,9 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       if (result === 'correct' || result === 'complete') {
         setNextMoveHint(null);
         if (userMove) setLastMove({ from: userMove.from, to: userMove.to });
-        setLastFeedback(result === 'complete' ? 'Problème résolu' : 'Correct.');
+        setLastFeedback(
+          result === 'complete' ? tMsg('puzzle.solved') : tMsg('puzzle.correct'),
+        );
         if (opponentMove) {
           setLastMove({ from: opponentMove.from, to: opponentMove.to });
           speechService.speak(verbalMove(opponentMove), { flush: false });
@@ -477,7 +483,9 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
           setPieceRevealFilter('all');
           setPositionNarration(null);
           const turn =
-            snap.sideToMove === 'w' ? 'Trait aux Blancs.' : 'Trait aux Noirs.';
+            snap.sideToMove === 'w'
+              ? tMsg('puzzle.sideWhite')
+              : tMsg('puzzle.sideBlack');
           setLastFeedback(turn);
           speechService.speak(turn, { flush: true });
         }
@@ -501,7 +509,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       repository: puzzleRepository,
     });
     if (!chosen) {
-      setLoadError('Aucun problème ne correspond à ces filtres.');
+      setLoadError(tMsg('puzzle.noMatch'));
       return;
     }
     await beginPuzzle(chosen);
@@ -531,7 +539,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     // Free action — tracked for analytics only; never an index / streak penalty.
     markHelp('positionRepeat');
     announceBlindPosition(session.getFen());
-    setLastFeedback('Position répétée.');
+    setLastFeedback(tMsg('puzzle.repeated'));
   }, [announceBlindPosition, markHelp, phase]);
 
   const togglePieceReveal = useCallback(
@@ -563,10 +571,12 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setStats(session.getStats());
     const { chessNotation } = preferencesStore.getPreferences();
     const displaySan = formatSanForDisplay(next.san, chessNotation);
-    const hint = `Coup suivant : ${displaySan}`;
+    const hint = tMsg('puzzle.nextMove', { san: displaySan });
     setNextMoveHint(hint);
     setLastFeedback(hint);
-    speechService.speak(`Coup suivant : ${next.verbal}`, { flush: true });
+    speechService.speak(tMsg('puzzle.nextMove', { san: next.verbal }), {
+      flush: true,
+    });
   }, [phase]);
 
   const revealSolution = useCallback(() => {
@@ -582,9 +592,12 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
     const line = session.requestSolution();
     const fullLine = session.getUserFacingSolutionLine();
-    setSolutionLine(fullLine || line);
+    const solutionText = fullLine || line;
+    setSolutionLine(solutionText);
     setStats(session.getStats());
-    setLastFeedback(`Solution :\n${fullLine || line}`);
+    const { chessNotation } = preferencesStore.getPreferences();
+    const displayLine = formatSanLineForDisplay(solutionText, chessNotation);
+    setLastFeedback(`${tMsg('puzzle.solution')}:\n${displayLine}`);
 
     session.resetToStart();
     setLastMove(null);
@@ -619,7 +632,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         setIsReplaying(false);
         setPhase('results');
         setStats(session.getFinalStats());
-        setLastFeedback('Problème non résolu');
+        setLastFeedback(tMsg('puzzle.unsolved'));
         void recordStreak(false);
         const p = session.currentPuzzle;
         if (p) {

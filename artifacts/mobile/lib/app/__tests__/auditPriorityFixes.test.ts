@@ -36,7 +36,8 @@ describe('Puzzle / Blind SAN display follow chessNotation', () => {
   it('PuzzleContext formats Coup suivant with formatSanForDisplay', () => {
     const src = read('contexts/PuzzleContext.tsx');
     assert.match(src, /formatSanForDisplay\(next\.san/);
-    assert.match(src, /Coup suivant : \$\{displaySan\}/);
+    assert.match(src, /puzzle\.nextMove/);
+    assert.match(src, /san:\s*displaySan/);
     assert.doesNotMatch(src, /Coup suivant : \$\{next\.san\}/);
   });
 

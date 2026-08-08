@@ -114,22 +114,12 @@ export function formatSanLineForDisplay(
 }
 
 /**
- * Normalize user-typed / keypad move text to English SAN for chess.js.
- * Accepts French or English piece letters (parseChessVoice path).
+ * Low-level French→English piece-letter conversion for typed SAN.
+ * Production move application uses parseChessVoice (notation-aware).
+ * Kept as a tested utility for direct SAN string conversion.
  */
 export function normalizeMoveInputToEnglish(raw: string): string {
   return frenchSanToEnglish(raw.trim());
-}
-
-/** Labels for notation preference UI. */
-export function chessNotationLabel(
-  notation: ChessNotation,
-  uiLanguage: 'fr' | 'en',
-): string {
-  if (uiLanguage === 'en') {
-    return notation === 'fr' ? 'French' : 'English / International';
-  }
-  return notation === 'fr' ? 'Française' : 'English / Internationale';
 }
 
 export { EN_TO_FR_PIECE, FR_TO_EN_PIECE };

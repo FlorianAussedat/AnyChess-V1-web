@@ -39,6 +39,7 @@ import {
   type MoveEvent,
   type PlayerColor,
 } from '@/lib/game';
+import { tMsg } from '@/lib/i18n';
 import { useSharedPlayState } from '@/hooks/useSharedPlayState';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
@@ -175,15 +176,15 @@ export function OpeningGameProvider({
   const summarizeGameHistory = useCallback(() => {
     const moves = gameRef.current.history();
     if (!moves.length) {
-      speak('Aucun coup joué pour le moment.', { flush: true });
+      speak(tMsg('game.emptyHistory'), { flush: true });
       return;
     }
     speechService.cancel('summarize');
     const exit = opponentRef.current?.getTheoryExit() ?? theoryExit;
     if (exit?.kind === 'player-deviation') {
-      speechService.speak(`Rapport : ${exit.message}`);
+      speechService.speak(tMsg('openings.theoryReport', { message: exit.message }));
     } else if (exit?.kind === 'repertoire-end') {
-      speechService.speak('Rapport : ligne théorique importée suivie jusqu’à son terme.');
+      speechService.speak(tMsg('openings.theoryReportComplete'));
     }
     speakMoveHistorySummary(moves, { skipCancel: true });
   }, [gameRef, speak, theoryExit]);
@@ -371,17 +372,17 @@ export function OpeningGameProvider({
       setHeardText(result.heardText);
 
       if (result.kind === 'unrecognized') {
-        setStatus('Coup non reconnu. Répète.');
+        setStatus(tMsg('game.unrecognized'));
         if (result.emitError) emitEvent('error', source);
         return;
       }
       if (result.kind === 'ambiguous') {
-        setStatus('Coup ambigu. Précise la case de départ.');
+        setStatus(tMsg('game.ambiguous'));
         emitEvent('error', source);
         return;
       }
       if (result.kind === 'illegal') {
-        setStatus('Coup illégal. Répète.');
+        setStatus(tMsg('game.illegal'));
         emitEvent('error', source);
         return;
       }
@@ -439,11 +440,11 @@ export function OpeningGameProvider({
 
       if (color === 'b') {
         setWaitingForUser(false);
-        setStatus("L'adversaire prépare son coup…");
+        setStatus(tMsg('game.opponentPreparing'));
         scheduleOpponentKickoff(1200);
       } else {
         setWaitingForUser(true);
-        setStatus('À toi de jouer.');
+        setStatus(tMsg('game.yourTurn'));
       }
     },
     [
@@ -487,7 +488,7 @@ export function OpeningGameProvider({
 
     return exportGamePgn({
       headers: {
-        Event: 'AnyChess — Ouvertures',
+        Event: tMsg('openings.pgnEvent'),
         White: whiteName,
         Black: blackName,
         Result: result,

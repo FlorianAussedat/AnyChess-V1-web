@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { PuzzleFilterChip } from '@/components/puzzles/PuzzleFilterChip';
 import { PuzzleRatingBandSlider } from '@/components/puzzles/PuzzleRatingBandSlider';
@@ -15,6 +16,7 @@ import {
 
 export function PuzzleHubPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const {
     selectSubmode,
@@ -45,22 +47,25 @@ export function PuzzleHubPhase() {
   };
 
   return (
-    <ModeScreenShell title="Problèmes / Visualisation" onBack={() => router.back()}>
+    <ModeScreenShell title={t('puzzle.hubTitle')} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={puzzleStyles.body}>
         <Text style={[puzzleStyles.lead, { color: colors.mutedForeground }]}>
-          Résous des problèmes Lichess hors-ligne (cote puzzle Lichess{' '}
-          {manifest.ratingMin}–{manifest.ratingMax}). Pack local : {packCount} problèmes.
+          {t('puzzle.hubLead', {
+            min: manifest.ratingMin,
+            max: manifest.ratingMax,
+            count: packCount,
+          })}
         </Text>
 
-        <Text style={[puzzleStyles.sectionLabel, { color: colors.mutedForeground }]}>Mode</Text>
+        <Text style={[puzzleStyles.sectionLabel, { color: colors.mutedForeground }]}>{t('puzzle.mode')}</Text>
         <View style={puzzleStyles.row}>
           <PuzzleFilterChip
-            label="Visuel"
+            label={t('puzzle.visual')}
             active={submode === 'visual'}
             onPress={() => onPickMode('visual')}
           />
           <PuzzleFilterChip
-            label="À l’aveugle"
+            label={t('puzzle.blind')}
             active={submode === 'blind'}
             onPress={() => onPickMode('blind')}
           />
@@ -69,12 +74,12 @@ export function PuzzleHubPhase() {
         <PuzzleRatingBandSlider
           bandId={ratingBandId}
           onBandIdChange={setRatingBand}
-          label="Difficulté"
+          label={t('puzzle.difficulty')}
         />
 
         <View style={puzzleStyles.row}>
           <PuzzleFilterChip
-            label="Aléatoire / Tous"
+            label={t('puzzle.randomAll')}
             active={ratingBandId === 'all'}
             onPress={() => setRatingBand('all')}
           />
@@ -83,13 +88,13 @@ export function PuzzleHubPhase() {
         {submode === 'blind' && (
           <>
             <Text style={[puzzleStyles.sectionLabel, { color: colors.mutedForeground }]}>
-              Nombre de pièces
+              {t('puzzle.pieceCount')}
             </Text>
             <View style={puzzleStyles.row}>
               {PIECE_COUNT_BANDS.map((band) => (
                 <PuzzleFilterChip
                   key={band.id}
-                  label={band.label}
+                  label={band.id === 'all' ? t('puzzle.all') : band.label}
                   active={pieceCountBandId === band.id}
                   onPress={() => setPieceCountBand(band.id)}
                 />
@@ -101,10 +106,10 @@ export function PuzzleHubPhase() {
         <AppButton
           label={
             submode === 'blind'
-              ? 'Commencer à l’aveugle'
+              ? t('puzzle.startBlind')
               : submode === 'visual'
-                ? 'Commencer en visuel'
-                : 'Choisir un mode'
+                ? t('puzzle.startVisual')
+                : t('puzzle.chooseMode')
           }
           onPress={() => void onStart()}
           disabled={starting || !submode}
@@ -118,8 +123,7 @@ export function PuzzleHubPhase() {
               {loadError}
             </Text>
             <Text style={[puzzleStyles.hint, { color: colors.mutedForeground, marginTop: 4 }]}>
-              Aucun problème ne correspond à ces filtres. Élargis la cote
-              {submode === 'blind' ? ' ou le nombre de pièces' : ''} puis réessaie.
+              {submode === 'blind' ? t('puzzle.noMatchBlind') : t('puzzle.noMatch')}
             </Text>
           </View>
         )}
@@ -131,7 +135,7 @@ export function PuzzleHubPhase() {
           testID="puzzle-records-link"
         >
           <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
-            Records
+            {t('records.title')}
           </Text>
         </Pressable>
       </ScrollView>

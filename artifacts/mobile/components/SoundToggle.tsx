@@ -3,6 +3,7 @@ import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * Voice / speech mute toggle (TTS only).
@@ -11,6 +12,7 @@ import { useAudioSettings } from '@/hooks/useAudioSettings';
  */
 export function SoundToggle() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { voiceEnabled, toggleVoice } = useAudioSettings();
 
   return (
@@ -22,7 +24,9 @@ export function SoundToggle() {
       testID="sound-toggle"
       accessibilityRole="switch"
       accessibilityState={{ checked: voiceEnabled }}
-      accessibilityLabel={voiceEnabled ? 'Couper la voix' : 'Activer la voix'}
+      accessibilityLabel={
+        voiceEnabled ? t('a11y.voiceMute') : t('a11y.voiceUnmute')
+      }
       style={({ pressed }) => [
         styles.btn,
         {

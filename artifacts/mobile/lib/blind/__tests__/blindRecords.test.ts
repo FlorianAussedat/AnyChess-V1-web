@@ -197,11 +197,11 @@ describe('blind memory UX opt-ins', () => {
       join(componentsDir, 'BlindObservingPhase.tsx'),
       'utf8',
     );
-    assert.match(dictation, /Dictée en cours/);
-    assert.match(dictation, /Dictée terminée/);
-    assert.match(dictation, /À ton tour/);
-    assert.match(observing, /Observation · Coup/);
-    assert.match(observing, /Séquence terminée/);
-    assert.match(observing, /À ton tour de réciter/);
+    assert.match(dictation, /blind\.dictationInProgress/);
+    assert.match(dictation, /blind\.dictationDone/);
+    assert.match(dictation, /blind\.yourTurn/);
+    assert.match(observing, /blind\.observationProgress/);
+    assert.match(observing, /blind\.sequenceDone/);
+    assert.match(observing, /blind\.yourTurnRecite/);
   });
 });

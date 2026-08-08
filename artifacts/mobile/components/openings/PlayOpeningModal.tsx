@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { RepertoireSide } from '@/lib/repertoire';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
@@ -26,6 +27,7 @@ export function PlayOpeningModal({
   onRequestClose,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const [bandId, setBandId] = useState(initialBandId);
 
   return (
@@ -39,17 +41,14 @@ export function PlayOpeningModal({
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            Lancer une partie
+            {t('openings.launchGame')}
           </Text>
           <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-            Répertoire : {folderName}
+            {t('openings.repertoireNamed', { name: folderName })}
             {folderSide ? ` · ${sideLabel(folderSide)}` : ''}
           </Text>
           <Text style={[styles.fileMeta, { color: colors.mutedForeground, marginTop: 8 }]}>
-            L’échiquier s’oriente selon le côté enregistré pour ce répertoire.
-            {'\n\n'}
-            L’adversaire suit ton répertoire tant que tu restes dans la théorie. Dès que tu en
-            sors, Stockfish prend le relais.
+            {t('openings.playModalHint')}
           </Text>
 
           <StrengthBandSlider bandId={bandId} onBandIdChange={setBandId} />
@@ -63,7 +62,7 @@ export function PlayOpeningModal({
               ]}
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                Annuler
+                {t('common.cancel')}
               </Text>
             </Pressable>
             <Pressable
@@ -79,7 +78,7 @@ export function PlayOpeningModal({
               testID="confirm-play-btn"
             >
               <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                Commencer
+                {t('common.start')}
               </Text>
             </Pressable>
           </View>

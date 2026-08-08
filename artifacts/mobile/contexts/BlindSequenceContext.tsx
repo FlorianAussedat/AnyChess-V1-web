@@ -40,6 +40,7 @@ import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 import { preferencesStore } from '@/lib/preferences';
 import { formatSanForDisplay } from '@/lib/chess/notation';
+import { tMsg } from '@/lib/i18n';
 import { defaultKeyValueStorage } from '@/lib/storage';
 
 const blindRecordsStore = new BlindRecordsStore(defaultKeyValueStorage);
@@ -495,8 +496,8 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       /* ignore */
     }
     setRevealedHint(null);
-    setLastFeedback('Coup passé.');
-    speechService.speak('Coup passé.', { flush: true });
+    setLastFeedback(tMsg('blind.moveSkipped'));
+    speechService.speak(tMsg('blind.moveSkipped'), { flush: true });
     const next = expectedIndex + 1;
     if (next >= sequenceRef.current.length) {
       setExpectedIndex(next);
@@ -540,7 +541,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         });
         markRecordIneligible();
         triedCurrentRef.current = true;
-        const msg = 'Coup illégal.';
+        const msg = tMsg('blind.illegal');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         return false;
@@ -554,7 +555,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         if (isFirstTry) firstAttemptOkRef.current[expectedIndex] = true;
         triedCurrentRef.current = false;
         setLastMove({ from: played.from, to: played.to });
-        setLastFeedback('Correct.');
+        setLastFeedback(tMsg('blind.correct'));
         setRevealedHint(null);
         syncBoard();
         const next = expectedIndex + 1;
@@ -580,9 +581,9 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         'wrong-piece': 'Erreur de pièce',
         'wrong-destination': "Erreur de case d'arrivée",
         'wrong-order': "Erreur d'ordre",
-        'wrong-move': 'Erreur de coup',
+        'wrong-move': tMsg('blind.moveError'),
       };
-      const label = labels[verdict.kind] ?? 'Erreur';
+      const label = labels[verdict.kind] ?? tMsg('blind.moveError');
       setLastFeedback(label);
       speechService.speak(label, { flush: true });
       return false;
@@ -650,7 +651,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         });
         markRecordIneligible();
         triedCurrentRef.current = true;
-        const msg = 'Coup illégal.';
+        const msg = tMsg('blind.illegal');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         return 'illegal';
@@ -672,7 +673,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         });
         markRecordIneligible();
         triedCurrentRef.current = true;
-        const msg = 'Coup illégal.';
+        const msg = tMsg('blind.illegal');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         return 'illegal';
@@ -697,7 +698,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         });
         markRecordIneligible();
         triedCurrentRef.current = true;
-        const msg = 'Coup illégal.';
+        const msg = tMsg('blind.illegal');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         return 'illegal';
@@ -721,7 +722,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         } catch {
           /* ignore */
         }
-        setLastFeedback('Correct.');
+        setLastFeedback(tMsg('blind.correct'));
         const next = expectedIndex + 1;
         if (next >= sequenceRef.current.length) {
           setExpectedIndex(next);
@@ -747,7 +748,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       markRecordIneligible();
       triedCurrentRef.current = true;
       const label =
-        kind === 'wrong-order' ? "Erreur d'ordre" : 'Erreur de coup';
+        kind === 'wrong-order' ? "Erreur d'ordre" : tMsg('blind.moveError');
       setLastFeedback(label);
       speechService.speak(label, { flush: true });
       return 'wrong';
@@ -762,9 +763,9 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     attemptsRef.current.push({ expectedIndex, kind: 'help' });
     markRecordIneligible();
     triedCurrentRef.current = true;
-    const hint = `Coup attendu : ${expected.verbal}`;
+    const hint = tMsg('blind.expectedMove', { move: expected.verbal });
     setRevealedHint(hint);
-    setLastFeedback('Aide utilisée');
+    setLastFeedback(tMsg('blind.hintUsed'));
     speechService.speak(hint, { flush: true });
   }, [phase, expectedIndex, markRecordIneligible]);
 

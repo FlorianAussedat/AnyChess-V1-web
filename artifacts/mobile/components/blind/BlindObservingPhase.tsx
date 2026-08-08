@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { blindStyles } from '@/components/blind/blindStyles';
@@ -10,6 +11,7 @@ import { useBoardSize } from '@/hooks/useBoardSize';
 
 export function BlindObservingPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const boardSize = useBoardSize('wide');
   const {
     board,
@@ -26,10 +28,10 @@ export function BlindObservingPhase() {
     !isReplaying && observationIndex >= sequence.length && sequence.length > 0;
 
   return (
-    <ModeScreenShell title="Observation" onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.observation')} onBack={backToSettings}>
       <View style={blindStyles.phaseBody}>
         <Text style={[blindStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-          Regarde la séquence — aucune annonce orale.
+          {t('blind.observationHint')}
         </Text>
         {!observationDone ? (
           <Text
@@ -40,7 +42,7 @@ export function BlindObservingPhase() {
             }}
             testID="blind-observation-progress"
           >
-            Observation · Coup {observationIndex} / {sequence.length}
+            {t('blind.observationProgress', { current: observationIndex, total: sequence.length })}
           </Text>
         ) : (
           <>
@@ -52,7 +54,7 @@ export function BlindObservingPhase() {
               }}
               testID="blind-observation-done"
             >
-              Séquence terminée
+              {t('blind.sequenceDone')}
             </Text>
             <Text
               style={{
@@ -62,7 +64,7 @@ export function BlindObservingPhase() {
                 fontSize: 16,
               }}
             >
-              À ton tour de réciter
+              {t('blind.yourTurnRecite')}
             </Text>
           </>
         )}
@@ -86,7 +88,7 @@ export function BlindObservingPhase() {
           >
             <Ionicons name="mic-outline" size={18} color={colors.primaryForeground} />
             <Text style={[blindStyles.ctaLabel, { color: colors.primaryForeground }]}>
-              Passer à la récitation
+              {t('blind.goToRecitation')}
             </Text>
           </Pressable>
         )}

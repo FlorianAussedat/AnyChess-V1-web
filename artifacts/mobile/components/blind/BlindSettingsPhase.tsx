@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { OptionChip } from '@/components/ui/OptionChip';
 import { AppButton } from '@/components/ui/AppButton';
@@ -20,14 +21,14 @@ import {
   type BlindPerspective,
 } from '@/lib/blind';
 
-const PERSPECTIVE_OPTIONS: { id: BlindPerspective; label: string }[] = [
-  { id: 'white', label: 'Blancs' },
-  { id: 'black', label: 'Noirs' },
-  { id: 'random', label: 'Aléatoire' },
-];
-
 export function BlindSettingsPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
+  const perspectiveOptions: { id: BlindPerspective; label: string }[] = [
+    { id: 'white', label: t('common.whites') },
+    { id: 'black', label: t('common.blacks') },
+    { id: 'random', label: t('common.random') },
+  ];
   const {
     submode,
     perspective,
@@ -44,7 +45,7 @@ export function BlindSettingsPhase() {
   } = useBlindSequence();
 
   const title =
-    submode === 'watch-recite' ? 'Regarder puis réciter' : 'Écouter puis reconstruire';
+    submode === 'watch-recite' ? t('blind.watchRecite') : t('blind.listenReconstruct');
 
   return (
     <ModeScreenShell title={title} onBack={backToHub}>
@@ -54,15 +55,15 @@ export function BlindSettingsPhase() {
           testID="blind-mode-record"
         >
           {modeRecordBest > 0
-            ? `Record : ${modeRecordBest} coups complets`
-            : 'Record : 0'}
+            ? t('blind.record', { count: modeRecordBest })
+            : t('blind.recordZero')}
         </Text>
 
         <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          PERSPECTIVE
+          {t('blind.perspective')}
         </Text>
         <View style={blindStyles.row}>
-          {PERSPECTIVE_OPTIONS.map((opt) => (
+          {perspectiveOptions.map((opt) => (
             <OptionChip
               key={opt.id}
               label={opt.label}
@@ -72,12 +73,12 @@ export function BlindSettingsPhase() {
           ))}
         </View>
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-          Les Blancs jouent toujours en premier. 1 coup complet = 1 coup Blanc + 1 coup Noir.
+          {t('blind.perspectiveHint')}
         </Text>
 
         <DiscreteSlider
           testID="blind-full-moves-slider"
-          label="Coups complets"
+          label={t('blind.fullMoves')}
           valueLabel={String(fullMoves)}
           minimumValue={1}
           maximumValue={20}
@@ -86,35 +87,38 @@ export function BlindSettingsPhase() {
           onValueChange={setFullMoves}
           leftHint="1"
           rightHint="20"
-          accessibilityLabel="Coups complets"
+          accessibilityLabel={t('a11y.fullMoves')}
         />
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-          {fullMoves} coups complets = {halfMoveCount(fullMoves)} demi-coups
-          {fullMoves === 20 ? ' (maximum)' : ''}
+          {t('blind.fullMovesEq', {
+            full: fullMoves,
+            half: halfMoveCount(fullMoves),
+            max: fullMoves === 20 ? t('blind.maximum') : '',
+          })}
         </Text>
 
         <DiscreteSlider
           testID="blind-speed-slider"
-          label={`Vitesse (${BLIND_SPEED_MIN}–${BLIND_SPEED_MAX})`}
+          label={t('blind.speedLabel', { min: BLIND_SPEED_MIN, max: BLIND_SPEED_MAX })}
           valueLabel={String(speed)}
           minimumValue={BLIND_SPEED_MIN}
           maximumValue={BLIND_SPEED_MAX}
           step={1}
           value={speed}
           onValueChange={setSpeed}
-          leftHint="Lent"
-          rightHint="Rapide"
-          accessibilityLabel="Vitesse"
+          leftHint={t('blind.slow')}
+          rightHint={t('blind.fast')}
+          accessibilityLabel={t('a11y.speed')}
         />
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
           {speed <= 3
-            ? 'Lent — plus de temps entre les coups'
+            ? t('blind.speedSlowHint')
             : speed >= 8
-              ? 'Rapide — enchaînement serré'
-              : `Vitesse ${speed} (défaut ${DEFAULT_BLIND_SPEED})`}
+              ? t('blind.speedFastHint')
+              : t('blind.speedDefaultHint', { speed, default: DEFAULT_BLIND_SPEED })}
           {submode === 'listen-reconstruct'
-            ? ' · dictée orale'
-            : ' · observation visuelle'}
+            ? t('blind.oralDictation')
+            : t('blind.visualObservation')}
         </Text>
 
         {!!generateError && (
@@ -125,7 +129,7 @@ export function BlindSettingsPhase() {
 
         {isGenerating ? <ActivityIndicator color={colors.primary} /> : null}
         <AppButton
-          label="Générer la séquence"
+          label={t('blind.generate')}
           onPress={() => startSession()}
           disabled={isGenerating}
           testID="blind-generate"

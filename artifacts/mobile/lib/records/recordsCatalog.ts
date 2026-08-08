@@ -1,6 +1,9 @@
 /**
  * Catalog of real persisted record categories (no storage I/O).
+ * Labels are MessageKeys — translate at display with useTranslation / tMsg.
  */
+import type { MessageKey } from '../i18n/messages.ts';
+
 export type RecordsCategoryId =
   | 'tactics'
   | 'move-naming'
@@ -9,8 +12,8 @@ export type RecordsCategoryId =
 
 export interface RecordsCategoryMeta {
   id: RecordsCategoryId;
-  label: string;
-  description: string;
+  labelKey: MessageKey;
+  descriptionKey: MessageKey;
   /** Deep-link to the historical per-mode records screen when useful. */
   legacyRoute?: string;
 }
@@ -19,27 +22,26 @@ export interface RecordsCategoryMeta {
 export const RECORDS_CATEGORIES: RecordsCategoryMeta[] = [
   {
     id: 'tactics',
-    label: 'Tactiques',
-    description: 'Meilleures séries de problèmes par bande de difficulté',
+    labelKey: 'records.cat.tactics',
+    descriptionKey: 'records.cat.tacticsDesc',
     legacyRoute: '/puzzles/records',
   },
   {
     id: 'move-naming',
-    label: 'Nommer le coup',
-    description: 'Meilleur score en 60 secondes (Vision de l’échiquier)',
+    labelKey: 'records.cat.naming',
+    descriptionKey: 'records.cat.namingDesc',
     legacyRoute: '/visualisation/records',
   },
   {
     id: 'play-move',
-    label: 'Jouer le coup',
-    description: 'Meilleur score en 60 secondes (Vision de l’échiquier)',
+    labelKey: 'records.cat.play',
+    descriptionKey: 'records.cat.playDesc',
     legacyRoute: '/visualisation/records',
   },
   {
     id: 'memorisation',
-    label: 'Mémorisation',
-    description:
-      'Meilleur nombre de coups complets à 100 % sans aide ni erreur',
+    labelKey: 'records.cat.blind',
+    descriptionKey: 'records.cat.blindDesc',
     legacyRoute: '/blind',
   },
 ];

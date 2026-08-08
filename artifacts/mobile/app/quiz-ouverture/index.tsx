@@ -3,13 +3,15 @@ import { useRouter, type Href } from 'expo-router';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { HubScreen } from '@/components/HubScreen';
 import { HubModeCard } from '@/components/HubModeCard';
+import { useTranslation } from '@/hooks/useTranslation';
+import type { MessageKey } from '@/lib/i18n';
 import type { ImageSourcePropType } from 'react-native';
 
 type ExerciseCard = {
   id: string;
   route: Href;
-  title: string;
-  description: string;
+  titleKey: MessageKey;
+  descriptionKey: MessageKey;
   icon: ImageSourcePropType;
 };
 
@@ -17,41 +19,41 @@ const EXERCISES: ExerciseCard[] = [
   {
     id: 'quelle',
     route: '/quiz-ouverture/quelle' as Href,
-    title: 'Quelle ouverture ?',
-    description: 'Reconnais le nom de l’ouverture à partir de la ligne jouée (base ECO).',
+    titleKey: 'quiz.quelle',
+    descriptionKey: 'quiz.quelleDesc',
     icon: BrandAssets.modes['quiz-ouverture'],
   },
   {
     id: 'construis',
     route: '/quiz-ouverture/construis' as Href,
-    title: 'Construis l’ouverture',
-    description: 'Dicte la ligne jusqu’à la position qui identifie l’ouverture demandée.',
+    titleKey: 'quiz.construis',
+    descriptionKey: 'quiz.construisDesc',
     icon: BrandAssets.modes.openings,
   },
   {
     id: 'culture',
     route: '/quiz-ouverture/culture' as Href,
-    title: 'Quiz',
-    description:
-      'Teste ta culture échiquéenne avec des questions variées sur l’histoire, les champions, les règles, les tournois et le monde des échecs.',
+    titleKey: 'quiz.quiz',
+    descriptionKey: 'quiz.cultureDesc',
     icon: BrandAssets.modes.target,
   },
 ];
 
 export default function QuizOuvertureHub() {
   const router = useRouter();
+  const { t } = useTranslation();
   return (
     <HubScreen
-      title="Culture générale"
-      subtitle="Utilise la base d’ouvertures ECO locale — indépendante de tes répertoires PGN."
+      title={t('quiz.title')}
+      subtitle={t('quiz.subtitle')}
       onBack={() => router.back()}
     >
       {EXERCISES.map((ex) => (
         <HubModeCard
           key={ex.id}
           testID={`quiz-${ex.id}`}
-          title={ex.title}
-          description={ex.description}
+          title={t(ex.titleKey)}
+          description={t(ex.descriptionKey)}
           icon={ex.icon}
           onPress={() => router.push(ex.route)}
         />

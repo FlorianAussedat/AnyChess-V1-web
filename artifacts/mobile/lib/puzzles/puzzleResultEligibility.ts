@@ -11,6 +11,7 @@
  *
  * Full Solution → unsolved (not a clean/assisted solve).
  */
+import { tMsg } from '../i18n/tMsg.ts';
 import type { PuzzleAttemptStats, PuzzleHelpUsage } from './types.ts';
 
 export type PuzzleResultState =
@@ -69,10 +70,10 @@ export function puzzleResultState(stats: PuzzleAttemptStats): PuzzleResultState 
 export function puzzleResultTitle(state: PuzzleResultState): string {
   switch (state) {
     case 'solved':
-      return 'Problème résolu';
+      return tMsg('puzzle.solved');
     case 'solved-with-help':
-      return 'Problème résolu avec aide';
+      return tMsg('puzzle.solvedWithHelp');
     case 'unsolved':
-      return 'Problème non résolu';
+      return tMsg('puzzle.unsolved');
   }
 }

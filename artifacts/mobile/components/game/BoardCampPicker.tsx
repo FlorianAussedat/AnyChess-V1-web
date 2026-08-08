@@ -8,6 +8,7 @@ import { campZoneRects } from '@/lib/game/campZoneRects';
 import type { BoardSizeMode, SideChoice } from '@/lib/game';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 
 type Props = {
@@ -28,6 +29,7 @@ export function BoardCampPicker({
   sizeMode = 'default',
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const boardSize = useBoardSize(sizeMode);
   const zones = useMemo(() => campZoneRects(boardSize, isFlipped), [boardSize, isFlipped]);
 
@@ -84,7 +86,7 @@ export function BoardCampPicker({
           <Pressable
             testID="camp-random"
             accessibilityRole="button"
-            accessibilityLabel="Camp aléatoire"
+            accessibilityLabel={t('a11y.randomCamp')}
             onPress={() => onSelect('random')}
             style={({ pressed }) => [
               styles.randomBtn,

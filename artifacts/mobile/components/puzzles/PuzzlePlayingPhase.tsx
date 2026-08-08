@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
@@ -19,6 +20,7 @@ import { formatSanLineForDisplay } from '@/lib/chess/notation';
 
 export function PuzzlePlayingPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { soundEnabled } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
@@ -134,10 +136,10 @@ export function PuzzlePlayingPhase() {
 
   const title =
     phase === 'solution-replay'
-      ? 'Solution'
+      ? t('puzzle.solution')
       : submode === 'blind'
-        ? 'À l’aveugle'
-        : 'Visuel';
+        ? t('puzzle.blind')
+        : t('puzzle.visual');
 
   const showBoard =
     submode === 'visual' ||
@@ -155,10 +157,12 @@ export function PuzzlePlayingPhase() {
       >
         {!!puzzle && (
           <Text style={[puzzleStyles.meta, { color: colors.mutedForeground }]}>
-            {puzzle.id} · cote {puzzle.rating} (Lichess) ·{' '}
-            {sideToMove === 'w' ? 'Trait aux Blancs' : 'Trait aux Noirs'}
-            {' · '}
-            Série : {currentStreak}
+            {t('puzzle.meta', {
+              id: puzzle.id,
+              rating: puzzle.rating,
+              side: sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack'),
+              streak: currentStreak,
+            })}
           </Text>
         )}
 
@@ -188,7 +192,7 @@ export function PuzzlePlayingPhase() {
                 marginTop: 6,
               }}
             >
-              {sideToMove === 'w' ? 'Trait aux Blancs' : 'Trait aux Noirs'}
+              {sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack')}
             </Text>
           </View>
         )}
@@ -201,7 +205,7 @@ export function PuzzlePlayingPhase() {
             ]}
           >
             <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
-              {lastFeedback ?? (isReplaying ? 'Relecture…' : 'À toi de trouver le coup.')}
+              {lastFeedback ?? (isReplaying ? t('puzzle.replaying') : t('puzzle.findMove'))}
             </Text>
             {!!nextMoveHint && !solutionLine && (
               <Text
@@ -247,7 +251,7 @@ export function PuzzlePlayingPhase() {
           >
             <View style={{ width: '100%' }}>
               <BoardToolbar
-                label={sideToMove === 'w' ? 'Trait aux Blancs' : 'Trait aux Noirs'}
+                label={sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack')}
                 showCoordinates={showCoordinates}
                 onToggleCoordinates={() => {
                   void toggleCoordinates();
@@ -274,7 +278,7 @@ export function PuzzlePlayingPhase() {
               onSubmit={submitSpoken}
               enabled={!isReplaying && !isPreviewing}
               persistFocus
-              placeholder="Ex. Cf3, Fou prend e5, petit roque…"
+              placeholder={t('puzzle.movePlaceholder')}
             />
 
             <GameMicButton
@@ -318,7 +322,7 @@ export function PuzzlePlayingPhase() {
                         fontSize: 12,
                       }}
                     >
-                      Pièces blanches
+                      {t('puzzle.whitePieces')}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -345,7 +349,7 @@ export function PuzzlePlayingPhase() {
                         fontSize: 12,
                       }}
                     >
-                      Pièces noires
+                      {t('puzzle.blackPieces')}
                     </Text>
                   </Pressable>
                 </View>
@@ -374,7 +378,7 @@ export function PuzzlePlayingPhase() {
                         fontSize: 12,
                       }}
                     >
-                      Répéter
+                      {t('puzzle.repeat')}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -401,7 +405,7 @@ export function PuzzlePlayingPhase() {
                         fontSize: 12,
                       }}
                     >
-                      Coup suivant
+                      {t('puzzle.nextMoveLabel')}
                     </Text>
                   </Pressable>
                 </View>
@@ -434,7 +438,7 @@ export function PuzzlePlayingPhase() {
                       fontSize: 13,
                     }}
                   >
-                    Coup suivant
+                    {t('puzzle.nextMoveLabel')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -461,7 +465,7 @@ export function PuzzlePlayingPhase() {
                       fontSize: 13,
                     }}
                   >
-                    Solution
+                    {t('puzzle.solution')}
                   </Text>
                 </Pressable>
               </View>
@@ -489,7 +493,7 @@ export function PuzzlePlayingPhase() {
                     fontSize: 13,
                   }}
                 >
-                  Solution
+                  {t('puzzle.solution')}
                 </Text>
               </Pressable>
             )}
@@ -546,7 +550,7 @@ export function PuzzlePlayingPhase() {
 
         {!soundEnabled && (
           <Text style={[puzzleStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-            Son coupé — relecture visuelle uniquement.
+            {t('puzzle.soundOff')}
           </Text>
         )}
       </ScrollView>

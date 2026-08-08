@@ -1,2 +1,7 @@
-export { translate, speechLocaleForLanguage } from './messages.ts';
-export type { MessageKey } from './messages.ts';
+export {
+  translate,
+  speechLocaleForLanguage,
+  type MessageKey,
+  type MessageParams,
+} from './messages.ts';
+export { tMsg } from './tMsg.ts';

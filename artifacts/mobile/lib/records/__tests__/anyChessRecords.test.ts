@@ -17,8 +17,8 @@ describe('AnyChessRecords catalog', () => {
     ]);
     assert.equal(RECORDS_CATEGORIES.length, 4);
     for (const cat of RECORDS_CATEGORIES) {
-      assert.ok(cat.label.trim());
-      assert.ok(cat.description.trim());
+      assert.ok(cat.labelKey.trim());
+      assert.ok(cat.descriptionKey.trim());
     }
   });
 

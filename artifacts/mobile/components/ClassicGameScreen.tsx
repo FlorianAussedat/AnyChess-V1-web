@@ -162,10 +162,10 @@ export function ClassicGameScreen() {
   }, [setupBandId, setStrengthBandId, pendingSide, playerColor, applySide, changeColor, newGame]);
 
   const activeBand = getStrengthBand(setupBandId);
-  const campLabel = playerColor === 'w' ? 'Blancs' : 'Noirs';
+  const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
   const contextLine = campLocked
     ? `${campLabel} · adversaire ${activeBand.label}`
-    : 'Configure la partie';
+    : t('game.configure');
 
   const moveRows = pairMoveHistory(history);
   const keypadMode = !useSystemKeyboard;
@@ -210,14 +210,16 @@ export function ClassicGameScreen() {
     >
       <ScreenHeader
         onBack={() => router.back()}
-        title="Partie classique"
+        title={t('modes.classic.title')}
         subtitle={contextLine}
         showSound
         trailing={
           campLocked && !boardVisible ? (
             <View
               style={styles.sideIndicator}
-              accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
+              accessibilityLabel={
+                playerColor === 'w' ? t('common.whites') : t('common.blacks')
+              }
               testID="classic-side-indicator"
             >
               <Image
@@ -290,6 +292,7 @@ export function ClassicGameScreen() {
               heardText={heardText}
               isGameOver={isGameOver}
               isOpponentThinking={isOpponentThinking}
+              thinkingLabel={t('game.opponentThinking')}
               composeText={keypadMode ? draftMove : null}
               compact
               testID="classic-coup-banner"
@@ -381,7 +384,7 @@ export function ClassicGameScreen() {
               onSubmit={onSystemKeyboardSubmit}
               enabled={canAct}
               persistFocus={canAct}
-              placeholder="Compose ou dicte le coup"
+              placeholder={t('game.composeOrDictate')}
               testID="manual-input"
             />
           ) : null}
@@ -401,7 +404,7 @@ export function ClassicGameScreen() {
           <GameMoveHistoryCard
             moveRows={moveRows}
             opening={openingIdentity}
-            emptyMessage="La partie commence ici"
+            emptyMessage={t('game.startsHere')}
             onExportPress={() => {
               setExportedText(exportPgn());
               setExportOpen(true);

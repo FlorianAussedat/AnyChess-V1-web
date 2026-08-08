@@ -1,5 +1,6 @@
 import { sanToVerbal } from '../chessParser.ts';
 import { speechService } from '../../services/SpeechService.ts';
+import { tMsg } from '../i18n/tMsg.ts';
 
 /**
  * Queue a verbal move-by-move summary (shared Classic / Openings core).
@@ -11,7 +12,7 @@ export function speakMoveHistorySummary(
   opts?: { emptyMessage?: string; skipCancel?: boolean },
 ): void {
   if (!moves.length) {
-    speechService.speak(opts?.emptyMessage ?? 'Aucun coup joué pour le moment.', {
+    speechService.speak(opts?.emptyMessage ?? tMsg('game.emptyHistory'), {
       flush: true,
     });
     return;

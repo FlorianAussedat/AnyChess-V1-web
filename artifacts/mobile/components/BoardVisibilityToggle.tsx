@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
  */
 export function BoardVisibilityToggle({ visible, onToggle }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onToggle}
@@ -21,7 +23,7 @@ export function BoardVisibilityToggle({ visible, onToggle }: Props) {
       testID="board-visibility-toggle"
       accessibilityRole="switch"
       accessibilityState={{ checked: visible }}
-      accessibilityLabel={visible ? 'Masquer l’échiquier' : 'Afficher l’échiquier'}
+      accessibilityLabel={visible ? t('a11y.boardHide') : t('a11y.boardShow')}
       style={({ pressed }) => [
         styles.btn,
         {
