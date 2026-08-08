@@ -14,6 +14,8 @@ import {
   type LegacyParseResult,
   type VoiceParseResult,
 } from './voice/index.ts';
+import type { AppLanguage } from './preferences/types.ts';
+import { preferencesStore } from './preferences/PreferencesStore.ts';
 
 export { CHESS_CONTEXT_STRINGS };
 export { normalizeTranscript as normalize };
@@ -33,6 +35,19 @@ const FRENCH_PIECE_NAMES: Record<string, string> = {
   k: 'Roi',
 };
 
+const ENGLISH_PIECE_NAMES: Record<string, string> = {
+  p: 'Pawn',
+  n: 'Knight',
+  b: 'Bishop',
+  r: 'Rook',
+  q: 'Queen',
+  k: 'King',
+};
+
+function resolveSpeechLanguage(language?: AppLanguage): AppLanguage {
+  return language ?? preferencesStore.getPreferences().language;
+}
+
 // ── TTS helpers ───────────────────────────────────────────────────────────
 
 /** Spell out a square so TTS says "D 5" not "d5" (avoids "boulevard", etc.). */
@@ -40,8 +55,20 @@ function spellSquare(sq: string): string {
   return sq[0].toUpperCase() + ' ' + sq[1];
 }
 
-/** Convert a Move object to a French verbal description with spelled-out squares. */
-export function verbalMove(m: Move): string {
+/** Convert a Move object to a verbal description with spelled-out squares. */
+export function verbalMove(m: Move, language?: AppLanguage): string {
+  const lang = resolveSpeechLanguage(language);
+  if (lang === 'en') {
+    if (m.flags.includes('k')) return 'Kingside castling';
+    if (m.flags.includes('q')) return 'Queenside castling';
+    const pieceName = ENGLISH_PIECE_NAMES[m.piece] ?? m.piece;
+    let txt = pieceName + ' ';
+    if (m.captured) txt += 'takes ';
+    else txt += 'to ';
+    txt += spellSquare(m.to);
+    if (m.promotion) txt += ', promoting to queen';
+    return txt;
+  }
   if (m.flags.includes('k')) return 'Petit roque';
   if (m.flags.includes('q')) return 'Grand roque';
   const pieceName = FRENCH_PIECE_NAMES[m.piece] ?? m.piece;
@@ -53,9 +80,47 @@ export function verbalMove(m: Move): string {
 }
 
 /**
- * Convert raw SAN from game.history() into spoken French with spelled squares.
+ * Convert raw SAN from game.history() into spoken language with spelled squares.
+ * Language follows app language preference (independent of chess notation).
  */
-export function sanToVerbal(san: string): string {
+export function sanToVerbal(san: string, language?: AppLanguage): string {
+  const lang = resolveSpeechLanguage(language);
+
+  if (lang === 'en') {
+    if (/^O-O-O$|^0-0-0$/.test(san)) return 'Queenside castling';
+    if (/^O-O$|^0-0$/.test(san)) return 'Kingside castling';
+
+    const s = san.replace(/[+#!?]/g, '');
+    const PIECES: Record<string, string> = {
+      N: 'Knight', B: 'Bishop', R: 'Rook', Q: 'Queen', K: 'King',
+    };
+
+    const promoM = s.match(/^([NBRQK]?)([a-h]?)x?([a-h][1-8])=([NBRQK])$/);
+    if (promoM) {
+      const pn = promoM[1] ? (PIECES[promoM[1]] ?? promoM[1]) : 'Pawn';
+      const cap = s.includes('x') ? ' takes' : ' to';
+      const promoPiece = (PIECES[promoM[4]] ?? promoM[4]).toLowerCase();
+      return `${pn}${cap} ${spellSquare(promoM[3])}, promoting to ${promoPiece}`;
+    }
+
+    const mv = s.match(/^([NBRQK]?)([a-h]?[1-8]?)?(x?)([a-h][1-8])$/);
+    if (mv) {
+      const pieceLetter = mv[1];
+      const fromDisambig = mv[2] ?? '';
+      const isCapture = !!mv[3];
+      const dest = mv[4];
+      const pieceName = pieceLetter ? (PIECES[pieceLetter] ?? pieceLetter) : 'Pawn';
+      let result = pieceName;
+      if (!pieceLetter && fromDisambig) {
+        result += ' on ' + fromDisambig.toUpperCase();
+      }
+      result += isCapture ? ' takes ' : ' to ';
+      result += spellSquare(dest);
+      return result;
+    }
+    return s.split('').join(' ');
+  }
+
   if (/^O-O-O$|^0-0-0$/.test(san)) return 'Grand roque';
   if (/^O-O$|^0-0$/.test(san)) return 'Petit roque';
 

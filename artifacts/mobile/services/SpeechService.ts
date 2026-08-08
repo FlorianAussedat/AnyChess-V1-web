@@ -1,5 +1,7 @@
 import * as Speech from 'expo-speech';
 import { audioSettings } from './AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
+import { speechLocaleForLanguage } from '@/lib/i18n';
 
 /**
  * Centralised text-to-speech service.
@@ -100,7 +102,13 @@ class SpeechService {
       this.hardStop({ notify: true });
     }
 
-    if (options.language) this.currentLanguage = options.language;
+    if (options.language) {
+      this.currentLanguage = options.language;
+    } else {
+      this.currentLanguage = speechLocaleForLanguage(
+        preferencesStore.getPreferences().language,
+      );
+    }
     if (options.rate != null) this.currentRate = options.rate;
     if (options.ownerId) this.activeOwnerId = options.ownerId;
 

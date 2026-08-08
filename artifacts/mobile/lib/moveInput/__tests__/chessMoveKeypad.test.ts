@@ -71,6 +71,16 @@ describe('chess move keypad auto-submit readiness', () => {
     assert.equal(applyMoveKeypadToken('', 'e').readyToSubmit, false);
     assert.equal(applyMoveKeypadToken('Dx', 'h').readyToSubmit, false);
   });
+
+  it('supports English notation piece letters for auto-submit', () => {
+    assert.equal(isCompleteMoveKeypadBuffer('Nf3', 'en'), true);
+    assert.equal(isCompleteMoveKeypadBuffer('Bxe5', 'en'), true);
+    assert.deepEqual(applyMoveKeypadToken('Nf', '3', 'en'), {
+      value: 'Nf3',
+      readyToSubmit: true,
+    });
+    assert.equal(applyMoveKeypadToken('', 'N', 'en').readyToSubmit, false);
+  });
 });
 
 describe('chess move keypad backspace / clear', () => {
@@ -132,6 +142,13 @@ describe('classic keypad V3 wiring scope', () => {
     assert.match(classic, /onKeypadAutoSubmit/);
     assert.match(classic, /keypadMode/);
     assert.match(classic, /anyChessKeypadVisible/);
+    // System-keyboard toggle must not reuse keypad icons (duplicate-icon bug).
+    assert.match(classic, /desktop-outline/);
+    assert.match(classic, /name=\{useSystemKeyboard \? 'desktop' : 'desktop-outline'\}/);
+    assert.doesNotMatch(
+      classic,
+      /useSystemKeyboard \? 'keypad-outline'/,
+    );
     assert.match(classic, /variant=["']compact["']/);
     // Text field only in system-keyboard fallback.
     assert.match(classic, /useSystemKeyboard \? \(/);

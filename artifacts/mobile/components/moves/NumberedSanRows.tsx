@@ -1,21 +1,29 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { usePreferences } from '@/hooks/usePreferences';
 import { DesignTokens } from '@/constants/designTokens';
 import { groupOpeningSans } from '@/lib/openingQuiz/groupOpeningSans';
+import { formatSanForDisplay } from '@/lib/chess/notation';
 
 type Props = {
+  /** English/internal SAN list from chess.js / ECO — formatted for display. */
   sans: readonly string[];
   testID?: string;
 };
 
 /**
  * Numbered White/Black SAN rows (shared with Quelle ouverture style).
- * Does not mutate SAN strings — layout only.
+ * Formats for display notation only — does not mutate internal SAN.
  */
 export function NumberedSanRows({ sans, testID }: Props) {
   const colors = useColors();
-  const rows = groupOpeningSans(sans);
+  const { chessNotation } = usePreferences();
+  const displaySans = useMemo(
+    () => sans.map((san) => formatSanForDisplay(san, chessNotation)),
+    [sans, chessNotation],
+  );
+  const rows = groupOpeningSans(displaySans);
 
   if (rows.length === 0) return null;
 

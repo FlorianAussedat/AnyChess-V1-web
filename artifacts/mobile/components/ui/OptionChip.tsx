@@ -10,15 +10,18 @@ export function OptionChip({
   label,
   active,
   onPress,
+  testID,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
   const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
+      testID={testID}
       style={[
         styles.chip,
         {

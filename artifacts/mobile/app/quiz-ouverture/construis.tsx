@@ -12,6 +12,8 @@ import { GameMicButton } from '@/components/game/GameMicButton';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
+import { usePreferences } from '@/hooks/usePreferences';
+import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { replayLine, type ReplayLineHandle } from '@/lib/replay';
 import {
@@ -122,6 +124,7 @@ function Dropdown({
 
 export default function ConstruisOuvertureScreen() {
   const colors = useColors();
+  const { chessNotation } = usePreferences();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
   const router = useRouter();
@@ -446,7 +449,7 @@ export default function ConstruisOuvertureScreen() {
               </Text>
               {!!snap.expectedSan && (
                 <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                  Attendu : {snap.expectedSan}
+                  Attendu : {formatSanForDisplay(snap.expectedSan, chessNotation)}
                 </Text>
               )}
             </View>

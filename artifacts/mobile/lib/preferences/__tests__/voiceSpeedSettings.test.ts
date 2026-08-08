@@ -43,12 +43,16 @@ describe('preference key hygiene', () => {
     );
     assert.doesNotMatch(profileStoreSrc, /voiceEnabled|boardCoordinatesVisible/);
     assert.match(
+      readFileSync(join(here, '../PreferencesStore.ts'), 'utf8'),
+      /StorageKeys\.userPreferences/,
+    );
+    assert.match(
       readFileSync(join(here, '../../../services/AudioSettings.ts'), 'utf8'),
-      /StorageKeys\.voiceEnabled/,
+      /preferencesStore/,
     );
     assert.match(
       readFileSync(join(here, '../../../services/BoardCoordinatesSettings.ts'), 'utf8'),
-      /StorageKeys\.boardCoordinatesVisible/,
+      /preferencesStore/,
     );
   });
 });

@@ -1,6 +1,12 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { usePreferences } from '@/hooks/usePreferences';
+import {
+  formatNumberedSanForDisplay,
+  formatSanForDisplay,
+  formatSanLineForDisplay,
+} from '@/lib/chess/notation';
 import type { DeviationAnalysis } from '@/lib/repertoire/RepertoireDeviationAnalyzer';
 
 interface Props {
@@ -15,6 +21,7 @@ interface Props {
  */
 export function TheoryContinuationViewer({ visible, analysis, onClose }: Props) {
   const colors = useColors();
+  const { chessNotation } = usePreferences();
   if (!analysis) return null;
 
   return (
@@ -26,7 +33,7 @@ export function TheoryContinuationViewer({ visible, analysis, onClose }: Props) 
           <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ gap: 10 }}>
             <Text style={[styles.label, { color: colors.mutedForeground }]}>Votre coup</Text>
             <Text style={[styles.value, { color: colors.foreground }]}>
-              {analysis.playedNumbered}
+              {formatNumberedSanForDisplay(analysis.playedNumbered, chessNotation)}
             </Text>
 
             <Text style={[styles.label, { color: colors.mutedForeground }]}>
@@ -39,7 +46,7 @@ export function TheoryContinuationViewer({ visible, analysis, onClose }: Props) 
             ) : (
               analysis.availableMoves.map((m) => (
                 <Text key={m.uci} style={[styles.bullet, { color: colors.foreground }]}>
-                  • {m.numbered}
+                  • {formatNumberedSanForDisplay(m.numbered, chessNotation)}
                 </Text>
               ))
             )}
@@ -49,7 +56,7 @@ export function TheoryContinuationViewer({ visible, analysis, onClose }: Props) 
                 <Text style={[styles.label, { color: colors.mutedForeground }]}>
                   Continuation proposée
                   {analysis.continuationRootSan
-                    ? ` (via ${analysis.continuationRootSan})`
+                    ? ` (via ${formatSanForDisplay(analysis.continuationRootSan, chessNotation)})`
                     : ''}
                 </Text>
                 {analysis.sourceHints.length > 0 && (
@@ -59,7 +66,10 @@ export function TheoryContinuationViewer({ visible, analysis, onClose }: Props) 
                   </Text>
                 )}
                 <Text style={[styles.continuation, { color: colors.foreground }]}>
-                  {analysis.continuation.map((s) => s.numbered).join('  ')}
+                  {formatSanLineForDisplay(
+                    analysis.continuation.map((s) => s.numbered).join('  '),
+                    chessNotation,
+                  )}
                 </Text>
               </>
             )}

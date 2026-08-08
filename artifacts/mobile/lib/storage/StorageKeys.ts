@@ -150,6 +150,17 @@ export const StorageKeys = {
     shape: 'integer string 1..10',
     documentVersion: 1,
   },
+  /**
+   * Unified preferences document (language, notation, voice, coords, speed).
+   * Legacy per-key prefs are migrated into this document on first load.
+   */
+  userPreferences: {
+    key: 'anychess.preferences.user.v1',
+    feature: 'preferences',
+    shape:
+      'UserPreferences { version: 1, language, chessNotation, voiceEnabled, coordinatesEnabled, voiceSpeed, updatedAt }',
+    documentVersion: 1,
+  },
 } as const satisfies Record<string, StorageKeyMeta>;
 
 export type StorageKeyId = keyof typeof StorageKeys;

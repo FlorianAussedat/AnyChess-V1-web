@@ -14,11 +14,14 @@ import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useBoardSize } from '@/hooks/useBoardSize';
+import { usePreferences } from '@/hooks/usePreferences';
+import { formatSanLineForDisplay } from '@/lib/chess/notation';
 
 export function PuzzlePlayingPhase() {
   const colors = useColors();
   const { soundEnabled } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const { chessNotation } = usePreferences();
   const wideBoardSize = useBoardSize('wide');
   const {
     phase,
@@ -221,7 +224,7 @@ export function PuzzlePlayingPhase() {
                   marginTop: 6,
                 }}
               >
-                {solutionLine}
+                {formatSanLineForDisplay(solutionLine, chessNotation)}
               </Text>
             )}
           </View>

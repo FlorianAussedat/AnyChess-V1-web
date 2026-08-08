@@ -19,7 +19,7 @@ import {
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { audioSettings } from '@/services/AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
 import { runStorageMigrations } from '@/lib/storage';
 
 SplashScreen.preventAutoHideAsync();
@@ -50,7 +50,6 @@ function RootLayoutNav() {
       <Stack.Screen name="quiz-ouverture" />
       <Stack.Screen name="records" />
       <Stack.Screen name="profil" />
-      <Stack.Screen name="settings" />
       {typeof __DEV__ !== 'undefined' && __DEV__ ? (
         <Stack.Screen name="dev/voice-parser" options={{ headerShown: true }} />
       ) : null}
@@ -66,12 +65,18 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const appReady = Boolean(fontsLoaded || fontError);
+  const [prefsHydrated, setPrefsHydrated] = useState(() =>
+    preferencesStore.isHydrated(),
+  );
+  const appReady = Boolean(fontsLoaded || fontError) && prefsHydrated;
   const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     runStorageMigrations().catch(() => {});
-    audioSettings.ensureLoaded().catch(() => {});
+    preferencesStore
+      .ensureLoaded()
+      .then(() => setPrefsHydrated(true))
+      .catch(() => setPrefsHydrated(true));
   }, []);
 
   const hideNativeSplash = useCallback(() => {

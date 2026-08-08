@@ -1,6 +1,6 @@
 /**
  * Profil / Mes données — local-only control center.
- * No account, no cloud. Reuses existing preference + repertoire + records stores.
+ * Sole settings hub: profile identity + preferences + data links.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -20,6 +20,8 @@ import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useDefaultVoiceSpeed } from '@/hooks/useDefaultVoiceSpeed';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { ProfilNavRow } from '@/components/profil/ProfilNavRow';
 import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
@@ -41,9 +43,7 @@ import {
   countActiveRecordCategories,
   resetAllCatalogRecords,
 } from '@/lib/records/AnyChessRecords';
-import { audioSettings } from '@/services/AudioSettings';
-import { boardCoordinatesSettings } from '@/services/BoardCoordinatesSettings';
-import { voiceSpeedSettings } from '@/lib/preferences/VoiceSpeedSettings';
+import type { AppLanguage, ChessNotation } from '@/lib/preferences';
 
 type EditorKind =
   | null
@@ -52,7 +52,9 @@ type EditorKind =
   | 'blitz'
   | 'bullet'
   | 'years'
-  | 'voiceSpeed';
+  | 'voiceSpeed'
+  | 'language'
+  | 'notation';
 
 const YEAR_OPTIONS = Array.from(
   { length: Math.min(21, CHESS_YEARS_MAX - CHESS_YEARS_MIN + 1) },
@@ -67,6 +69,9 @@ export default function ProfileScreen() {
   const { voiceEnabled, toggleVoice } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const { speed: voiceSpeed, setDefaultSpeed } = useDefaultVoiceSpeed();
+  const { language, chessNotation, updatePreferences, resetPreferences } =
+    usePreferences();
+  const { t } = useTranslation();
 
   const [editor, setEditor] = useState<EditorKind>(null);
   const [draftUsername, setDraftUsername] = useState('');
@@ -85,8 +90,8 @@ export default function ProfileScreen() {
 
   const summaryLine = useMemo(() => {
     if (profile.username) return profile.username;
-    return 'Pseudo non renseigné';
-  }, [profile.username]);
+    return t('profil.pseudoUnset');
+  }, [profile.username, t]);
 
   const openUsername = () => {
     setDraftUsername(profile.username ?? '');
@@ -98,45 +103,37 @@ export default function ProfileScreen() {
     setEditor(null);
   };
 
-  const resetPreferences = () => {
-    Alert.alert(
-      'Réinitialiser les préférences ?',
-      'Voix, coordonnées et vitesse de la voix reviendront aux valeurs par défaut.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Réinitialiser',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              await audioSettings.setVoiceEnabled(true);
-              await boardCoordinatesSettings.setCoordinatesVisible(true);
-              await voiceSpeedSettings.resetToDefault();
-            })();
-          },
+  const languageLabel = language === 'en' ? t('profil.langEn') : t('profil.langFr');
+  const notationLabel =
+    chessNotation === 'en' ? t('profil.notationEn') : t('profil.notationFr');
+
+  const resetPrefs = () => {
+    Alert.alert(t('profil.resetPrefsTitle'), t('profil.resetPrefsBody'), [
+      { text: t('profil.cancel'), style: 'cancel' },
+      {
+        text: t('profil.reset'),
+        style: 'destructive',
+        onPress: () => {
+          void resetPreferences();
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const resetRecords = () => {
-    Alert.alert(
-      'Réinitialiser les records ?',
-      'Tous les records (Tactiques, Nommer, Jouer, Mémorisation) seront effacés sur cet appareil.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Effacer',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              await resetAllCatalogRecords();
-              await reloadSummaries();
-            })();
-          },
+    Alert.alert(t('profil.resetRecordsTitle'), t('profil.resetRecordsBody'), [
+      { text: t('profil.cancel'), style: 'cancel' },
+      {
+        text: t('profil.erase'),
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            await resetAllCatalogRecords();
+            await reloadSummaries();
+          })();
         },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
@@ -152,7 +149,7 @@ export default function ProfileScreen() {
       testID="profil-screen"
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>Profil</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>{t('profil.title')}</Text>
 
       <View
         style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -160,78 +157,90 @@ export default function ProfileScreen() {
       >
         <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>
         <Text style={[styles.summaryHint, { color: colors.mutedForeground }]}>
-          Données locales — aucun compte requis
+          {t('profil.localData')}
         </Text>
       </View>
 
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PROFIL</Text>
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('profil.sectionProfile')}
+      </Text>
       <View style={styles.section}>
         <ProfilNavRow
-          label="Pseudo"
+          label={t('profil.username')}
           value={profile.username ?? '—'}
           onPress={openUsername}
           testID="profil-row-username"
         />
         <ProfilNavRow
-          label="Niveau Rapide"
+          label={t('profil.rapid')}
           value={getPlayerEloRange(profile.rapidRangeId).label}
           onPress={() => setEditor('rapid')}
           testID="profil-row-rapid"
         />
         <ProfilNavRow
-          label="Niveau Blitz"
+          label={t('profil.blitz')}
           value={getPlayerEloRange(profile.blitzRangeId).label}
           onPress={() => setEditor('blitz')}
           testID="profil-row-blitz"
         />
         <ProfilNavRow
-          label="Niveau Bullet"
+          label={t('profil.bullet')}
           value={getPlayerEloRange(profile.bulletRangeId).label}
           onPress={() => setEditor('bullet')}
           testID="profil-row-bullet"
         />
         <ProfilNavRow
-          label="Années de pratique"
+          label={t('profil.years')}
           value={profile.chessYears == null ? '—' : String(profile.chessYears)}
           onPress={() => setEditor('years')}
           testID="profil-row-years"
         />
       </View>
 
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>MES DONNÉES</Text>
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('profil.sectionMyData')}
+      </Text>
       <View style={styles.section}>
         <ProfilNavRow
-          label="Répertoires PGN"
+          label={t('profil.repertoires')}
           value={
             repertoireCount === 0
-              ? 'Aucun'
-              : `${repertoireCount} répertoire${repertoireCount > 1 ? 's' : ''}`
+              ? t('profil.repertoiresNone')
+              : `${repertoireCount} ${language === 'en' ? (repertoireCount > 1 ? 'repertoires' : 'repertoire') : `répertoire${repertoireCount > 1 ? 's' : ''}`}`
           }
           onPress={() => router.push('/openings')}
           testID="profil-row-repertoires"
         />
         <ProfilNavRow
-          label="Records"
+          label={t('profil.records')}
           value={
             activeRecords === 0
-              ? 'Voir mes records'
-              : `${activeRecords} / ${RECORDS_CATEGORIES.length} exercices`
+              ? t('profil.recordsSee')
+              : `${activeRecords} / ${RECORDS_CATEGORIES.length}`
           }
           onPress={() => router.push('/records')}
           testID="profil-row-records"
         />
       </View>
 
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PRÉFÉRENCES</Text>
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('profil.sectionPreferences')}
+      </Text>
       <View style={styles.section}>
         <ProfilNavRow
-          label="Langue"
-          value="Français"
-          interactive={false}
+          label={t('profil.language')}
+          value={languageLabel}
+          onPress={() => setEditor('language')}
           testID="profil-row-language"
         />
+        <ProfilNavRow
+          label={t('profil.notation')}
+          value={notationLabel}
+          onPress={() => setEditor('notation')}
+          testID="profil-row-notation"
+        />
         <BooleanSettingRow
-          label="Voix / son"
+          label={t('profil.voice')}
           value={voiceEnabled}
           onToggle={() => {
             void toggleVoice();
@@ -241,7 +250,7 @@ export default function ProfileScreen() {
           testID="profil-pref-voice"
         />
         <BooleanSettingRow
-          label="Coordonnées"
+          label={t('profil.coordinates')}
           value={showCoordinates}
           onToggle={() => {
             void toggleCoordinates();
@@ -249,33 +258,34 @@ export default function ProfileScreen() {
           testID="profil-pref-coordinates"
         />
         <ProfilNavRow
-          label="Vitesse de la voix"
+          label={t('profil.voiceSpeed')}
           value={String(voiceSpeed)}
           onPress={() => setEditor('voiceSpeed')}
           testID="profil-row-voice-speed"
         />
       </View>
 
-      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SAUVEGARDE</Text>
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('profil.sectionSave')}
+      </Text>
       <View
         style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}
         testID="profil-save-status"
       >
         <Text style={[styles.infoTitle, { color: colors.foreground }]}>
-          Données enregistrées sur cet appareil
+          {t('profil.saveTitle')}
         </Text>
         <Text style={[styles.infoBody, { color: colors.mutedForeground }]}>
-          Profil, répertoires PGN, records et préférences restent locaux. Aucun
-          compte ni cloud pour le moment.
+          {t('profil.saveBody')}
         </Text>
         <Text style={[styles.infoSoon, { color: colors.mutedForeground }]}>
-          Synchronisation multi-appareils — bientôt disponible
+          {t('profil.saveSoon')}
         </Text>
       </View>
 
       <View style={styles.dangerZone}>
         <Pressable
-          onPress={resetPreferences}
+          onPress={resetPrefs}
           testID="profil-reset-prefs"
           style={({ pressed }) => [
             styles.dangerBtn,
@@ -283,7 +293,7 @@ export default function ProfileScreen() {
           ]}
         >
           <Text style={{ color: colors.mutedForeground, fontFamily: DesignTokens.typography.weightSemiBold }}>
-            Réinitialiser les préférences
+            {t('profil.resetPrefs')}
           </Text>
         </Pressable>
         <Pressable
@@ -295,12 +305,11 @@ export default function ProfileScreen() {
           ]}
         >
           <Text style={{ color: colors.destructive, fontFamily: DesignTokens.typography.weightSemiBold }}>
-            Réinitialiser les records
+            {t('profil.resetRecords')}
           </Text>
         </Pressable>
       </View>
 
-      {/* Username editor */}
       <Modal
         visible={editor === 'username'}
         transparent
@@ -309,11 +318,13 @@ export default function ProfileScreen() {
       >
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Pseudo</Text>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t('profil.username')}
+            </Text>
             <TextInput
               value={draftUsername}
               onChangeText={setDraftUsername}
-              placeholder="Ton pseudo"
+              placeholder={t('profil.usernamePlaceholder')}
               placeholderTextColor={colors.mutedForeground}
               autoFocus
               maxLength={40}
@@ -332,7 +343,7 @@ export default function ProfileScreen() {
             />
             <View style={styles.modalActions}>
               <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-                <Text style={{ color: colors.foreground }}>Annuler</Text>
+                <Text style={{ color: colors.foreground }}>{t('profil.cancel')}</Text>
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -342,7 +353,7 @@ export default function ProfileScreen() {
                 testID="profil-username-save"
               >
                 <Text style={{ color: colors.primaryForeground, fontFamily: DesignTokens.typography.weightSemiBold }}>
-                  Enregistrer
+                  {t('profil.save')}
                 </Text>
               </Pressable>
             </View>
@@ -350,7 +361,76 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Elo range pickers */}
+      <Modal
+        visible={editor === 'language'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditor(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t('profil.language')}
+            </Text>
+            <View style={styles.chipWrap}>
+              {([
+                { id: 'fr' as AppLanguage, label: t('profil.langFr') },
+                { id: 'en' as AppLanguage, label: t('profil.langEn') },
+              ]).map((opt) => (
+                <OptionChip
+                  key={opt.id}
+                  label={opt.label}
+                  active={language === opt.id}
+                  onPress={() => {
+                    void updatePreferences({ language: opt.id }).then(() => setEditor(null));
+                  }}
+                  testID={`profil-lang-${opt.id}`}
+                />
+              ))}
+            </View>
+            <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
+              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={editor === 'notation'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditor(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t('profil.notation')}
+            </Text>
+            <View style={styles.chipWrap}>
+              {([
+                { id: 'fr' as ChessNotation, label: t('profil.notationFr') },
+                { id: 'en' as ChessNotation, label: t('profil.notationEn') },
+              ]).map((opt) => (
+                <OptionChip
+                  key={opt.id}
+                  label={opt.label}
+                  active={chessNotation === opt.id}
+                  onPress={() => {
+                    void updatePreferences({ chessNotation: opt.id }).then(() =>
+                      setEditor(null),
+                    );
+                  }}
+                  testID={`profil-notation-${opt.id}`}
+                />
+              ))}
+            </View>
+            <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
+              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={editor === 'rapid' || editor === 'blitz' || editor === 'bullet'}
         transparent
@@ -361,10 +441,10 @@ export default function ProfileScreen() {
           <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
               {editor === 'rapid'
-                ? 'Niveau Rapide'
+                ? t('profil.rapid')
                 : editor === 'blitz'
-                  ? 'Niveau Blitz'
-                  : 'Niveau Bullet'}
+                  ? t('profil.blitz')
+                  : t('profil.bullet')}
             </Text>
             <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={styles.chipWrap}>
               {PLAYER_ELO_RANGES.map((range) => {
@@ -394,13 +474,12 @@ export default function ProfileScreen() {
               })}
             </ScrollView>
             <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-              <Text style={{ color: colors.mutedForeground }}>Fermer</Text>
+              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* Years picker */}
       <Modal
         visible={editor === 'years'}
         transparent
@@ -410,7 +489,7 @@ export default function ProfileScreen() {
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              Années de pratique
+              {t('profil.years')}
             </Text>
             <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={styles.chipWrap}>
               {YEAR_OPTIONS.map((y) => (
@@ -432,13 +511,12 @@ export default function ProfileScreen() {
               />
             </ScrollView>
             <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-              <Text style={{ color: colors.mutedForeground }}>Fermer</Text>
+              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* Voice speed */}
       <Modal
         visible={editor === 'voiceSpeed'}
         transparent
@@ -448,7 +526,7 @@ export default function ProfileScreen() {
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <DiscreteSlider
-              label="Vitesse de la voix (défaut)"
+              label={t('profil.voiceSpeed')}
               valueLabel={String(voiceSpeed)}
               minimumValue={VOICE_SPEED_MIN}
               maximumValue={VOICE_SPEED_MAX}
@@ -457,14 +535,10 @@ export default function ProfileScreen() {
               onValueChange={(v) => {
                 void setDefaultSpeed(v);
               }}
-              leftHint="Lent"
-              rightHint="Rapide"
+              leftHint={language === 'en' ? 'Slow' : 'Lent'}
+              rightHint={language === 'en' ? 'Fast' : 'Rapide'}
               testID="profil-voice-speed-slider"
             />
-            <Text style={[styles.infoBody, { color: colors.mutedForeground }]}>
-              Les exercices peuvent ajuster la vitesse pour la session sans
-              modifier ce défaut.
-            </Text>
             <Pressable
               onPress={() => setEditor(null)}
               style={[styles.modalBtn, { backgroundColor: colors.primary, alignSelf: 'stretch' }]}

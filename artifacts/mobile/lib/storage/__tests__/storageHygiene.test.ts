@@ -54,6 +54,10 @@ describe('StorageKeys registry', () => {
       StorageKeys.defaultVoiceSpeed.key,
       'anychess.preferences.defaultVoiceSpeed.v1',
     );
+    assert.equal(
+      StorageKeys.userPreferences.key,
+      'anychess.preferences.user.v1',
+    );
   });
 });
 
