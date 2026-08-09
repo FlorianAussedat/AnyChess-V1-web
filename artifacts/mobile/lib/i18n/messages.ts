@@ -138,6 +138,8 @@ export type MessageKey =
   | 'game.playAsWhite'
   | 'game.playAsBlack'
   | 'game.emptyHistory'
+  | 'game.promotion'
+  | 'keypad.showClassic'
   // Keypad
   | 'keypad.a11y'
   | 'keypad.clear'
@@ -678,6 +680,8 @@ const fr: Dict = {
   'game.playAsWhite': 'Je joue Blancs',
   'game.playAsBlack': 'Je joue Noirs',
   'game.emptyHistory': 'Aucun coup joué pour le moment.',
+  'game.promotion': 'Promotion',
+  'keypad.showClassic': 'Mode classique / manuel',
   'keypad.a11y': 'Clavier coups d’échecs',
   'keypad.clear': 'Eff',
   'keypad.show': 'Afficher le clavier coups d’échecs',
@@ -1259,6 +1263,8 @@ const en: Dict = {
   'game.playAsWhite': 'I play White',
   'game.playAsBlack': 'I play Black',
   'game.emptyHistory': 'No moves played yet.',
+  'game.promotion': 'Promotion',
+  'keypad.showClassic': 'Classic / manual mode',
   'keypad.a11y': 'Chess move keypad',
   'keypad.clear': 'Clr',
   'keypad.show': 'Show chess move keypad',
