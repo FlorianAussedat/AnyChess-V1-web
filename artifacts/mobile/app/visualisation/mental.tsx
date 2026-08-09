@@ -419,10 +419,12 @@ export default function MentalPositionScreen() {
           />
 
           <ChessAnswerInput
+            inputType="free-text"
             onSubmit={(raw) => answer(raw)}
             enabled
             persistFocus
             placeholder={t('vision.answerPlaceholder')}
+            testID="mental-answer-input"
           />
         </View>
       )}

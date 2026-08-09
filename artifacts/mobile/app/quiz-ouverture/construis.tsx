@@ -6,9 +6,10 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
 import { AppButton } from '@/components/ui/AppButton';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { ChessBoard } from '@/components/ChessBoard';
 import { GameMicButton } from '@/components/game/GameMicButton';
+import { fenFromSanHistory } from '@/lib/moveInput/keypadPromotion';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
@@ -489,11 +490,14 @@ export default function ConstruisOuvertureScreen() {
 
           {snap.phase === 'playing' ? (
             <>
-              <ChessAnswerInput
+              <ChessMoveInput
+                inputType="chess-move"
                 onSubmit={answer}
+                fen={fenFromSanHistory(snap.playedSans)}
                 enabled={!isReplaying}
                 persistFocus
                 placeholder={t('quiz.dictatePlaceholder')}
+                testID="construis-move-input"
               />
               <GameMicButton
                 showRecognized={showRecognizedFlash}

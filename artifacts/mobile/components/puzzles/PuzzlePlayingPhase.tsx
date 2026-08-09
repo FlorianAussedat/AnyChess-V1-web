@@ -6,7 +6,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { ChessBoard } from '@/components/ChessBoard';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { BoardToolbar } from '@/components/BoardToolbar';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
@@ -43,6 +43,7 @@ export function PuzzlePlayingPhase() {
     nextMoveHint,
     positionNarration,
     sideToMove,
+    currentFen,
     currentStreak,
     getLegalDestinations,
     attemptBoardMove,
@@ -274,11 +275,14 @@ export function PuzzlePlayingPhase() {
 
         {!isReplaying && !isPreviewing && (
           <>
-            <ChessAnswerInput
+            <ChessMoveInput
+              inputType="chess-move"
               onSubmit={submitSpoken}
+              fen={currentFen}
               enabled={!isReplaying && !isPreviewing}
               persistFocus
               placeholder={t('puzzle.movePlaceholder')}
+              testID="puzzle-move-input"
             />
 
             <GameMicButton

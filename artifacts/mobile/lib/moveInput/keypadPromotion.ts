@@ -5,7 +5,11 @@
 import { Chess } from 'chess.js';
 import type { ChessNotation } from '../preferences/types.ts';
 import { keypadPieceClass } from '../chess/notation.ts';
-import { normalizeMoveKeypadBuffer } from './chessMoveKeypad.ts';
+import {
+  lastMoveKeypadSegment,
+  normalizeMoveKeypadBuffer,
+  normalizeMoveKeypadSequence,
+} from './chessMoveKeypad.ts';
 
 export type PromotionPiece = 'q' | 'r' | 'b' | 'n';
 
@@ -23,19 +27,24 @@ const FR_PROMO: Record<PromotionPiece, string> = {
   n: 'C',
 };
 
-/** Append notation-aware promotion suffix (=Q / =D …). */
+/** Append notation-aware promotion suffix (=Q / =D …) on the last segment. */
 export function appendPromotionSuffix(
   buffer: string,
   piece: PromotionPiece,
   notation: ChessNotation,
 ): string {
-  const base = normalizeMoveKeypadBuffer(buffer).replace(/=[NBRQKDCFT]+$/iu, '');
+  const seq = normalizeMoveKeypadSequence(buffer);
+  const last = lastMoveKeypadSegment(seq);
+  const base = normalizeMoveKeypadBuffer(last).replace(/=[NBRQKDCFT]+$/iu, '');
   const letter = notation === 'en' ? EN_PROMO[piece] : FR_PROMO[piece];
-  return `${base}=${letter}`;
+  const withPromo = `${base}=${letter}`;
+  if (!seq || !seq.includes(' ')) return withPromo;
+  const idx = seq.lastIndexOf(' ');
+  return `${seq.slice(0, idx)} ${withPromo}`;
 }
 
 /**
- * True when the buffer looks like a pawn move to the last rank without a
+ * True when the last segment looks like a pawn move to the last rank without a
  * promotion piece, and at least one legal promotion exists in `game`.
  */
 export function keypadBufferNeedsPromotion(
@@ -43,7 +52,7 @@ export function keypadBufferNeedsPromotion(
   fen: string,
   notation: ChessNotation = 'fr',
 ): boolean {
-  const b = normalizeMoveKeypadBuffer(buffer);
+  const b = normalizeMoveKeypadBuffer(lastMoveKeypadSegment(buffer));
   if (!b || b === 'O-O' || b === 'O-O-O') return false;
   if (/=[NBRQKDCFT]/iu.test(b)) return false;
 

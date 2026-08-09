@@ -39,8 +39,6 @@ describe('Classic single input-mode toggle', () => {
     const classic = read('components/ClassicGameScreen.tsx');
     assert.match(classic, /setInputMode/);
     assert.match(classic, /mode === 'classic' \? 'keypad' : 'classic'/);
-    // Partial draft preserved across mode switch (only promotion popup cleared).
-    assert.match(classic, /setPromotionDraft\(null\)/);
   });
 });
 
@@ -64,17 +62,26 @@ describe('Classic keypad placement and Eff removal', () => {
     assert.doesNotMatch(keypad, /label:\s*t\('keypad\.clear'\)/);
     assert.match(keypad, /action:\s*'backspace'/);
   });
+
+  it('uses a fixed 6-column grid with span-2 for rank 6', () => {
+    const keypad = read('components/game/ChessMoveKeypad.tsx');
+    assert.match(keypad, /KEYPAD_COLUMNS/);
+    assert.match(keypad, /keypadCellWidth/);
+    assert.match(keypad, /keypadSpanWidth/);
+    assert.match(keypad, /span:\s*2/);
+    assert.doesNotMatch(keypad, /flex:\s*key\.flex/);
+  });
 });
 
 describe('Classic promotion picker wiring', () => {
-  it('opens picker before submit and cancels without moving', () => {
+  it('delegates promotion to the shared keypad + PromotionPicker', () => {
     const classic = read('components/ClassicGameScreen.tsx');
-    assert.match(classic, /PromotionPicker/);
-    assert.match(classic, /keypadBufferNeedsPromotion/);
-    assert.match(classic, /appendPromotionSuffix/);
-    assert.match(classic, /onPromotionChoose/);
-    assert.match(classic, /onPromotionCancel/);
-    assert.match(classic, /setPromotionDraft\(raw\)/);
+    const keypad = read('components/game/ChessMoveKeypad.tsx');
+    assert.match(classic, /fen=\{keypadFen\}/);
+    assert.match(classic, /fenFromSanHistory/);
+    assert.match(keypad, /PromotionPicker/);
+    assert.match(keypad, /keypadBufferNeedsPromotion/);
+    assert.match(keypad, /appendPromotionSuffix/);
   });
 });
 

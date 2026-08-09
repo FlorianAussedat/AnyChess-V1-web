@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { ChessBoard } from '@/components/ChessBoard';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import {
@@ -197,14 +197,17 @@ export default function NommerLeCoupScreen() {
           {snap.lastFeedback === 'recognition-failure' ? (
             <Text style={{ color: colors.mutedForeground }}>{t('vision.unrecognizedRetry')}</Text>
           ) : null}
-          <ChessAnswerInput
+          <ChessMoveInput
+            inputType="chess-move"
             onSubmit={(raw) => {
               sessionRef.current.answer(raw);
               sync();
             }}
+            fen={snap.challenge?.positionFen ?? new Chess().fen()}
             enabled
             persistFocus
             placeholder={t('vision.nommerPlaceholder')}
+            testID="nommer-move-input"
           />
           <GameMicButton
             showRecognized={showRecognizedFlash}

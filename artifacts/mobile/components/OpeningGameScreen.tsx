@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -21,7 +21,7 @@ import {
   useMoveEventFeedback,
 } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { BoardToolbar } from '@/components/BoardToolbar';
@@ -38,6 +38,7 @@ import { formatNumberedSan } from '@/lib/moves/OpeningOpponent';
 import { formatNumberedSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
+import { fenFromSanHistory } from '@/lib/moveInput/keypadPromotion';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 
@@ -119,6 +120,7 @@ export function OpeningGameScreen() {
   });
 
   const moveRows = pairMoveHistory(history);
+  const answerFen = useMemo(() => fenFromSanHistory(history), [history]);
   const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
   const phaseLabel = phase === 'book' ? t('openings.theory') : t('openings.stockfish');
   const headerTitle = repertoireName || t('openings.repertoire');
@@ -300,8 +302,10 @@ export function OpeningGameScreen() {
         onToggle={toggleMic}
       />
 
-      <ChessAnswerInput
+      <ChessMoveInput
+        inputType="chess-move"
         onSubmit={(text) => applyRef.current(text)}
+        fen={answerFen}
         enabled={canAct}
         persistFocus={canAct}
         placeholder={t('openings.movePlaceholder')}
