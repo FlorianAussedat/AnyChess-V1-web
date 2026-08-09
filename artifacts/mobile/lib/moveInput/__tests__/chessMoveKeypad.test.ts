@@ -20,8 +20,6 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const classicPath = join(here, '../../../components/ClassicGameScreen.tsx');
 const keypadUiPath = join(here, '../../../components/game/ChessMoveKeypad.tsx');
-const openingPath = join(here, '../../../components/OpeningGameScreen.tsx');
-const puzzlePath = join(here, '../../../components/puzzles/PuzzlePlayingPhase.tsx');
 
 describe('chess move keypad construction', () => {
   it('builds e4, Cf3, Cxf7, Dxh7, castling', () => {
@@ -153,17 +151,30 @@ describe('classic keypad wiring scope', () => {
     assert.doesNotMatch(keypadUi, /keypad\.clear/);
     assert.match(keypadUi, /autoSubmit/);
     assert.match(keypadUi, /applyMoveKeypadToken/);
-
-    const opening = readFileSync(openingPath, 'utf8');
-    assert.doesNotMatch(opening, /ChessMoveKeypad/);
-
-    const puzzle = readFileSync(puzzlePath, 'utf8');
-    assert.doesNotMatch(puzzle, /ChessMoveKeypad/);
+    assert.match(keypadUi, /KEYPAD_COLUMNS/);
   });
 
   it('keeps FR/EN piece letters adaptive via notation preference', () => {
     const keypadUi = readFileSync(keypadUiPath, 'utf8');
     assert.match(keypadUi, /moveKeypadPiecesForNotation/);
     assert.match(keypadUi, /chessNotation/);
+  });
+});
+
+describe('move sequences on the keypad buffer', () => {
+  it('inserts a space when a new move starts after a complete segment', () => {
+    assert.equal(buildMoveKeypadValue(['C', 'f', '3', 'C', 'c', '6']), 'Cf3 Cc6');
+    assert.equal(buildMoveKeypadValue(['e', '4', 'e', '5']), 'e4 e5');
+    assert.equal(appendMoveKeypadToken('Cf3', 'O-O'), 'Cf3 O-O');
+  });
+
+  it('backspaces within the last segment of a sequence', () => {
+    let v = 'Cf3 Cc6';
+    v = backspaceMoveKeypad(v);
+    assert.equal(v, 'Cf3 Cc');
+    v = backspaceMoveKeypad(v);
+    assert.equal(v, 'Cf3 C');
+    v = backspaceMoveKeypad(v);
+    assert.equal(v, 'Cf3');
   });
 });

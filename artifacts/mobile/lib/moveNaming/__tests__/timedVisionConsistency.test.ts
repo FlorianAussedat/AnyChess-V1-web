@@ -77,7 +77,7 @@ describe('timed vision session chrome', () => {
     const mic = readFileSync(micPath, 'utf8');
     assert.match(nommer, /GameMicButton/);
     assert.match(nommer, /nommer-mic/);
-    assert.match(nommer, /ChessAnswerInput/);
+    assert.match(nommer, /ChessMoveInput/);
     assert.match(mic, /a11y\.speak/);
     assert.match(mic, /a11y\.listening/);
     assert.doesNotMatch(mic, /J'écoute|Activer le micro|Micro actif/);

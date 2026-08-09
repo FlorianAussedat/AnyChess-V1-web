@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { blindStyles } from '@/components/blind/blindStyles';
@@ -28,6 +29,19 @@ export function BlindRecitationPhase() {
   } = useBlindSequence();
 
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+  const answerFen = useMemo(() => {
+    const probe = new Chess();
+    for (let i = 0; i < expectedIndex; i++) {
+      const m = sequence[i];
+      if (!m) break;
+      try {
+        probe.move({ from: m.from, to: m.to, promotion: m.promotion || undefined });
+      } catch {
+        break;
+      }
+    }
+    return probe.fen();
+  }, [sequence, expectedIndex]);
   const attemptSpokenRef = useRef(attemptSpoken);
   useEffect(() => {
     attemptSpokenRef.current = attemptSpoken;
@@ -106,11 +120,14 @@ export function BlindRecitationPhase() {
           testID="blind-recitation-mic"
         />
 
-        <ChessAnswerInput
+        <ChessMoveInput
+          inputType="chess-move"
           onSubmit={(text) => attemptSpoken(text)}
+          fen={answerFen}
           enabled
           persistFocus
           placeholder={t('blind.movePlaceholder')}
+          testID="blind-recitation-move-input"
         />
 
         <View style={blindStyles.compactActionRow}>

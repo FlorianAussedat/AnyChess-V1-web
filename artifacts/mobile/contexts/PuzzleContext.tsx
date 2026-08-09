@@ -75,6 +75,8 @@ interface PuzzleContextValue {
   lastMove: LastMove | null;
   orientation: PuzzleOrientation;
   sideToMove: 'w' | 'b';
+  /** Live FEN for chess-move keypad promotion detection. */
+  currentFen: string;
   boardVisible: boolean;
   pieceRevealFilter: PieceRevealFilter;
   /** Blind toggles — board is mounted only when at least one is true. */
@@ -162,6 +164,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [orientation, setOrientation] = useState<PuzzleOrientation>('w');
   const [sideToMove, setSideToMove] = useState<'w' | 'b'>('w');
+  const [currentFen, setCurrentFen] = useState(() => new Chess().fen());
   const [boardVisible, setBoardVisible] = useState(true);
   const [pieceRevealFilter, setPieceRevealFilter] = useState<PieceRevealFilter>('all');
   const [whitePiecesShown, setWhitePiecesShown] = useState(false);
@@ -220,6 +223,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     const session = sessionRef.current;
     if (!session.isLoaded) return;
     setBoard(session.getChess().board() as (BoardPiece | null)[][]);
+    setCurrentFen(session.getFen());
     setSideToMove(session.getSideToMove());
     setOrientation(session.getOrientation());
     setStats(session.getStats());
@@ -294,6 +298,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         clearPreviewTimer();
         setIsPreviewing(true);
         setBoard(clone.board() as (BoardPiece | null)[][]);
+        setCurrentFen(clone.fen());
         setLastMove({ from: played.from, to: played.to });
         previewTimerRef.current = setTimeout(() => {
           previewTimerRef.current = null;
@@ -363,6 +368,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setLoadError(null);
     setBoardVisible(true);
     setBoard(new Chess().board() as (BoardPiece | null)[][]);
+    setCurrentFen(new Chess().fen());
     setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
   }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
 
@@ -622,6 +628,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
           }) as Move;
           setLastMove({ from: played.from, to: played.to });
           setBoard(game.board() as (BoardPiece | null)[][]);
+          setCurrentFen(game.fen());
           setSideToMove(game.turn());
           speechService.speak(m.verbal, { flush: false });
         } catch {
@@ -756,6 +763,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         lastMove,
         orientation,
         sideToMove,
+        currentFen,
         boardVisible,
         pieceRevealFilter,
         whitePiecesShown,

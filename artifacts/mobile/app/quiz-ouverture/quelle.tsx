@@ -68,6 +68,7 @@ export default function QuelleOuvertureScreen() {
       {!snap.answered ? (
         <View style={{ gap: DesignTokens.spacing.md }}>
           <ChessAnswerInput
+            inputType="free-text"
             onSubmit={answer}
             enabled
             persistFocus={false}

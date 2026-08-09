@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ChessBoard } from '@/components/ChessBoard';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { blindStyles } from '@/components/blind/blindStyles';
@@ -38,6 +39,19 @@ export function BlindReconstructionPhase() {
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+  const answerFen = useMemo(() => {
+    const probe = new Chess();
+    for (let i = 0; i < expectedIndex; i++) {
+      const m = sequence[i];
+      if (!m) break;
+      try {
+        probe.move({ from: m.from, to: m.to, promotion: m.promotion || undefined });
+      } catch {
+        break;
+      }
+    }
+    return probe.fen();
+  }, [sequence, expectedIndex]);
 
   useEffect(() => {
     setSelected(null);
@@ -168,15 +182,18 @@ export function BlindReconstructionPhase() {
           testID="blind-reconstruction-mic"
         />
 
-        <ChessAnswerInput
+        <ChessMoveInput
+          inputType="chess-move"
           onSubmit={(text) => {
             const result = attemptSpoken(text);
             if (result === 'wrong' || result === 'illegal') void sfxService.playError();
             else if (result === 'correct') void sfxService.playSuccess();
           }}
+          fen={answerFen}
           enabled
           persistFocus
           placeholder={t('blind.movePlaceholder')}
+          testID="blind-reconstruction-move-input"
         />
 
         <Pressable

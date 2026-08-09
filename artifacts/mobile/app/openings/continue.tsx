@@ -21,7 +21,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
@@ -585,11 +585,14 @@ export default function ContinueLineScreen() {
             <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>{micStatus.message}</Text>
           ) : null}
 
-          <ChessAnswerInput
+          <ChessMoveInput
+            inputType="chess-move"
             onSubmit={onPlayManual}
+            fen={snap.currentFen}
             enabled={snap.phase === 'reciting'}
             persistFocus={snap.phase === 'reciting'}
             placeholder={t('openings.movePlaceholder')}
+            testID="continue-move-input"
           />
         </>
       )}

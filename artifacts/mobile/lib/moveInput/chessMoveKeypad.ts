@@ -128,24 +128,57 @@ export function moveKeypadA11y(
   return (uiLanguage === 'en' ? MOVE_KEYPAD_A11Y_EN : MOVE_KEYPAD_A11Y_FR)[token];
 }
 
-/** Strip accidental spaces; keep SAN compact. */
+/** Compact a single SAN segment (no spaces). */
 export function normalizeMoveKeypadBuffer(buffer: string): string {
   return buffer.replace(/\s+/g, '');
+}
+
+/** Collapse runs of whitespace; preserve move separators for sequences. */
+export function normalizeMoveKeypadSequence(buffer: string): string {
+  return buffer.replace(/\s+/g, ' ').trim();
 }
 
 export function trimMoveKeypadBuffer(buffer: string): string {
   return normalizeMoveKeypadBuffer(buffer).trim();
 }
 
+/** Last space-separated move token in a (possibly multi-move) buffer. */
+export function lastMoveKeypadSegment(buffer: string): string {
+  const parts = normalizeMoveKeypadSequence(buffer).split(' ');
+  return parts[parts.length - 1] ?? '';
+}
+
+function replaceLastMoveKeypadSegment(buffer: string, segment: string): string {
+  const seq = normalizeMoveKeypadSequence(buffer);
+  if (!seq) return segment;
+  const idx = seq.lastIndexOf(' ');
+  if (idx < 0) return segment;
+  if (!segment) return seq.slice(0, idx);
+  return `${seq.slice(0, idx)} ${segment}`;
+}
+
+function tokenStartsNewMove(
+  token: MoveKeypadInsertToken,
+  notation: ChessNotation,
+): boolean {
+  if (token === 'O-O' || token === 'O-O-O') return true;
+  if (token === 'x') return false;
+  if (/^[1-8]$/u.test(token)) return false;
+  const P = keypadPieceClass(notation);
+  if (new RegExp(`^[${P}]$`, 'u').test(token)) return true;
+  return /^[a-h]$/u.test(token);
+}
+
 /**
  * Form-complete move buffer (no legality check).
+ * For multi-move buffers, only the last segment is tested.
  * Complete when destination rank is present, or castling token.
  */
 export function isCompleteMoveKeypadBuffer(
   buffer: string,
   notation: ChessNotation = 'fr',
 ): boolean {
-  const b = normalizeMoveKeypadBuffer(buffer);
+  const b = normalizeMoveKeypadBuffer(lastMoveKeypadSegment(buffer));
   if (!b) return false;
   if (b === 'O-O' || b === 'O-O-O') return true;
 
@@ -172,15 +205,38 @@ export function canSubmitMoveKeypad(buffer: string): boolean {
 }
 
 /**
- * Append a keypad token. Castling replaces the buffer (complete move).
+ * Append a keypad token.
+ * Castling replaces the current (incomplete) segment, or starts a new one
+ * after a completed move so sequences like `Cf3 O-O` stay editable.
  * Pieces stay uppercase; files stay lowercase — tokens are already correct.
  */
 export function appendMoveKeypadToken(
   buffer: string,
   token: MoveKeypadInsertToken,
+  notation: ChessNotation = 'fr',
 ): string {
-  if (token === 'O-O' || token === 'O-O-O') return token;
-  return normalizeMoveKeypadBuffer(buffer) + token;
+  const seq = normalizeMoveKeypadSequence(buffer);
+  const last = lastMoveKeypadSegment(seq);
+
+  if (token === 'O-O' || token === 'O-O-O') {
+    if (!seq) return token;
+    if (isCompleteMoveKeypadBuffer(last, notation)) return `${seq} ${token}`;
+    return replaceLastMoveKeypadSegment(seq, token);
+  }
+
+  if (!seq) return token;
+
+  if (
+    isCompleteMoveKeypadBuffer(last, notation) &&
+    tokenStartsNewMove(token, notation)
+  ) {
+    return `${seq} ${token}`;
+  }
+
+  return replaceLastMoveKeypadSegment(
+    seq,
+    normalizeMoveKeypadBuffer(last) + token,
+  );
 }
 
 export type ApplyMoveKeypadTokenResult = {
@@ -194,20 +250,28 @@ export function applyMoveKeypadToken(
   token: MoveKeypadInsertToken,
   notation: ChessNotation = 'fr',
 ): ApplyMoveKeypadTokenResult {
-  const value = appendMoveKeypadToken(buffer, token);
+  const value = appendMoveKeypadToken(buffer, token, notation);
   return { value, readyToSubmit: isCompleteMoveKeypadBuffer(value, notation) };
 }
 
 /**
  * Logical backspace:
- * - whole castling token → empty
- * - otherwise last character
+ * - trailing separator → drop it
+ * - whole castling token → remove that segment
+ * - otherwise last character of the last segment
  */
 export function backspaceMoveKeypad(buffer: string): string {
-  const current = normalizeMoveKeypadBuffer(buffer);
-  if (!current) return '';
-  if (current === 'O-O' || current === 'O-O-O') return '';
-  return current.slice(0, -1);
+  if (!buffer) return '';
+  if (/\s$/u.test(buffer)) return buffer.replace(/\s+$/u, '');
+  const seq = normalizeMoveKeypadSequence(buffer);
+  if (!seq) return '';
+  const last = lastMoveKeypadSegment(seq);
+  if (last === 'O-O' || last === 'O-O-O') {
+    const idx = seq.lastIndexOf(' ');
+    return idx < 0 ? '' : seq.slice(0, idx);
+  }
+  const nextLast = last.slice(0, -1);
+  return replaceLastMoveKeypadSegment(seq, nextLast);
 }
 
 export function clearMoveKeypad(): string {
@@ -226,7 +290,7 @@ export function priorityMoveKeypadKeys(
   buffer: string,
   notation: ChessNotation = 'fr',
 ): ReadonlySet<string> {
-  const b = normalizeMoveKeypadBuffer(buffer);
+  const b = normalizeMoveKeypadBuffer(lastMoveKeypadSegment(buffer));
   const pieces = moveKeypadPiecesForNotation(notation);
   const P = keypadPieceClass(notation);
 

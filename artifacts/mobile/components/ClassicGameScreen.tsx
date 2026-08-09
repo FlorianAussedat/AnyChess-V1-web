@@ -32,7 +32,6 @@ import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
-import { PromotionPicker } from '@/components/game/PromotionPicker';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor, SideChoice } from '@/lib/game/types';
@@ -49,12 +48,7 @@ import {
   DEFAULT_STRENGTH_BAND_ID,
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
-import {
-  appendPromotionSuffix,
-  fenFromSanHistory,
-  keypadBufferNeedsPromotion,
-  type PromotionPiece,
-} from '@/lib/moveInput/keypadPromotion';
+import { fenFromSanHistory } from '@/lib/moveInput/keypadPromotion';
 
 /** Classic input UI: voice/board (classic) vs chess keypad. */
 export type ClassicInputMode = 'classic' | 'keypad';
@@ -126,12 +120,10 @@ export function ClassicGameScreen() {
   const [draftMove, setDraftMove] = useState('');
   /** Single source of truth for Classic vs Keypad input UI. */
   const [inputMode, setInputMode] = useState<ClassicInputMode>('classic');
-  const [promotionDraft, setPromotionDraft] = useState<string | null>(null);
 
   // Clear in-progress compose when piece-letter system changes (FR C… ↔ EN N…).
   useEffect(() => {
     setDraftMove('');
-    setPromotionDraft(null);
   }, [chessNotation]);
 
   const {
@@ -186,7 +178,6 @@ export function ClassicGameScreen() {
   const onNewGamePress = useCallback(() => {
     setStrengthBandId(setupBandId);
     setDraftMove('');
-    setPromotionDraft(null);
     if (pendingSide === 'random') applySide(resolveSideChoice('random'));
     else if (pendingSide !== playerColor) changeColor(pendingSide);
     else newGame();
@@ -210,47 +201,19 @@ export function ClassicGameScreen() {
     [canAct],
   );
 
+  const keypadFen = useMemo(() => fenFromSanHistory(history), [history]);
+
   const onKeypadAutoSubmit = useCallback(
     (raw: string) => {
-      const fen = fenFromSanHistory(history);
-      if (keypadBufferNeedsPromotion(raw, fen, chessNotation)) {
-        setPromotionDraft(raw);
-        return;
-      }
       const played = commitTypedMove(raw, 'text');
       if (played) setDraftMove('');
       // Invalid: keep buffer so the user can backspace/correct.
     },
-    [chessNotation, commitTypedMove, history],
+    [commitTypedMove],
   );
-
-  const onPromotionChoose = useCallback(
-    (piece: PromotionPiece) => {
-      if (!promotionDraft) return;
-      const withPromo = appendPromotionSuffix(
-        promotionDraft,
-        piece,
-        chessNotation,
-      );
-      setPromotionDraft(null);
-      const played = commitTypedMove(withPromo, 'text');
-      if (played) setDraftMove('');
-      else setDraftMove(withPromo);
-    },
-    [chessNotation, commitTypedMove, promotionDraft],
-  );
-
-  const onPromotionCancel = useCallback(() => {
-    setPromotionDraft(null);
-    // Keep draftMove so the user can backspace / change destination.
-  }, []);
 
   const toggleInputMode = useCallback(() => {
-    setInputMode((mode) => {
-      // Preserve partial keypad draft when switching; clear only promotion popup.
-      setPromotionDraft(null);
-      return mode === 'classic' ? 'keypad' : 'classic';
-    });
+    setInputMode((mode) => (mode === 'classic' ? 'keypad' : 'classic'));
   }, []);
 
   return (
@@ -375,6 +338,7 @@ export function ClassicGameScreen() {
               onChangeText={setDraftMove}
               onSubmit={onKeypadAutoSubmit}
               autoSubmit
+              fen={keypadFen}
               compact
               enabled={canAct}
               testID="classic-move-keypad"
@@ -426,12 +390,6 @@ export function ClassicGameScreen() {
           />
         </>
       )}
-
-      <PromotionPicker
-        visible={promotionDraft != null}
-        onChoose={onPromotionChoose}
-        onCancel={onPromotionCancel}
-      />
 
       <GameExportPgnModal
         visible={exportOpen}
