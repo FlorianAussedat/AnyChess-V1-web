@@ -1,7 +1,8 @@
 /**
- * Chess move keypad V3 — Classic Mode opt-in.
+ * Chess move keypad — Classic Mode opt-in.
  * Auto-submits form-complete moves; validation stays in applyUserMove.
  * Piece letters follow the global chessNotation preference.
+ * No permanent "Eff"/clear key — backspace only.
  */
 import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -13,7 +14,6 @@ import { DesignTokens } from '@/constants/designTokens';
 import {
   applyMoveKeypadToken,
   backspaceMoveKeypad,
-  clearMoveKeypad,
   moveKeypadA11y,
   moveKeypadPiecesForNotation,
   priorityMoveKeypadKeys,
@@ -25,7 +25,7 @@ type Props = {
   onChangeText: (next: string) => void;
   /**
    * Called with the completed buffer (auto-submit) — same validation path
-   * as text/voice submit. Parent clears on success.
+   * as text/voice submit. Parent clears on success / handles promotion.
    */
   onSubmit: (raw: string) => void;
   /** When true (default), submit as soon as the buffer is form-complete. */
@@ -39,7 +39,7 @@ type KeyDef = {
   id: string;
   label: string;
   token?: MoveKeypadInsertToken;
-  action?: 'backspace' | 'clear';
+  action?: 'backspace';
   flex?: number;
   a11y: string;
 };
@@ -70,14 +70,21 @@ export function ChessMoveKeypad({
     () => priorityMoveKeypadKeys(value, chessNotation),
     [value, chessNotation],
   );
-  const keyMinHeight = compact ? 38 : DesignTokens.minTouchTarget;
-  const rowGap = compact ? 4 : 6;
-  const panelPad = compact ? 6 : DesignTokens.spacing.sm;
+  // Compact mockup-like heights (Canva reference).
+  const keyMinHeight = compact ? 34 : DesignTokens.minTouchTarget;
+  const rowGap = compact ? 3 : 6;
+  const panelPad = compact ? 4 : DesignTokens.spacing.sm;
 
   const rows: KeyDef[][] = useMemo(() => {
-    const a11y = (token: MoveKeypadInsertToken | 'backspace' | 'clear') =>
+    const a11y = (token: MoveKeypadInsertToken | 'backspace') =>
       moveKeypadA11y(token, language, chessNotation);
     const [p0, p1, p2, p3, p4] = pieces;
+    // Mockup grid (no Eff):
+    // C|a|b|1|2|x
+    // F|c|d|3|4|⌫
+    // T|e|f|5|6|
+    // D|g|h|7|8|R
+    // O-O | O-O-O
     return [
       [
         { id: p0, label: p0, token: p0, a11y: a11y(p0) },
@@ -96,17 +103,12 @@ export function ChessMoveKeypad({
         { id: 'backspace', label: '⌫', action: 'backspace', a11y: a11y('backspace') },
       ],
       [
+        // Five keys — stretch evenly (no empty Eff cell).
         { id: p2, label: p2, token: p2, a11y: a11y(p2) },
         { id: 'e', label: 'e', token: 'e', a11y: a11y('e') },
         { id: 'f', label: 'f', token: 'f', a11y: a11y('f') },
         { id: '5', label: '5', token: '5', a11y: a11y('5') },
         { id: '6', label: '6', token: '6', a11y: a11y('6') },
-        {
-          id: 'clear',
-          label: t('keypad.clear'),
-          action: 'clear',
-          a11y: a11y('clear'),
-        },
       ],
       [
         { id: p3, label: p3, token: p3, a11y: a11y(p3) },
@@ -121,7 +123,7 @@ export function ChessMoveKeypad({
         { id: 'O-O-O', label: 'O-O-O', token: 'O-O-O', flex: 1, a11y: a11y('O-O-O') },
       ],
     ];
-  }, [chessNotation, language, pieces, t]);
+  }, [chessNotation, language, pieces]);
 
   const pressKey = useCallback(
     (key: KeyDef) => {
@@ -129,11 +131,6 @@ export function ChessMoveKeypad({
       if (key.action === 'backspace') {
         lightTap();
         onChangeText(backspaceMoveKeypad(value));
-        return;
-      }
-      if (key.action === 'clear') {
-        lightTap();
-        onChangeText(clearMoveKeypad());
         return;
       }
       if (!key.token) return;
@@ -171,14 +168,9 @@ export function ChessMoveKeypad({
         <View key={`row-${rowIndex}`} style={[styles.row, { gap: rowGap }]}>
           {row.map((key) => {
             const isPriority = priority.has(key.id);
-            const isClear = key.action === 'clear';
-            const bg = isClear
-              ? colors.muted
-              : isPriority
-                ? colors.accent
-                : colors.secondary;
+            const bg = isPriority ? colors.accent : colors.secondary;
             const borderColor = isPriority ? colors.primary : 'transparent';
-            const color = isClear ? colors.mutedForeground : colors.secondaryForeground;
+            const color = colors.secondaryForeground;
 
             return (
               <Pressable
@@ -204,10 +196,10 @@ export function ChessMoveKeypad({
                     {
                       color,
                       fontSize:
-                        key.token === 'O-O-O' || key.token === 'O-O' || key.action === 'clear'
-                          ? 12
+                        key.token === 'O-O-O' || key.token === 'O-O'
+                          ? 11
                           : compact
-                            ? 15
+                            ? 14
                             : 16,
                     },
                   ]}

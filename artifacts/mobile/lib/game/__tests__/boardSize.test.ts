@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   computeBoardSize,
+  fitBoardSizeToViewport,
   DEFAULT_BOARD_MAX_SIZE,
   MIN_BOARD_SIZE,
 } from '../boardSize.ts';
@@ -37,5 +38,14 @@ describe('computeBoardSize', () => {
   it('explicit modes do not collide — default stays capped', () => {
     assert.equal(computeBoardSize(800, 'default'), DEFAULT_BOARD_MAX_SIZE);
     assert.ok(computeBoardSize(800, 'wide') > DEFAULT_BOARD_MAX_SIZE);
+  });
+});
+
+describe('fitBoardSizeToViewport', () => {
+  it('never exceeds width-based size or drops below MIN_BOARD_SIZE', () => {
+    const wide = computeBoardSize(360, 'wide');
+    const fitted = fitBoardSizeToViewport(wide, 700, 400);
+    assert.ok(fitted <= wide);
+    assert.ok(fitted >= MIN_BOARD_SIZE);
   });
 });

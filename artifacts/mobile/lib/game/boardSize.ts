@@ -31,3 +31,25 @@ export function computeBoardSize(
   }
   return Math.min(Math.max(0, w - 20), DEFAULT_BOARD_MAX_SIZE);
 }
+
+/**
+ * Cap a width-based board size so header + board + input fit the viewport.
+ * Never goes below MIN_BOARD_SIZE; never exceeds the width-based size.
+ *
+ * @param widthBasedSize result of computeBoardSize(width, mode)
+ * @param viewportHeight window height
+ * @param reservedChrome vertical space for chrome outside the board (px)
+ */
+export function fitBoardSizeToViewport(
+  widthBasedSize: number,
+  viewportHeight: number,
+  reservedChrome: number,
+): number {
+  const h = Math.max(0, viewportHeight);
+  const reserved = Math.max(0, reservedChrome);
+  const heightBudget = Math.max(MIN_BOARD_SIZE, h - reserved);
+  return Math.max(
+    MIN_BOARD_SIZE,
+    Math.min(widthBasedSize, heightBudget),
+  );
+}

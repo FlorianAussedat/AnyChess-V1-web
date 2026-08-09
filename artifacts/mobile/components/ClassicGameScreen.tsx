@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +14,6 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
-import { useBoardSize } from '@/hooks/useBoardSize';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
@@ -21,10 +21,10 @@ import {
   useMoveEventFeedback,
 } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { BoardToolbar } from '@/components/BoardToolbar';
+import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
+import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { BoardCampPicker } from '@/components/game/BoardCampPicker';
 import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
 import { GameActionRow } from '@/components/game/GameActionRow';
@@ -32,10 +32,15 @@ import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
+import { PromotionPicker } from '@/components/game/PromotionPicker';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import { useGame } from '@/contexts/GameContext';
 import type { PlayerColor, SideChoice } from '@/lib/game/types';
 import { beginGameFromCampChoice, pairMoveHistory, resolveSideChoice } from '@/lib/game';
+import {
+  computeBoardSize,
+  fitBoardSizeToViewport,
+} from '@/lib/game/boardSize';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { BrandAssets } from '@/constants/BrandAssets';
@@ -44,16 +49,40 @@ import {
   DEFAULT_STRENGTH_BAND_ID,
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
+import {
+  appendPromotionSuffix,
+  fenFromSanHistory,
+  keypadBufferNeedsPromotion,
+  type PromotionPiece,
+} from '@/lib/moveInput/keypadPromotion';
+
+/** Classic input UI: voice/board (classic) vs chess keypad. */
+export type ClassicInputMode = 'classic' | 'keypad';
+
+/**
+ * Vertical chrome reserved outside the board when fitting to the viewport
+ * (header, actions, status, talk row, history peek, gaps, safe areas, nav).
+ */
+const CLASSIC_BOARD_RESERVED_CHROME = 340;
 
 export function ClassicGameScreen() {
   const colors = useColors();
   const { contentTop, contentBottom } = useAppSafeInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
   const { t } = useTranslation();
-  const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave('/classic');
+
+  const boardSize = useMemo(() => {
+    const wide = computeBoardSize(windowWidth, 'wide');
+    return fitBoardSizeToViewport(
+      wide,
+      windowHeight,
+      CLASSIC_BOARD_RESERVED_CHROME + contentTop + contentBottom,
+    );
+  }, [windowWidth, windowHeight, contentTop, contentBottom]);
 
   const {
     board,
@@ -95,14 +124,14 @@ export function ClassicGameScreen() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportedText, setExportedText] = useState('');
   const [draftMove, setDraftMove] = useState('');
-  /** System keyboard fallback (shows ChessAnswerInput). */
-  const [useSystemKeyboard, setUseSystemKeyboard] = useState(false);
-  /** Show/hide AnyChess keypad when not in system-keyboard mode. */
-  const [anyChessKeypadVisible, setAnyChessKeypadVisible] = useState(true);
+  /** Single source of truth for Classic vs Keypad input UI. */
+  const [inputMode, setInputMode] = useState<ClassicInputMode>('classic');
+  const [promotionDraft, setPromotionDraft] = useState<string | null>(null);
 
   // Clear in-progress compose when piece-letter system changes (FR C… ↔ EN N…).
   useEffect(() => {
     setDraftMove('');
+    setPromotionDraft(null);
   }, [chessNotation]);
 
   const {
@@ -156,6 +185,8 @@ export function ClassicGameScreen() {
 
   const onNewGamePress = useCallback(() => {
     setStrengthBandId(setupBandId);
+    setDraftMove('');
+    setPromotionDraft(null);
     if (pendingSide === 'random') applySide(resolveSideChoice('random'));
     else if (pendingSide !== playerColor) changeColor(pendingSide);
     else newGame();
@@ -168,9 +199,8 @@ export function ClassicGameScreen() {
     : t('game.configure');
 
   const moveRows = pairMoveHistory(history);
-  const keypadMode = !useSystemKeyboard;
+  const keypadActive = inputMode === 'keypad';
 
-  /** Shared by system-keyboard arrow and keypad auto-submit. */
   const commitTypedMove = useCallback(
     (raw: string, source: 'text' | 'voice' = 'text'): boolean => {
       const trimmed = raw.trim();
@@ -182,19 +212,46 @@ export function ClassicGameScreen() {
 
   const onKeypadAutoSubmit = useCallback(
     (raw: string) => {
+      const fen = fenFromSanHistory(history);
+      if (keypadBufferNeedsPromotion(raw, fen, chessNotation)) {
+        setPromotionDraft(raw);
+        return;
+      }
       const played = commitTypedMove(raw, 'text');
       if (played) setDraftMove('');
       // Invalid: keep buffer so the user can backspace/correct.
     },
-    [commitTypedMove],
+    [chessNotation, commitTypedMove, history],
   );
 
-  const onSystemKeyboardSubmit = useCallback(
-    (raw: string) => {
-      commitTypedMove(raw, 'text');
+  const onPromotionChoose = useCallback(
+    (piece: PromotionPiece) => {
+      if (!promotionDraft) return;
+      const withPromo = appendPromotionSuffix(
+        promotionDraft,
+        piece,
+        chessNotation,
+      );
+      setPromotionDraft(null);
+      const played = commitTypedMove(withPromo, 'text');
+      if (played) setDraftMove('');
+      else setDraftMove(withPromo);
     },
-    [commitTypedMove],
+    [chessNotation, commitTypedMove, promotionDraft],
   );
+
+  const onPromotionCancel = useCallback(() => {
+    setPromotionDraft(null);
+    // Keep draftMove so the user can backspace / change destination.
+  }, []);
+
+  const toggleInputMode = useCallback(() => {
+    setInputMode((mode) => {
+      // Preserve partial keypad draft when switching; clear only promotion popup.
+      setPromotionDraft(null);
+      return mode === 'classic' ? 'keypad' : 'classic';
+    });
+  }, []);
 
   return (
     <ScrollView
@@ -207,6 +264,7 @@ export function ClassicGameScreen() {
         },
       ]}
       keyboardShouldPersistTaps="handled"
+      testID="classic-game-scroll"
     >
       <ScreenHeader
         onBack={() => router.back()}
@@ -254,16 +312,35 @@ export function ClassicGameScreen() {
             onNewGame={onNewGamePress}
           />
 
-          <View style={[styles.boardBlock, { width: boardSize }]}>
-            <BoardToolbar
-              showCoordinates={showCoordinates}
-              onToggleCoordinates={() => {
-                void toggleCoordinates();
-              }}
-              boardVisible={boardVisible}
-              onToggleBoardVisible={() => setBoardVisible((v) => !v)}
-            />
+          {/* Status + board toggles (Canva: same row, above the board). */}
+          <View style={styles.statusRow} testID="classic-status-row">
+            <View style={styles.statusGrow}>
+              <GameStatusCard
+                status={status}
+                heardText={heardText}
+                isGameOver={isGameOver}
+                isOpponentThinking={isOpponentThinking}
+                thinkingLabel={t('game.opponentThinking')}
+                composeText={keypadActive ? draftMove : null}
+                compact
+                testID="classic-coup-banner"
+              />
+            </View>
+            <View style={styles.boardToggles}>
+              <BoardCoordinatesToggle
+                visible={showCoordinates}
+                onToggle={() => {
+                  void toggleCoordinates();
+                }}
+              />
+              <BoardVisibilityToggle
+                visible={boardVisible}
+                onToggle={() => setBoardVisible((v) => !v)}
+              />
+            </View>
+          </View>
 
+          <View style={[styles.boardBlock, { width: boardSize }]} testID="classic-board-block">
             <View style={styles.boardRow}>
               {boardVisible ? (
                 <ChessBoard
@@ -285,19 +362,24 @@ export function ClassicGameScreen() {
                 />
               )}
             </View>
-
-            {/* Coup banner glued under the board — fills the former visual gap. */}
-            <GameStatusCard
-              status={status}
-              heardText={heardText}
-              isGameOver={isGameOver}
-              isOpponentThinking={isOpponentThinking}
-              thinkingLabel={t('game.opponentThinking')}
-              composeText={keypadMode ? draftMove : null}
-              compact
-              testID="classic-coup-banner"
-            />
           </View>
+
+          {/*
+            Keypad mode: BOARD → KEYPAD → TALK+TOGGLE → HISTORY
+            Classic mode: BOARD → TALK+TOGGLE → HISTORY
+            Board position stays stable; keypad inserts below it.
+          */}
+          {keypadActive ? (
+            <ChessMoveKeypad
+              value={draftMove}
+              onChangeText={setDraftMove}
+              onSubmit={onKeypadAutoSubmit}
+              autoSubmit
+              compact
+              enabled={canAct}
+              testID="classic-move-keypad"
+            />
+          ) : null}
 
           <View style={styles.commandRow} testID="classic-command-row">
             <GameMicButton
@@ -309,97 +391,28 @@ export function ClassicGameScreen() {
               testID="classic-mic"
               variant="compact"
             />
-
-            {/*
-              Single AnyChess keypad visibility control (keypad / keypad-outline).
-              System-keyboard fallback uses a distinct desktop icon — never keypad —
-              so the show/hide control cannot appear twice.
-            */}
             <Pressable
-              onPress={() => {
-                if (useSystemKeyboard) {
-                  setUseSystemKeyboard(false);
-                  setAnyChessKeypadVisible(true);
-                  return;
-                }
-                setAnyChessKeypadVisible((v) => !v);
-              }}
+              onPress={toggleInputMode}
               accessibilityLabel={
-                anyChessKeypadVisible && keypadMode
-                  ? t('keypad.hide')
-                  : t('keypad.show')
+                keypadActive ? t('keypad.showClassic') : t('keypad.show')
               }
-              testID="classic-keypad-visibility-toggle"
+              testID="classic-input-mode-toggle"
               style={({ pressed }) => [
                 styles.iconBtn,
                 {
-                  backgroundColor:
-                    anyChessKeypadVisible && keypadMode ? colors.accent : colors.secondary,
-                  borderColor: anyChessKeypadVisible && keypadMode ? colors.primary : colors.border,
+                  backgroundColor: keypadActive ? colors.accent : colors.secondary,
+                  borderColor: keypadActive ? colors.primary : colors.border,
                   opacity: pressed ? 0.8 : 1,
                 },
               ]}
             >
               <Ionicons
-                name={anyChessKeypadVisible && keypadMode ? 'keypad' : 'keypad-outline'}
-                size={20}
-                color={colors.foreground}
-              />
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                setUseSystemKeyboard((v) => {
-                  const next = !v;
-                  if (next) setAnyChessKeypadVisible(false);
-                  else setAnyChessKeypadVisible(true);
-                  return next;
-                });
-              }}
-              accessibilityLabel={
-                useSystemKeyboard ? t('keypad.systemOn') : t('keypad.systemOff')
-              }
-              testID="classic-keyboard-mode-toggle"
-              style={({ pressed }) => [
-                styles.iconBtn,
-                {
-                  backgroundColor: useSystemKeyboard ? colors.accent : colors.secondary,
-                  borderColor: useSystemKeyboard ? colors.primary : colors.border,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Ionicons
-                name={useSystemKeyboard ? 'desktop' : 'desktop-outline'}
+                name={keypadActive ? 'create-outline' : 'keypad-outline'}
                 size={20}
                 color={colors.foreground}
               />
             </Pressable>
           </View>
-
-          {useSystemKeyboard ? (
-            <ChessAnswerInput
-              value={draftMove}
-              onChangeText={setDraftMove}
-              onSubmit={onSystemKeyboardSubmit}
-              enabled={canAct}
-              persistFocus={canAct}
-              placeholder={t('game.composeOrDictate')}
-              testID="manual-input"
-            />
-          ) : null}
-
-          {keypadMode && anyChessKeypadVisible ? (
-            <ChessMoveKeypad
-              value={draftMove}
-              onChangeText={setDraftMove}
-              onSubmit={onKeypadAutoSubmit}
-              autoSubmit
-              compact
-              enabled={canAct}
-              testID="classic-move-keypad"
-            />
-          ) : null}
 
           <GameMoveHistoryCard
             moveRows={moveRows}
@@ -413,6 +426,12 @@ export function ClassicGameScreen() {
           />
         </>
       )}
+
+      <PromotionPicker
+        visible={promotionDraft != null}
+        onChoose={onPromotionChoose}
+        onCancel={onPromotionCancel}
+      />
 
       <GameExportPgnModal
         visible={exportOpen}
@@ -429,9 +448,20 @@ export function ClassicGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flexGrow: 1, paddingHorizontal: 8, gap: 6 },
+  root: { flexGrow: 1, paddingHorizontal: 8, gap: 4 },
   setupBlock: { gap: DesignTokens.spacing.md },
-  boardBlock: { gap: 4, alignSelf: 'center' },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusGrow: { flex: 1, minWidth: 0 },
+  boardToggles: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  boardBlock: { gap: 0, alignSelf: 'center' },
   boardRow: { alignItems: 'center' },
   commandRow: {
     flexDirection: 'row',

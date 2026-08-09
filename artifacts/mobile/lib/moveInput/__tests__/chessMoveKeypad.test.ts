@@ -101,7 +101,7 @@ describe('chess move keypad backspace / clear', () => {
     assert.equal(backspaceMoveKeypad('O-O-O'), '');
   });
 
-  it('Effacer empties the buffer', () => {
+  it('clearMoveKeypad helper still empties the buffer', () => {
     assert.equal(clearMoveKeypad(), '');
   });
 });
@@ -129,38 +129,28 @@ describe('chess move keypad contextual priority', () => {
   });
 });
 
-describe('classic keypad V3 wiring scope', () => {
-  it('uses auto-submit keypad mode without text field or Valider', () => {
+describe('classic keypad wiring scope', () => {
+  it('uses auto-submit keypad with single mode toggle (no Eff / no system field)', () => {
     const classic = readFileSync(classicPath, 'utf8');
     const keypadUi = readFileSync(keypadUiPath, 'utf8');
 
     assert.match(classic, /ChessMoveKeypad/);
     assert.match(classic, /classic-move-keypad/);
     assert.match(classic, /classic-coup-banner/);
-    assert.match(classic, /classic-keypad-visibility-toggle/);
-    assert.match(classic, /classic-keyboard-mode-toggle/);
+    assert.match(classic, /classic-input-mode-toggle/);
     assert.match(classic, /onKeypadAutoSubmit/);
-    assert.match(classic, /keypadMode/);
-    assert.match(classic, /anyChessKeypadVisible/);
-    // System-keyboard toggle must not reuse keypad icons (duplicate-icon bug).
-    assert.match(classic, /desktop-outline/);
-    assert.match(classic, /name=\{useSystemKeyboard \? 'desktop' : 'desktop-outline'\}/);
-    assert.doesNotMatch(
-      classic,
-      /useSystemKeyboard \? 'keypad-outline'/,
-    );
-    assert.match(classic, /variant=["']compact["']/);
-    // Text field only in system-keyboard fallback.
-    assert.match(classic, /useSystemKeyboard \? \(/);
-    assert.match(classic, /ChessAnswerInput/);
-    // Voice pipeline unchanged.
+    assert.match(classic, /inputMode/);
+    assert.doesNotMatch(classic, /useSystemKeyboard/);
+    assert.doesNotMatch(classic, /ChessAnswerInput/);
     assert.match(classic, /onTranscript:/);
 
-    // Keypad UI: no + / # / OK submit key.
+    // Keypad UI: no + / # / OK / Eff clear key.
     assert.doesNotMatch(keypadUi, /token:\s*'\+'/);
     assert.doesNotMatch(keypadUi, /token:\s*'#'/);
     assert.doesNotMatch(keypadUi, /action:\s*'submit'/);
+    assert.doesNotMatch(keypadUi, /action:\s*'clear'/);
     assert.doesNotMatch(keypadUi, /label:\s*'OK'/);
+    assert.doesNotMatch(keypadUi, /keypad\.clear/);
     assert.match(keypadUi, /autoSubmit/);
     assert.match(keypadUi, /applyMoveKeypadToken/);
 
@@ -171,10 +161,9 @@ describe('classic keypad V3 wiring scope', () => {
     assert.doesNotMatch(puzzle, /ChessMoveKeypad/);
   });
 
-  it('keeps system keyboard fallback with visible text input', () => {
-    const classic = readFileSync(classicPath, 'utf8');
-    assert.match(classic, /game\.composeOrDictate/);
-    assert.match(classic, /onSystemKeyboardSubmit/);
-    assert.match(classic, /setUseSystemKeyboard/);
+  it('keeps FR/EN piece letters adaptive via notation preference', () => {
+    const keypadUi = readFileSync(keypadUiPath, 'utf8');
+    assert.match(keypadUi, /moveKeypadPiecesForNotation/);
+    assert.match(keypadUi, /chessNotation/);
   });
 });
