@@ -60,3 +60,4 @@ export type {
 } from './MixedRepertoireTraining';
 export { pickPgnFile } from './pickPgnFile';
 export type { PickedPgnFile } from './pickPgnFile';
+export { folderNameFromPgnFilename } from './folderNameFromPgnFilename';
