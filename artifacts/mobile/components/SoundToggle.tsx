@@ -1,57 +1,31 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useTranslation } from '@/hooks/useTranslation';
+import { BrandAssetToggle } from '@/components/BrandAssetToggle';
+import { BrandAssets } from '@/constants/BrandAssets';
 
 /**
  * Voice / speech mute toggle (TTS only).
- * Temporary person-circle placeholder (oral / profile) until custom assets arrive.
+ * Uses shared brand speaker (sound-on / sound-off) assets.
  * Does NOT mute validation/error SFX or haptics.
  */
 export function SoundToggle() {
-  const colors = useColors();
   const { t } = useTranslation();
   const { voiceEnabled, toggleVoice } = useAudioSettings();
 
   return (
-    <Pressable
+    <BrandAssetToggle
+      active={voiceEnabled}
+      onSource={BrandAssets.toggles.speaker.on}
+      offSource={BrandAssets.toggles.speaker.off}
       onPress={() => {
         toggleVoice().catch(() => {});
       }}
-      hitSlop={10}
       testID="sound-toggle"
-      accessibilityRole="switch"
-      accessibilityState={{ checked: voiceEnabled }}
       accessibilityLabel={
         voiceEnabled ? t('a11y.voiceMute') : t('a11y.voiceUnmute')
       }
-      style={({ pressed }) => [
-        styles.btn,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          opacity: pressed ? 0.6 : voiceEnabled ? 1 : 0.55,
-        },
-      ]}
-    >
-      <Ionicons
-        name={voiceEnabled ? 'person-circle' : 'person-circle-outline'}
-        size={22}
-        color={voiceEnabled ? colors.primary : colors.mutedForeground}
-      />
-    </Pressable>
+      size={42}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  btn: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
