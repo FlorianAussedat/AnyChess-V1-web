@@ -49,10 +49,11 @@ describe('ChessMoveInput keypad visibility toggle', () => {
   });
 });
 
-describe('keypad backspace span-2 layout', () => {
-  it('backspace spans 2 columns and rank 6 is single-width', () => {
+describe('keypad vertical backspace layout', () => {
+  it('backspace spans rows 2–3 and rank 6 is single-width', () => {
     const keypad = read('components/game/ChessMoveKeypad.tsx');
-    assert.match(keypad, /id:\s*'backspace'[\s\S]*?span:\s*2/);
+    assert.match(keypad, /row-backspace-block/);
+    assert.match(keypad, /tallBackspaceHeight/);
     assert.match(keypad, /id:\s*'6',\s*label:\s*'6',\s*token:\s*'6'/);
     assert.doesNotMatch(keypad, /token:\s*'6',\s*span:\s*2/);
     assert.match(keypad, /span:\s*3/); // castling

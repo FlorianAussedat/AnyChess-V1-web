@@ -38,7 +38,7 @@ describe('keypadGrid 6-column math', () => {
     const gap = 4;
     const available = 300;
     const cell = keypadCellWidth(available, gap);
-    const fiveKeyRow = cell * 5 + gap * 4 + cell; // 5 singles + gaps + backspace col
+    const fiveKeyRow = cell * 5 + gap * 4 + gap + cell; // 5 singles + gaps + backspace col
     const rowNormal = cell * 6 + gap * 5;
     assert.equal(fiveKeyRow, rowNormal);
     assert.equal(fiveKeyRow, available);
