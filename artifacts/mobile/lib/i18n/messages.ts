@@ -374,6 +374,9 @@ export type MessageKey =
   | 'records.legacyNote'
   | 'openings.emptyTitle'
   | 'openings.emptyBody'
+  | 'openings.emptyLead'
+  | 'openings.emptySources'
+  | 'openings.emptyPurpose'
   | 'openings.sectionWhite'
   | 'openings.sectionBlack'
   | 'openings.sectionUnassigned'
@@ -928,9 +931,15 @@ const fr: Dict = {
     'Cette action remettra à zéro les records 60 secondes. Les anciens scores par délai (legacy) restent conservés séparément.',
   'records.legacyNote':
     'Anciens records par délai encore présents en stockage (legacy).',
-  'openings.emptyTitle': 'Aucun répertoire',
+  'openings.emptyTitle': 'Tu n’as pas encore de répertoire',
   'openings.emptyBody':
-    'Crée un dossier (ex. Dragon accéléré, Caro-Kann) puis importe tes fichiers PGN.',
+    'Importe un fichier PGN contenant une ouverture que tu souhaites travailler.',
+  'openings.emptyLead':
+    'Importe un fichier PGN contenant une ouverture que tu souhaites travailler.',
+  'openings.emptySources':
+    'Tu peux obtenir ces fichiers depuis ton logiciel d’échecs, une base de parties, un répertoire que tu as créé toi-même, ou un service d’entraînement qui permet l’export en PGN.',
+  'openings.emptyPurpose':
+    'AnyChess utilisera les variantes de ton fichier pour te les faire rejouer et t’aider à les mémoriser.',
   'openings.sectionWhite': 'RÉPERTOIRE BLANCS',
   'openings.sectionBlack': 'RÉPERTOIRE NOIRS',
   'openings.sectionUnassigned': 'SANS CÔTÉ',
@@ -1508,9 +1517,15 @@ const en: Dict = {
     'This will reset the 60-second records. Older delay-based (legacy) scores stay stored separately.',
   'records.legacyNote':
     'Older delay-based records are still present in storage (legacy).',
-  'openings.emptyTitle': 'No repertoire',
+  'openings.emptyTitle': 'You don’t have a repertoire yet',
   'openings.emptyBody':
-    'Create a folder (e.g. Accelerated Dragon, Caro-Kann) then import your PGN files.',
+    'Import a PGN file with an opening you want to practice.',
+  'openings.emptyLead':
+    'Import a PGN file with an opening you want to practice.',
+  'openings.emptySources':
+    'You can get these files from your chess software, a game database, a repertoire you built yourself, or a training service that exports to PGN.',
+  'openings.emptyPurpose':
+    'AnyChess will use the variations in your file so you can replay and memorize them.',
   'openings.sectionWhite': 'WHITE REPERTOIRE',
   'openings.sectionBlack': 'BLACK REPERTOIRE',
   'openings.sectionUnassigned': 'NO SIDE',
