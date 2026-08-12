@@ -7,6 +7,8 @@
  * Parent mode logic decides when an answer is complete (one move vs sequence).
  * With autoSubmit=false (default here), the keypad builds the buffer and the
  * send control submits; the keyboard stays available for the next answer.
+ *
+ * One shared ChessKeyboardToggle shows/hides the keypad.
  */
 import React, { useCallback, useState } from 'react';
 import {
@@ -22,6 +24,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
 import { DesignTokens } from '@/constants/designTokens';
 import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
+import { ChessKeyboardToggle } from '@/components/game/ChessKeyboardToggle';
 import type { AnswerInputType } from '@/lib/moveInput/answerInputType';
 
 export type ChessMoveInputProps = {
@@ -42,6 +45,18 @@ export type ChessMoveInputProps = {
    */
   autoSubmit?: boolean;
   showSendButton?: boolean;
+  /**
+   * Show the shared keypad visibility toggle beside send.
+   * Default true — one button opens/closes the chess keypad.
+   */
+  showKeyboardToggle?: boolean;
+  /** Controlled keypad visibility. When omitted, starts visible. */
+  keypadVisible?: boolean;
+  onKeypadVisibleChange?: (visible: boolean) => void;
+  /** Uncontrolled initial visibility when keypadVisible is omitted. */
+  defaultKeypadVisible?: boolean;
+  /** Optional trailing controls in the input row (e.g. compact mic). */
+  trailingControls?: React.ReactNode;
   compact?: boolean;
   testID?: string;
   inputProps?: Omit<
@@ -66,6 +81,11 @@ export function ChessMoveInput({
   onChangeText: controlledOnChange,
   autoSubmit = false,
   showSendButton = true,
+  showKeyboardToggle = true,
+  keypadVisible: controlledKeypadVisible,
+  onKeypadVisibleChange,
+  defaultKeypadVisible = true,
+  trailingControls,
   compact = true,
   testID = 'chess-move-input',
   inputProps,
@@ -76,6 +96,22 @@ export function ChessMoveInput({
   const isControlled = controlledValue !== undefined;
   const text = isControlled ? controlledValue : internal;
   const setText = controlledOnChange ?? setInternal;
+
+  const [internalKeypadVisible, setInternalKeypadVisible] = useState(
+    defaultKeypadVisible,
+  );
+  const keypadControlled = controlledKeypadVisible !== undefined;
+  const keypadVisible = keypadControlled
+    ? controlledKeypadVisible
+    : internalKeypadVisible;
+
+  const setKeypadVisible = useCallback(
+    (next: boolean) => {
+      if (!keypadControlled) setInternalKeypadVisible(next);
+      onKeypadVisibleChange?.(next);
+    },
+    [keypadControlled, onKeypadVisibleChange],
+  );
 
   const { inputRef, afterSubmit } = usePersistentAnswerFocus({
     enabled: enabled && persistFocus,
@@ -143,18 +179,30 @@ export function ChessMoveInput({
             <Ionicons name="arrow-forward" size={20} color="#fff" />
           </Pressable>
         ) : null}
+        {showKeyboardToggle ? (
+          <ChessKeyboardToggle
+            active={keypadVisible}
+            onToggle={() => setKeypadVisible(!keypadVisible)}
+            variant="visibility"
+            disabled={!enabled && !keypadVisible}
+            testID={`${testID}-keypad-toggle`}
+          />
+        ) : null}
+        {trailingControls}
       </View>
 
-      <ChessMoveKeypad
-        value={text}
-        onChangeText={setText}
-        onSubmit={onKeypadSubmit}
-        autoSubmit={autoSubmit}
-        fen={fen}
-        enabled={enabled}
-        compact={compact}
-        testID={`${testID}-keypad`}
-      />
+      {keypadVisible ? (
+        <ChessMoveKeypad
+          value={text}
+          onChangeText={setText}
+          onSubmit={onKeypadSubmit}
+          autoSubmit={autoSubmit}
+          fen={fen}
+          enabled={enabled}
+          compact={compact}
+          testID={`${testID}-keypad`}
+        />
+      ) : null}
     </View>
   );
 }
@@ -167,22 +215,22 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: DesignTokens.spacing.sm,
   },
   input: {
     flex: 1,
-    minWidth: 160,
-    minHeight: 44,
+    minWidth: 120,
+    minHeight: DesignTokens.chessScreen.inputHeight,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: DesignTokens.chessScreen.inputRadius,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: DesignTokens.chessScreen.inputHeight,
+    height: DesignTokens.chessScreen.inputHeight,
+    borderRadius: DesignTokens.chessScreen.inputRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

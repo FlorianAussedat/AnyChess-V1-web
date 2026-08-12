@@ -1,16 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
@@ -22,11 +18,13 @@ import {
 } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
-import { ScreenHeader } from '@/components/ScreenHeader';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { BoardCampPicker } from '@/components/game/BoardCampPicker';
+import { ChessBoardSection } from '@/components/game/ChessBoardSection';
+import { ChessKeyboardToggle } from '@/components/game/ChessKeyboardToggle';
 import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
+import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { GameActionRow } from '@/components/game/GameActionRow';
 import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { GameMicButton } from '@/components/game/GameMicButton';
@@ -60,7 +58,6 @@ export type ClassicInputMode = 'classic' | 'keypad';
 const CLASSIC_BOARD_RESERVED_CHROME = 340;
 
 export function ClassicGameScreen() {
-  const colors = useColors();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
@@ -217,19 +214,8 @@ export function ClassicGameScreen() {
   }, []);
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={[
-        styles.root,
-        {
-          paddingTop: contentTop,
-          paddingBottom: contentBottom,
-        },
-      ]}
-      keyboardShouldPersistTaps="handled"
-      testID="classic-game-scroll"
-    >
-      <ScreenHeader
+    <>
+      <ChessScreenScaffold
         onBack={() => router.back()}
         title={t('modes.classic.title')}
         subtitle={contextLine}
@@ -259,52 +245,51 @@ export function ClassicGameScreen() {
             </View>
           ) : null
         }
-      />
-
-      {!campLocked ? (
-        <View style={styles.setupBlock}>
-          <StrengthBandSlider bandId={setupBandId} onBandIdChange={onPickSetupBand} />
-          <BoardCampPicker onSelect={onPickSide} sizeMode="wide" />
-        </View>
-      ) : (
-        <>
-          <GameActionRow
-            onRepeat={repeatLast}
-            onUndo={undoMove}
-            onSummarize={summarizeGame}
-            onNewGame={onNewGamePress}
-          />
-
-          {/* Status + board toggles (Canva: same row, above the board). */}
-          <View style={styles.statusRow} testID="classic-status-row">
-            <View style={styles.statusGrow}>
-              <GameStatusCard
-                status={status}
-                heardText={heardText}
-                isGameOver={isGameOver}
-                isOpponentThinking={isOpponentThinking}
-                thinkingLabel={t('game.opponentThinking')}
-                composeText={keypadActive ? draftMove : null}
-                compact
-                testID="classic-coup-banner"
-              />
-            </View>
-            <View style={styles.boardToggles}>
-              <BoardCoordinatesToggle
-                visible={showCoordinates}
-                onToggle={() => {
-                  void toggleCoordinates();
-                }}
-              />
-              <BoardVisibilityToggle
-                visible={boardVisible}
-                onToggle={() => setBoardVisible((v) => !v)}
-              />
-            </View>
+        testID="classic-game-scroll"
+      >
+        {!campLocked ? (
+          <View style={styles.setupBlock}>
+            <StrengthBandSlider bandId={setupBandId} onBandIdChange={onPickSetupBand} />
+            <BoardCampPicker onSelect={onPickSide} sizeMode="wide" />
           </View>
+        ) : (
+          <>
+            <GameActionRow
+              onRepeat={repeatLast}
+              onUndo={undoMove}
+              onSummarize={summarizeGame}
+              onNewGame={onNewGamePress}
+            />
 
-          <View style={[styles.boardBlock, { width: boardSize }]} testID="classic-board-block">
-            <View style={styles.boardRow}>
+            {/* Status + board toggles (Canva: same row, above the board). */}
+            <View style={styles.statusRow} testID="classic-status-row">
+              <View style={styles.statusGrow}>
+                <GameStatusCard
+                  status={status}
+                  heardText={heardText}
+                  isGameOver={isGameOver}
+                  isOpponentThinking={isOpponentThinking}
+                  thinkingLabel={t('game.opponentThinking')}
+                  composeText={keypadActive ? draftMove : null}
+                  compact
+                  testID="classic-coup-banner"
+                />
+              </View>
+              <View style={styles.boardToggles}>
+                <BoardCoordinatesToggle
+                  visible={showCoordinates}
+                  onToggle={() => {
+                    void toggleCoordinates();
+                  }}
+                />
+                <BoardVisibilityToggle
+                  visible={boardVisible}
+                  onToggle={() => setBoardVisible((v) => !v)}
+                />
+              </View>
+            </View>
+
+            <ChessBoardSection boardSize={boardSize} testID="classic-board-block">
               {boardVisible ? (
                 <ChessBoard
                   board={board}
@@ -324,72 +309,57 @@ export function ClassicGameScreen() {
                   size={boardSize}
                 />
               )}
-            </View>
-          </View>
+            </ChessBoardSection>
 
-          {/*
-            Keypad mode: BOARD → KEYPAD → TALK+TOGGLE → HISTORY
-            Classic mode: BOARD → TALK+TOGGLE → HISTORY
-            Board position stays stable; keypad inserts below it.
-          */}
-          {keypadActive ? (
-            <ChessMoveKeypad
-              value={draftMove}
-              onChangeText={setDraftMove}
-              onSubmit={onKeypadAutoSubmit}
-              autoSubmit
-              fen={keypadFen}
-              compact
-              enabled={canAct}
-              testID="classic-move-keypad"
-            />
-          ) : null}
-
-          <View style={styles.commandRow} testID="classic-command-row">
-            <GameMicButton
-              showRecognized={showRecognized}
-              isListening={isListening}
-              micActive={micActive}
-              micMessage={micStatus.message}
-              onToggle={toggleMic}
-              testID="classic-mic"
-              variant="compact"
-            />
-            <Pressable
-              onPress={toggleInputMode}
-              accessibilityLabel={
-                keypadActive ? t('keypad.showClassic') : t('keypad.show')
-              }
-              testID="classic-input-mode-toggle"
-              style={({ pressed }) => [
-                styles.iconBtn,
-                {
-                  backgroundColor: keypadActive ? colors.accent : colors.secondary,
-                  borderColor: keypadActive ? colors.primary : colors.border,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Ionicons
-                name={keypadActive ? 'create-outline' : 'keypad-outline'}
-                size={20}
-                color={colors.foreground}
+            {/*
+              Keypad mode: BOARD → KEYPAD → TALK+TOGGLE → HISTORY
+              Classic mode: BOARD → TALK+TOGGLE → HISTORY
+              Board position stays stable; keypad inserts below it.
+            */}
+            {keypadActive ? (
+              <ChessMoveKeypad
+                value={draftMove}
+                onChangeText={setDraftMove}
+                onSubmit={onKeypadAutoSubmit}
+                autoSubmit
+                fen={keypadFen}
+                compact
+                enabled={canAct}
+                testID="classic-move-keypad"
               />
-            </Pressable>
-          </View>
+            ) : null}
 
-          <GameMoveHistoryCard
-            moveRows={moveRows}
-            opening={openingIdentity}
-            emptyMessage={t('game.startsHere')}
-            onExportPress={() => {
-              setExportedText(exportPgn());
-              setExportOpen(true);
-            }}
-            exportMode="icon"
-          />
-        </>
-      )}
+            <View style={styles.commandRow} testID="classic-command-row">
+              <GameMicButton
+                showRecognized={showRecognized}
+                isListening={isListening}
+                micActive={micActive}
+                micMessage={micStatus.message}
+                onToggle={toggleMic}
+                testID="classic-mic"
+                variant="compact"
+              />
+              <ChessKeyboardToggle
+                active={keypadActive}
+                onToggle={toggleInputMode}
+                variant="classic"
+                testID="classic-input-mode-toggle"
+              />
+            </View>
+
+            <GameMoveHistoryCard
+              moveRows={moveRows}
+              opening={openingIdentity}
+              emptyMessage={t('game.startsHere')}
+              onExportPress={() => {
+                setExportedText(exportPgn());
+                setExportOpen(true);
+              }}
+              exportMode="icon"
+            />
+          </>
+        )}
+      </ChessScreenScaffold>
 
       <GameExportPgnModal
         visible={exportOpen}
@@ -401,12 +371,11 @@ export function ClassicGameScreen() {
         downloadPgn={downloadPgn}
         onClose={() => setExportOpen(false)}
       />
-    </ScrollView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flexGrow: 1, paddingHorizontal: 8, gap: 4 },
   setupBlock: { gap: DesignTokens.spacing.md },
   statusRow: {
     flexDirection: 'row',
@@ -419,20 +388,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  boardBlock: { gap: 0, alignSelf: 'center' },
-  boardRow: { alignItems: 'center' },
   commandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: DesignTokens.spacing.sm,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: DesignTokens.radius.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sideIndicator: {
     width: 32,

@@ -6,6 +6,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { ChessBoard } from '@/components/ChessBoard';
+import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { BoardToolbar } from '@/components/BoardToolbar';
 import { GameMicButton } from '@/components/game/GameMicButton';
@@ -242,23 +243,22 @@ export function PuzzlePlayingPhase() {
         )}
 
         {showBoard && submode === 'visual' && (
-          <View
-            style={{
-              alignItems: 'center',
-              gap: 8,
-              alignSelf: 'center',
-              width: wideBoardSize,
-            }}
+          <ChessBoardSection
+            boardSize={wideBoardSize}
+            style={{ gap: 8 }}
+            toolbar={
+              <View style={{ width: '100%' }}>
+                <BoardToolbar
+                  label={sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack')}
+                  showCoordinates={showCoordinates}
+                  onToggleCoordinates={() => {
+                    void toggleCoordinates();
+                  }}
+                />
+              </View>
+            }
+            testID="puzzle-board-block"
           >
-            <View style={{ width: '100%' }}>
-              <BoardToolbar
-                label={sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack')}
-                showCoordinates={showCoordinates}
-                onToggleCoordinates={() => {
-                  void toggleCoordinates();
-                }}
-              />
-            </View>
             <ChessBoard
               board={displayBoard}
               lastMove={lastMove}
@@ -270,7 +270,7 @@ export function PuzzlePlayingPhase() {
               sizeMode="wide"
               size={wideBoardSize}
             />
-          </View>
+          </ChessBoardSection>
         )}
 
         {!isReplaying && !isPreviewing && (
