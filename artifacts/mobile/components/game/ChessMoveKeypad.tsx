@@ -115,10 +115,10 @@ export function ChessMoveKeypad({
     const a11y = (token: MoveKeypadInsertToken | 'backspace') =>
       moveKeypadA11y(token, language, chessNotation);
     const [p0, p1, p2, p3, p4] = pieces;
-    // Fixed 6-column grid (no Eff). Row 3: backspace spans columns 5–6.
+    // Fixed 6-column grid (no Eff). Backspace spans rows 2–3 in column 6.
     // C|a|b|1|2|x
-    // F|c|d|3|4|6
-    // T|e|f|5|⌫——|
+    // F|c|d|3|4|⌫
+    // T|e|f|5|6|⌫
     // D|g|h|7|8|R
     // O-O———|O-O-O——
     return [
@@ -136,20 +136,13 @@ export function ChessMoveKeypad({
         { id: 'd', label: 'd', token: 'd', a11y: a11y('d') },
         { id: '3', label: '3', token: '3', a11y: a11y('3') },
         { id: '4', label: '4', token: '4', a11y: a11y('4') },
-        { id: '6', label: '6', token: '6', a11y: a11y('6') },
       ],
       [
         { id: p2, label: p2, token: p2, a11y: a11y(p2) },
         { id: 'e', label: 'e', token: 'e', a11y: a11y('e') },
         { id: 'f', label: 'f', token: 'f', a11y: a11y('f') },
         { id: '5', label: '5', token: '5', a11y: a11y('5') },
-        {
-          id: 'backspace',
-          label: '⌫',
-          action: 'backspace',
-          span: 2,
-          a11y: a11y('backspace'),
-        },
+        { id: '6', label: '6', token: '6', a11y: a11y('6') },
       ],
       [
         { id: p3, label: p3, token: p3, a11y: a11y(p3) },
@@ -165,6 +158,16 @@ export function ChessMoveKeypad({
       ],
     ];
   }, [chessNotation, language, pieces]);
+
+  const backspaceKey = useMemo<KeyDef>(
+    () => ({
+      id: 'backspace',
+      label: '⌫',
+      action: 'backspace',
+      a11y: moveKeypadA11y('backspace', language, chessNotation),
+    }),
+    [chessNotation, language],
+  );
 
   const maybeSubmit = useCallback(
     (raw: string) => {
@@ -232,6 +235,76 @@ export function ChessMoveKeypad({
     setRowWidth((prev) => (Math.abs(prev - w) < 0.5 ? prev : w));
   }, []);
 
+  const renderKey = useCallback(
+    (key: KeyDef) => {
+      const span = key.span ?? 1;
+      const isPriority = priority.has(key.id);
+      const bg = isPriority ? colors.accent : colors.secondary;
+      const borderColor = isPriority ? colors.primary : 'transparent';
+      const color = colors.secondaryForeground;
+      const width =
+        cellWidth > 0 ? keypadSpanWidth(cellWidth, gap, span) : undefined;
+
+      return (
+        <Pressable
+          key={key.id}
+          onPress={() => pressKey(key)}
+          disabled={!enabled}
+          accessibilityLabel={key.a11y}
+          testID={`${testID}-key-${key.id}`}
+          style={({ pressed }) => [
+            styles.key,
+            {
+              width,
+              flexGrow: width == null ? span : 0,
+              flexBasis: width == null ? 0 : undefined,
+              flexShrink: 0,
+              height: keyMinHeight,
+              minHeight: keyMinHeight,
+              backgroundColor: bg,
+              borderColor,
+              opacity: !enabled ? 0.45 : pressed ? 0.82 : 1,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.keyLabel,
+              {
+                color,
+                fontSize:
+                  key.token === 'O-O-O' || key.token === 'O-O'
+                    ? 11
+                    : compact
+                      ? 14
+                      : 16,
+              },
+            ]}
+            numberOfLines={1}
+          >
+            {key.label}
+          </Text>
+        </Pressable>
+      );
+    },
+    [
+      cellWidth,
+      colors.accent,
+      colors.primary,
+      colors.secondary,
+      colors.secondaryForeground,
+      compact,
+      enabled,
+      gap,
+      keyMinHeight,
+      pressKey,
+      priority,
+      testID,
+    ],
+  );
+
+  const tallBackspaceHeight = keyMinHeight * 2 + gap;
+
   return (
     <View
       style={[
@@ -246,38 +319,46 @@ export function ChessMoveKeypad({
       testID={testID}
       accessibilityLabel={t('keypad.a11y')}
     >
-      {rows.map((row, rowIndex) => (
-        <View
-          key={`row-${rowIndex}`}
-          style={[styles.row, { gap }]}
-          onLayout={rowIndex === 0 ? onRowLayout : undefined}
-        >
-          {row.map((key) => {
-            const span = key.span ?? 1;
-            const isPriority = priority.has(key.id);
-            const bg = isPriority ? colors.accent : colors.secondary;
-            const borderColor = isPriority ? colors.primary : 'transparent';
-            const color = colors.secondaryForeground;
-            const width =
-              cellWidth > 0 ? keypadSpanWidth(cellWidth, gap, span) : undefined;
+      {rows.map((row, rowIndex) => {
+        if (rowIndex === 2) {
+          return null;
+        }
 
-            return (
+        if (rowIndex === 1) {
+          const backspaceWidth =
+            cellWidth > 0 ? keypadSpanWidth(cellWidth, gap, 1) : undefined;
+          const isPriority = priority.has(backspaceKey.id);
+          const bg = isPriority ? colors.accent : colors.secondary;
+          const borderColor = isPriority ? colors.primary : 'transparent';
+          const color = colors.secondaryForeground;
+
+          return (
+            <View
+              key="row-backspace-block"
+              style={[styles.row, { gap }]}
+            >
+              <View style={[styles.stackedRows, { gap }]}>
+                <View style={[styles.row, { gap }]}>
+                  {row.map(renderKey)}
+                </View>
+                <View style={[styles.row, { gap }]}>
+                  {rows[2].map(renderKey)}
+                </View>
+              </View>
               <Pressable
-                key={key.id}
-                onPress={() => pressKey(key)}
+                onPress={() => pressKey(backspaceKey)}
                 disabled={!enabled}
-                accessibilityLabel={key.a11y}
-                testID={`${testID}-key-${key.id}`}
+                accessibilityLabel={backspaceKey.a11y}
+                testID={`${testID}-key-${backspaceKey.id}`}
                 style={({ pressed }) => [
                   styles.key,
                   {
-                    width,
-                    // Before first layout pass, fall back so something paints.
-                    flexGrow: width == null ? span : 0,
-                    flexBasis: width == null ? 0 : undefined,
+                    width: backspaceWidth,
+                    flexGrow: backspaceWidth == null ? 1 : 0,
+                    flexBasis: backspaceWidth == null ? 0 : undefined,
                     flexShrink: 0,
-                    height: keyMinHeight,
-                    minHeight: keyMinHeight,
+                    height: tallBackspaceHeight,
+                    minHeight: tallBackspaceHeight,
                     backgroundColor: bg,
                     borderColor,
                     opacity: !enabled ? 0.45 : pressed ? 0.82 : 1,
@@ -287,25 +368,27 @@ export function ChessMoveKeypad({
                 <Text
                   style={[
                     styles.keyLabel,
-                    {
-                      color,
-                      fontSize:
-                        key.token === 'O-O-O' || key.token === 'O-O'
-                          ? 11
-                          : compact
-                            ? 14
-                            : 16,
-                    },
+                    { color, fontSize: compact ? 14 : 16 },
                   ]}
                   numberOfLines={1}
                 >
-                  {key.label}
+                  {backspaceKey.label}
                 </Text>
               </Pressable>
-            );
-          })}
-        </View>
-      ))}
+            </View>
+          );
+        }
+
+        return (
+          <View
+            key={`row-${rowIndex}`}
+            style={[styles.row, { gap }]}
+            onLayout={rowIndex === 0 ? onRowLayout : undefined}
+          >
+            {row.map(renderKey)}
+          </View>
+        );
+      })}
 
       <PromotionPicker
         visible={promotionDraft != null}
@@ -325,6 +408,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'stretch',
+  },
+  stackedRows: {
+    flexDirection: 'column',
   },
   key: {
     borderRadius: DesignTokens.radius.sm,
