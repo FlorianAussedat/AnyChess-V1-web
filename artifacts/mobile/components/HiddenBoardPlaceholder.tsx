@@ -38,7 +38,7 @@ export function HiddenBoardPlaceholder({
       ]}
     >
       <Image
-        source={BrandAssets.toggles.boardOff}
+        source={BrandAssets.toggles.board.off}
         style={styles.boardIcon}
         resizeMode="contain"
         accessibilityLabel={hiddenLabel}
@@ -56,7 +56,7 @@ export function HiddenBoardPlaceholder({
           ]}
         >
           <Image
-            source={BrandAssets.toggles.boardOn}
+            source={BrandAssets.toggles.board.on}
             style={styles.revealIcon}
             resizeMode="contain"
           />
