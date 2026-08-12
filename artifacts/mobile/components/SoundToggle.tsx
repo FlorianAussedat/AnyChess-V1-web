@@ -1,13 +1,14 @@
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Image, Pressable, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useTranslation } from '@/hooks/useTranslation';
+import { BrandAssets } from '@/constants/BrandAssets';
+import { DesignTokens } from '@/constants/designTokens';
 
 /**
  * Voice / speech mute toggle (TTS only).
- * Temporary person-circle placeholder (oral / profile) until custom assets arrive.
+ * Uses shared brand mic-on / mic-off assets.
  * Does NOT mute validation/error SFX or haptics.
  */
 export function SoundToggle() {
@@ -30,16 +31,20 @@ export function SoundToggle() {
       style={({ pressed }) => [
         styles.btn,
         {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          opacity: pressed ? 0.6 : voiceEnabled ? 1 : 0.55,
+          backgroundColor: voiceEnabled ? colors.primary : colors.card,
+          borderColor: voiceEnabled ? colors.primary : colors.border,
+          opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
-      <Ionicons
-        name={voiceEnabled ? 'person-circle' : 'person-circle-outline'}
-        size={22}
-        color={voiceEnabled ? colors.primary : colors.mutedForeground}
+      <Image
+        source={
+          voiceEnabled ? BrandAssets.toggles.micOn : BrandAssets.toggles.micOff
+        }
+        style={styles.icon}
+        resizeMode="contain"
+        accessibilityElementsHidden
+        importantForAccessibility="no"
       />
     </Pressable>
   );
@@ -49,9 +54,13 @@ const styles = StyleSheet.create({
   btn: {
     width: 42,
     height: 42,
-    borderRadius: 10,
+    borderRadius: DesignTokens.radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  icon: {
+    width: 28,
+    height: 28,
   },
 });
