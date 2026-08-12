@@ -15,13 +15,17 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
+import type { RepertoireFolder, RepertoireSide, ReviewSideFilter } from '@/lib/repertoire';
 import { filterFoldersByReviewSide } from '@/lib/repertoire';
+import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { FolderListRow } from '@/components/openings/FolderListRow';
 import { NameModal } from '@/components/openings/NameModal';
+import { OpeningEmptyState } from '@/components/openings/OpeningEmptyState';
 import { OpeningsReviewBlock } from '@/components/openings/OpeningsReviewBlock';
 import { MixedTrainingModal } from '@/components/openings/MixedTrainingModal';
+import { ImportPgnModal } from '@/components/openings/ImportPgnModal';
+import { folderNameFromPgnFilename } from '@/lib/repertoire/folderNameFromPgnFilename';
 
 export default function OpeningsFolderList() {
   const colors = useColors();
@@ -38,6 +42,8 @@ export default function OpeningsFolderList() {
     deleteFolder,
     getFiles,
     getTrainableFolders,
+    importPgn,
+    setFolderSide,
   } = useRepertoireLibrary();
 
   const trainable = getTrainableFolders();
@@ -49,6 +55,14 @@ export default function OpeningsFolderList() {
   const [nameDraft, setNameDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [filename, setFilename] = useState('lignes.pgn');
+  const [pgnText, setPgnText] = useState('');
+  const [importSide, setImportSide] = useState<RepertoireSide | null>(null);
+  const [lastImportResult, setLastImportResult] = useState<
+    Awaited<ReturnType<typeof importPgn>> | null
+  >(null);
 
   const whiteFolders = useMemo(
     () => folders.filter((f) => f.side === 'white'),
@@ -74,6 +88,38 @@ export default function OpeningsFolderList() {
     setNameDraft(folder.name);
     setFormError(null);
   }, []);
+
+  const openImport = useCallback(() => {
+    setFilename('lignes.pgn');
+    setPgnText('');
+    setFormError(null);
+    setLastImportResult(null);
+    setImportSide(null);
+    setImportOpen(true);
+  }, []);
+
+  const createFolderUnique = useCallback(
+    async (desiredName: string) => {
+      let candidate = desiredName.trim() || 'PGN';
+      let attempt = 1;
+      for (;;) {
+        try {
+          return await createFolder(candidate);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          // Name collision — try "Name (2)", "Name (3)", …
+          if (attempt >= 20) throw err;
+          attempt += 1;
+          candidate = `${desiredName.trim() || 'PGN'} (${attempt})`;
+          // If the error wasn't a name clash, still retry a few times then rethrow.
+          if (!/existe|exists|déjà|already/i.test(message) && attempt > 2) {
+            throw err;
+          }
+        }
+      }
+    },
+    [createFolder],
+  );
 
   const submitCreate = useCallback(async () => {
     setBusy(true);
@@ -101,6 +147,51 @@ export default function OpeningsFolderList() {
       setBusy(false);
     }
   }, [renameFolder, renameTarget, nameDraft]);
+
+  const submitImport = useCallback(async () => {
+    if (!importSide) {
+      setFormError(t('openings.importSideRequired'));
+      return;
+    }
+    setBusy(true);
+    setFormError(null);
+    try {
+      const folder = await createFolderUnique(folderNameFromPgnFilename(filename));
+      await setFolderSide(folder.id, importSide);
+      const file = await importPgn(folder.id, filename, pgnText);
+      setLastImportResult(file);
+      if (file.summary.parseSucceeded) {
+        setTimeout(() => {
+          setImportOpen(false);
+          setLastImportResult(null);
+        }, 900);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [
+    importSide,
+    createFolderUnique,
+    filename,
+    pgnText,
+    importPgn,
+    setFolderSide,
+    t,
+  ]);
+
+  const onPickFile = useCallback(async () => {
+    setFormError(null);
+    try {
+      const picked = await pickPgnFile();
+      if (!picked) return;
+      setFilename(picked.filename);
+      setPgnText(picked.text);
+    } catch {
+      setFormError(t('openings.fileReadError'));
+    }
+  }, [t]);
 
   const toggleMixedFolder = useCallback((folderId: string) => {
     setMixedSelect((prev) => {
@@ -231,15 +322,7 @@ export default function OpeningsFolderList() {
           <Text style={[styles.emptyTitle, { color: colors.destructive }]}>{error}</Text>
         </View>
       ) : folders.length === 0 ? (
-        <View style={styles.centered}>
-          <Ionicons name="folder-open-outline" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            {t('openings.emptyTitle')}
-          </Text>
-          <Text style={[styles.emptyMsg, { color: colors.mutedForeground }]}>
-            {t('openings.emptyBody')}
-          </Text>
-        </View>
+        <OpeningEmptyState onImport={openImport} />
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {whiteFolders.length > 0 && (
@@ -298,6 +381,31 @@ export default function OpeningsFolderList() {
         submitLabel={t('common.save')}
       />
 
+      <ImportPgnModal
+        visible={importOpen}
+        replaceTarget={null}
+        filename={filename}
+        onFilenameChange={setFilename}
+        pgnText={pgnText}
+        onPgnTextChange={setPgnText}
+        busy={busy}
+        formError={formError}
+        showSidePicker
+        importSide={importSide}
+        onImportSideChange={setImportSide}
+        lastImportResult={lastImportResult}
+        onPickFile={onPickFile}
+        onCancel={() => {
+          setImportOpen(false);
+          setLastImportResult(null);
+        }}
+        onSubmit={submitImport}
+        onRequestClose={() => {
+          setImportOpen(false);
+          setLastImportResult(null);
+        }}
+      />
+
       <MixedTrainingModal
         visible={mixedOpen}
         trainable={trainable}
@@ -313,17 +421,6 @@ export default function OpeningsFolderList() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 14, gap: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { fontSize: 18, fontFamily: 'Inter_700Bold' },
-  subtitle: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 1 },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -357,11 +454,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
     textAlign: 'center',
-  },
-  emptyMsg: {
-    fontSize: 13,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    lineHeight: 19,
   },
 });
