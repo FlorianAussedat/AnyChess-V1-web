@@ -34,14 +34,14 @@ describe('keypadGrid 6-column math', () => {
     );
   });
 
-  it('keeps row-3 span-2 aligned with a normal 6-key row', () => {
+  it('keeps backspace span-2 row aligned with a normal 6-key row', () => {
     const gap = 4;
     const available = 300;
     const cell = keypadCellWidth(available, gap);
-    const row3 =
+    const rowBackspace =
       cell * 4 + gap * 4 + keypadSpanWidth(cell, gap, 2); // 4 singles + gaps + span2
     const rowNormal = cell * 6 + gap * 5;
-    assert.equal(row3, rowNormal);
-    assert.equal(row3, available);
+    assert.equal(rowBackspace, rowNormal);
+    assert.equal(rowBackspace, available);
   });
 });

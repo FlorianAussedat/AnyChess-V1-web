@@ -115,10 +115,10 @@ export function ChessMoveKeypad({
     const a11y = (token: MoveKeypadInsertToken | 'backspace') =>
       moveKeypadA11y(token, language, chessNotation);
     const [p0, p1, p2, p3, p4] = pieces;
-    // Fixed 6-column grid (no Eff). Row 3: "6" spans columns 5–6.
+    // Fixed 6-column grid (no Eff). Row 3: backspace spans columns 5–6.
     // C|a|b|1|2|x
-    // F|c|d|3|4|⌫
-    // T|e|f|5|6——|
+    // F|c|d|3|4|6
+    // T|e|f|5|⌫——|
     // D|g|h|7|8|R
     // O-O———|O-O-O——
     return [
@@ -136,14 +136,20 @@ export function ChessMoveKeypad({
         { id: 'd', label: 'd', token: 'd', a11y: a11y('d') },
         { id: '3', label: '3', token: '3', a11y: a11y('3') },
         { id: '4', label: '4', token: '4', a11y: a11y('4') },
-        { id: 'backspace', label: '⌫', action: 'backspace', a11y: a11y('backspace') },
+        { id: '6', label: '6', token: '6', a11y: a11y('6') },
       ],
       [
         { id: p2, label: p2, token: p2, a11y: a11y(p2) },
         { id: 'e', label: 'e', token: 'e', a11y: a11y('e') },
         { id: 'f', label: 'f', token: 'f', a11y: a11y('f') },
         { id: '5', label: '5', token: '5', a11y: a11y('5') },
-        { id: '6', label: '6', token: '6', span: 2, a11y: a11y('6') },
+        {
+          id: 'backspace',
+          label: '⌫',
+          action: 'backspace',
+          span: 2,
+          a11y: a11y('backspace'),
+        },
       ],
       [
         { id: p3, label: p3, token: p3, a11y: a11y(p3) },

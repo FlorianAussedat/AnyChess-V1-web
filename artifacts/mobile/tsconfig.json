@@ -18,13 +18,7 @@
     "expo-env.d.ts"
   ],
   "exclude": [
-    "lib/voice/__tests__/**",
-    "lib/app/__tests__/**",
-    "lib/continueLine/__tests__/**",
-    "lib/mentalPosition/__tests__/**",
-    "lib/moveNaming/__tests__/**",
-    "lib/openingQuiz/__tests__/**",
-    "lib/chessCulture/__tests__/**"
+    "**/__tests__/**"
   ],
   "references": [
     {

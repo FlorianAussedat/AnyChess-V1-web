@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -21,7 +20,9 @@ import {
   useMoveEventFeedback,
 } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
+import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
+import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { BoardToolbar } from '@/components/BoardToolbar';
@@ -44,7 +45,7 @@ import { DesignTokens } from '@/constants/designTokens';
 
 export function OpeningGameScreen() {
   const colors = useColors();
-  const { contentTop, contentBottom } = useAppSafeInsets();
+  const { contentTop } = useAppSafeInsets();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
@@ -169,22 +170,13 @@ export function OpeningGameScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={[
-        styles.root,
-        {
-          paddingTop: contentTop,
-          paddingBottom: contentBottom,
-        },
-      ]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <ScreenHeader
+    <>
+      <ChessScreenScaffold
         onBack={() => router.back()}
         title={headerTitle}
         subtitle={headerSubtitle}
         showSound
+        gap={DesignTokens.chessScreen.sectionGap}
         trailing={
           !boardVisible ? (
             <View
@@ -210,56 +202,71 @@ export function OpeningGameScreen() {
             </View>
           ) : null
         }
-      />
+        testID="opening-game-scroll"
+      >
+        {theoryExit && theoryExitDisplay && (
+          <View
+            style={[
+              styles.theoryBanner,
+              {
+                backgroundColor: theoryExit.kind === 'player-deviation' ? '#3A2A10' : colors.card,
+                borderColor: theoryExit.kind === 'player-deviation' ? '#F5A623' : colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.theoryText, { color: colors.foreground }]} numberOfLines={2}>
+              {theoryExitDisplay}
+            </Text>
+            {theoryExit.kind === 'player-deviation' && theoryExit.analysis && (
+              <Pressable onPress={() => setTheoryOpen(true)} hitSlop={6}>
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontFamily: 'Inter_600SemiBold',
+                    fontSize: 12,
+                    marginTop: 4,
+                  }}
+                >
+                  {t('openings.viewTheoryLine')}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
-      {theoryExit && theoryExitDisplay && (
-        <View
-          style={[
-            styles.theoryBanner,
-            {
-              backgroundColor: theoryExit.kind === 'player-deviation' ? '#3A2A10' : colors.card,
-              borderColor: theoryExit.kind === 'player-deviation' ? '#F5A623' : colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.theoryText, { color: colors.foreground }]} numberOfLines={2}>
-            {theoryExitDisplay}
-          </Text>
-          {theoryExit.kind === 'player-deviation' && theoryExit.analysis && (
-            <Pressable onPress={() => setTheoryOpen(true)} hitSlop={6}>
-              <Text
-                style={{
-                  color: colors.primary,
-                  fontFamily: 'Inter_600SemiBold',
-                  fontSize: 12,
-                  marginTop: 4,
-                }}
-              >
-                {t('openings.viewTheoryLine')}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-
-      <GameActionRow
-        onRepeat={repeatLast}
-        onUndo={undoMove}
-        onSummarize={summarizeGame}
-        onNewGame={newGame}
-      />
-
-      <View style={[styles.boardBlock, { width: boardSize }]}>
-        <BoardToolbar
-          showCoordinates={showCoordinates}
-          onToggleCoordinates={() => {
-            void toggleCoordinates();
-          }}
-          boardVisible={boardVisible}
-          onToggleBoardVisible={() => setBoardVisible((v) => !v)}
+        <GameActionRow
+          onRepeat={repeatLast}
+          onUndo={undoMove}
+          onSummarize={summarizeGame}
+          onNewGame={newGame}
         />
 
-        <View style={styles.boardRow}>
+        <GameStatusCard
+          status={status}
+          heardText={heardText}
+          isGameOver={isGameOver}
+          isOpponentThinking={isOpponentThinking}
+          thinkingLabel={
+            phase === 'book'
+              ? t('openings.repertoireThinking')
+              : t('game.opponentThinking')
+          }
+        />
+
+        <ChessBoardSection
+          boardSize={boardSize}
+          toolbar={
+            <BoardToolbar
+              showCoordinates={showCoordinates}
+              onToggleCoordinates={() => {
+                void toggleCoordinates();
+              }}
+              boardVisible={boardVisible}
+              onToggleBoardVisible={() => setBoardVisible((v) => !v)}
+            />
+          }
+          testID="opening-board-block"
+        >
           {boardVisible ? (
             <ChessBoard
               board={board}
@@ -279,49 +286,37 @@ export function OpeningGameScreen() {
               size={boardSize}
             />
           )}
-        </View>
-      </View>
+        </ChessBoardSection>
 
-      <GameStatusCard
-        status={status}
-        heardText={heardText}
-        isGameOver={isGameOver}
-        isOpponentThinking={isOpponentThinking}
-        thinkingLabel={
-          phase === 'book'
-            ? t('openings.repertoireThinking')
-            : t('game.opponentThinking')
-        }
-      />
+        <GameMicButton
+          showRecognized={showRecognized}
+          isListening={isListening}
+          micActive={micActive}
+          micMessage={micStatus.message}
+          onToggle={toggleMic}
+        />
 
-      <GameMicButton
-        showRecognized={showRecognized}
-        isListening={isListening}
-        micActive={micActive}
-        micMessage={micStatus.message}
-        onToggle={toggleMic}
-      />
+        <ChessMoveInput
+          inputType="chess-move"
+          onSubmit={(text) => applyRef.current(text)}
+          fen={answerFen}
+          enabled={canAct}
+          persistFocus={canAct}
+          placeholder={t('openings.movePlaceholder')}
+          testID="opening-manual-input"
+        />
 
-      <ChessMoveInput
-        inputType="chess-move"
-        onSubmit={(text) => applyRef.current(text)}
-        fen={answerFen}
-        enabled={canAct}
-        persistFocus={canAct}
-        placeholder={t('openings.movePlaceholder')}
-        testID="opening-manual-input"
-      />
-
-      <GameMoveHistoryCard
-        moveRows={moveRows}
-        opening={openingIdentity}
-        emptyMessage={t('openings.followsRepertoire')}
-        onExportPress={() => {
-          setExportedText(exportPgn());
-          setExportOpen(true);
-        }}
-        exportMode="text"
-      />
+        <GameMoveHistoryCard
+          moveRows={moveRows}
+          opening={openingIdentity}
+          emptyMessage={t('openings.followsRepertoire')}
+          onExportPress={() => {
+            setExportedText(exportPgn());
+            setExportOpen(true);
+          }}
+          exportMode="text"
+        />
+      </ChessScreenScaffold>
 
       <TheoryContinuationViewer
         visible={theoryOpen}
@@ -339,15 +334,13 @@ export function OpeningGameScreen() {
         downloadPgn={downloadPgn}
         onClose={() => setExportOpen(false)}
       />
-    </ScrollView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexGrow: 1, paddingHorizontal: 8, gap: 8 },
+  root: { flex: 1, flexGrow: 1, paddingHorizontal: DesignTokens.chessScreen.paddingHorizontal, gap: DesignTokens.chessScreen.sectionGap },
   loadingBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  boardBlock: { gap: 4, alignSelf: 'center' },
-  boardRow: { alignItems: 'center' },
   sideIndicator: {
     width: 32,
     height: 32,

@@ -5,6 +5,7 @@ import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ChessBoard } from '@/components/ChessBoard';
+import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
@@ -160,7 +161,7 @@ export function BlindReconstructionPhase() {
           </View>
         )}
 
-        <View style={{ alignItems: 'center', alignSelf: 'center', width: boardSize }}>
+        <ChessBoardSection boardSize={boardSize} testID="blind-reconstruction-board">
           <ChessBoard
             board={board}
             lastMove={lastMove}
@@ -171,7 +172,7 @@ export function BlindReconstructionPhase() {
             sizeMode="wide"
             size={boardSize}
           />
-        </View>
+        </ChessBoardSection>
 
         <GameMicButton
           showRecognized={showRecognizedFlash}

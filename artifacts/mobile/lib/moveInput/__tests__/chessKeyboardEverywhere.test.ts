@@ -31,6 +31,7 @@ describe('shared ChessMoveInput / ChessMoveKeypad', () => {
     const freeText = read('components/ChessAnswerInput.tsx');
 
     assert.match(input, /ChessMoveKeypad/);
+    assert.match(input, /ChessKeyboardToggle/);
     assert.match(input, /showSoftInputOnFocus=\{false\}/);
     assert.match(input, /inputType/);
     assert.match(input, /chess-move/);

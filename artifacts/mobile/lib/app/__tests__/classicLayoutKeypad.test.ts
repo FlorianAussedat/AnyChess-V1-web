@@ -63,12 +63,18 @@ describe('Classic keypad placement and Eff removal', () => {
     assert.match(keypad, /action:\s*'backspace'/);
   });
 
-  it('uses a fixed 6-column grid with span-2 for rank 6', () => {
+  it('uses a fixed 6-column grid with span-2 for backspace (not rank 6)', () => {
     const keypad = read('components/game/ChessMoveKeypad.tsx');
     assert.match(keypad, /KEYPAD_COLUMNS/);
     assert.match(keypad, /keypadCellWidth/);
     assert.match(keypad, /keypadSpanWidth/);
-    assert.match(keypad, /span:\s*2/);
+    // Backspace spans 2 columns; rank 6 is a normal single-column key.
+    assert.match(
+      keypad,
+      /id:\s*'backspace'[\s\S]*?span:\s*2/,
+    );
+    assert.match(keypad, /id:\s*'6',\s*label:\s*'6',\s*token:\s*'6'/);
+    assert.doesNotMatch(keypad, /token:\s*'6',\s*span:\s*2/);
     assert.doesNotMatch(keypad, /flex:\s*key\.flex/);
   });
 });
