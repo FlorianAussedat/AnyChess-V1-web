@@ -840,7 +840,7 @@ const fr: Dict = {
   'puzzle.unsolved': 'Problème non résolu',
   'puzzle.findMove': 'À toi de trouver le coup.',
   'puzzle.replaying': 'Relecture…',
-  'puzzle.hubTitle': 'Problèmes / Visualisation',
+  'puzzle.hubTitle': 'Entraînement tactique',
   'vision.title': 'Vision de l’échiquier',
   'vision.subtitle':
     'Trois exercices pour entraîner le suivi mental et la reconnaissance rapide de coups.',
@@ -1130,7 +1130,7 @@ const fr: Dict = {
   'blind.exercisesMenu': 'Menu des exercices',
   'blind.movePlaceholder': 'Ex. e4, Cf3, petit roque…',
   'puzzle.hubLead':
-    'Résous des problèmes Lichess hors-ligne (cote puzzle Lichess {{min}}–{{max}}). Pack local : {{count}} problèmes.',
+    'Mets ta vision tactique à l’épreuve, avec ou sans échiquier, parmi des milliers de problèmes variés adaptés à tous les niveaux.',
   'puzzle.mode': 'Mode',
   'puzzle.visual': 'Visuel',
   'puzzle.blind': 'À l’aveugle',
@@ -1451,7 +1451,7 @@ const en: Dict = {
   'puzzle.unsolved': 'Puzzle unsolved',
   'puzzle.findMove': 'Find the move.',
   'puzzle.replaying': 'Replaying…',
-  'puzzle.hubTitle': 'Puzzles / Visualization',
+  'puzzle.hubTitle': 'Tactical Training',
   'vision.title': 'Board vision',
   'vision.subtitle':
     'Three exercises to train mental tracking and quick move recognition.',
@@ -1738,7 +1738,7 @@ const en: Dict = {
   'blind.exercisesMenu': 'Exercise menu',
   'blind.movePlaceholder': 'e.g. e4, Nf3, O-O…',
   'puzzle.hubLead':
-    'Solve offline Lichess puzzles (Lichess puzzle rating {{min}}–{{max}}). Local pack: {{count}} puzzles.',
+    'Put your tactical vision to the test, with or without the board, through thousands of varied problems suited to every level.',
   'puzzle.mode': 'Mode',
   'puzzle.visual': 'Visual',
   'puzzle.blind': 'Blindfold',

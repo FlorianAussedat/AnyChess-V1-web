@@ -7,7 +7,6 @@ import { HubScreen } from '@/components/HubScreen';
 import { HubModeCard } from '@/components/HubModeCard';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
-import { puzzleRepository } from '@/lib/puzzles';
 
 /**
  * Category hub — card selection only (same pattern as Vision / Mémorisation).
@@ -17,17 +16,11 @@ export function PuzzleHubPhase() {
   const { t } = useTranslation();
   const router = useRouter();
   const { selectSubmode } = usePuzzle();
-  const packCount = puzzleRepository.count();
-  const manifest = puzzleRepository.getManifest();
 
   return (
     <HubScreen
       title={t('puzzle.hubTitle')}
-      subtitle={t('puzzle.hubLead', {
-        min: manifest.ratingMin,
-        max: manifest.ratingMax,
-        count: packCount,
-      })}
+      subtitle={t('puzzle.hubLead')}
       onBack={() => router.back()}
     >
       <HubModeCard

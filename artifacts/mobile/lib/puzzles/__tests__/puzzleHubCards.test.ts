@@ -22,10 +22,12 @@ function read(rel: string): string {
 }
 
 describe('Puzzle hub card category page', () => {
-  it('keeps Problèmes / Visualisation title and uses HubModeCard cards', () => {
+  it('keeps Entraînement tactique hub copy keys and HubModeCard cards', () => {
     const hub = read('components/puzzles/PuzzleHubPhase.tsx');
     const route = read('app/puzzles/index.tsx');
+    const messages = read('lib/i18n/messages.ts');
     assert.match(hub, /puzzle\.hubTitle/);
+    assert.match(hub, /puzzle\.hubLead/);
     assert.match(hub, /HubModeCard/);
     assert.match(hub, /puzzle-card-visual/);
     assert.match(hub, /puzzle-card-blind/);
@@ -33,6 +35,22 @@ describe('Puzzle hub card category page', () => {
     assert.match(hub, /selectSubmode\('blind'\)/);
     assert.doesNotMatch(hub, /PuzzleFilterChip/);
     assert.doesNotMatch(hub, /PuzzleRatingBandSlider/);
+    assert.doesNotMatch(hub, /puzzleRepository/);
+    assert.match(messages, /'puzzle\.hubTitle': 'Entraînement tactique'/);
+    assert.match(
+      messages,
+      /'puzzle\.hubTitle': 'Tactical Training'/,
+    );
+    assert.match(
+      messages,
+      /Mets ta vision tactique à l’épreuve, avec ou sans échiquier/,
+    );
+    assert.match(
+      messages,
+      /Put your tactical vision to the test, with or without the board/,
+    );
+    assert.doesNotMatch(messages, /Pack local/);
+    assert.doesNotMatch(messages, /Local pack/);
     assert.match(route, /PuzzleSettingsPhase/);
     assert.match(route, /case 'settings'/);
   });
