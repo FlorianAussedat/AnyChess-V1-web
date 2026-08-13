@@ -57,5 +57,7 @@ export function usePreferences() {
     coordinatesEnabled: preferences.coordinatesEnabled,
     voiceSpeed: preferences.voiceSpeed,
     dictationPace: preferences.dictationPace,
+    visualProblemDifficulty: preferences.visualProblemDifficulty,
+    blindProblemDifficulty: preferences.blindProblemDifficulty,
   };
 }

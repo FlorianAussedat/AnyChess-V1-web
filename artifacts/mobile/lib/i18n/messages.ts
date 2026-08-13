@@ -526,6 +526,14 @@ export type MessageKey =
   | 'puzzle.visual'
   | 'puzzle.blind'
   | 'puzzle.difficulty'
+  | 'puzzle.visualCardTitle'
+  | 'puzzle.visualCardDesc'
+  | 'puzzle.blindCardTitle'
+  | 'puzzle.blindCardDesc'
+  | 'puzzle.difficultyDefaultHint'
+  | 'settings.problemDifficulty'
+  | 'settings.visualProblemDifficulty'
+  | 'settings.blindProblemDifficulty'
   | 'puzzle.randomAll'
   | 'puzzle.pieceCount'
   | 'puzzle.startBlind'
@@ -1127,6 +1135,15 @@ const fr: Dict = {
   'puzzle.visual': 'Visuel',
   'puzzle.blind': 'À l’aveugle',
   'puzzle.difficulty': 'Difficulté',
+  'puzzle.visualCardTitle': 'Problèmes Visuel',
+  'puzzle.visualCardDesc': 'Résous des problèmes directement sur l’échiquier.',
+  'puzzle.blindCardTitle': 'Problèmes à l’aveugle',
+  'puzzle.blindCardDesc': 'Résous des problèmes sans voir la position complète.',
+  'puzzle.difficultyDefaultHint':
+    'La difficulté par défaut peut être modifiée dans Paramètres.',
+  'settings.problemDifficulty': 'DIFFICULTÉ DES PROBLÈMES',
+  'settings.visualProblemDifficulty': 'Difficulté problèmes visuels',
+  'settings.blindProblemDifficulty': 'Difficulté problèmes à l’aveugle',
   'puzzle.randomAll': 'Aléatoire / Tous',
   'puzzle.pieceCount': 'Nombre de pièces',
   'puzzle.startBlind': 'Commencer à l’aveugle',
@@ -1726,6 +1743,15 @@ const en: Dict = {
   'puzzle.visual': 'Visual',
   'puzzle.blind': 'Blindfold',
   'puzzle.difficulty': 'Difficulty',
+  'puzzle.visualCardTitle': 'Visual Problems',
+  'puzzle.visualCardDesc': 'Solve chess problems directly on the board.',
+  'puzzle.blindCardTitle': 'Blindfold Problems',
+  'puzzle.blindCardDesc': 'Solve chess problems without seeing the full position.',
+  'puzzle.difficultyDefaultHint':
+    'You can change the default difficulty in Settings.',
+  'settings.problemDifficulty': 'PROBLEM DIFFICULTY',
+  'settings.visualProblemDifficulty': 'Visual problem difficulty',
+  'settings.blindProblemDifficulty': 'Blind problem difficulty',
   'puzzle.randomAll': 'Random / All',
   'puzzle.pieceCount': 'Number of pieces',
   'puzzle.startBlind': 'Start blindfold',

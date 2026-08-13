@@ -21,15 +21,18 @@ import { DesignTokens } from '@/constants/designTokens';
 import { ProfilNavRow } from '@/components/profil/ProfilNavRow';
 import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
 import { OptionChip } from '@/components/ui/OptionChip';
+import { PuzzleRatingBandSlider } from '@/components/puzzles/PuzzleRatingBandSlider';
+import { PuzzleFilterChip } from '@/components/puzzles/PuzzleFilterChip';
 import {
   DICTATION_PACES,
   type AppLanguage,
   type ChessNotation,
   type DictationPace,
 } from '@/lib/preferences';
+import { getPuzzleRatingBand } from '@/lib/puzzles';
 import type { MessageKey } from '@/lib/i18n/messages';
 
-type EditorKind = null | 'language' | 'notation';
+type EditorKind = null | 'language' | 'notation' | 'visualDifficulty' | 'blindDifficulty';
 
 const PACE_LABEL_KEYS: Record<DictationPace, MessageKey> = {
   slow: 'settings.paceSlow',
@@ -44,8 +47,15 @@ export default function ParametresScreen() {
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { voiceEnabled, toggleVoice } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
-  const { language, chessNotation, dictationPace, updatePreferences, resetPreferences } =
-    usePreferences();
+  const {
+    language,
+    chessNotation,
+    dictationPace,
+    visualProblemDifficulty,
+    blindProblemDifficulty,
+    updatePreferences,
+    resetPreferences,
+  } = usePreferences();
   const { t } = useTranslation();
 
   const [editor, setEditor] = useState<EditorKind>(null);
@@ -147,6 +157,24 @@ export default function ParametresScreen() {
         ))}
       </View>
 
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('settings.problemDifficulty')}
+      </Text>
+      <View style={styles.section}>
+        <ProfilNavRow
+          label={t('settings.visualProblemDifficulty')}
+          value={getPuzzleRatingBand(visualProblemDifficulty).label}
+          onPress={() => setEditor('visualDifficulty')}
+          testID="profil-row-visual-difficulty"
+        />
+        <ProfilNavRow
+          label={t('settings.blindProblemDifficulty')}
+          value={getPuzzleRatingBand(blindProblemDifficulty).label}
+          onPress={() => setEditor('blindDifficulty')}
+          testID="profil-row-blind-difficulty"
+        />
+      </View>
+
       <View style={styles.dangerZone}>
         <Pressable
           onPress={resetPrefs}
@@ -227,6 +255,74 @@ export default function ParametresScreen() {
             </View>
             <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
               <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={editor === 'visualDifficulty' || editor === 'blindDifficulty'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditor(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <PuzzleRatingBandSlider
+              bandId={
+                editor === 'blindDifficulty'
+                  ? blindProblemDifficulty
+                  : visualProblemDifficulty
+              }
+              onBandIdChange={(bandId) => {
+                void updatePreferences(
+                  editor === 'blindDifficulty'
+                    ? { blindProblemDifficulty: bandId }
+                    : { visualProblemDifficulty: bandId },
+                );
+              }}
+              label={
+                editor === 'blindDifficulty'
+                  ? t('settings.blindProblemDifficulty')
+                  : t('settings.visualProblemDifficulty')
+              }
+              testID={
+                editor === 'blindDifficulty'
+                  ? 'profil-blind-difficulty-slider'
+                  : 'profil-visual-difficulty-slider'
+              }
+            />
+            <View style={styles.chipWrap}>
+              <PuzzleFilterChip
+                label={t('puzzle.randomAll')}
+                active={
+                  (editor === 'blindDifficulty'
+                    ? blindProblemDifficulty
+                    : visualProblemDifficulty) === 'all'
+                }
+                onPress={() => {
+                  void updatePreferences(
+                    editor === 'blindDifficulty'
+                      ? { blindProblemDifficulty: 'all' }
+                      : { visualProblemDifficulty: 'all' },
+                  );
+                }}
+              />
+            </View>
+            <Pressable
+              onPress={() => setEditor(null)}
+              style={[styles.modalBtn, { backgroundColor: colors.primary, alignSelf: 'stretch' }]}
+              testID="profil-difficulty-done"
+            >
+              <Text
+                style={{
+                  color: colors.primaryForeground,
+                  fontFamily: DesignTokens.typography.weightSemiBold,
+                  textAlign: 'center',
+                }}
+              >
+                OK
+              </Text>
             </Pressable>
           </View>
         </View>

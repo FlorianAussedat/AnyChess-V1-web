@@ -24,4 +24,10 @@ export {
   isDictationPace,
   DEFAULT_TTS_RATE,
 } from './dictationPace.ts';
+export {
+  DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
+  DEFAULT_BLIND_PROBLEM_DIFFICULTY,
+  isPuzzleDifficultyBandId,
+  normalizePuzzleDifficultyBandId,
+} from './puzzleDifficulty.ts';
 export { VoiceSpeedSettings, voiceSpeedSettings } from './VoiceSpeedSettings.ts';

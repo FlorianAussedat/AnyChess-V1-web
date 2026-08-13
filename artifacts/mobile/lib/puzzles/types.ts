@@ -37,7 +37,7 @@ export interface PuzzleManifest {
 
 export type PuzzleSubmode = 'visual' | 'blind';
 
-export type PuzzlePhase = 'hub' | 'playing' | 'results' | 'solution-replay';
+export type PuzzlePhase = 'hub' | 'settings' | 'playing' | 'results' | 'solution-replay';
 
 /** Board orientation: side at the bottom of the board. */
 export type PuzzleOrientation = 'w' | 'b';
