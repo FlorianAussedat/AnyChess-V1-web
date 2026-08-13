@@ -29,21 +29,21 @@ export const BrandAssets = {
     target: require('@/assets/brand/modes/target.png'),
   },
   /**
-   * HubModeCard exercise mascots (Vision / Problèmes / Mémorisation / Culture).
-   * User-provided transparent PNGs — do not regenerate or recolor.
-   * Filenames keep original spacing / accents / apostrophes.
+   * HubModeCard exercise mascots — lightweight display WebPs (192px).
+   * Sources: assets/brand/modes/*.png (originals untouched).
+   * Regenerate with: `pnpm run optimize:brand-display`
    */
   exercises: {
-    construisOuverture: require('@/assets/brand/modes/Construis l’ouverture.png'),
-    ecouterPuisReconstruire: require('@/assets/brand/modes/Ecouter puis reconstruire.png'),
-    problemesVisuels: require('@/assets/brand/modes/Problemes Visuels.png'),
-    quiz: require('@/assets/brand/modes/Quiz.png'),
-    suiviMental: require('@/assets/brand/modes/Suivi mental de position.png'),
-    jouerLeCoup: require('@/assets/brand/modes/Jouer le coup.png'),
-    regarderPuisReciter: require('@/assets/brand/modes/Regarder puis réciter.png'),
-    problemesAveugle: require("@/assets/brand/modes/Problemes a l'aveugle.png"),
-    nommerLeCoup: require('@/assets/brand/modes/Nommer le coup.png'),
-    quelleOuverture: require('@/assets/brand/modes/Quelle ouverture.png'),
+    construisOuverture: require('@/assets/brand/display/modes/construis-ouverture.webp'),
+    ecouterPuisReconstruire: require('@/assets/brand/display/modes/ecouter-puis-reconstruire.webp'),
+    problemesVisuels: require('@/assets/brand/display/modes/problemes-visuels.webp'),
+    quiz: require('@/assets/brand/display/modes/quiz.webp'),
+    suiviMental: require('@/assets/brand/display/modes/suivi-mental-de-position.webp'),
+    jouerLeCoup: require('@/assets/brand/display/modes/jouer-le-coup.webp'),
+    regarderPuisReciter: require('@/assets/brand/display/modes/regarder-puis-reciter.webp'),
+    problemesAveugle: require('@/assets/brand/display/modes/problemes-a-l-aveugle.webp'),
+    nommerLeCoup: require('@/assets/brand/display/modes/nommer-le-coup.webp'),
+    quelleOuverture: require('@/assets/brand/display/modes/quelle-ouverture.webp'),
   },
   /**
    * Home ModeCard mascots — optimized display WebPs from user v1 originals.

@@ -1,17 +1,19 @@
 /**
  * Exercise HubModeCard mascots — shared BrandAssets.exercises mapping.
+ * Runtime assets are lightweight display WebPs; source PNGs stay untouched.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = join(here, '../../..');
 const modesDir = join(mobileRoot, 'assets/brand/modes');
+const displayModesDir = join(mobileRoot, 'assets/brand/display/modes');
 
-const EXPECTED_FILES = [
+const SOURCE_PNGS = [
   'Construis l’ouverture.png',
   'Ecouter puis reconstruire.png',
   'Problemes Visuels.png',
@@ -24,20 +26,43 @@ const EXPECTED_FILES = [
   'Quelle ouverture.png',
 ] as const;
 
+const DISPLAY_WEBPS = [
+  'construis-ouverture.webp',
+  'ecouter-puis-reconstruire.webp',
+  'problemes-visuels.webp',
+  'quiz.webp',
+  'suivi-mental-de-position.webp',
+  'jouer-le-coup.webp',
+  'regarder-puis-reciter.webp',
+  'problemes-a-l-aveugle.webp',
+  'nommer-le-coup.webp',
+  'quelle-ouverture.webp',
+] as const;
+
 function read(rel: string): string {
   return readFileSync(join(mobileRoot, rel), 'utf8');
 }
 
 describe('exercise hub mascot assets', () => {
-  it('ships all ten user-provided mode PNGs (unchanged filenames)', () => {
-    for (const name of EXPECTED_FILES) {
+  it('keeps all ten user-provided source PNGs (untouched originals)', () => {
+    for (const name of SOURCE_PNGS) {
       const full = join(modesDir, name);
       assert.ok(existsSync(full), `missing ${name}`);
-      assert.ok(readFileSync(full).length > 10_000, `${name} looks empty`);
+      assert.ok(statSync(full).size > 10_000, `${name} looks empty`);
     }
   });
 
-  it('maps every exercise through BrandAssets.exercises (no per-screen requires)', () => {
+  it('ships lightweight display WebPs under 40KB each', () => {
+    for (const name of DISPLAY_WEBPS) {
+      const full = join(displayModesDir, name);
+      assert.ok(existsSync(full), `missing display ${name}`);
+      const kb = statSync(full).size / 1024;
+      assert.ok(kb > 1, `${name} looks empty`);
+      assert.ok(kb < 40, `${name} is unexpectedly large (${kb.toFixed(1)}KB)`);
+    }
+  });
+
+  it('maps every exercise through BrandAssets.exercises display WebPs', () => {
     const brand = read('constants/BrandAssets.ts');
     assert.match(brand, /exercises:\s*\{/);
     for (const key of [
@@ -54,9 +79,13 @@ describe('exercise hub mascot assets', () => {
     ]) {
       assert.match(brand, new RegExp(`${key}:\\s*require\\(`));
     }
-    for (const name of EXPECTED_FILES) {
-      assert.ok(brand.includes(name), `BrandAssets missing require for ${name}`);
+    for (const name of DISPLAY_WEBPS) {
+      assert.ok(
+        brand.includes(`display/modes/${name}`),
+        `BrandAssets missing display require for ${name}`,
+      );
     }
+    assert.doesNotMatch(brand, /exercises:[\s\S]*?require\('@\/assets\/brand\/modes\//);
   });
 
   it('wires hubs to BrandAssets.exercises (not Ionicons / old mode thumbnails)', () => {
@@ -87,7 +116,6 @@ describe('exercise hub mascot assets', () => {
     const card = read('components/HubModeCard.tsx');
     assert.match(card, /resizeMode=\"contain\"/);
     assert.match(card, /modeIcon:\s*\{\s*width:\s*40,\s*height:\s*40\s*\}/);
-    // Ionicons path may use secondary fill; brand `icon` path must not.
     assert.match(
       card,
       /\{icon \? \([\s\S]*?<View style=\{styles\.iconWrap\}>[\s\S]*?\) : iconName \? \([\s\S]*?backgroundColor:\s*colors\.secondary/,
@@ -96,7 +124,9 @@ describe('exercise hub mascot assets', () => {
 
   it('does not treat the Jouer le coup (2) duplicate as the mapped asset', () => {
     const brand = read('constants/BrandAssets.ts');
+    const script = read('scripts/optimize-brand-display-assets.mjs');
     assert.doesNotMatch(brand, /Jouer le coup \(2\)/);
+    assert.doesNotMatch(script, /Jouer le coup \(2\)/);
     assert.ok(readdirSync(modesDir).includes('Jouer le coup.png'));
   });
 });
