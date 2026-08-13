@@ -16,6 +16,16 @@ export type UserPreferences = {
   coordinatesEnabled: boolean;
   /** Default TTS voice speed 1–10. */
   voiceSpeed: number;
+  /**
+   * Default puzzle rating-band id for visual problems
+   * (see lib/puzzles/puzzleBands.ts). Session screens may override locally.
+   */
+  visualProblemDifficulty: string;
+  /**
+   * Default puzzle rating-band id for blind problems.
+   * Independent from visualProblemDifficulty.
+   */
+  blindProblemDifficulty: string;
   updatedAt: string;
 };
 
@@ -25,6 +35,8 @@ export type UserPreferencesPatch = Partial<{
   voiceEnabled: boolean;
   coordinatesEnabled: boolean;
   voiceSpeed: number;
+  visualProblemDifficulty: string;
+  blindProblemDifficulty: string;
 }>;
 
 export const DEFAULT_APP_LANGUAGE: AppLanguage = 'fr';

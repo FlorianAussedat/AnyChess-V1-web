@@ -95,6 +95,7 @@ interface PuzzleContextValue {
   setPieceCountBand: (bandId: string) => void;
   selectSubmode: (m: PuzzleSubmode) => void;
   backToHub: () => void;
+  backToSettings: () => void;
   startPuzzle: () => Promise<void>;
   nextPuzzle: () => Promise<void>;
   retry: () => void;
@@ -337,15 +338,43 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
   const selectSubmode = useCallback(
     (m: PuzzleSubmode) => {
+      const prefs = preferencesStore.getPreferences();
+      const defaultBand =
+        m === 'visual'
+          ? prefs.visualProblemDifficulty
+          : prefs.blindProblemDifficulty;
+      const bandId =
+        PUZZLE_RATING_BANDS.some((b) => b.id === defaultBand)
+          ? defaultBand
+          : DEFAULT_PUZZLE_RATING_BAND_ID;
+
       submodeRef.current = m;
       setSubmode(m);
+      setRatingBandId(bandId);
       setBoardVisible(m === 'visual');
       setLastFeedback(null);
       setLoadError(null);
-      setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, m));
+      setFiltersState(filtersFromBands(bandId, pieceCountBandId, m));
+      setPhase('settings');
     },
-    [ratingBandId, pieceCountBandId],
+    [pieceCountBandId],
   );
+
+  const backToSettings = useCallback(() => {
+    speechService.stop();
+    replayRef.current.cancel();
+    resetPresentation();
+    setIsReplaying(false);
+    setPhase('settings');
+    setPuzzle(null);
+    setStats(null);
+    setLastMove(null);
+    setLastFeedback(null);
+    setSolutionLine(null);
+    setNextMoveHint(null);
+    setPositionNarration(null);
+    setLoadError(null);
+  }, [resetPresentation]);
 
   const backToHub = useCallback(() => {
     if (phase === 'playing' && sessionRef.current.isLoaded && !streakRecordedRef.current) {
@@ -781,6 +810,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         setPieceCountBand,
         selectSubmode,
         backToHub,
+        backToSettings,
         startPuzzle,
         nextPuzzle,
         retry,

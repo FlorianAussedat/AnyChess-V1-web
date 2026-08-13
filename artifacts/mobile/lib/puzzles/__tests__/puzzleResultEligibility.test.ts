@@ -172,11 +172,11 @@ describe('puzzle UX opt-ins', () => {
     assert.match(src, /puzzle-blind-board/);
   });
 
-  it('uses DiscreteSlider via PuzzleRatingBandSlider on hub', () => {
-    const hub = readFileSync(join(componentsDir, 'PuzzleHubPhase.tsx'), 'utf8');
+  it('uses DiscreteSlider via PuzzleRatingBandSlider on mode settings', () => {
+    const settings = readFileSync(join(componentsDir, 'PuzzleSettingsPhase.tsx'), 'utf8');
     const slider = readFileSync(join(componentsDir, 'PuzzleRatingBandSlider.tsx'), 'utf8');
-    assert.match(hub, /PuzzleRatingBandSlider/);
-    assert.match(hub, /puzzle\.randomAll/);
+    assert.match(settings, /PuzzleRatingBandSlider/);
+    assert.match(settings, /puzzle\.randomAll/);
     assert.match(slider, /DiscreteSlider/);
     assert.match(slider, /PUZZLE_RATING_BANDS_SELECTABLE/);
   });

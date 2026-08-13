@@ -15,4 +15,10 @@ export type {
   UserPreferences,
   UserPreferencesPatch,
 } from './types.ts';
+export {
+  DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
+  DEFAULT_BLIND_PROBLEM_DIFFICULTY,
+  isPuzzleDifficultyBandId,
+  normalizePuzzleDifficultyBandId,
+} from './puzzleDifficulty.ts';
 export { VoiceSpeedSettings, voiceSpeedSettings } from './VoiceSpeedSettings.ts';

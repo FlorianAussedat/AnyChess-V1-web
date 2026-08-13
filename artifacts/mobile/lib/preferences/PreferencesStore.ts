@@ -22,6 +22,11 @@ import {
   type UserPreferences,
   type UserPreferencesPatch,
 } from './types.ts';
+import {
+  DEFAULT_BLIND_PROBLEM_DIFFICULTY,
+  DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
+  normalizePuzzleDifficultyBandId,
+} from './puzzleDifficulty.ts';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -57,6 +62,8 @@ export function defaultUserPreferences(): UserPreferences {
     voiceEnabled: true,
     coordinatesEnabled: true,
     voiceSpeed: DEFAULT_VOICE_SPEED,
+    visualProblemDifficulty: DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
+    blindProblemDifficulty: DEFAULT_BLIND_PROBLEM_DIFFICULTY,
     updatedAt: nowIso(),
   };
 }
@@ -85,6 +92,19 @@ export function mergePreferencesDocument(
   } else if (typeof o.voiceSpeed === 'string' && o.voiceSpeed.trim() !== '') {
     const n = Number(o.voiceSpeed);
     if (Number.isFinite(n)) next.voiceSpeed = clampSpeed(n);
+  }
+
+  if (o.visualProblemDifficulty !== undefined) {
+    next.visualProblemDifficulty = normalizePuzzleDifficultyBandId(
+      o.visualProblemDifficulty,
+      DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
+    );
+  }
+  if (o.blindProblemDifficulty !== undefined) {
+    next.blindProblemDifficulty = normalizePuzzleDifficultyBandId(
+      o.blindProblemDifficulty,
+      DEFAULT_BLIND_PROBLEM_DIFFICULTY,
+    );
   }
 
   if (typeof o.updatedAt === 'string' && o.updatedAt) {
@@ -279,6 +299,20 @@ export class PreferencesStore {
         patch.voiceSpeed !== undefined
           ? clampSpeed(patch.voiceSpeed)
           : current.voiceSpeed,
+      visualProblemDifficulty:
+        patch.visualProblemDifficulty !== undefined
+          ? normalizePuzzleDifficultyBandId(
+              patch.visualProblemDifficulty,
+              current.visualProblemDifficulty,
+            )
+          : current.visualProblemDifficulty,
+      blindProblemDifficulty:
+        patch.blindProblemDifficulty !== undefined
+          ? normalizePuzzleDifficultyBandId(
+              patch.blindProblemDifficulty,
+              current.blindProblemDifficulty,
+            )
+          : current.blindProblemDifficulty,
       updatedAt: nowIso(),
       version: USER_PREFERENCES_DOCUMENT_VERSION,
     };
