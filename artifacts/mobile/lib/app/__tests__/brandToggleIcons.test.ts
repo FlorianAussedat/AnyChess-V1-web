@@ -21,8 +21,8 @@ describe('BrandAssets toggle icon map', () => {
     assert.match(assets, /board:\s*\{[\s\S]*?off: require\('@\/assets\/brand\/toggles\/Board-OFF\.png'\)/);
     assert.match(assets, /coordinates:\s*\{[\s\S]*?on: require\('@\/assets\/brand\/toggles\/Coordonnee-ON\.png'\)/);
     assert.match(assets, /coordinates:\s*\{[\s\S]*?off: require\('@\/assets\/brand\/toggles\/Coordonnee-OFF\.png'\)/);
-    assert.match(assets, /speaker:\s*\{[\s\S]*?on: require\('@\/assets\/brand\/toggles\/SPEAKER ON\.png'\)/);
-    assert.match(assets, /speaker:\s*\{[\s\S]*?off: require\('@\/assets\/brand\/toggles\/SPEAKER OFF\.png'\)/);
+    assert.match(assets, /speaker:\s*\{[\s\S]*?on: require\('@\/assets\/brand\/toggles\/VoixApp-On\.png'\)/);
+    assert.match(assets, /speaker:\s*\{[\s\S]*?off: require\('@\/assets\/brand\/toggles\/VoixApp-Off\.png'\)/);
   });
 });
 

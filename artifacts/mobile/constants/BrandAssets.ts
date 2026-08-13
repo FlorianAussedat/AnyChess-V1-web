@@ -55,8 +55,8 @@ export const BrandAssets = {
       off: require('@/assets/brand/toggles/Coordonnee-OFF.png'),
     },
     speaker: {
-      on: require('@/assets/brand/toggles/SPEAKER ON.png'),
-      off: require('@/assets/brand/toggles/SPEAKER OFF.png'),
+      on: require('@/assets/brand/toggles/VoixApp-On.png'),
+      off: require('@/assets/brand/toggles/VoixApp-Off.png'),
     },
     /** Player mic (Parler) — not the app voice toggle. */
     mic: {
