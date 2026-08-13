@@ -47,16 +47,16 @@ export const BrandAssets = {
   },
   toggles: {
     board: {
-      on: require('@/assets/brand/toggles/board-on.png'),
-      off: require('@/assets/brand/toggles/board-off.png'),
+      on: require('@/assets/brand/toggles/Board-ON.png'),
+      off: require('@/assets/brand/toggles/Board-OFF.png'),
     },
     coordinates: {
-      on: require('@/assets/brand/toggles/coords-on.png'),
-      off: require('@/assets/brand/toggles/coords-off.png'),
+      on: require('@/assets/brand/toggles/Coordonnee-ON.png'),
+      off: require('@/assets/brand/toggles/Coordonnee-OFF.png'),
     },
     speaker: {
-      on: require('@/assets/brand/toggles/sound-on.png'),
-      off: require('@/assets/brand/toggles/sound-off.png'),
+      on: require('@/assets/brand/toggles/SPEAKER ON.png'),
+      off: require('@/assets/brand/toggles/SPEAKER OFF.png'),
     },
     /** Player mic (Parler) — not the app voice toggle. */
     mic: {
