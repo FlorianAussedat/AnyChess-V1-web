@@ -55,15 +55,15 @@ describe('Puzzle / Blind SAN display follow chessNotation', () => {
   });
 });
 
-describe('SpeechService uses global voiceSpeed by default', () => {
-  it('resolves preference speed without sticky hardcoded rates in call sites', () => {
+describe('SpeechService uses fixed TTS rate; rhythm is dictationPace', () => {
+  it('resolves DEFAULT_TTS_RATE and exposes speakAndWait', () => {
     const speech = read('services/SpeechService.ts');
-    assert.match(speech, /voiceSpeedToRate/);
-    assert.match(speech, /preferencesStore\.getPreferences\(\)\.voiceSpeed/);
+    assert.match(speech, /DEFAULT_TTS_RATE/);
+    assert.match(speech, /speakAndWait/);
     assert.match(speech, /resolveRate/);
-    // Per-utterance rate on queue items (not sticky currentRate mutation).
     assert.match(speech, /rate:\s*this\.resolveRate/);
     assert.doesNotMatch(speech, /this\.currentRate\s*=/);
+    assert.doesNotMatch(speech, /voiceSpeedToRate\(preferencesStore/);
 
     for (const rel of [
       'app/visualisation/mental.tsx',
@@ -77,7 +77,7 @@ describe('SpeechService uses global voiceSpeed by default', () => {
     }
   });
 
-  it('voiceSpeedToRate is monotonic for 1–10', () => {
+  it('voiceSpeedToRate remains monotonic for 1–10 (compat helper)', () => {
     assert.ok(voiceSpeedToRate(1) < voiceSpeedToRate(DEFAULT_VOICE_SPEED));
     assert.ok(voiceSpeedToRate(10) > voiceSpeedToRate(DEFAULT_VOICE_SPEED));
   });

@@ -18,9 +18,6 @@ import {
   computeScore,
   generateBlindSequence,
   sequenceKey,
-  DEFAULT_BLIND_SPEED,
-  BLIND_SPEED_MIN,
-  BLIND_SPEED_MAX,
   resolveBlindOrientation,
   BlindRecordsStore,
   BLIND_RECORD_INELIGIBLE_MESSAGE,
@@ -51,8 +48,6 @@ interface BlindSequenceContextValue {
   orientation: BlindOrientation;
   perspective: BlindPerspective;
   fullMoves: number;
-  /** Shared speed level 1 (slow) → 10 (fast) for dictation + observation. */
-  speed: number;
   sequence: BlindSequenceMove[];
   expectedIndex: number;
   board: (BoardPiece | null)[][];
@@ -82,7 +77,6 @@ interface BlindSequenceContextValue {
   dictationComplete: boolean;
   setPerspective: (p: BlindPerspective) => void;
   setFullMoves: (n: number) => void;
-  setSpeed: (level: number) => void;
   selectSubmode: (m: BlindSubmode) => void;
   backToHub: () => void;
   startSession: () => Promise<void>;
@@ -115,7 +109,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const attemptsRef = useRef<BlindAttemptRecord[]>([]);
   const triedCurrentRef = useRef(false);
   const recognizedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speedRef = useRef(DEFAULT_BLIND_SPEED);
   const perspectiveRef = useRef<BlindPerspective>('white');
   const submodeRef = useRef<BlindSubmode | null>(null);
 
@@ -124,7 +117,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const [orientation, setOrientation] = useState<BlindOrientation>('w');
   const [perspective, setPerspectiveState] = useState<BlindPerspective>('white');
   const [fullMoves, setFullMovesState] = useState(3);
-  const [speed, setSpeedState] = useState(DEFAULT_BLIND_SPEED);
   const [sequence, setSequence] = useState<BlindSequenceMove[]>([]);
   const [expectedIndex, setExpectedIndex] = useState(0);
   const [observationIndex, setObservationIndex] = useState(0);
@@ -147,7 +139,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   const [dictationComplete, setDictationComplete] = useState(false);
   const recordEligibleRef = useRef(true);
 
-  const { speakSequence, clearDictationTimer } = useBlindDictation(speedRef);
+  const { speakSequence, clearDictationTimer } = useBlindDictation();
 
   const refreshModeRecord = useCallback(async (m: BlindSubmode | null) => {
     if (!m) {
@@ -179,14 +171,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setFullMovesState(Math.max(1, Math.min(20, Math.round(n))));
   }, []);
 
-  const setSpeed = useCallback((level: number) => {
-    const clamped = Math.max(
-      BLIND_SPEED_MIN,
-      Math.min(BLIND_SPEED_MAX, Math.round(level)),
-    );
-    speedRef.current = clamped;
-    setSpeedState(clamped);
-  }, []);
 
   const setPerspective = useCallback((p: BlindPerspective) => {
     perspectiveRef.current = p;
@@ -252,7 +236,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     resultReplayRef,
   } = useBlindVisualReplay({
     gameRef,
-    speedRef,
     syncBoard,
     setLastMove,
     setObservationIndex,
@@ -842,7 +825,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         orientation,
         perspective,
         fullMoves,
-        speed,
         sequence,
         expectedIndex,
         board,
@@ -864,7 +846,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         dictationComplete,
         setPerspective,
         setFullMoves,
-        setSpeed,
         selectSubmode,
         backToHub,
         startSession,

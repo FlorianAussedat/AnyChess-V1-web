@@ -16,7 +16,6 @@ import {
 import {
   DEFAULT_DICTATION_PACE,
   isDictationPace,
-  type DictationPace,
 } from './dictationPace.ts';
 import {
   DEFAULT_APP_LANGUAGE,

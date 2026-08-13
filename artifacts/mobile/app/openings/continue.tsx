@@ -24,7 +24,6 @@ import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
-import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
@@ -36,14 +35,9 @@ import {
 import { usePreferences } from '@/hooks/usePreferences';
 import { sanToVerbal } from '@/lib/chessParser';
 import { parseChessVoice } from '@/lib/voice';
-import { voiceSpeedSettings } from '@/lib/preferences/VoiceSpeedSettings';
 import {
   ContinueLineSession,
-  DEFAULT_VOICE_SPEED,
-  VOICE_SPEED_MAX,
-  VOICE_SPEED_MIN,
   continueLineNotationDisplay,
-  voiceSpeedToRate,
   type ContinueLineSessionSnapshot,
 } from '@/lib/continueLine';
 import { continueLineRecentStorage } from '@/lib/continueLine/recentStore';
@@ -101,28 +95,12 @@ export default function ContinueLineScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceSpeed, setVoiceSpeed] = useState(DEFAULT_VOICE_SPEED);
-  const voiceSpeedRef = useRef(voiceSpeed);
-  // Session-local speed; seed from Profil default once (does not write back).
-  useEffect(() => {
-    let cancelled = false;
-    voiceSpeedSettings.ensureLoaded().then(() => {
-      if (!cancelled) setVoiceSpeed(voiceSpeedSettings.getDefaultSpeed());
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   const folderIdRef = useRef(mixedFolderIds[0]);
   const activeFolderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     folderIdRef.current = mixedFolderIds[0];
   }, [mixedFolderIds.join(',')]);
-
-  useEffect(() => {
-    voiceSpeedRef.current = voiceSpeed;
-  }, [voiceSpeed]);
 
   useEffect(() => {
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
@@ -142,11 +120,7 @@ export default function ContinueLineScreen() {
   const speak = useCallback(
     (text: string) => {
       if (!soundEnabled) return;
-      // Intentional session override: continue-line voice speed is local to this exercise.
-      speechService.speak(text, {
-        flush: true,
-        rate: voiceSpeedToRate(voiceSpeedRef.current),
-      });
+      speechService.speak(text, { flush: true });
     },
     [soundEnabled],
   );
@@ -547,19 +521,12 @@ export default function ContinueLineScreen() {
 
       {!finished && (
         <>
-          <DiscreteSlider
-            testID="continue-voice-speed"
-            label={t('openings.voiceSpeedRange')}
-            valueLabel={String(voiceSpeed)}
-            minimumValue={VOICE_SPEED_MIN}
-            maximumValue={VOICE_SPEED_MAX}
-            step={1}
-            value={voiceSpeed}
-            onValueChange={setVoiceSpeed}
-            leftHint={t('openings.slow')}
-            rightHint={t('openings.fast')}
-            accessibilityLabel={t('a11y.voiceSpeed')}
-          />
+          <Text
+            style={{ color: colors.mutedForeground, fontSize: 12, fontFamily: 'Inter_400Regular' }}
+            testID="continue-pace-hint"
+          >
+            {t('settings.dictationPaceHint')}
+          </Text>
 
           <Pressable
             onPress={toggleMic}

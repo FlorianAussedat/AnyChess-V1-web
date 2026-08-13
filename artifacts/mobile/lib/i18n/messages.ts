@@ -100,6 +100,7 @@ export type MessageKey =
   | 'settings.title'
   | 'settings.dictationPace'
   | 'settings.dictationPaceHint'
+  | 'settings.dictationPaceDesc'
   | 'settings.paceSlow'
   | 'settings.paceQuiteSlow'
   | 'settings.paceMedium'
@@ -649,8 +650,11 @@ const fr: Dict = {
   'profil.langEn': 'English',
   'utilisateur.title': 'Utilisateur',
   'settings.title': 'Paramètres',
-  'settings.dictationPace': 'Rythme de dictée',
-  'settings.dictationPaceHint': 'Réglable dans Paramètres',
+  'settings.dictationPace': "Rythme d'énonciation des coups",
+  'settings.dictationPaceHint':
+    "Le rythme d'énonciation peut être modifié dans Paramètres.",
+  'settings.dictationPaceDesc':
+    "Définit le temps d'attente entre deux coups annoncés.",
   'settings.paceSlow': 'Lent — 5 s',
   'settings.paceQuiteSlow': 'Assez lent — 4 s',
   'settings.paceMedium': 'Moyen — 3 s',
@@ -1249,8 +1253,11 @@ const en: Dict = {
   'profil.langEn': 'English',
   'utilisateur.title': 'User',
   'settings.title': 'Settings',
-  'settings.dictationPace': 'Dictation pace',
-  'settings.dictationPaceHint': 'Adjustable in Settings',
+  'settings.dictationPace': 'Move dictation pace',
+  'settings.dictationPaceHint':
+    'You can change the move dictation pace in Settings.',
+  'settings.dictationPaceDesc':
+    'Sets the pause between two announced moves.',
   'settings.paceSlow': 'Slow — 5 s',
   'settings.paceQuiteSlow': 'Quite slow — 4 s',
   'settings.paceMedium': 'Medium — 3 s',

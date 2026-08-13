@@ -14,12 +14,7 @@ import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import { blindStyles } from '@/components/blind/blindStyles';
 import { useBlindSequence } from '@/contexts/BlindSequenceContext';
 import { halfMoveCount } from '@/lib/blind';
-import {
-  BLIND_SPEED_MAX,
-  BLIND_SPEED_MIN,
-  DEFAULT_BLIND_SPEED,
-  type BlindPerspective,
-} from '@/lib/blind';
+import type { BlindPerspective } from '@/lib/blind';
 
 export function BlindSettingsPhase() {
   const colors = useColors();
@@ -33,11 +28,9 @@ export function BlindSettingsPhase() {
     submode,
     perspective,
     fullMoves,
-    speed,
     modeRecordBest,
     setPerspective,
     setFullMoves,
-    setSpeed,
     startSession,
     isGenerating,
     generateError,
@@ -97,28 +90,11 @@ export function BlindSettingsPhase() {
           })}
         </Text>
 
-        <DiscreteSlider
-          testID="blind-speed-slider"
-          label={t('blind.speedLabel', { min: BLIND_SPEED_MIN, max: BLIND_SPEED_MAX })}
-          valueLabel={String(speed)}
-          minimumValue={BLIND_SPEED_MIN}
-          maximumValue={BLIND_SPEED_MAX}
-          step={1}
-          value={speed}
-          onValueChange={setSpeed}
-          leftHint={t('blind.slow')}
-          rightHint={t('blind.fast')}
-          accessibilityLabel={t('a11y.speed')}
-        />
-        <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-          {speed <= 3
-            ? t('blind.speedSlowHint')
-            : speed >= 8
-              ? t('blind.speedFastHint')
-              : t('blind.speedDefaultHint', { speed, default: DEFAULT_BLIND_SPEED })}
-          {submode === 'listen-reconstruct'
-            ? t('blind.oralDictation')
-            : t('blind.visualObservation')}
+        <Text
+          style={[blindStyles.hint, { color: colors.mutedForeground }]}
+          testID="blind-pace-hint"
+        >
+          {t('settings.dictationPaceHint')}
         </Text>
 
         {!!generateError && (
@@ -128,11 +104,12 @@ export function BlindSettingsPhase() {
         )}
 
         {isGenerating ? <ActivityIndicator color={colors.primary} /> : null}
+
         <AppButton
-          label={t('blind.generate')}
-          onPress={() => startSession()}
+          label={t('common.start')}
+          onPress={() => void startSession()}
           disabled={isGenerating}
-          testID="blind-generate"
+          testID="blind-start"
         />
       </ScrollView>
     </ModeScreenShell>

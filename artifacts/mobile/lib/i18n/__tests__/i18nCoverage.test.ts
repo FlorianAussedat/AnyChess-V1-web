@@ -88,12 +88,16 @@ describe('tMsg follows PreferencesStore language', () => {
 });
 
 describe('SpeechService rate ownership', () => {
-  it('default rate uses preference; per-call override is not sticky', () => {
+  it('default rate is fixed TTS; speakAndWait settles on real end', () => {
     const speech = read('services/SpeechService.ts');
     assert.match(speech, /resolveRate/);
-    assert.match(speech, /voiceSpeedToRate\(preferencesStore\.getPreferences\(\)\.voiceSpeed\)/);
+    assert.match(speech, /DEFAULT_TTS_RATE/);
+    assert.match(speech, /speakAndWait/);
     assert.doesNotMatch(speech, /this\.currentRate\s*=/);
-    assert.match(speech, /When omitted, uses voiceSpeedToRate/);
+    assert.doesNotMatch(
+      speech,
+      /voiceSpeedToRate\(preferencesStore\.getPreferences\(\)\.voiceSpeed\)/,
+    );
   });
 });
 

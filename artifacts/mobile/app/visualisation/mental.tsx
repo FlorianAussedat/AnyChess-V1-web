@@ -45,7 +45,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage, StorageKeys } from '@/lib/storage';
-import { replayLine } from '@/lib/replay/replayLine';
+import {
+  playSynchronizedSequence,
+  type SynchronizedSequenceHandle,
+} from '@/lib/presentation/synchronizedSequence';
 
 const RECENT_KEY = StorageKeys.mentalRecent.key;
 
@@ -59,13 +62,12 @@ export default function MentalPositionScreen() {
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const { soundEnabled } = useAudioSettings();
-  const { chessNotation } = usePreferences();
+  const { chessNotation, dictationPace } = usePreferences();
   const boardSize = useBoardSize('wide');
 
   const sessionRef = useRef(new MentalPositionSession());
   const engineOwnerRef = useRef(new OwnedEngine(() => createOpponentEngine()));
-  const replayRef = useRef<ReturnType<typeof replayLine> | null>(null);
-  const presentationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sequenceRef = useRef<SynchronizedSequenceHandle | null>(null);
   const [snap, setSnap] = useState<MentalSnapshot>(() => sessionRef.current.snapshot());
   const [fullMoves, setFullMoves] = useState(4);
   const [orientation, setOrientation] = useState<'w' | 'b'>('w');
@@ -96,8 +98,7 @@ export default function MentalPositionScreen() {
     return () => {
       unsub();
       speechService.stop();
-      replayRef.current?.cancel();
-      if (presentationTimerRef.current) clearTimeout(presentationTimerRef.current);
+      sequenceRef.current?.cancel();
       engineOwnerRef.current.destroy();
     };
   }, []);
@@ -110,47 +111,45 @@ export default function MentalPositionScreen() {
     }, []),
   );
 
-  const dictateSequence = useCallback(
-    async (sans: string[]) => {
-      if (!dictate || !soundEnabled) return;
-      for (const san of sans) {
-        await speechService.speak(sanToVerbal(san));
-      }
-    },
-    [dictate, soundEnabled],
-  );
+  const cancelPresentation = useCallback(() => {
+    sequenceRef.current?.cancel();
+    sequenceRef.current = null;
+    speechService.cancel('mental');
+  }, []);
 
-  const startReplay = useCallback(
-    (sans: string[]) => {
-      replayRef.current?.cancel();
-      if (!showBoard) {
-        setDisplayFen(null);
-        setLastMove(null);
-        return;
-      }
-      replayRef.current = replayLine({
-        moves: sans,
-        intervalMs: 700,
-        onPosition: (fen, _idx, san) => {
-          setDisplayFen(fen);
-          if (san) {
-            const game = new Chess();
-            for (let i = 0; i < sans.indexOf(san); i++) game.move(sans[i]);
-            const m = game.move(san);
-            if (m) setLastMove({ from: m.from, to: m.to });
-          }
+  const presentSequence = useCallback(
+    async (sans: string[]) => {
+      cancelPresentation();
+      setDisplayFen(showBoard ? new Chess().fen() : null);
+      setLastMove(null);
+
+      const game = new Chess();
+      const handle = playSynchronizedSequence({
+        moves: sans.map((san) => ({
+          san,
+          verbal: sanToVerbal(san),
+        })),
+        speak: dictate && soundEnabled,
+        pace: dictationPace,
+        speakAndWait: (text) => speechService.speakAndWait(text, { flush: false }),
+        onBoardMove: (move) => {
+          if (!showBoard) return;
+          const played = game.move(move.san);
+          if (!played) return;
+          setDisplayFen(game.fen());
+          setLastMove({ from: played.from, to: played.to });
         },
-        onComplete: (fen) => setDisplayFen(fen),
       });
+      sequenceRef.current = handle;
+      await handle.done;
+      return sequenceRef.current === handle;
     },
-    [showBoard],
+    [cancelPresentation, dictate, dictationPace, showBoard, soundEnabled],
   );
 
   const start = useCallback(async () => {
     setBusy(true);
-    speechService.stop();
-    replayRef.current?.cancel();
-    if (presentationTimerRef.current) clearTimeout(presentationTimerRef.current);
+    cancelPresentation();
 
     try {
       let previousKey: string | null = null;
@@ -181,18 +180,20 @@ export default function MentalPositionScreen() {
         return;
       }
 
-      startReplay(sans);
-      void dictateSequence(sans);
+      await presentSequence(sans);
 
-      const delay = dictate && soundEnabled ? Math.min(sans.length * 1200, 10000) : 1200;
-      presentationTimerRef.current = setTimeout(() => {
-        replayRef.current?.cancel();
-        setDisplayFen(null);
-        setLastMove(null);
-        const after = session.beginQuestions();
-        setSnap({ ...after });
+      // If user cancelled / navigated, do not enter questions.
+      if (sequenceRef.current == null) {
         setBusy(false);
-      }, delay);
+        return;
+      }
+
+      sequenceRef.current = null;
+      setDisplayFen(null);
+      setLastMove(null);
+      const after = session.beginQuestions();
+      setSnap({ ...after });
+      setBusy(false);
     } catch (err) {
       sessionRef.current.loadSequence([]);
       setSnap({
@@ -202,7 +203,14 @@ export default function MentalPositionScreen() {
       });
       setBusy(false);
     }
-  }, [fullMoves, orientation, dictate, showBoard, soundEnabled, dictateSequence, startReplay]);
+  }, [
+    cancelPresentation,
+    dictate,
+    fullMoves,
+    orientation,
+    presentSequence,
+    showBoard,
+  ]);
 
   const answer = useCallback((raw: string) => {
     const trimmed = raw.trim();
@@ -218,9 +226,18 @@ export default function MentalPositionScreen() {
 
   const handleHelp = useCallback(() => {
     sessionRef.current.recordHelp('redictate');
-    void dictateSequence(snap.sans);
+    void (async () => {
+      if (!dictate || !soundEnabled) return;
+      for (const san of snap.sans) {
+        try {
+          await speechService.speakAndWait(sanToVerbal(san));
+        } catch {
+          return;
+        }
+      }
+    })();
     setSnap({ ...sessionRef.current.snapshot() });
-  }, [dictateSequence, snap.sans]);
+  }, [dictate, soundEnabled, snap.sans]);
 
   const { micActive, isListening, toggleMic, status: micStatus } = useSpeechInput({
     isSpeaking,
@@ -334,6 +351,16 @@ export default function MentalPositionScreen() {
             inactiveIcon="eye-off-outline"
             testID="mental-board-toggle"
           />
+          <Text
+            style={{
+              color: colors.mutedForeground,
+              fontSize: 12,
+              fontFamily: 'Inter_400Regular',
+            }}
+            testID="mental-pace-hint"
+          >
+            {t('settings.dictationPaceHint')}
+          </Text>
           <AppButton label={t('common.start')} onPress={start} disabled={busy} testID="mental-start" />
           {busy ? <ActivityIndicator color={colors.primary} /> : null}
         </View>

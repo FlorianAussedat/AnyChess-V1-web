@@ -2,7 +2,7 @@ import * as Speech from 'expo-speech';
 import { audioSettings } from './AudioSettings';
 import { preferencesStore } from '@/lib/preferences';
 import { speechLocaleForLanguage } from '@/lib/i18n';
-import { voiceSpeedToRate } from '@/lib/continueLine/voiceSpeed';
+import { DEFAULT_TTS_RATE } from '@/lib/preferences/dictationPace';
 
 /**
  * Centralised text-to-speech service.
@@ -12,7 +12,8 @@ import { voiceSpeedToRate } from '@/lib/continueLine/voiceSpeed';
  *  - Expose a single `isSpeaking` signal for the mic layer
  *  - Honour voice-mute (TTS only) via AudioSettings — SFX are independent
  *  - Cancel obsolete multi-step sequences when the user acts or navigates away
- *  - Use global voiceSpeed preference as the default rate (per utterance)
+ *  - Use a fixed comfortable TTS rate (rhythm is preferences.dictationPace)
+ *  - speakAndWait resolves on real utterance end (onDone / onError)
  *
  * Rule: live user action always has priority over queued speech.
  */
@@ -24,8 +25,7 @@ export interface SpeakOptions {
   language?: string;
   /**
    * Rate override for THIS utterance only.
-   * When omitted, uses voiceSpeedToRate(preferences.voiceSpeed).
-   * Does not permanently change the global default.
+   * When omitted, uses DEFAULT_TTS_RATE (not a second user-facing control).
    */
   rate?: number;
   /**
@@ -40,6 +40,8 @@ type QueueItem = {
   ownerId?: string;
   language: string;
   rate: number;
+  /** Resolve when this utterance finishes (speakAndWait). */
+  onSettled?: (result: 'done' | 'error' | 'cancelled') => void;
 };
 
 type SpeakingListener = (speaking: boolean) => void;
@@ -61,6 +63,10 @@ class SpeechService {
   private token = 0;
 
   private activeOwnerId: string | undefined;
+
+  /** Settler for the utterance currently being spoken (speakAndWait). */
+  private activeSettler: ((result: 'done' | 'error' | 'cancelled') => void) | null =
+    null;
 
   /** Subscribe to speaking-state changes. Returns an unsubscribe function. */
   onSpeakingChange(listener: SpeakingListener): () => void {
@@ -106,11 +112,7 @@ class SpeechService {
 
   private resolveRate(override?: number): number {
     if (override != null && Number.isFinite(override)) return override;
-    try {
-      return voiceSpeedToRate(preferencesStore.getPreferences().voiceSpeed);
-    } catch {
-      return voiceSpeedToRate(5);
-    }
+    return DEFAULT_TTS_RATE;
   }
 
   /**
@@ -141,6 +143,45 @@ class SpeechService {
     if (!this.speaking) {
       this.startLoop();
     }
+  }
+
+  /**
+   * Speak text and resolve when the utterance truly finishes (onDone / onError).
+   * Resolves immediately when voice is muted or text is empty.
+   * Rejects with Error('cancelled') if stop/cancel runs before completion.
+   */
+  speakAndWait(text: string, options: SpeakOptions = {}): Promise<void> {
+    if (!text) return Promise.resolve();
+
+    if (!audioSettings.isVoiceEnabled()) {
+      if (options.flush) this.hardStop({ notify: true });
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      if (options.flush) {
+        this.hardStop({ notify: true });
+      }
+
+      if (options.ownerId) this.activeOwnerId = options.ownerId;
+
+      this.queue.push({
+        text,
+        ownerId: options.ownerId ?? this.activeOwnerId,
+        language: this.resolveLanguage(options.language),
+        rate: this.resolveRate(options.rate),
+        onSettled: (result) => {
+          if (result === 'cancelled') {
+            reject(new Error('cancelled'));
+            return;
+          }
+          resolve();
+        },
+      });
+      if (!this.speaking) {
+        this.startLoop();
+      }
+    });
   }
 
   /**
@@ -193,7 +234,9 @@ class SpeechService {
 
   private hardStop(opts: { notify: boolean }): void {
     this.token += 1;
-    this.queue = [];
+    const pending = this.queue.splice(0, this.queue.length);
+    const activeSettler = this.activeSettler;
+    this.activeSettler = null;
     this.activeOwnerId = undefined;
     try {
       Speech.stop();
@@ -201,6 +244,20 @@ class SpeechService {
       /* ignore */
     }
     this.setSpeaking(false);
+    if (activeSettler) {
+      try {
+        activeSettler('cancelled');
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const item of pending) {
+      try {
+        item.onSettled?.('cancelled');
+      } catch {
+        /* ignore */
+      }
+    }
     if (opts.notify) {
       this.cancelListeners.forEach((l) => {
         try {
@@ -227,22 +284,40 @@ class SpeechService {
       return;
     }
 
-    const advance = () => {
-      if (myToken === this.token) this.step(myToken);
+    this.activeSettler = next.onSettled ?? null;
+
+    const settle = (result: 'done' | 'error' | 'cancelled') => {
+      if (this.activeSettler === (next.onSettled ?? null)) {
+        this.activeSettler = null;
+      }
+      try {
+        next.onSettled?.(result);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const advance = (result: 'done' | 'error') => {
+      if (myToken !== this.token) {
+        settle('cancelled');
+        return;
+      }
+      settle(result);
+      this.step(myToken);
     };
 
     try {
       Speech.speak(next.text, {
         language: next.language,
         rate: next.rate,
-        onDone: advance,
+        onDone: () => advance('done'),
         onStopped: () => {
-          /* Stops are driven by hardStop(), which bumps the token; ignore. */
+          /* Stops are driven by hardStop(), which settles activeSettler. */
         },
-        onError: advance,
+        onError: () => advance('error'),
       });
     } catch {
-      advance();
+      advance('error');
     }
   }
 }

@@ -123,6 +123,15 @@ export default function ParametresScreen() {
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
         {t('settings.dictationPace')}
       </Text>
+      <Text
+        style={{
+          color: colors.mutedForeground,
+          fontSize: 12,
+          fontFamily: DesignTokens.typography.weightRegular,
+        }}
+      >
+        {t('settings.dictationPaceDesc')}
+      </Text>
       <View style={styles.chipWrap} testID="parametres-pace-section">
         {DICTATION_PACES.map((pace) => (
           <OptionChip
@@ -133,6 +142,7 @@ export default function ParametresScreen() {
               void updatePreferences({ dictationPace: pace });
             }}
             testID={`parametres-pace-${pace}`}
+            accessibilityLabel={t(PACE_LABEL_KEYS[pace])}
           />
         ))}
       </View>

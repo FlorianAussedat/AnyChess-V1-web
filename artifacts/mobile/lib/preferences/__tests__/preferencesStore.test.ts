@@ -88,6 +88,17 @@ describe('PreferencesStore', () => {
     assert.equal(await storage.getItem('keep-me'), '1');
   });
 
+  it('persists dictationPace with medium default', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const store = new PreferencesStore(storage);
+    await store.ensureLoaded();
+    assert.equal(store.getPreferences().dictationPace, 'medium');
+    await store.update({ dictationPace: 'fast' });
+    const again = new PreferencesStore(storage);
+    await again.ensureLoaded();
+    assert.equal(again.getPreferences().dictationPace, 'fast');
+  });
+
   it('isHydrated becomes true after ensureLoaded', async () => {
     const storage = new MemoryKeyValueStorage();
     const store = new PreferencesStore(storage);

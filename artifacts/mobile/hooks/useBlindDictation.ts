@@ -1,61 +1,69 @@
 import { useCallback, useRef } from 'react';
+import type { BlindSequenceMove } from '@/lib/blind';
 import {
-  blindSpeedToDelayMs,
-  type BlindSequenceMove,
-} from '@/lib/blind';
+  dictationPaceToGapMs,
+  preferencesStore,
+} from '@/lib/preferences';
 import { speechService } from '@/services/SpeechService';
 
 type ProgressHandlers = {
   /** Called with 1-based spoken count after each utterance starts. */
   onSpokenCount?: (spokenCount: number, total: number) => void;
-  /** Called once when the last move has been queued / spoken. */
+  /** Called once when the last move has been spoken (or sequence cancelled). */
   onComplete?: () => void;
 };
 
 /**
- * Internal Blind mode dictation: timed TTS of a move sequence.
- * Composed inside BlindSequenceProvider — not a public API.
+ * Blind listen-mode dictation: speak → wait real TTS end → global pace gap → next.
  */
-export function useBlindDictation(speedRef: React.MutableRefObject<number>) {
-  const dictationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+export function useBlindDictation() {
+  const cancelledRef = useRef(false);
+  const runIdRef = useRef(0);
 
   const clearDictationTimer = useCallback(() => {
-    if (dictationTimerRef.current != null) {
-      clearTimeout(dictationTimerRef.current);
-      dictationTimerRef.current = null;
-    }
+    cancelledRef.current = true;
+    runIdRef.current += 1;
+    speechService.cancel('dictation');
   }, []);
 
   const speakSequence = useCallback(
     (moves: BlindSequenceMove[], flush = true, handlers: ProgressHandlers = {}) => {
-      clearDictationTimer();
-      // Cancel first (bumps generation), then capture token so stale setTimeouts no-op.
+      cancelledRef.current = false;
       if (flush) speechService.cancel('dictation');
-      const myGen = speechService.generation;
-      const delay = blindSpeedToDelayMs(speedRef.current);
-      let i = 0;
-      const step = () => {
-        if (speechService.generation !== myGen) return;
-        if (i >= moves.length) {
-          handlers.onComplete?.();
-          return;
+      const runId = ++runIdRef.current;
+
+      void (async () => {
+        const pace = preferencesStore.getPreferences().dictationPace;
+        const gapMs = dictationPaceToGapMs(pace);
+
+        for (let i = 0; i < moves.length; i++) {
+          if (cancelledRef.current || runId !== runIdRef.current) return;
+          try {
+            await speechService.speakAndWait(moves[i].verbal, { flush: false });
+          } catch {
+            return;
+          }
+          handlers.onSpokenCount?.(i + 1, moves.length);
+          if (i < moves.length - 1) {
+            await new Promise<void>((resolve) => {
+              const t = setTimeout(resolve, gapMs);
+              const check = setInterval(() => {
+                if (cancelledRef.current || runId !== runIdRef.current) {
+                  clearTimeout(t);
+                  clearInterval(check);
+                  resolve();
+                }
+              }, 40);
+              setTimeout(() => clearInterval(check), gapMs + 20);
+            });
+          }
         }
-        // Already cancelled above when flush; avoid a second hardStop that would
-        // bump generation and invalidate myGen.
-        speechService.speak(moves[i].verbal, { flush: false });
-        i += 1;
-        handlers.onSpokenCount?.(i, moves.length);
-        if (i < moves.length) {
-          dictationTimerRef.current = setTimeout(step, delay);
-        } else {
-          // Last move spoken — wait for TTS speaking flag to drop, or mark complete after a beat.
-          // Completion of the sequence scheduling is enough for "À ton tour" once isSpeaking falls.
+        if (!cancelledRef.current && runId === runIdRef.current) {
           handlers.onComplete?.();
         }
-      };
-      step();
+      })();
     },
-    [clearDictationTimer, speedRef],
+    [],
   );
 
   return { speakSequence, clearDictationTimer };
