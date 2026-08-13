@@ -106,6 +106,9 @@ describe('Utilisateur / Paramètres screen scope', () => {
     assert.match(parametres, /profil-pref-coordinates/);
     assert.match(parametres, /parametres-pace-/);
     assert.match(parametres, /dictationPace/);
+    assert.match(parametres, /profil-row-visual-difficulty/);
+    assert.match(parametres, /profil-row-blind-difficulty/);
+    assert.match(parametres, /visualProblemDifficulty|blindProblemDifficulty/);
     assert.match(parametres, /usePreferences/);
     assert.match(parametres, /profil-reset-prefs/);
     assert.doesNotMatch(parametres, /profil-row-voice-speed|DiscreteSlider|voiceSpeed/);
