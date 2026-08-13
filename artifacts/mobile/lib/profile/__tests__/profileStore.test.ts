@@ -74,21 +74,41 @@ describe('player Elo ranges', () => {
   });
 });
 
-describe('Profil screen scope', () => {
-  it('exposes local data sections without inventing accounts', () => {
-    const src = readFileSync(join(here, '../../../app/profil.tsx'), 'utf8');
-    assert.match(src, /profil-screen/);
-    assert.match(src, /profil-row-username/);
-    assert.match(src, /profil-row-repertoires/);
-    assert.match(src, /profil-row-records/);
-    assert.match(src, /profil-row-language/);
-    assert.match(src, /profil-row-notation/);
-    assert.match(src, /profil-pref-voice/);
-    assert.match(src, /profil-pref-coordinates/);
-    assert.match(src, /profil-row-voice-speed/);
-    assert.match(src, /profil\.saveTitle/);
-    assert.match(src, /usePreferences/);
-    assert.doesNotMatch(src, /Supabase|Firebase|OAuth|mot de passe|signup/i);
-    assert.doesNotMatch(src, /localStorage|AsyncStorage/);
+describe('Utilisateur / Paramètres screen scope', () => {
+  it('splits identity and preferences without inventing accounts', () => {
+    const utilisateur = readFileSync(
+      join(here, '../../../app/utilisateur.tsx'),
+      'utf8',
+    );
+    const parametres = readFileSync(
+      join(here, '../../../app/parametres.tsx'),
+      'utf8',
+    );
+    const profil = readFileSync(join(here, '../../../app/profil.tsx'), 'utf8');
+
+    assert.match(profil, /Redirect/);
+    assert.match(profil, /\/utilisateur/);
+
+    assert.match(utilisateur, /utilisateur-screen/);
+    assert.match(utilisateur, /profil-row-username/);
+    assert.match(utilisateur, /profil-row-repertoires/);
+    assert.match(utilisateur, /profil-row-records/);
+    assert.match(utilisateur, /profil\.saveTitle/);
+    assert.match(utilisateur, /profil-reset-records/);
+    assert.doesNotMatch(utilisateur, /profil-row-language|profil-pref-voice|voiceSpeed/);
+    assert.doesNotMatch(utilisateur, /Supabase|Firebase|OAuth|mot de passe|signup/i);
+    assert.doesNotMatch(utilisateur, /localStorage|AsyncStorage/);
+
+    assert.match(parametres, /parametres-screen/);
+    assert.match(parametres, /profil-row-language/);
+    assert.match(parametres, /profil-row-notation/);
+    assert.match(parametres, /profil-pref-voice/);
+    assert.match(parametres, /profil-pref-coordinates/);
+    assert.match(parametres, /parametres-pace-/);
+    assert.match(parametres, /dictationPace/);
+    assert.match(parametres, /usePreferences/);
+    assert.match(parametres, /profil-reset-prefs/);
+    assert.doesNotMatch(parametres, /profil-row-voice-speed|DiscreteSlider|voiceSpeed/);
+    assert.doesNotMatch(parametres, /Supabase|Firebase|OAuth|mot de passe|signup/i);
   });
 });

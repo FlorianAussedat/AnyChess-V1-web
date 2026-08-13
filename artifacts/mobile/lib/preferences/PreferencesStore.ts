@@ -14,6 +14,11 @@ import {
   VOICE_SPEED_MIN,
 } from '../continueLine/voiceSpeed.ts';
 import {
+  DEFAULT_DICTATION_PACE,
+  isDictationPace,
+  type DictationPace,
+} from './dictationPace.ts';
+import {
   DEFAULT_APP_LANGUAGE,
   DEFAULT_CHESS_NOTATION,
   USER_PREFERENCES_DOCUMENT_VERSION,
@@ -57,6 +62,7 @@ export function defaultUserPreferences(): UserPreferences {
     voiceEnabled: true,
     coordinatesEnabled: true,
     voiceSpeed: DEFAULT_VOICE_SPEED,
+    dictationPace: DEFAULT_DICTATION_PACE,
     updatedAt: nowIso(),
   };
 }
@@ -85,6 +91,10 @@ export function mergePreferencesDocument(
   } else if (typeof o.voiceSpeed === 'string' && o.voiceSpeed.trim() !== '') {
     const n = Number(o.voiceSpeed);
     if (Number.isFinite(n)) next.voiceSpeed = clampSpeed(n);
+  }
+
+  if (isDictationPace(o.dictationPace)) {
+    next.dictationPace = o.dictationPace;
   }
 
   if (typeof o.updatedAt === 'string' && o.updatedAt) {
@@ -168,6 +178,7 @@ export class PreferencesStore {
       voiceSpeed: fromDoc
         ? base.voiceSpeed
         : (legacy.voiceSpeed ?? base.voiceSpeed),
+      dictationPace: fromDoc?.dictationPace ?? base.dictationPace,
       updatedAt: nowIso(),
     };
 
@@ -279,6 +290,11 @@ export class PreferencesStore {
         patch.voiceSpeed !== undefined
           ? clampSpeed(patch.voiceSpeed)
           : current.voiceSpeed,
+      dictationPace:
+        patch.dictationPace !== undefined &&
+        isDictationPace(patch.dictationPace)
+          ? patch.dictationPace
+          : current.dictationPace,
       updatedAt: nowIso(),
       version: USER_PREFERENCES_DOCUMENT_VERSION,
     };

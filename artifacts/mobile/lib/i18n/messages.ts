@@ -9,6 +9,8 @@ export type MessageKey =
   | 'nav.home'
   | 'nav.records'
   | 'nav.profil'
+  | 'nav.utilisateur'
+  | 'nav.parametres'
   | 'common.back'
   | 'common.close'
   | 'common.cancel'
@@ -94,6 +96,15 @@ export type MessageKey =
   | 'profil.close'
   | 'profil.langFr'
   | 'profil.langEn'
+  | 'utilisateur.title'
+  | 'settings.title'
+  | 'settings.dictationPace'
+  | 'settings.dictationPaceHint'
+  | 'settings.paceSlow'
+  | 'settings.paceQuiteSlow'
+  | 'settings.paceMedium'
+  | 'settings.paceQuiteFast'
+  | 'settings.paceFast'
   // Modes
   | 'modes.classic.title'
   | 'modes.classic.description'
@@ -545,6 +556,8 @@ const fr: Dict = {
   'nav.home': 'Accueil',
   'nav.records': 'Records',
   'nav.profil': 'Profil',
+  'nav.utilisateur': 'Utilisateur',
+  'nav.parametres': 'Paramètres',
   'common.back': 'Retour',
   'common.close': 'Fermer',
   'common.cancel': 'Annuler',
@@ -634,6 +647,15 @@ const fr: Dict = {
   'profil.close': 'Fermer',
   'profil.langFr': 'Français',
   'profil.langEn': 'English',
+  'utilisateur.title': 'Utilisateur',
+  'settings.title': 'Paramètres',
+  'settings.dictationPace': 'Rythme de dictée',
+  'settings.dictationPaceHint': 'Réglable dans Paramètres',
+  'settings.paceSlow': 'Lent — 5 s',
+  'settings.paceQuiteSlow': 'Assez lent — 4 s',
+  'settings.paceMedium': 'Moyen — 3 s',
+  'settings.paceQuiteFast': 'Assez rapide — 2 s',
+  'settings.paceFast': 'Rapide — 1 s',
   'modes.classic.title': 'Partie classique',
   'modes.classic.description':
     'Joue une partie, tout simplement ! À la voix ou directement sur l’échiquier.',
@@ -1134,6 +1156,8 @@ const en: Dict = {
   'nav.home': 'Home',
   'nav.records': 'Records',
   'nav.profil': 'Profile',
+  'nav.utilisateur': 'User',
+  'nav.parametres': 'Settings',
   'common.back': 'Back',
   'common.close': 'Close',
   'common.cancel': 'Cancel',
@@ -1223,6 +1247,15 @@ const en: Dict = {
   'profil.close': 'Close',
   'profil.langFr': 'Français',
   'profil.langEn': 'English',
+  'utilisateur.title': 'User',
+  'settings.title': 'Settings',
+  'settings.dictationPace': 'Dictation pace',
+  'settings.dictationPaceHint': 'Adjustable in Settings',
+  'settings.paceSlow': 'Slow — 5 s',
+  'settings.paceQuiteSlow': 'Quite slow — 4 s',
+  'settings.paceMedium': 'Medium — 3 s',
+  'settings.paceQuiteFast': 'Quite fast — 2 s',
+  'settings.paceFast': 'Fast — 1 s',
   'modes.classic.title': 'Classic game',
   'modes.classic.description':
     'Just play a game — by voice or directly on the board.',

@@ -49,6 +49,8 @@ function RootLayoutNav() {
       <Stack.Screen name="visualisation" />
       <Stack.Screen name="quiz-ouverture" />
       <Stack.Screen name="records" />
+      <Stack.Screen name="utilisateur" />
+      <Stack.Screen name="parametres" />
       <Stack.Screen name="profil" />
       {typeof __DEV__ !== 'undefined' && __DEV__ ? (
         <Stack.Screen name="dev/voice-parser" options={{ headerShown: true }} />

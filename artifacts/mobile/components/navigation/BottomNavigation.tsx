@@ -1,5 +1,5 @@
 /**
- * Persistent AnyChess bottom navigation — Accueil / Records / Profil.
+ * Persistent AnyChess bottom navigation — Accueil / Records / Utilisateur / Paramètres.
  */
 import React from 'react';
 import {
@@ -18,12 +18,15 @@ import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import { NAV_HOME_ART, artHeight } from '@/constants/brandArtBounds';
 
-export type BottomNavTabId = 'home' | 'records' | 'profil';
+export type BottomNavTabId = 'home' | 'records' | 'utilisateur' | 'parametres';
 
 function resolveActiveTab(pathname: string): BottomNavTabId | null {
   if (pathname === '/' || pathname === '/index') return 'home';
   if (pathname.startsWith('/records')) return 'records';
-  if (pathname.startsWith('/profil')) return 'profil';
+  if (pathname.startsWith('/utilisateur') || pathname.startsWith('/profil')) {
+    return 'utilisateur';
+  }
+  if (pathname.startsWith('/parametres')) return 'parametres';
   return null;
 }
 
@@ -84,9 +87,14 @@ export function BottomNavigation() {
     router.push('/records' as Href);
   };
 
-  const goProfil = () => {
-    if (pathname.startsWith('/profil')) return;
-    router.push('/profil' as Href);
+  const goUtilisateur = () => {
+    if (pathname.startsWith('/utilisateur')) return;
+    router.push('/utilisateur' as Href);
+  };
+
+  const goParametres = () => {
+    if (pathname.startsWith('/parametres')) return;
+    router.push('/parametres' as Href);
   };
 
   return (
@@ -127,12 +135,23 @@ export function BottomNavigation() {
           inactiveColor={colors.mutedForeground}
         />
         <NavItem
-          label={t('nav.profil')}
-          active={active === 'profil'}
-          onPress={goProfil}
-          testID="nav-profil"
+          label={t('nav.utilisateur')}
+          active={active === 'utilisateur'}
+          onPress={goUtilisateur}
+          testID="nav-utilisateur"
           renderIcon={(color) => (
             <Ionicons name="person-outline" size={DesignTokens.bottomNavIconSize} color={color} />
+          )}
+          activeColor={colors.primary}
+          inactiveColor={colors.mutedForeground}
+        />
+        <NavItem
+          label={t('nav.parametres')}
+          active={active === 'parametres'}
+          onPress={goParametres}
+          testID="nav-parametres"
+          renderIcon={(color) => (
+            <Ionicons name="settings-outline" size={DesignTokens.bottomNavIconSize} color={color} />
           )}
           activeColor={colors.primary}
           inactiveColor={colors.mutedForeground}

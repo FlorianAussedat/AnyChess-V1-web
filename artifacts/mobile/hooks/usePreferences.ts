@@ -56,5 +56,6 @@ export function usePreferences() {
     voiceEnabled: preferences.voiceEnabled,
     coordinatesEnabled: preferences.coordinatesEnabled,
     voiceSpeed: preferences.voiceSpeed,
+    dictationPace: preferences.dictationPace,
   };
 }
