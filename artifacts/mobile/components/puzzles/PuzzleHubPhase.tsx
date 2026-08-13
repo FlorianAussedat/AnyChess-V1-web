@@ -3,6 +3,7 @@ import { Pressable, Text } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
+import { BrandAssets } from '@/constants/BrandAssets';
 import { HubScreen } from '@/components/HubScreen';
 import { HubModeCard } from '@/components/HubModeCard';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
@@ -33,14 +34,14 @@ export function PuzzleHubPhase() {
       <HubModeCard
         title={t('puzzle.visualCardTitle')}
         description={t('puzzle.visualCardDesc')}
-        iconName="eye-outline"
+        icon={BrandAssets.exercises.problemesVisuels}
         onPress={() => selectSubmode('visual')}
         testID="puzzle-card-visual"
       />
       <HubModeCard
         title={t('puzzle.blindCardTitle')}
         description={t('puzzle.blindCardDesc')}
-        iconName="eye-off-outline"
+        icon={BrandAssets.exercises.problemesAveugle}
         onPress={() => selectSubmode('blind')}
         testID="puzzle-card-blind"
       />

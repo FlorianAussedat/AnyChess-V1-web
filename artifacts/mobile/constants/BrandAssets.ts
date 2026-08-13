@@ -29,6 +29,23 @@ export const BrandAssets = {
     target: require('@/assets/brand/modes/target.png'),
   },
   /**
+   * HubModeCard exercise mascots (Vision / Problèmes / Mémorisation / Culture).
+   * User-provided transparent PNGs — do not regenerate or recolor.
+   * Filenames keep original spacing / accents / apostrophes.
+   */
+  exercises: {
+    construisOuverture: require('@/assets/brand/modes/Construis l’ouverture.png'),
+    ecouterPuisReconstruire: require('@/assets/brand/modes/Ecouter puis reconstruire.png'),
+    problemesVisuels: require('@/assets/brand/modes/Problemes Visuels.png'),
+    quiz: require('@/assets/brand/modes/Quiz.png'),
+    suiviMental: require('@/assets/brand/modes/Suivi mental de position.png'),
+    jouerLeCoup: require('@/assets/brand/modes/Jouer le coup.png'),
+    regarderPuisReciter: require('@/assets/brand/modes/Regarder puis réciter.png'),
+    problemesAveugle: require("@/assets/brand/modes/Problemes a l'aveugle.png"),
+    nommerLeCoup: require('@/assets/brand/modes/Nommer le coup.png'),
+    quelleOuverture: require('@/assets/brand/modes/Quelle ouverture.png'),
+  },
+  /**
    * Home ModeCard mascots — optimized display WebPs from user v1 originals.
    * Filenames mirror sources (double .png collapsed to single stem).
    */

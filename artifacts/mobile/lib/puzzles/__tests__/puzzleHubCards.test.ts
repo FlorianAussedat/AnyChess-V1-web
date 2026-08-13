@@ -29,8 +29,11 @@ describe('Puzzle hub card category page', () => {
     assert.match(hub, /HubModeCard/);
     assert.match(hub, /puzzle-card-visual/);
     assert.match(hub, /puzzle-card-blind/);
+    assert.match(hub, /BrandAssets\.exercises\.problemesVisuels/);
+    assert.match(hub, /BrandAssets\.exercises\.problemesAveugle/);
     assert.match(hub, /selectSubmode\('visual'\)/);
     assert.match(hub, /selectSubmode\('blind'\)/);
+    assert.doesNotMatch(hub, /iconName=/);
     assert.doesNotMatch(hub, /PuzzleFilterChip/);
     assert.doesNotMatch(hub, /PuzzleRatingBandSlider/);
     assert.match(route, /PuzzleSettingsPhase/);

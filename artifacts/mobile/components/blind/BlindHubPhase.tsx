@@ -3,6 +3,7 @@ import { ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
+import { BrandAssets } from '@/constants/BrandAssets';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { HubModeCard } from '@/components/HubModeCard';
 import { blindStyles } from '@/components/blind/blindStyles';
@@ -24,7 +25,7 @@ export function BlindHubPhase() {
         <HubModeCard
           title={t('blind.listenReconstruct')}
           description={t('blind.listenReconstructDesc')}
-          iconName="ear-outline"
+          icon={BrandAssets.exercises.ecouterPuisReconstruire}
           onPress={() => selectSubmode('listen-reconstruct')}
           testID="blind-mode-listen"
         />
@@ -32,7 +33,7 @@ export function BlindHubPhase() {
         <HubModeCard
           title={t('blind.watchRecite')}
           description={t('blind.watchReciteDesc')}
-          iconName="eye-outline"
+          icon={BrandAssets.exercises.regarderPuisReciter}
           onPress={() => selectSubmode('watch-recite')}
           testID="blind-mode-watch"
         />

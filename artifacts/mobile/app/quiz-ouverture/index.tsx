@@ -21,21 +21,21 @@ const EXERCISES: ExerciseCard[] = [
     route: '/quiz-ouverture/quelle' as Href,
     titleKey: 'quiz.quelle',
     descriptionKey: 'quiz.quelleDesc',
-    icon: BrandAssets.modes['quiz-ouverture'],
+    icon: BrandAssets.exercises.quelleOuverture,
   },
   {
     id: 'construis',
     route: '/quiz-ouverture/construis' as Href,
     titleKey: 'quiz.construis',
     descriptionKey: 'quiz.construisDesc',
-    icon: BrandAssets.modes.openings,
+    icon: BrandAssets.exercises.construisOuverture,
   },
   {
     id: 'culture',
     route: '/quiz-ouverture/culture' as Href,
     titleKey: 'quiz.quiz',
     descriptionKey: 'quiz.cultureDesc',
-    icon: BrandAssets.modes.target,
+    icon: BrandAssets.exercises.quiz,
   },
 ];
 

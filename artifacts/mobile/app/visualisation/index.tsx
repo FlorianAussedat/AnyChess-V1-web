@@ -21,21 +21,21 @@ const EXERCISES: ExerciseCard[] = [
     route: '/visualisation/mental' as Href,
     titleKey: 'vision.mental',
     descriptionKey: 'vision.mentalDesc',
-    icon: BrandAssets.modes.visualisation,
+    icon: BrandAssets.exercises.suiviMental,
   },
   {
     id: 'nommer',
     route: '/visualisation/nommer' as Href,
     titleKey: 'vision.nommer',
     descriptionKey: 'vision.nommerDesc',
-    icon: BrandAssets.modes.target,
+    icon: BrandAssets.exercises.nommerLeCoup,
   },
   {
     id: 'jouer',
     route: '/visualisation/jouer' as Href,
     titleKey: 'vision.jouer',
     descriptionKey: 'vision.jouerDesc',
-    icon: BrandAssets.modes.classic,
+    icon: BrandAssets.exercises.jouerLeCoup,
   },
 ];
 
