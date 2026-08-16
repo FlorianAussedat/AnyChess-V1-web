@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
@@ -18,6 +19,7 @@ import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { ProfilNavRow } from '@/components/profil/ProfilNavRow';
 import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
 import { OptionChip } from '@/components/ui/OptionChip';
@@ -44,6 +46,7 @@ const PACE_LABEL_KEYS: Record<DictationPace, MessageKey> = {
 
 export default function ParametresScreen() {
   const colors = useColors();
+  const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { voiceEnabled, toggleVoice } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
@@ -90,9 +93,11 @@ export default function ParametresScreen() {
       testID="parametres-screen"
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>
-        {t('settings.title')}
-      </Text>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={t('settings.title')}
+        backTestID="parametres-back"
+      />
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
         {t('profil.sectionPreferences')}
@@ -336,10 +341,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: DesignTokens.spacing.screenX,
     gap: DesignTokens.spacing.md,
-  },
-  title: {
-    fontSize: DesignTokens.typography.title,
-    fontFamily: DesignTokens.typography.weightBold,
   },
   sectionLabel: {
     marginTop: DesignTokens.spacing.sm,

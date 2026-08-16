@@ -100,6 +100,9 @@ describe('Utilisateur / Paramètres screen scope', () => {
     assert.doesNotMatch(utilisateur, /localStorage|AsyncStorage/);
 
     assert.match(parametres, /parametres-screen/);
+    assert.match(parametres, /ScreenHeader/);
+    assert.match(parametres, /parametres-back/);
+    assert.match(parametres, /router\.back\(\)/);
     assert.match(parametres, /profil-row-language/);
     assert.match(parametres, /profil-row-notation/);
     assert.match(parametres, /profil-pref-voice/);

@@ -10,10 +10,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { OptionChip } from '@/components/ui/OptionChip';
 import {
   PIECE_COUNT_BANDS,
@@ -46,6 +48,7 @@ function pieceLabel(id: string): string {
 
 export default function RecordsHubScreen() {
   const colors = useColors();
+  const router = useRouter();
   const { t } = useTranslation();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
 
@@ -87,10 +90,12 @@ export default function RecordsHubScreen() {
       ]}
       testID="records-screen"
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>{t('records.title')}</Text>
-      <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        {t('records.subtitle')}
-      </Text>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={t('records.title')}
+        subtitle={t('records.subtitle')}
+        backTestID="records-back"
+      />
 
       <View style={styles.selector} testID="records-category-selector">
         {RECORDS_CATEGORIES.map((cat) => (
@@ -315,15 +320,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: DesignTokens.spacing.screenX,
     gap: DesignTokens.spacing.md,
-  },
-  title: {
-    fontSize: DesignTokens.typography.title,
-    fontFamily: 'Inter_700Bold',
-  },
-  subtitle: {
-    fontSize: DesignTokens.typography.caption,
-    fontFamily: 'Inter_400Regular',
-    marginBottom: 4,
   },
   selector: {
     flexDirection: 'row',
