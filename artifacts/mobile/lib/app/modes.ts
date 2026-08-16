@@ -8,7 +8,8 @@ export type MainModeId =
   | 'blind'
   | 'puzzles'
   | 'visualisation'
-  | 'quiz-ouverture';
+  | 'quiz-ouverture'
+  | 'parties';
 
 export type VisualisationExerciseId = 'mental' | 'nommer' | 'jouer' | 'records';
 

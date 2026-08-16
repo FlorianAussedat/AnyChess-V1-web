@@ -26,12 +26,14 @@ export const BrandAssets = {
     puzzles: require('@/assets/brand/modes/tactics.png'),
     visualisation: require('@/assets/brand/modes/visualisation.png'),
     'quiz-ouverture': require('@/assets/brand/modes/quiz-ouverture.png'),
+    parties: require('@/assets/brand/mascots/mascot-player-knight-dj.png'),
     target: require('@/assets/brand/modes/target.png'),
   },
   /**
    * HubModeCard exercise mascots — lightweight display WebPs (192px).
    * Sources: assets/brand/modes/*.png (originals untouched).
    * Regenerate with: `pnpm run optimize:brand-display`
+   * HubModeCard renders these at 80×80 (contain).
    */
   exercises: {
     construisOuverture: require('@/assets/brand/display/modes/construis-ouverture.webp'),
@@ -56,6 +58,7 @@ export const BrandAssets = {
     puzzles: require('@/assets/brand/display/mascots/v1-mascot-tactics-knight-calculator.webp'),
     visualisation: require('@/assets/brand/display/mascots/v1-mascot-visualisation-knight-binoculars.webp'),
     'quiz-ouverture': require('@/assets/brand/display/mascots/V1-mascot-quiz-knight-detective.webp'),
+    parties: require('@/assets/brand/display/mascots/mascot-player-knight-dj.webp'),
   } as Partial<Record<MainModeId, ImageSourcePropType>>,
   sides: {
     white: require('@/assets/brand/sides/white.png'),

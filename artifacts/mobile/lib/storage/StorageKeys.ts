@@ -161,6 +161,13 @@ export const StorageKeys = {
       'UserPreferences { version: 1, language, chessNotation, voiceEnabled, coordinatesEnabled, voiceSpeed, updatedAt }',
     documentVersion: 1,
   },
+  /** Imported PGN games for Lecteur de parties / Game Reader. */
+  gameLibrary: {
+    key: 'anychess.gameLibrary.v1',
+    feature: 'parties/game-library',
+    shape: 'GameLibrarySnapshot { version: 1, games: ImportedChessGame[] (main-line + rawPgn) }',
+    documentVersion: 1,
+  },
 } as const satisfies Record<string, StorageKeyMeta>;
 
 export type StorageKeyId = keyof typeof StorageKeys;

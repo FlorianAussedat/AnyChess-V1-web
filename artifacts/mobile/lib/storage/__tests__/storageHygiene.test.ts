@@ -58,6 +58,7 @@ describe('StorageKeys registry', () => {
       StorageKeys.userPreferences.key,
       'anychess.preferences.user.v1',
     );
+    assert.equal(StorageKeys.gameLibrary.key, 'anychess.gameLibrary.v1');
   });
 });
 

@@ -7,11 +7,27 @@ describe('main mode cards catalog', () => {
   it('exposes exactly the six existing modes with stable routes', () => {
     assert.deepEqual(
       MAIN_MODE_CARD_META.map((m) => m.id),
-      ['classic', 'openings', 'blind', 'puzzles', 'visualisation', 'quiz-ouverture'],
+      [
+        'classic',
+        'openings',
+        'blind',
+        'puzzles',
+        'visualisation',
+        'quiz-ouverture',
+        'parties',
+      ],
     );
     assert.deepEqual(
       MAIN_MODE_CARD_META.map((m) => String(m.route)),
-      ['/classic', '/openings', '/blind', '/puzzles', '/visualisation', '/quiz-ouverture'],
+      [
+        '/classic',
+        '/openings',
+        '/blind',
+        '/puzzles',
+        '/visualisation',
+        '/quiz-ouverture',
+        '/parties',
+      ],
     );
   });
 
@@ -33,6 +49,8 @@ describe('main mode cards catalog', () => {
     assert.equal(byId.puzzles?.title, 'Entraînement tactique');
     assert.equal(byId.visualisation?.title, 'Vision de l’échiquier');
     assert.equal(byId['quiz-ouverture']?.title, 'Culture générale');
+    assert.equal(byId.parties?.title, 'Lecteur de Parties');
+    assert.equal(byId.parties?.requiredMascotAsset, 'mascot-player-knight-dj.png');
   });
 });
 
