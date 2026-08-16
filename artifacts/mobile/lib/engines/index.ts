@@ -12,6 +12,21 @@ import { StockfishEngine } from './stockfish';
 
 export { OwnedEngine } from './OwnedEngine';
 export type { EngineFactory } from './OwnedEngine';
+export {
+  ChessEngineService,
+  createChessEngineService,
+  createMockChessEngineService,
+  STOCKFISH_PLATFORM_NOTES,
+} from './analysis';
+export type {
+  AnalyzePositionOptions,
+  ChessEngineServiceOptions,
+  EngineAnalysis,
+  EngineBestMove,
+  EngineScore,
+  EngineStatus,
+  EngineWdl,
+} from './analysis';
 
 /**
  * Build the opponent engine for the current platform.

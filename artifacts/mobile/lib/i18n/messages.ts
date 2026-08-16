@@ -380,8 +380,15 @@ export type MessageKey =
   | 'quiz.defendsNulleLead'
   | 'quiz.defendsNulleProgress'
   | 'quiz.defendsNulleThinking'
+  | 'quiz.defendsNullePreparing'
+  | 'quiz.defendsNulleReflecting'
   | 'quiz.defendsNulleLoading'
   | 'quiz.defendsNulleAgain'
+  | 'quiz.defendsNulleNext'
+  | 'quiz.defendsNulleContinue'
+  | 'quiz.defendsNulleRestart'
+  | 'quiz.defendsNulleAnother'
+  | 'quiz.defendsNulleEngineUnavailable'
   | 'quiz.incorrect'
   | 'quiz.correct'
   | 'quiz.played'
@@ -1012,13 +1019,21 @@ const fr: Dict = {
     'Reconnais le nom de l’ouverture à partir de la ligne jouée (base ECO).',
   'quiz.defendsNulle': 'Défends la nulle',
   'quiz.defendsNulleDesc':
-    'Tiens une position nulle pendant 10 coups. Tablebase d’abord, Stockfish en secours.',
+    'Tiens une finale difficile face à un adversaire qui joue au maximum.',
   'quiz.defendsNulleLead':
-    'Choisis un niveau, puis tiens la nulle pendant 10 de tes coups.',
+    'Position de départ certifiée nulle — tiens-la 30 coups face à Stockfish.',
   'quiz.defendsNulleProgress': 'Coups tenus : {{current}} / {{total}}',
-  'quiz.defendsNulleThinking': 'L’adversaire réfléchit…',
+  'quiz.defendsNulleThinking': 'Stockfish analyse…',
+  'quiz.defendsNullePreparing': 'Préparation de Stockfish…',
+  'quiz.defendsNulleReflecting': 'Stockfish réfléchit…',
   'quiz.defendsNulleLoading': 'Chargement…',
   'quiz.defendsNulleAgain': 'Nouvelle position',
+  'quiz.defendsNulleNext': 'Position suivante',
+  'quiz.defendsNulleContinue': 'Continuer',
+  'quiz.defendsNulleRestart': 'Recommencer',
+  'quiz.defendsNulleAnother': 'Jouer une autre finale',
+  'quiz.defendsNulleEngineUnavailable':
+    'Stockfish n’est pas disponible sur cette version de l’application.',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Joué : {{moves}}',
@@ -1687,13 +1702,21 @@ const en: Dict = {
   'quiz.quelleDesc': 'Recognize the opening name from the played line (ECO base).',
   'quiz.defendsNulle': 'Defend the draw',
   'quiz.defendsNulleDesc':
-    'Hold a drawn position for 10 moves. Tablebase first, Stockfish as fallback.',
+    'Hold a difficult endgame against a near-perfect opponent.',
   'quiz.defendsNulleLead':
-    'Pick a level, then hold the draw for 10 of your moves.',
+    'Certified drawn start — hold it for 30 moves against Stockfish.',
   'quiz.defendsNulleProgress': 'Moves held: {{current}} / {{total}}',
-  'quiz.defendsNulleThinking': 'Opponent is thinking…',
+  'quiz.defendsNulleThinking': 'Stockfish is analyzing…',
+  'quiz.defendsNullePreparing': 'Preparing Stockfish…',
+  'quiz.defendsNulleReflecting': 'Stockfish is thinking…',
   'quiz.defendsNulleLoading': 'Loading…',
   'quiz.defendsNulleAgain': 'New position',
+  'quiz.defendsNulleNext': 'Next position',
+  'quiz.defendsNulleContinue': 'Continue',
+  'quiz.defendsNulleRestart': 'Restart',
+  'quiz.defendsNulleAnother': 'Play another endgame',
+  'quiz.defendsNulleEngineUnavailable':
+    'Stockfish is not available in this version of the app.',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Played: {{moves}}',

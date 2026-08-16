@@ -1,6 +1,6 @@
 /**
- * WDL (win / draw / loss) abstraction for Défends la nulle.
- * Tablebase-first; Stockfish / heuristic fallbacks are layered by WdlProbe.
+ * WDL (win / draw / loss) for Défends la nulle.
+ * Tablebase = mathematical truth; Stockfish = pressure / move choice.
  */
 export type WdlVerdict = 'win' | 'draw' | 'loss' | 'unknown';
 
@@ -14,7 +14,8 @@ export type WdlProbeResult = {
   wdl?: number;
 };
 
-export const DEFEND_DRAW_TARGET_MOVES = 10;
+/** Player plies required to succeed. */
+export const DEFEND_DRAW_TARGET_MOVES = 30;
 
 export function invertVerdict(v: WdlVerdict): WdlVerdict {
   if (v === 'win') return 'loss';
@@ -27,4 +28,13 @@ export function verdictFromCp(cp: number, drawWindowCp = 80): WdlVerdict {
   if (cp > drawWindowCp) return 'win';
   if (cp < -drawWindowCp) return 'loss';
   return 'draw';
+}
+
+/**
+ * Defensive precision: drawingMoves / legalMoves.
+ * Lower = harder (fewer ways to hold).
+ */
+export function defensivePrecision(drawingMoves: number, legalMoves: number): number {
+  if (legalMoves <= 0) return 1;
+  return Math.max(0, Math.min(1, drawingMoves / legalMoves));
 }

@@ -1,5 +1,6 @@
 /**
- * Tablebase-first WDL probe with heuristic / injectable Stockfish fallback.
+ * Tablebase-first WDL probe with heuristic / Stockfish fallback.
+ * Also exposes tablebase move lists for opponent pressure selection.
  */
 import { Chess } from 'chess.js';
 import {
@@ -15,19 +16,46 @@ const LICHESS_TABLEBASE =
 export type StockfishEvalFn = (fen: string) => Promise<number | null>;
 
 export type WdlProbeOptions = {
-  /** Override fetch (tests / offline). */
   fetchImpl?: typeof fetch;
-  /** Timeout for tablebase HTTP. */
   tablebaseTimeoutMs?: number;
-  /** Optional Stockfish (or other) centipawn eval, side-to-move. */
   stockfishEval?: StockfishEvalFn;
-  /** Skip network tablebase. */
   disableTablebase?: boolean;
 };
 
+export type TablebaseMove = {
+  uci: string;
+  from: string;
+  to: string;
+  promotion?: string;
+  category: string;
+  verdict: WdlVerdict;
+  wdl?: number;
+};
+
+function mapLichessCategory(category: string | undefined): WdlVerdict | null {
+  if (!category) return null;
+  const c = category.toLowerCase();
+  if (c === 'draw' || c === 'blessed-loss' || c === 'cursed-win') return 'draw';
+  if (c === 'win' || c === 'maybe-win') return 'win';
+  if (c === 'loss' || c === 'maybe-loss') return 'loss';
+  return null;
+}
+
+function parseUci(uci: string): {
+  from: string;
+  to: string;
+  promotion?: string;
+} | null {
+  if (!uci || uci.length < 4) return null;
+  return {
+    from: uci.slice(0, 2),
+    to: uci.slice(2, 4),
+    promotion: uci.length > 4 ? uci[4]!.toLowerCase() : undefined,
+  };
+}
+
 function terminalVerdict(game: Chess): WdlProbeResult | null {
   if (game.isCheckmate()) {
-    // Side to move is mated → loss for STM.
     return { verdict: 'loss', source: 'terminal' };
   }
   if (
@@ -46,48 +74,34 @@ function pieceCount(game: Chess): number {
 }
 
 /**
- * Very coarse offline heuristic when tablebase / engine are unavailable.
- * Prefers "draw" in elementary low-material endings; otherwise unknown.
+ * Offline heuristic when tablebase / engine unavailable.
+ * Does NOT treat every low-piece ending as a useful draw exercise —
+ * only clear terminal / insufficient-material cases.
  */
 export function heuristicWdl(fen: string): WdlProbeResult {
   const game = new Chess(fen);
   const terminal = terminalVerdict(game);
   if (terminal) return terminal;
-
-  const n = pieceCount(game);
   if (game.isInsufficientMaterial()) {
     return { verdict: 'draw', source: 'heuristic' };
   }
-
-  // K vs K, KB vs K, KN vs K, KNN vs K are draws with correct play.
-  if (n <= 3) {
-    return { verdict: 'draw', source: 'heuristic' };
-  }
-  if (n === 4) {
-    const fenParts = fen.split(' ');
-    const board = fenParts[0] ?? '';
-    const hasQueenOrRook = /[qrQR]/.test(board);
-    if (!hasQueenOrRook) {
-      return { verdict: 'draw', source: 'heuristic' };
-    }
-  }
-
+  // Unknown otherwise — never invent "draw" for tense endings offline.
+  void pieceCount(game);
   return { verdict: 'unknown', source: 'heuristic' };
 }
 
-function mapLichessCategory(category: string | undefined): WdlVerdict | null {
-  if (!category) return null;
-  const c = category.toLowerCase();
-  if (c === 'draw' || c === 'blessed-loss' || c === 'cursed-win') return 'draw';
-  if (c === 'win' || c === 'maybe-win') return 'win';
-  if (c === 'loss' || c === 'maybe-loss') return 'loss';
-  return null;
-}
-
-async function probeTablebase(
+async function fetchTablebaseJson(
   fen: string,
   options: WdlProbeOptions,
-): Promise<WdlProbeResult | null> {
+): Promise<{
+  category?: string;
+  wdl?: number | null;
+  moves?: Array<{
+    uci?: string;
+    category?: string;
+    wdl?: number | null;
+  }>;
+} | null> {
   if (options.disableTablebase) return null;
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   if (typeof fetchImpl !== 'function') return null;
@@ -102,28 +116,13 @@ async function probeTablebase(
 
   try {
     const url = `${LICHESS_TABLEBASE}${encodeURIComponent(fen)}`;
-    const res = await fetchImpl(url, {
-      signal: controller?.signal,
-    });
+    const res = await fetchImpl(url, { signal: controller?.signal });
     if (!res.ok) return null;
-    const data = (await res.json()) as {
+    return (await res.json()) as {
       category?: string;
       wdl?: number | null;
+      moves?: Array<{ uci?: string; category?: string; wdl?: number | null }>;
     };
-    const fromCat = mapLichessCategory(data.category);
-    if (fromCat) {
-      return {
-        verdict: fromCat,
-        source: 'tablebase',
-        wdl: typeof data.wdl === 'number' ? data.wdl : undefined,
-      };
-    }
-    if (typeof data.wdl === 'number') {
-      const verdict: WdlVerdict =
-        data.wdl > 0 ? 'win' : data.wdl < 0 ? 'loss' : 'draw';
-      return { verdict, source: 'tablebase', wdl: data.wdl };
-    }
-    return null;
   } catch {
     return null;
   } finally {
@@ -131,10 +130,26 @@ async function probeTablebase(
   }
 }
 
-/**
- * Probe WDL for `fen` (side-to-move perspective).
- * Order: terminal → tablebase → Stockfish cp → heuristic.
- */
+function resultFromTablebaseData(data: {
+  category?: string;
+  wdl?: number | null;
+}): WdlProbeResult | null {
+  const fromCat = mapLichessCategory(data.category);
+  if (fromCat) {
+    return {
+      verdict: fromCat,
+      source: 'tablebase',
+      wdl: typeof data.wdl === 'number' ? data.wdl : undefined,
+    };
+  }
+  if (typeof data.wdl === 'number') {
+    const verdict: WdlVerdict =
+      data.wdl > 0 ? 'win' : data.wdl < 0 ? 'loss' : 'draw';
+    return { verdict, source: 'tablebase', wdl: data.wdl };
+  }
+  return null;
+}
+
 export async function probeWdl(
   fen: string,
   options: WdlProbeOptions = {},
@@ -143,17 +158,17 @@ export async function probeWdl(
   const terminal = terminalVerdict(game);
   if (terminal) return terminal;
 
-  const tb = await probeTablebase(fen, options);
-  if (tb) return tb;
+  const data = await fetchTablebaseJson(fen, options);
+  if (data) {
+    const tb = resultFromTablebaseData(data);
+    if (tb) return tb;
+  }
 
   if (options.stockfishEval) {
     try {
       const cp = await options.stockfishEval(fen);
       if (cp != null && Number.isFinite(cp)) {
-        return {
-          verdict: verdictFromCp(cp),
-          source: 'stockfish',
-        };
+        return { verdict: verdictFromCp(cp), source: 'stockfish' };
       }
     } catch {
       /* fall through */
@@ -163,7 +178,6 @@ export async function probeWdl(
   return heuristicWdl(fen);
 }
 
-/** WDL from a specific player's color perspective. */
 export async function probeWdlForPlayer(
   fen: string,
   playerColor: 'w' | 'b',
@@ -172,8 +186,55 @@ export async function probeWdlForPlayer(
   const stm = fen.split(' ')[1] === 'b' ? 'b' : 'w';
   const raw = await probeWdl(fen, options);
   if (stm === playerColor) return raw;
-  return {
-    ...raw,
-    verdict: invertVerdict(raw.verdict),
-  };
+  return { ...raw, verdict: invertVerdict(raw.verdict) };
+}
+
+/**
+ * Tablebase legal moves with WDL categories (STM perspective).
+ * Empty when TB unavailable.
+ */
+export async function probeTablebaseMoves(
+  fen: string,
+  options: WdlProbeOptions = {},
+): Promise<TablebaseMove[]> {
+  const data = await fetchTablebaseJson(fen, options);
+  if (!data?.moves?.length) return [];
+  const out: TablebaseMove[] = [];
+  for (const m of data.moves) {
+    if (!m.uci) continue;
+    const parsed = parseUci(m.uci);
+    if (!parsed) continue;
+    const verdict =
+      mapLichessCategory(m.category) ??
+      (typeof m.wdl === 'number'
+        ? m.wdl > 0
+          ? 'win'
+          : m.wdl < 0
+            ? 'loss'
+            : 'draw'
+        : 'unknown');
+    out.push({
+      uci: m.uci,
+      from: parsed.from,
+      to: parsed.to,
+      promotion: parsed.promotion,
+      category: m.category ?? '',
+      verdict,
+      wdl: typeof m.wdl === 'number' ? m.wdl : undefined,
+    });
+  }
+  return out;
+}
+
+/** Count how many STM moves preserve DRAW according to tablebase. */
+export async function countDrawingMoves(
+  fen: string,
+  options: WdlProbeOptions = {},
+): Promise<{ legal: number; drawing: number; source: 'tablebase' | 'none' }> {
+  const game = new Chess(fen);
+  const legal = game.moves().length;
+  const moves = await probeTablebaseMoves(fen, options);
+  if (!moves.length) return { legal, drawing: -1, source: 'none' };
+  const drawing = moves.filter((m) => m.verdict === 'draw').length;
+  return { legal, drawing, source: 'tablebase' };
 }
