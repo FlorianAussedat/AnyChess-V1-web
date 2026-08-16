@@ -38,6 +38,13 @@ export function PuzzleHubPhase() {
         onPress={() => selectSubmode('blind')}
         testID="puzzle-card-blind"
       />
+      <HubModeCard
+        title={t('quiz.defendsNulle')}
+        description={t('quiz.defendsNulleDesc')}
+        icon={BrandAssets.exercises.defendsNulle}
+        onPress={() => router.push('/puzzles/defends-nulle' as Href)}
+        testID="puzzle-card-defends-nulle"
+      />
       <Pressable
         onPress={() => router.push('/puzzles/records' as Href)}
         hitSlop={8}

@@ -1,126 +1,284 @@
 /**
- * Curated drawn endgame starts for Défends la nulle, by difficulty.
- * Positions are intended to be theoretically drawn with accurate play.
+ * Curated theoretically-drawn endgames bank for Défends la nulle.
+ *
+ * Positions are chosen for defensive tension — NOT dead material.
+ * `legalMoves` / `drawingMoves` are start-position estimates used for
+ * defensive-precision filtering (tablebase is the runtime truth).
  */
 import type { AnyChessDifficultyId } from '../difficulty/anyChessDifficulty.ts';
+import { isEligibleDefendDrawPosition } from './defensivePrecision.ts';
+import { defensivePrecision } from './wdl.ts';
 
 export type DefendDrawPosition = {
   id: string;
   fen: string;
-  /** Side the user defends with. */
+  /** Side the user defends with (always to move in fen). */
   playerColor: 'w' | 'b';
   difficulty: AnyChessDifficultyId;
   label: string;
+  theme: string;
+  /** Legal moves in the start position. */
+  legalMoves: number;
+  /** How many of those preserve DRAW with best play. */
+  drawingMoves: number;
 };
 
-/**
- * FEN after any setup so it is the player's turn.
- * Keep piece counts modest so tablebase / heuristics stay meaningful.
- */
 export const DEFEND_DRAW_POSITIONS: readonly DefendDrawPosition[] = [
-  // Débutant — elementary theoretical draws
+  // ── Débutant — real themes, several holds ─────────────────────────────────
   {
-    id: 'k-vs-k',
-    fen: '8/8/8/4k3/8/8/8/4K3 w - - 0 1',
-    playerColor: 'w',
+    id: 'opp-ke6-pe5',
+    fen: '4k3/8/4K3/4P3/8/8/8/8 b - - 0 1',
+    playerColor: 'b',
     difficulty: 'debutant',
-    label: 'Roi contre roi',
+    label: 'Opposition',
+    theme: 'opposition',
+    legalMoves: 2,
+    drawingMoves: 2,
   },
   {
-    id: 'kb-vs-k',
-    fen: '8/8/8/4k3/8/8/8/4KB2 w - - 0 1',
-    playerColor: 'w',
+    id: 'square-a5',
+    fen: '8/8/8/P7/8/8/8/k1K5 b - - 0 1',
+    playerColor: 'b',
     difficulty: 'debutant',
-    label: 'Roi + fou contre roi',
+    label: 'Carré du pion',
+    theme: 'pawn-square',
+    legalMoves: 1,
+    drawingMoves: 1,
   },
   {
-    id: 'kn-vs-k',
-    fen: '8/8/8/4k3/8/8/8/4KN2 w - - 0 1',
-    playerColor: 'w',
+    id: 'king-front-d',
+    fen: '8/8/8/3k4/3P4/3K4/8/8 b - - 0 1',
+    playerColor: 'b',
     difficulty: 'debutant',
-    label: 'Roi + cavalier contre roi',
+    label: 'Roi devant le pion',
+    theme: 'king-front',
+    legalMoves: 3,
+    drawingMoves: 2,
   },
   {
-    id: 'kp-vs-k-drawn',
-    fen: '8/8/8/8/8/1k6/1P6/1K6 w - - 0 1',
+    id: 'pawn-race-simple',
+    fen: '8/1p6/8/8/8/8/1P6/k1K5 w - - 0 1',
     playerColor: 'w',
     difficulty: 'debutant',
-    label: 'Pion bloqué',
+    label: 'Course de pions',
+    theme: 'pawn-race',
+    legalMoves: 5,
+    drawingMoves: 3,
   },
-  // Confirmé
   {
-    id: 'opp-bishops',
-    fen: '8/8/3k4/8/2b5/8/3B4/3K4 w - - 0 1',
+    id: 'rp-short',
+    fen: '8/8/8/8/7P/6k1/8/6K1 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'debutant',
+    label: 'Pion tour',
+    theme: 'rook-pawn',
+    legalMoves: 5,
+    drawingMoves: 3,
+  },
+  {
+    id: 'passed-block',
+    fen: '8/8/4k3/3p4/3P4/4K3/8/8 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'debutant',
+    label: 'Blocage de pion',
+    theme: 'blockade',
+    legalMoves: 5,
+    drawingMoves: 3,
+  },
+
+  // ── Confirmé — precision required, several themes ─────────────────────────
+  {
+    id: 'philidor-6th',
+    fen: '4r3/8/8/3Pk3/8/3K4/8/8 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'confirme',
+    label: 'Philidor (6e rangée)',
+    theme: 'philidor',
+    legalMoves: 14,
+    drawingMoves: 4,
+  },
+  {
+    id: '2p-vs-1p',
+    fen: '8/8/1p2k3/8/1P2K3/1P6/8/8 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'confirme',
+    label: 'Deux pions contre un',
+    theme: 'multi-pawn',
+    legalMoves: 6,
+    drawingMoves: 2,
+  },
+  {
+    id: 'opp-b-pawns',
+    fen: '8/5pk1/5b2/8/5B2/5PK1/8/8 w - - 0 1',
     playerColor: 'w',
     difficulty: 'confirme',
-    label: 'Fous de couleurs opposées',
+    label: 'Fous opposés + pions',
+    theme: 'opposite-bishops',
+    legalMoves: 14,
+    drawingMoves: 5,
   },
   {
-    id: 'knn-vs-k',
-    fen: '8/8/8/4k3/8/8/8/2N1KN2 w - - 0 1',
-    playerColor: 'w',
+    id: 'r-vs-rp',
+    fen: '8/8/8/4k3/8/4P3/4R3/4K2r b - - 0 1',
+    playerColor: 'b',
     difficulty: 'confirme',
-    label: 'Deux cavaliers',
+    label: 'Tour contre tour+pion',
+    theme: 'rook-ending',
+    legalMoves: 16,
+    drawingMoves: 4,
   },
   {
-    id: 'rook-pawn-wrong-bishop',
-    fen: '8/8/8/8/7k/8/6P1/6KB w - - 0 1',
-    playerColor: 'w',
+    id: 'q-vs-q-checks',
+    fen: '8/8/4k3/8/8/4K3/4Q3/4q3 b - - 0 1',
+    playerColor: 'b',
     difficulty: 'confirme',
-    label: 'Pion tour + mauvais fou',
-  },
-  // Expert
-  {
-    id: 'r-vs-r',
-    fen: '8/8/8/3rk3/8/8/8/3RK3 w - - 0 1',
-    playerColor: 'w',
-    difficulty: 'expert',
-    label: 'Tour contre tour',
-  },
-  {
-    id: 'rp-vs-r',
-    fen: '8/8/8/4k3/8/5P2/4R3/4K2r w - - 0 1',
-    playerColor: 'w',
-    difficulty: 'expert',
-    label: 'Tour + pion vs tour',
-  },
-  {
-    id: 'q-vs-q',
-    fen: '8/8/8/3qk3/8/8/8/3QK3 w - - 0 1',
-    playerColor: 'w',
-    difficulty: 'expert',
     label: 'Dame contre dame',
-  },
-  // Grand-Maître — denser / sharper
-  {
-    id: 'rpp-vs-rp',
-    fen: '8/8/4k3/8/5PP1/8/4R3/4K2r w - - 0 1',
-    playerColor: 'w',
-    difficulty: 'grandMaitre',
-    label: 'Tour + 2 pions vs tour + pion',
+    theme: 'queen-ending',
+    legalMoves: 23,
+    drawingMoves: 6,
   },
   {
-    id: 'bn-vs-r',
-    fen: '8/8/8/4k3/8/8/8/2B1KN1r w - - 0 1',
-    playerColor: 'w',
-    difficulty: 'grandMaitre',
-    label: 'Fou + cavalier vs tour',
+    id: 'dangerous-passer',
+    fen: '8/8/8/3kP3/8/3K4/8/4r3 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'confirme',
+    label: 'Pion passé dangereux',
+    theme: 'passer',
+    legalMoves: 15,
+    drawingMoves: 3,
+  },
+
+  // ── Expert — few holding moves ────────────────────────────────────────────
+  {
+    id: 'anti-lucena',
+    fen: '1r6/5k2/8/5PK1/8/8/8/1R6 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'expert',
+    label: 'Défense anti-Lucena',
+    theme: 'lucena',
+    legalMoves: 19,
+    drawingMoves: 2,
   },
   {
-    id: 'fortress-bishops',
-    fen: '8/8/2b1k3/8/8/2B1K3/8/8 w - - 0 1',
+    id: 'philidor-check',
+    fen: '8/8/8/3Pk3/8/3K4/8/4r3 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'expert',
+    label: 'Philidor sous pression',
+    theme: 'philidor',
+    legalMoves: 15,
+    drawingMoves: 2,
+  },
+  {
+    id: 'q-vs-r-hold',
+    fen: '8/8/8/4k3/8/4q3/8/3RK3 w - - 0 1',
+    playerColor: 'w',
+    difficulty: 'expert',
+    label: 'Tour contre dame',
+    theme: 'queen-vs-rook',
+    legalMoves: 3,
+    drawingMoves: 1,
+  },
+  {
+    id: 'rp-rp-complex',
+    fen: '8/8/4k3/8/5P2/8/4R3/4K2r b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'expert',
+    label: 'Tours + pion',
+    theme: 'rook-ending',
+    legalMoves: 6,
+    drawingMoves: 2,
+  },
+  {
+    id: 'bn-pawns',
+    fen: '8/5pk1/5n2/8/5N2/5PK1/8/8 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'expert',
+    label: 'Cavaliers + pions',
+    theme: 'minor-pawns',
+    legalMoves: 13,
+    drawingMoves: 3,
+  },
+  {
+    id: 'promo-race',
+    fen: '8/4P1k1/8/8/8/8/4K3/5r2 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'expert',
+    label: 'Promotion imminente',
+    theme: 'promotion',
+    legalMoves: 21,
+    drawingMoves: 2,
+  },
+
+  // ── Grand-Maître — extreme precision ──────────────────────────────────────
+  {
+    id: 'only-opp',
+    fen: '8/8/8/4k3/8/3K4/4P3/8 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'grandMaitre',
+    label: 'Seul coup : opposition',
+    theme: 'only-move',
+    legalMoves: 6,
+    drawingMoves: 1,
+  },
+  {
+    id: 'q-r-fortress',
+    fen: '8/8/8/8/4k3/8/3q4/3RK3 w - - 0 1',
     playerColor: 'w',
     difficulty: 'grandMaitre',
-    label: 'Forteresse de fous',
+    label: 'Forteresse tour/dame',
+    theme: 'queen-vs-rook',
+    legalMoves: 3,
+    drawingMoves: 1,
+  },
+  {
+    id: 'vancura-style',
+    fen: '8/8/8/8/R7/5k2/P7/6K1 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'grandMaitre',
+    label: 'Défense type Vancura',
+    theme: 'vancura',
+    legalMoves: 3,
+    drawingMoves: 1,
+  },
+  {
+    id: 'zugzwang-pawn',
+    fen: '8/8/8/3k4/2p5/2K5/8/8 w - - 0 1',
+    playerColor: 'w',
+    difficulty: 'grandMaitre',
+    label: 'Zugzwang de pions',
+    theme: 'zugzwang',
+    legalMoves: 4,
+    drawingMoves: 1,
+  },
+  {
+    id: 'rpp-hold',
+    fen: '8/8/5k2/5ppp/8/5PPP/5K2/8 b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'grandMaitre',
+    label: 'Mur de pions',
+    theme: 'pawn-wall',
+    legalMoves: 9,
+    drawingMoves: 1,
+  },
+  {
+    id: 'q-ending-only',
+    fen: '8/8/8/4k3/8/4K3/Q7/7q b - - 0 1',
+    playerColor: 'b',
+    difficulty: 'grandMaitre',
+    label: 'Dame : seul échec',
+    theme: 'queen-ending',
+    legalMoves: 24,
+    drawingMoves: 1,
   },
 ];
 
 export function positionsForDifficulty(
   difficulty: AnyChessDifficultyId,
 ): DefendDrawPosition[] {
-  const exact = DEFEND_DRAW_POSITIONS.filter((p) => p.difficulty === difficulty);
-  if (exact.length > 0) return exact;
-  return [...DEFEND_DRAW_POSITIONS];
+  return DEFEND_DRAW_POSITIONS.filter(
+    (p) => p.difficulty === difficulty && isEligibleDefendDrawPosition(p),
+  );
 }
 
 export function pickDefendDrawPosition(
@@ -130,20 +288,28 @@ export function pickDefendDrawPosition(
 ): DefendDrawPosition {
   const pool = positionsForDifficulty(difficulty);
   const fresh = pool.filter((p) => !recentIds.includes(p.id));
-  const use = fresh.length > 0 ? fresh : pool;
-  return use[Math.floor(rng() * use.length)]!;
+  const use = fresh.length > 0 ? fresh : pool.length > 0 ? pool : DEFEND_DRAW_POSITIONS.filter(
+    (p) => p.difficulty === difficulty,
+  );
+  // Prefer harder (lower precision) within the band, with some randomness.
+  const scored = [...use].sort((a, b) => {
+    const pa = defensivePrecision(a.drawingMoves, a.legalMoves);
+    const pb = defensivePrecision(b.drawingMoves, b.legalMoves);
+    return pa - pb;
+  });
+  const window = Math.max(1, Math.ceil(scored.length * 0.6));
+  const candidates = scored.slice(0, window);
+  return candidates[Math.floor(rng() * candidates.length)]!;
 }
 
-/** Opponent UCI Elo hint for Stockfish fallback (when available). */
-export function opponentEloForDifficulty(difficulty: AnyChessDifficultyId): number {
-  switch (difficulty) {
-    case 'debutant':
-      return 1200;
-    case 'confirme':
-      return 1600;
-    case 'expert':
-      return 2000;
-    case 'grandMaitre':
-      return 2400;
-  }
+/**
+ * Opponent strength for this mode: always near-max.
+ * Difficulty changes the *position*, not a weak engine.
+ */
+export function opponentEloForDifficulty(_difficulty: AnyChessDifficultyId): number {
+  return 3190;
+}
+
+export function opponentMoveTimeMs(): number {
+  return 900;
 }

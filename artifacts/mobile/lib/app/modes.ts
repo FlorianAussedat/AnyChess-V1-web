@@ -13,6 +13,8 @@ export type MainModeId =
 
 export type VisualisationExerciseId = 'mental' | 'nommer' | 'jouer' | 'records';
 
-export type QuizOuvertureExerciseId = 'quelle' | 'defends-nulle';
+export type QuizOuvertureExerciseId = 'quelle';
+
+export type PuzzleExerciseId = 'visual' | 'blind' | 'defends-nulle' | 'records';
 
 export type OpeningsExerciseId = 'play' | 'continue-line' | 'manage-pgn';
