@@ -313,6 +313,10 @@ export type MessageKey =
   | 'puzzle.nextMoveLabel'
   | 'puzzle.sideWhite'
   | 'puzzle.sideBlack'
+  | 'puzzle.youPlayWhite'
+  | 'puzzle.youPlayBlack'
+  | 'puzzle.plyAnnounce'
+  | 'puzzle.plyAnnounceNoReply'
   | 'puzzle.solution'
   | 'puzzle.solved'
   | 'puzzle.solvedWithHelp'
@@ -929,6 +933,10 @@ const fr: Dict = {
   'puzzle.nextMoveLabel': 'Coup suivant',
   'puzzle.sideWhite': 'Trait aux Blancs.',
   'puzzle.sideBlack': 'Trait aux Noirs.',
+  'puzzle.youPlayWhite': 'Vous jouez les Blancs',
+  'puzzle.youPlayBlack': 'Vous jouez les Noirs',
+  'puzzle.plyAnnounce': '{{user}} joué. L’adversaire joue {{opponent}}.',
+  'puzzle.plyAnnounceNoReply': '{{user}} joué.',
   'puzzle.solution': 'Solution',
   'puzzle.solved': 'Problème résolu',
   'puzzle.solvedWithHelp': 'Problème résolu avec aide',
@@ -1590,6 +1598,10 @@ const en: Dict = {
   'puzzle.nextMoveLabel': 'Next move',
   'puzzle.sideWhite': 'White to move.',
   'puzzle.sideBlack': 'Black to move.',
+  'puzzle.youPlayWhite': 'You play White',
+  'puzzle.youPlayBlack': 'You play Black',
+  'puzzle.plyAnnounce': '{{user}} played. Opponent plays {{opponent}}.',
+  'puzzle.plyAnnounceNoReply': '{{user}} played.',
   'puzzle.solution': 'Solution',
   'puzzle.solved': 'Puzzle solved',
   'puzzle.solvedWithHelp': 'Puzzle solved with help',

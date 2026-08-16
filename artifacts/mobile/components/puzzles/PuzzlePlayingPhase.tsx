@@ -198,13 +198,20 @@ export function PuzzlePlayingPhase() {
             {t('puzzle.meta', {
               id: puzzle.id,
               rating: puzzle.rating,
-              side: sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack'),
+              side:
+                submode === 'blind'
+                  ? orientation === 'w'
+                    ? t('puzzle.youPlayWhite')
+                    : t('puzzle.youPlayBlack')
+                  : sideToMove === 'w'
+                    ? t('puzzle.sideWhite')
+                    : t('puzzle.sideBlack'),
               streak: currentStreak,
             })}
           </Text>
         )}
 
-        {submode === 'blind' && !!positionNarration && (
+        {submode === 'blind' && !!positionNarration && phase === 'playing' && (
           <View
             style={[
               puzzleStyles.statusCard,
@@ -229,14 +236,17 @@ export function PuzzlePlayingPhase() {
                 fontSize: 13,
                 marginTop: 6,
               }}
+              testID="puzzle-blind-side-to-move"
             >
               {sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack')}
             </Text>
           </View>
         )}
 
-        {/* Shared Correct / incorrect banner */}
-        <MoveFeedbackBanner state={feedback.state} testID="puzzle-move-feedback" />
+        {/* Shared Correct / incorrect banner (visual); blind uses ply card below. */}
+        {submode !== 'blind' && (
+          <MoveFeedbackBanner state={feedback.state} testID="puzzle-move-feedback" />
+        )}
 
         {(submode === 'visual' || phase === 'solution-replay') && (
           <View
@@ -280,13 +290,46 @@ export function PuzzlePlayingPhase() {
           </View>
         )}
 
-        {submode === 'blind' && (!!lastFeedback || !!nextMoveHint) && (
-          <Text style={[puzzleStyles.hint, { color: colors.mutedForeground }]}>
-            {nextMoveHint ?? lastFeedback}
-          </Text>
+        {submode === 'blind' &&
+          phase === 'playing' &&
+          (!!lastFeedback || !!nextMoveHint || feedback.state.kind !== 'idle') && (
+          <View
+            style={[
+              puzzleStyles.statusCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            testID="puzzle-blind-ply-feedback"
+          >
+            <Text
+              style={{
+                color: colors.foreground,
+                fontFamily: 'Inter_500Medium',
+                fontSize: 14,
+              }}
+            >
+              {feedback.state.kind !== 'idle'
+                ? (feedback.state.message ??
+                  (feedback.state.kind === 'correct'
+                    ? t('common.correct')
+                    : t('common.incorrect')))
+                : (nextMoveHint ?? lastFeedback)}
+            </Text>
+            {feedback.state.kind !== 'idle' && !!(nextMoveHint ?? lastFeedback) && (
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontFamily: 'Inter_600SemiBold',
+                  fontSize: 13,
+                  marginTop: 6,
+                }}
+              >
+                {nextMoveHint ?? lastFeedback}
+              </Text>
+            )}
+          </View>
         )}
 
-        {showBoard && submode === 'visual' && (
+        {showBoard && submode === 'visual' && phase === 'playing' && (
           <ChessBoardSection
             boardSize={wideBoardSize}
             style={{ gap: 8 }}
@@ -550,8 +593,8 @@ export function PuzzlePlayingPhase() {
           </>
         )}
 
-        {/* Blind board appears only after an explicit piece reveal */}
-        {showBoard && submode === 'blind' && (
+        {/* Blind board: only during playing (never alongside solution-replay board). */}
+        {showBoard && submode === 'blind' && phase === 'playing' && (
           <View
             style={{
               alignItems: 'center',
@@ -575,6 +618,7 @@ export function PuzzlePlayingPhase() {
           </View>
         )}
 
+        {/* Single board for solution replay (visual or blind). */}
         {phase === 'solution-replay' && (
           <View
             style={{
@@ -583,6 +627,7 @@ export function PuzzlePlayingPhase() {
               alignSelf: 'center',
               width: wideBoardSize,
             }}
+            testID="puzzle-solution-board"
           >
             <ChessBoard
               board={displayBoard}

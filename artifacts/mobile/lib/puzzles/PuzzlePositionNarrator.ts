@@ -140,19 +140,32 @@ function enPassantLine(game: Chess, language: AppLanguage): string | null {
 
 /**
  * Build a full narration of `fen` (or the current position of `game`).
+ * Side-to-move is omitted by default — show it once in the UI instead.
  */
-export function narratePosition(fenOrGame: string | Chess): string {
+export type NarratePositionOptions = {
+  /** Append Trait aux Blancs/Noirs (default false to avoid UI duplication). */
+  includeSideToMove?: boolean;
+};
+
+export function narratePosition(
+  fenOrGame: string | Chess,
+  options?: NarratePositionOptions,
+): string {
   const game = typeof fenOrGame === 'string' ? new Chess(fenOrGame) : fenOrGame;
   const language = lang();
   const parts: string[] = [
     describeSide(game, 'w', language),
     '',
     describeSide(game, 'b', language),
-    '',
-    game.turn() === 'w'
-      ? tMsg('puzzle.sideWhite')
-      : tMsg('puzzle.sideBlack'),
   ];
+
+  // Side-to-move is shown once in the UI (not duplicated inside narration).
+  if (options?.includeSideToMove) {
+    parts.push('');
+    parts.push(
+      game.turn() === 'w' ? tMsg('puzzle.sideWhite') : tMsg('puzzle.sideBlack'),
+    );
+  }
 
   const castling = castlingLine(game, language);
   if (castling) parts.push(castling);
@@ -164,8 +177,11 @@ export function narratePosition(fenOrGame: string | Chess): string {
 }
 
 /** Spoken / TTS-friendly one-line summary (same content, flatter). */
-export function narratePositionSpoken(fenOrGame: string | Chess): string {
-  return narratePosition(fenOrGame).replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
+export function narratePositionSpoken(
+  fenOrGame: string | Chess,
+  options?: NarratePositionOptions,
+): string {
+  return narratePosition(fenOrGame, options).replace(/\n+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Exported for tests / callers that need piece naming. */

@@ -401,10 +401,17 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
   }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
 
-  const announceBlindPosition = useCallback((fen: string) => {
+  const announceBlindPosition = useCallback((fen: string, opts?: { flush?: boolean }) => {
     const text = narratePosition(fen);
     setPositionNarration(text);
-    speechService.speak(narratePositionSpoken(fen), { flush: true });
+    speechService.speak(narratePositionSpoken(fen), {
+      flush: opts?.flush ?? true,
+    });
+  }, []);
+
+  const refreshBlindNarrationSilent = useCallback((fen: string) => {
+    if (submodeRef.current !== 'blind') return;
+    setPositionNarration(narratePosition(fen));
   }, []);
 
   const finishSolved = useCallback(() => {
@@ -471,18 +478,62 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       syncFromSession();
       if (result === 'correct' || result === 'complete') {
         setNextMoveHint(null);
+        const notation = preferencesStore.getPreferences().chessNotation;
+        const userSan = userMove
+          ? formatSanForDisplay(userMove.san, notation)
+          : null;
+        const opponentSan = opponentMove
+          ? formatSanForDisplay(opponentMove.san, notation)
+          : null;
+
         if (userMove) setLastMove({ from: userMove.from, to: userMove.to });
-        setLastFeedback(
-          result === 'complete' ? tMsg('puzzle.solved') : tMsg('puzzle.correct'),
-        );
-        if (opponentMove) {
+
+        if (opponentMove && userMove && userSan && opponentSan) {
           setLastMove({ from: opponentMove.from, to: opponentMove.to });
-          speechService.speak(verbalMove(opponentMove), { flush: false });
+          const announce = tMsg('puzzle.plyAnnounce', {
+            user: userSan,
+            opponent: opponentSan,
+          });
+          setLastFeedback(announce);
+          speechService.speak(
+            tMsg('puzzle.plyAnnounce', {
+              user: verbalMove(userMove),
+              opponent: verbalMove(opponentMove),
+            }),
+            { flush: true },
+          );
+        } else if (userMove && userSan) {
+          const announce = tMsg('puzzle.plyAnnounceNoReply', { user: userSan });
+          setLastFeedback(
+            result === 'complete' ? tMsg('puzzle.solved') : announce,
+          );
+          if (userMove) {
+            speechService.speak(
+              tMsg('puzzle.plyAnnounceNoReply', {
+                user: verbalMove(userMove),
+              }),
+              { flush: true },
+            );
+          }
+        } else {
+          setLastFeedback(
+            result === 'complete' ? tMsg('puzzle.solved') : tMsg('puzzle.correct'),
+          );
         }
+
+        // Blind narration always mirrors the live session FEN (single source of truth).
+        refreshBlindNarrationSilent(sessionRef.current.getFen());
+
         if (result === 'complete') finishSolved();
       }
     },
-    [finishSolved, isPreviewing, showWrongMovePreview, syncFromSession],
+    [
+      finishSolved,
+      isPreviewing,
+      showWrongMovePreview,
+      syncFromSession,
+      refreshBlindNarrationSilent,
+    ],
   );
 
   const beginPuzzle = useCallback(
@@ -510,7 +561,14 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
           setBlackPiecesShown(false);
           setBoardVisible(false);
           setPieceRevealFilter('hidden');
-          announceBlindPosition(snap.startFen);
+          const camp =
+            snap.orientation === 'w'
+              ? tMsg('puzzle.youPlayWhite')
+              : tMsg('puzzle.youPlayBlack');
+          setLastFeedback(camp);
+          speechService.speak(camp, { flush: true });
+          // Queue position after camp so both are heard (no second flush).
+          announceBlindPosition(snap.startFen, { flush: false });
         } else {
           setWhitePiecesShown(false);
           setBlackPiecesShown(false);
