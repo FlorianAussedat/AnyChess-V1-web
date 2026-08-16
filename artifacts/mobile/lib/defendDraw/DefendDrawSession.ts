@@ -15,7 +15,8 @@ import {
 import type {
   DefenseAnalysis,
   DefenseAnalyzer,
-} from './StockfishAnalysisService.ts';
+} from './defenseTypes.ts';
+import { defendDrawMoveTimeMs } from './engineConfig.ts';
 import { DEFEND_DRAW_TARGET_MOVES } from './wdl.ts';
 
 export type DefendDrawPhase =
@@ -193,7 +194,8 @@ export class DefendDrawSession {
     }
 
     this.phase = 'thinking';
-    const analysis = await this.analyzer.analyze(this.game.fen());
+    const thinkMs = defendDrawMoveTimeMs(this.difficulty);
+    const analysis = await this.analyzer.analyze(this.game.fen(), thinkMs);
     this.lastAnalysis = analysis;
 
     const lost = isClearlyLostPosition(
@@ -261,7 +263,10 @@ export class DefendDrawSession {
     let pick = analysis.bestMove;
     // Ensure we search from the opponent's turn.
     if (this.game.turn() === this.position.playerColor || !pick) {
-      const refreshed = await this.analyzer.analyze(this.game.fen());
+      const refreshed = await this.analyzer.analyze(
+        this.game.fen(),
+        defendDrawMoveTimeMs(this.difficulty),
+      );
       this.lastAnalysis = refreshed;
       pick = refreshed.bestMove;
     }
@@ -296,7 +301,10 @@ export class DefendDrawSession {
       return;
     }
 
-    const afterOpp = await this.analyzer.analyze(this.game.fen());
+    const afterOpp = await this.analyzer.analyze(
+      this.game.fen(),
+      defendDrawMoveTimeMs(this.difficulty),
+    );
     this.lastAnalysis = afterOpp;
     const lost = isClearlyLostPosition(
       afterOpp,

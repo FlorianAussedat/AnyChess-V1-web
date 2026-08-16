@@ -1,5 +1,8 @@
 /**
  * Défends la nulle — certified starts + Stockfish-only mid-game logic.
+ *
+ * Imports are granular so Node tests never pull Metro platform factories
+ * (`createChessEngineService` / WASM Worker).
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -11,19 +14,22 @@ import {
   CLEARLY_LOST_CP_MAX,
   CLEARLY_LOST_STREAK_REQUIRED,
   CLEARLY_LOST_WDL_LOSS_MIN,
-  DEFEND_DRAW_POSITIONS,
-  DEFEND_DRAW_TARGET_MOVES,
-  DefendDrawSession,
-  createMockDefenseAnalyzer,
-  endgamePositionRepository,
   evaluateClearlyLostSignal,
   isClearlyLostPosition,
-  isTrivialInsufficientMaterial,
+} from '../isClearlyLostPosition.ts';
+import {
+  DEFEND_DRAW_POSITIONS,
+} from '../positions.ts';
+import {
+  endgamePositionRepository,
   listCertifiedEndgames,
   pickCertifiedEndgame,
-  verdictFromCp,
-  type DefenseAnalysis,
-} from '../index.ts';
+} from '../EndgamePositionRepository.ts';
+import { isTrivialInsufficientMaterial } from '../defensivePrecision.ts';
+import { DefendDrawSession } from '../DefendDrawSession.ts';
+import { DEFEND_DRAW_TARGET_MOVES, verdictFromCp } from '../wdl.ts';
+import { createMockDefenseAnalyzer } from '../mockDefenseAnalyzer.ts';
+import type { DefenseAnalysis } from '../defenseTypes.ts';
 import { parseInfoScoreSnapshot } from '../../engines/stockfish/uci.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -83,7 +89,6 @@ describe('isClearlyLostPosition', () => {
 
   it('detects forced mate against the defender immediately', () => {
     const fen = '8/8/8/4k3/8/4K3/8/8 w - - 0 1';
-    // White to move, mate against white (negative mateIn)
     const r = isClearlyLostPosition(
       baseAnalysis({ mateIn: -2, scoreCp: -999000, wdl: null }),
       fen,
@@ -229,15 +234,64 @@ describe('DefendDrawSession with mock Stockfish', () => {
 });
 
 describe('navigation still under Entraînement tactique', () => {
-  it('uses StockfishAnalysisService on the screen', () => {
+  it('uses ChessEngineService / StockfishAnalysisService — no random opponent', () => {
     const screen = read('app/puzzles/defends-nulle.tsx');
     assert.match(screen, /StockfishAnalysisService/);
-    assert.doesNotMatch(screen, /RandomEngine/);
+    assert.doesNotMatch(screen, /from ['\"]@?\/?.*engines\/random/);
+    assert.doesNotMatch(screen, /createOpponentEngine/);
     assert.doesNotMatch(screen, /probeWdl/);
+    assert.match(screen, /defendsNullePreparing/);
+    assert.match(screen, /defendsNulleReflecting/);
+    const analysis = read('lib/defendDraw/StockfishAnalysisService.ts');
+    assert.match(analysis, /ChessEngineService/);
+    assert.doesNotMatch(analysis, /transport\.ts/);
+    assert.doesNotMatch(analysis, /engines\/random/);
+    // Factory import omits .ts so Metro resolves createChessEngineService.web.ts
+    assert.match(
+      analysis,
+      /from '\.\.\/engines\/analysis\/createChessEngineService'/,
+    );
+    const service = read('lib/engines/analysis/ChessEngineService.ts');
+    assert.doesNotMatch(service, /from ['\"].*transport/);
+    assert.doesNotMatch(service, /engines\/random/);
+    const webFactory = read('lib/engines/analysis/createChessEngineService.web.ts');
+    assert.match(webFactory, /from '\.\.\/stockfish\/transport'/);
+    assert.doesNotMatch(webFactory, /transport\.ts/);
+    assert.match(webFactory, /createUciTransport/);
     const hub = read('components/puzzles/PuzzleHubPhase.tsx');
     assert.match(hub, /puzzle-card-defends-nulle/);
     const culture = read('app/quiz-ouverture/index.tsx');
     assert.doesNotMatch(culture, /defends-nulle/);
+  });
+});
+
+describe('session move flow', () => {
+  it('applies player move before Stockfish reply and blocks mid-think via phase', async () => {
+    let analyzeCalls = 0;
+    const analyzer = createMockDefenseAnalyzer((fen) => {
+      analyzeCalls += 1;
+      const g = new Chess(fen);
+      const m = g.moves({ verbose: true })[0];
+      return baseAnalysis({
+        bestMove: m
+          ? { from: m.from, to: m.to, promotion: m.promotion }
+          : null,
+        scoreCp: 0,
+        wdl: { win: 100, draw: 800, loss: 100 },
+      });
+    });
+    const session = new DefendDrawSession({ analyzer, targetMoves: 30 });
+    await session.start('debutant', [], () => 0);
+    const beforeFen = session.getChess().fen();
+    const legal = session.getChess().moves({ verbose: true })[0]!;
+    const after = await session.attemptMove(legal.from, legal.to);
+    assert.notEqual(after.fen, beforeFen);
+    assert.equal(after.playerMovesMade, 1);
+    assert.ok(analyzeCalls >= 1);
+    assert.equal(after.phase, 'playing');
+    // Simulate thinking lock
+    (session as unknown as { phase: string }).phase = 'thinking';
+    assert.deepEqual(session.getLegalDestinations(legal.from), []);
   });
 });
 

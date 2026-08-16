@@ -2,7 +2,7 @@
  * Prudent "clearly lost" detection for Défends la nulle (defender POV).
  * Mate is decisive; otherwise require a very strong / stable signal — never a small eval.
  */
-import type { DefenseAnalysis } from './StockfishAnalysisService.ts';
+import type { DefenseAnalysis } from './defenseTypes.ts';
 
 export type ClearlyLostReason = 'mate' | 'wdl' | 'cp' | null;
 

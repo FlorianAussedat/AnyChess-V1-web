@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,11 +26,12 @@ import { DesignTokens } from '@/constants/designTokens';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import type { AnyChessDifficultyId } from '@/lib/difficulty/anyChessDifficulty';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
+import type { EngineStatus } from '@/lib/engines';
 import {
   DefendDrawSession,
+  DEFEND_DRAW_ENGINE_CONFIG,
   DEFEND_DRAW_TARGET_MOVES,
   StockfishAnalysisService,
-  opponentMoveTimeMs,
   type DefendDrawSnapshot,
 } from '@/lib/defendDraw';
 
@@ -60,44 +60,54 @@ export default function DefendsNulleScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [engineReady, setEngineReady] = useState(Platform.OS !== 'web');
+  const [engineStatus, setEngineStatus] = useState<EngineStatus>('uninitialized');
   const [engineError, setEngineError] = useState<string | null>(null);
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
   const recentRef = useRef<string[]>([]);
   const startedRef = useRef(false);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') {
-      setEngineError(t('quiz.defendsNulleEngineUnavailable'));
-      return;
-    }
+    // Real Stockfish only — no random-move fallback. Service reports unavailable
+    // on native until a UCI transport exists; on web boots WASM Worker.
     const service = new StockfishAnalysisService({
-      moveTimeMs: opponentMoveTimeMs(),
+      moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
+      analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
+      bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
     });
     analyzerRef.current = service;
     sessionRef.current.setAnalyzer(service);
     let cancelled = false;
+
+    const unsub = service.onStatusChange((status) => {
+      if (!cancelled) setEngineStatus(status);
+    });
+    setEngineStatus(service.getStatus());
+
     void service
       .init()
       .then(() => {
-        if (!cancelled) {
-          setEngineReady(true);
-          setEngineError(null);
-        }
+        if (cancelled) return;
+        setEngineStatus(service.getStatus());
+        setEngineError(null);
       })
       .catch(() => {
-        if (!cancelled) {
-          setEngineError(t('quiz.defendsNulleEngineUnavailable'));
-          setEngineReady(false);
-        }
+        if (cancelled) return;
+        setEngineStatus(service.getStatus());
+        setEngineError(t('quiz.defendsNulleEngineUnavailable'));
       });
+
     return () => {
       cancelled = true;
+      unsub();
       sessionRef.current.setAnalyzer(null);
       service.destroy();
       analyzerRef.current = null;
     };
   }, [t]);
+
+  const engineReady = engineStatus === 'ready' || engineStatus === 'thinking';
+  const enginePreparing =
+    engineStatus === 'loading' || engineStatus === 'uninitialized';
 
   const refresh = useCallback((next: DefendDrawSnapshot) => {
     setSnap(next);
@@ -123,13 +133,14 @@ export default function DefendsNulleScreen() {
 
   useEffect(() => {
     if (startedRef.current) return;
+    if (!engineReady) return;
     startedRef.current = true;
     void startRound('debutant');
-  }, [startRound]);
+  }, [engineReady, startRound]);
 
   const onDifficultyChange = (next: AnyChessDifficultyId) => {
     setDifficulty(next);
-    void startRound(next);
+    if (engineReady) void startRound(next);
   };
 
   const nextPosition = useCallback(() => {
@@ -177,9 +188,12 @@ export default function DefendsNulleScreen() {
     [busy, engineReady, snap.phase, refresh],
   );
 
+  const thinking =
+    busy || snap.phase === 'thinking' || engineStatus === 'thinking';
+
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
     forceOff:
-      busy ||
+      thinking ||
       !engineReady ||
       (snap.phase !== 'playing' && snap.phase !== 'freeplay'),
     isSpeaking: false,
@@ -192,7 +206,7 @@ export default function DefendsNulleScreen() {
 
   const onSquarePress = useCallback(
     (square: string) => {
-      if (busy || !engineReady) return;
+      if (thinking || !engineReady) return;
       if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
       if (selected === null) {
         const dests = sessionRef.current.getLegalDestinations(square);
@@ -220,7 +234,7 @@ export default function DefendsNulleScreen() {
         setLegalDests([]);
       }
     },
-    [busy, engineReady, snap.phase, selected, legalDests, playUserMove],
+    [thinking, engineReady, snap.phase, selected, legalDests, playUserMove],
   );
 
   const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
@@ -228,7 +242,9 @@ export default function DefendsNulleScreen() {
   const challengeEnded =
     snap.phase === 'won' || snap.phase === 'lost' || snap.phase === 'drawn-early';
   const canMove =
-    engineReady && !busy && (snap.phase === 'playing' || snap.phase === 'freeplay');
+    engineReady &&
+    !thinking &&
+    (snap.phase === 'playing' || snap.phase === 'freeplay');
 
   const statusColor =
     snap.phase === 'won' || snap.phase === 'drawn-early'
@@ -236,6 +252,12 @@ export default function DefendsNulleScreen() {
       : snap.phase === 'lost'
         ? '#c44'
         : colors.foreground;
+
+  const busyLabel = enginePreparing
+    ? t('quiz.defendsNullePreparing')
+    : snap.phase === 'thinking' || engineStatus === 'thinking'
+      ? t('quiz.defendsNulleReflecting')
+      : t('quiz.defendsNulleLoading');
 
   return (
     <ScrollView
@@ -307,20 +329,16 @@ export default function DefendsNulleScreen() {
         />
       </ChessBoardSection>
 
-      {!!engineError && (
+      {!!engineError && !enginePreparing && (
         <Text style={{ color: '#c44' }} testID="defends-nulle-engine-error">
           {engineError}
         </Text>
       )}
 
-      {(busy || snap.phase === 'thinking' || (!engineReady && !engineError)) && (
-        <View style={styles.busyRow}>
+      {(enginePreparing || thinking) && !engineError && (
+        <View style={styles.busyRow} testID="defends-nulle-engine-busy">
           <ActivityIndicator color={colors.primary} />
-          <Text style={{ color: colors.mutedForeground }}>
-            {snap.phase === 'thinking'
-              ? t('quiz.defendsNulleThinking')
-              : t('quiz.defendsNulleLoading')}
-          </Text>
+          <Text style={{ color: colors.mutedForeground }}>{busyLabel}</Text>
         </View>
       )}
 
@@ -381,10 +399,10 @@ export default function DefendsNulleScreen() {
 
       <Pressable
         onPress={nextPosition}
-        disabled={busy}
+        disabled={busy || enginePreparing}
         style={({ pressed }) => [
           styles.nextLink,
-          { opacity: busy ? 0.4 : pressed ? 0.7 : 1 },
+          { opacity: busy || enginePreparing ? 0.4 : pressed ? 0.7 : 1 },
         ]}
         testID="defends-nulle-next"
       >

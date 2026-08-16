@@ -310,6 +310,7 @@ export function opponentEloForDifficulty(_difficulty: AnyChessDifficultyId): num
   return 3190;
 }
 
+/** @deprecated Prefer defendDrawMoveTimeMs(difficulty) from engineConfig. */
 export function opponentMoveTimeMs(): number {
-  return 900;
+  return 1000;
 }

@@ -42,15 +42,17 @@ export type {
   ClearlyLostVerdict,
 } from './isClearlyLostPosition.ts';
 export {
-  StockfishAnalysisService,
-  createMockDefenseAnalyzer,
-} from './StockfishAnalysisService.ts';
+  DEFEND_DRAW_ENGINE_CONFIG,
+  defendDrawMoveTimeMs,
+} from './engineConfig.ts';
 export type {
   DefenseAnalysis,
   DefenseAnalyzer,
   DefenseBestMove,
-  StockfishAnalysisServiceOptions,
-} from './StockfishAnalysisService.ts';
+} from './defenseTypes.ts';
+export { createMockDefenseAnalyzer } from './mockDefenseAnalyzer.ts';
+export { StockfishAnalysisService } from './StockfishAnalysisService.ts';
+export type { StockfishAnalysisServiceOptions } from './StockfishAnalysisService.ts';
 export { DefendDrawSession } from './DefendDrawSession.ts';
 export type {
   DefendDrawPhase,

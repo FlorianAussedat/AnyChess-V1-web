@@ -380,6 +380,8 @@ export type MessageKey =
   | 'quiz.defendsNulleLead'
   | 'quiz.defendsNulleProgress'
   | 'quiz.defendsNulleThinking'
+  | 'quiz.defendsNullePreparing'
+  | 'quiz.defendsNulleReflecting'
   | 'quiz.defendsNulleLoading'
   | 'quiz.defendsNulleAgain'
   | 'quiz.defendsNulleNext'
@@ -1022,6 +1024,8 @@ const fr: Dict = {
     'Position de départ certifiée nulle — tiens-la 30 coups face à Stockfish.',
   'quiz.defendsNulleProgress': 'Coups tenus : {{current}} / {{total}}',
   'quiz.defendsNulleThinking': 'Stockfish analyse…',
+  'quiz.defendsNullePreparing': 'Préparation de Stockfish…',
+  'quiz.defendsNulleReflecting': 'Stockfish réfléchit…',
   'quiz.defendsNulleLoading': 'Chargement…',
   'quiz.defendsNulleAgain': 'Nouvelle position',
   'quiz.defendsNulleNext': 'Position suivante',
@@ -1029,7 +1033,7 @@ const fr: Dict = {
   'quiz.defendsNulleRestart': 'Recommencer',
   'quiz.defendsNulleAnother': 'Jouer une autre finale',
   'quiz.defendsNulleEngineUnavailable':
-    'Stockfish est requis pour ce mode et n’est pas disponible ici.',
+    'Stockfish n’est pas disponible sur cette version de l’application.',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Joué : {{moves}}',
@@ -1703,6 +1707,8 @@ const en: Dict = {
     'Certified drawn start — hold it for 30 moves against Stockfish.',
   'quiz.defendsNulleProgress': 'Moves held: {{current}} / {{total}}',
   'quiz.defendsNulleThinking': 'Stockfish is analyzing…',
+  'quiz.defendsNullePreparing': 'Preparing Stockfish…',
+  'quiz.defendsNulleReflecting': 'Stockfish is thinking…',
   'quiz.defendsNulleLoading': 'Loading…',
   'quiz.defendsNulleAgain': 'New position',
   'quiz.defendsNulleNext': 'Next position',
@@ -1710,7 +1716,7 @@ const en: Dict = {
   'quiz.defendsNulleRestart': 'Restart',
   'quiz.defendsNulleAnother': 'Play another endgame',
   'quiz.defendsNulleEngineUnavailable':
-    'Stockfish is required for this mode and is not available here.',
+    'Stockfish is not available in this version of the app.',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Played: {{moves}}',
