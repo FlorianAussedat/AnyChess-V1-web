@@ -2,7 +2,7 @@
  * Continue la ligne — recite repertoire continuations.
  * Query: /openings/continue?folderId=…
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -27,6 +27,7 @@ import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
+import { getOpeningDisplayName } from '@/lib/openings';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
 import {
   formatNumberedSanForDisplay,
@@ -45,6 +46,12 @@ import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { speechService } from '@/services/SpeechService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 
+function openingLabelFromRepertoire(rep: {
+  headers: Array<Record<string, string>>;
+}): string | null {
+  return getOpeningDisplayName({ headersList: rep.headers });
+}
+
 function formatLine(
   sans: string[],
   startPly = 0,
@@ -56,6 +63,7 @@ function formatLine(
     )
     .join('  ');
 }
+
 
 export default function ContinueLineScreen() {
   useCancelSpeechOnLeave('/openings/continue');
@@ -192,7 +200,7 @@ export default function ContinueLineScreen() {
         activeFolderIdRef.current = pick.folderId;
         session.start(pick.repertoire, pick.repertoireName, {
           recentPathIds: recent,
-          sourceLabel: null,
+          sourceLabel: openingLabelFromRepertoire(pick.repertoire),
           path: pick.path,
           folderId: pick.folderId,
           trainingSide: pick.side,
@@ -202,7 +210,7 @@ export default function ContinueLineScreen() {
         activeFolderIdRef.current = folder.id;
         session.start(pool[0].repertoire, folder.name, {
           recentPathIds: recent,
-          sourceLabel: null,
+          sourceLabel: openingLabelFromRepertoire(pool[0].repertoire),
           folderId: folder.id,
           trainingSide: folder.side,
         });
@@ -273,6 +281,7 @@ export default function ContinueLineScreen() {
         startPly,
         folderId: folder.id,
         trainingSide: folder.side,
+        sourceLabel: openingLabelFromRepertoire(rep),
       });
       const begun = session.beginRecitation();
       setSnap(begun.snapshot);
@@ -394,6 +403,13 @@ export default function ContinueLineScreen() {
   const finished =
     snap.phase === 'completed' || snap.phase === 'failed' || snap.phase === 'error';
 
+  const continueOpeningLabel = useMemo(
+    () =>
+      getOpeningDisplayName({
+        sourceLabel: snap.sourceLabel,
+      }),
+    [snap.sourceLabel],
+  );
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
     isSpeaking,
     forceOff: finished || loading,
@@ -460,6 +476,16 @@ export default function ContinueLineScreen() {
         }`}
         showSound
       />
+
+      {!!continueOpeningLabel && (
+        <Text
+          testID="continue-opening-label"
+          numberOfLines={1}
+          style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 12 }}
+        >
+          {continueOpeningLabel}
+        </Text>
+      )}
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.cardLabel, { color: colors.mutedForeground }]}>{t('openings.status')}</Text>

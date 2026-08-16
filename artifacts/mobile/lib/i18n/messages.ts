@@ -222,6 +222,20 @@ export type MessageKey =
   | 'openings.viewTheoryLine'
   | 'openings.theoryDeviation'
   | 'openings.theoryComplete'
+  | 'openings.leftTheory'
+  | 'openings.endOfTheoreticalLine'
+  | 'openings.restartLine'
+  | 'openings.nextLine'
+  | 'openings.continueVsStockfish'
+  | 'openings.undoThinkAgain'
+  | 'openings.showExpectedMove'
+  | 'openings.showFullLine'
+  | 'openings.expectedMove'
+  | 'openings.theoryCompleteContinuing'
+  | 'openings.theoryLineTitle'
+  | 'openings.playedMoveHeading'
+  | 'openings.availableTheoryMoves'
+  | 'openings.close'
   | 'openings.theoryReport'
   | 'openings.theoryReportComplete'
   | 'openings.returnToRepertoire'
@@ -787,6 +801,20 @@ const fr: Dict = {
   'openings.theoryDeviation':
     'Vous êtes sorti de la théorie avec {{move}}.',
   'openings.theoryComplete': 'Ligne théorique complète.',
+  'openings.leftTheory': 'Vous êtes sorti de la théorie.',
+  'openings.endOfTheoreticalLine': 'Fin de cette ligne théorique',
+  'openings.restartLine': 'Recommencer la même ligne',
+  'openings.nextLine': 'Ligne suivante',
+  'openings.continueVsStockfish': 'Continuer vs Stockfish · {{level}}',
+  'openings.undoThinkAgain': 'Annuler mon dernier coup et réfléchir',
+  'openings.showExpectedMove': 'Voir le coup attendu',
+  'openings.showFullLine': 'Voir la ligne complète',
+  'openings.expectedMove': 'Coup attendu : {{move}}',
+  'openings.theoryCompleteContinuing': 'Théorie terminée · Suite vs Stockfish',
+  'openings.theoryLineTitle': 'Ligne théorique',
+  'openings.playedMoveHeading': 'Votre coup',
+  'openings.availableTheoryMoves': 'Coups théoriques disponibles',
+  'openings.close': 'Fermer',
   'openings.theoryReport': 'Rapport : {{message}}',
   'openings.theoryReportComplete':
     'Rapport : ligne théorique importée suivie jusqu’à son terme.',
@@ -1398,6 +1426,20 @@ const en: Dict = {
   'openings.viewTheoryLine': 'View theory line',
   'openings.theoryDeviation': 'You left theory with {{move}}.',
   'openings.theoryComplete': 'Theory line complete.',
+  'openings.leftTheory': 'You left the theoretical line.',
+  'openings.endOfTheoreticalLine': 'End of this theoretical line',
+  'openings.restartLine': 'Restart this line',
+  'openings.nextLine': 'Next line',
+  'openings.continueVsStockfish': 'Continue vs Stockfish · {{level}}',
+  'openings.undoThinkAgain': 'Undo my last move and think again',
+  'openings.showExpectedMove': 'Show expected move',
+  'openings.showFullLine': 'Show full line',
+  'openings.expectedMove': 'Expected move: {{move}}',
+  'openings.theoryCompleteContinuing': 'Theory complete · Continuing vs Stockfish',
+  'openings.theoryLineTitle': 'Theory line',
+  'openings.playedMoveHeading': 'Your move',
+  'openings.availableTheoryMoves': 'Available theoretical moves',
+  'openings.close': 'Close',
   'openings.theoryReport': 'Report: {{message}}',
   'openings.theoryReportComplete':
     'Report: imported theory line followed to the end.',

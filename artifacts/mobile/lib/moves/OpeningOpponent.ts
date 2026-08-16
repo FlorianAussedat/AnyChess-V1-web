@@ -1,3 +1,9 @@
+/**
+ * OpeningOpponent — repertoire book replies, then optional Stockfish handoff.
+ *
+ * Explicit training phases (do not collapse line-complete into deviation):
+ *   playingTheory → lineComplete | outOfTheory → engineContinuation
+ */
 import type { Chess, Move } from 'chess.js';
 import type { ChessEngine } from '@/lib/engine';
 import type { ParsedRepertoire } from '@/lib/repertoire';
@@ -12,6 +18,13 @@ import { OpeningMoveProvider, StockfishMoveProvider } from './MoveProviders';
 export type TheoryExitKind = 'player-deviation' | 'repertoire-end';
 export { formatNumberedSan };
 
+/** Explicit opening-training UI state. */
+export type OpeningTrainingState =
+  | 'playingTheory'
+  | 'lineComplete'
+  | 'outOfTheory'
+  | 'engineContinuation';
+
 export interface TheoryExit {
   kind: TheoryExitKind;
   /** 0-based half-move index of the move that triggered the exit. */
@@ -25,7 +38,12 @@ export interface TheoryExit {
   analysis?: DeviationAnalysis;
 }
 
-export type OpeningPhase = 'book' | 'engine';
+/** Internal opponent phase (maps 1:1 onto OpeningTrainingState). */
+export type OpeningPhase =
+  | 'book'
+  | 'lineComplete'
+  | 'outOfTheory'
+  | 'engine';
 
 function buildTheoryExit(
   kind: TheoryExitKind,
@@ -39,7 +57,7 @@ function buildTheoryExit(
       kind,
       ply,
       san,
-      message: tMsg('openings.theoryDeviation', { move: numbered }),
+      message: tMsg('openings.leftTheory'),
       pgnComment: `Sortie du répertoire avec ${numbered}`,
       analysis,
     };
@@ -48,9 +66,23 @@ function buildTheoryExit(
     kind,
     ply,
     san,
-    message: tMsg('openings.theoryComplete'),
+    message: tMsg('openings.endOfTheoreticalLine'),
     pgnComment: `Fin de la ligne théorique importée après ${numbered}`,
   };
+}
+
+export function trainingStateFromPhase(phase: OpeningPhase): OpeningTrainingState {
+  switch (phase) {
+    case 'lineComplete':
+      return 'lineComplete';
+    case 'outOfTheory':
+      return 'outOfTheory';
+    case 'engine':
+      return 'engineContinuation';
+    case 'book':
+    default:
+      return 'playingTheory';
+  }
 }
 
 export class OpeningOpponent {
@@ -88,15 +120,30 @@ export class OpeningOpponent {
     return this.phase;
   }
 
+  getTrainingState(): OpeningTrainingState {
+    return trainingStateFromPhase(this.phase);
+  }
+
   getTheoryExit(): TheoryExit | null {
     return this.theoryExit;
   }
 
+  getRepertoire(): ParsedRepertoire {
+    return this.repertoire;
+  }
+
+  /**
+   * User chose to keep the current board and play vs the engine.
+   * Preserves position; only flips phase to engine.
+   */
+  continueVsEngine(): void {
+    if (this.phase === 'engine') return;
+    this.phase = 'engine';
+  }
+
   /**
    * After a successful player move: detect deviation from the repertoire.
-   * `beforeFen` is the position BEFORE the player's move.
-   * Returns a theory-exit message to announce, or null if still in book /
-   * already out of book.
+   * Does NOT start engine play — caller must pause on outOfTheory.
    */
   onPlayerMove(beforeFen: string, played: Move, plyAfterMove: number): string | null {
     if (this.phase !== 'book') return null;
@@ -115,15 +162,26 @@ export class OpeningOpponent {
     );
     const exit = buildTheoryExit('player-deviation', deviationPly, played.san, analysis);
     this.theoryExit = exit;
-    this.phase = 'engine';
+    this.phase = 'outOfTheory';
     return exit.message;
   }
 
   onUndo(remainingPlyCount: number): void {
-    if (this.theoryExit && remainingPlyCount <= this.theoryExit.ply) {
+    if (
+      this.theoryExit &&
+      (this.phase === 'outOfTheory' || this.phase === 'engine' || this.phase === 'lineComplete') &&
+      remainingPlyCount <= this.theoryExit.ply
+    ) {
       this.theoryExit = null;
       this.phase = 'book';
     }
+    this.engine.cancel?.();
+  }
+
+  /** Clear deviation and return to book (after undoing the off-book move). */
+  returnToTheory(): void {
+    this.theoryExit = null;
+    this.phase = 'book';
     this.engine.cancel?.();
   }
 
@@ -136,14 +194,18 @@ export class OpeningOpponent {
         return { move: bookMove, theoryMessage: null };
       }
 
+      // End of theoretical line at this node — pause; do not auto-play Stockfish.
       const history = game.history();
       const lastSan = history[history.length - 1] ?? '?';
       const lastPly = history.length - 1;
       const exit = buildTheoryExit('repertoire-end', Math.max(0, lastPly), lastSan);
       this.theoryExit = exit;
-      this.phase = 'engine';
-      const engineMove = await this.engine.pickMove(game);
-      return { move: engineMove, theoryMessage: exit.message };
+      this.phase = 'lineComplete';
+      return { move: null, theoryMessage: exit.message };
+    }
+
+    if (this.phase === 'lineComplete' || this.phase === 'outOfTheory') {
+      return { move: null, theoryMessage: this.theoryExit?.message ?? null };
     }
 
     return { move: await this.engine.pickMove(game), theoryMessage: null };

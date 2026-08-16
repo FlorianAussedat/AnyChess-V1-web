@@ -35,6 +35,8 @@ describe('shared chess screen scaffold', () => {
     assert.match(opening, /ChessScreenScaffold/);
     assert.match(opening, /ChessBoardSection/);
     assert.match(opening, /ChessMoveInput/);
+    assert.match(opening, /opening-status-row/);
+    assert.match(opening, /OpeningVariationLabel/);
   });
 });
 

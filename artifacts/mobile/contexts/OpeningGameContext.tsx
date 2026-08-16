@@ -15,15 +15,16 @@ import {
   eloForBand,
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
-import { OpeningOpponent, type TheoryExit } from '@/lib/moves/OpeningOpponent';
+import { OpeningOpponent, type TheoryExit, type OpeningTrainingState, type OpeningPhase } from '@/lib/moves/OpeningOpponent';
 import type { ParsedRepertoire } from '@/lib/repertoire';
+import { movesForPosition } from '@/lib/repertoire';
 import {
   anyChessPgnFilename,
   downloadPgnFile,
   exportGamePgn,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
-import { identifyOpeningFromSans } from '@/lib/openings';
+import { identifyOpeningFromSans, getOpeningDisplayName } from '@/lib/openings';
 import { speechService } from '@/services/SpeechService';
 import {
   shouldEmitMoveRecognizedFeedback,
@@ -56,9 +57,13 @@ interface OpeningGameContextValue {
   playerColor: PlayerColor;
   moveEvent: MoveEvent | null;
   isSpeaking: boolean;
-  phase: 'book' | 'engine';
+  phase: OpeningPhase;
+  trainingState: OpeningTrainingState;
   theoryExit: TheoryExit | null;
   repertoireName: string;
+  openingLabel: string | null;
+  strengthBandId: string;
+  strengthBandLabel: string;
   ready: boolean;
   loadError: string | null;
   applyUserMove: (raw: string, source?: MoveInputSource) => void;
@@ -69,6 +74,16 @@ interface OpeningGameContextValue {
   repeatLast: () => void;
   summarizeGame: () => void;
   undoMove: () => void;
+  /** Keep current position and continue vs Stockfish. */
+  continueVsEngine: () => void;
+  /** Undo off-book move and return to theory without revealing. */
+  undoAndThinkAgain: () => void;
+  /** Undo off-book move, play/show the expected book move, continue theory. */
+  showExpectedMove: () => string | null;
+  /** Restart exact training from the initial position (same side/settings). */
+  restartLine: () => void;
+  /** Start another line (new game — different random book branches). */
+  nextLine: () => void;
   exportPgn: () => string;
   downloadPgn: () => void;
 }
@@ -100,9 +115,13 @@ export function OpeningGameProvider({
   strengthBandId = DEFAULT_STRENGTH_BAND_ID,
 }: ProviderProps) {
   const opponentRef = useRef<OpeningOpponent | null>(null);
-  const [phase, setPhase] = React.useState<'book' | 'engine'>('book');
+  const [phase, setPhase] = React.useState<OpeningPhase>('book');
+  const [trainingState, setTrainingState] =
+    React.useState<OpeningTrainingState>('playingTheory');
   const [theoryExit, setTheoryExit] = React.useState<TheoryExit | null>(null);
   const [ready, setReady] = React.useState(false);
+  const band = getStrengthBand(strengthBandId);
+  const strengthBandLabel = band.label;
 
   const play = useSharedPlayState();
   const {
@@ -170,8 +189,17 @@ export function OpeningGameProvider({
   const syncTheoryUi = useCallback(() => {
     const opp = opponentRef.current;
     setPhase(opp?.getPhase() ?? 'book');
+    setTrainingState(opp?.getTrainingState() ?? 'playingTheory');
     setTheoryExit(opp?.getTheoryExit() ?? null);
   }, []);
+
+  const openingLabel = React.useMemo(() => {
+    const eco = identifyOpeningFromSans(history);
+    return getOpeningDisplayName({
+      headersList: repertoire?.headers ?? null,
+      ecoName: eco?.name ?? null,
+    });
+  }, [history, repertoire]);
 
   const summarizeGameHistory = useCallback(() => {
     const moves = gameRef.current.history();
@@ -221,7 +249,9 @@ export function OpeningGameProvider({
 
     if (!selected) {
       setIsOpponentThinking(false);
-      setWaitingForUser(true);
+      // lineComplete / outOfTheory: wait for decision buttons, not a user move.
+      const st = opponentRef.current?.getTrainingState() ?? 'playingTheory';
+      setWaitingForUser(st === 'playingTheory' || st === 'engineContinuation');
       return;
     }
 
@@ -276,13 +306,17 @@ export function OpeningGameProvider({
       speechService.cancel('move');
 
       if (theoryMsg) {
+        // Left theory — pause; do not call the engine until the user chooses.
         speak(playerAnnouncement);
         speak(theoryMsg);
         setStatus(theoryMsg);
-      } else {
-        speak(playerAnnouncement);
-        setStatus(playerAnnouncement);
+        setWaitingForUser(false);
+        setIsOpponentThinking(false);
+        return;
       }
+
+      speak(playerAnnouncement);
+      setStatus(playerAnnouncement);
 
       if (game.isGameOver()) {
         setWaitingForUser(false);
@@ -301,6 +335,7 @@ export function OpeningGameProvider({
       speak,
       setStatus,
       setWaitingForUser,
+      setIsOpponentThinking,
       opponentMoveRef,
     ],
   );
@@ -435,6 +470,7 @@ export function OpeningGameProvider({
       gameRef.current.reset();
       resetUiForNewGame();
       setPhase('book');
+      setTrainingState('playingTheory');
       setTheoryExit(null);
       syncState();
 
@@ -461,6 +497,149 @@ export function OpeningGameProvider({
   const newGame = useCallback(() => {
     resetForColor(playerColorRef.current);
   }, [resetForColor, playerColorRef]);
+
+  const restartLine = useCallback(() => {
+    resetForColor(playerColorRef.current);
+  }, [resetForColor, playerColorRef]);
+
+  const nextLine = useCallback(() => {
+    // Same side/settings; newGame re-rolls random book branches.
+    resetForColor(playerColorRef.current);
+  }, [resetForColor, playerColorRef]);
+
+  const continueVsEngine = useCallback(() => {
+    const opp = opponentRef.current;
+    if (!opp) return;
+    opp.continueVsEngine();
+    syncTheoryUi();
+    const game = gameRef.current;
+    if (game.isGameOver()) {
+      setWaitingForUser(false);
+      setStatus(tMsg('openings.theoryCompleteContinuing'));
+      return;
+    }
+    setStatus(tMsg('openings.theoryCompleteContinuing'));
+    speak(tMsg('openings.theoryCompleteContinuing'));
+    // If it's the opponent's turn after the user's off-book move (or line end),
+    // kick Stockfish. If it's the user's turn, wait for them.
+    const turn = game.turn();
+    if (turn === playerColorRef.current) {
+      setWaitingForUser(true);
+      setIsOpponentThinking(false);
+    } else {
+      setWaitingForUser(false);
+      opponentMoveRef.current();
+    }
+  }, [
+    syncTheoryUi,
+    gameRef,
+    playerColorRef,
+    setWaitingForUser,
+    setIsOpponentThinking,
+    setStatus,
+    speak,
+    opponentMoveRef,
+  ]);
+
+  const undoAndThinkAgain = useCallback(() => {
+    const exit = opponentRef.current?.getTheoryExit();
+    if (!exit || exit.kind !== 'player-deviation') return;
+    cancelPending();
+    speechService.cancel('undo');
+    const result = undoPlayerTurn(gameRef.current, playerColorRef.current);
+    if (result.kind === 'noop') return;
+    opponentRef.current?.returnToTheory();
+    syncTheoryUi();
+    syncState();
+    setIsOpponentThinking(false);
+    setHeardText('');
+    setWaitingForUser(true);
+    setLastMove(result.kind === 'undone-to-start' ? null : result.lastMove);
+    setStatus(tMsg('game.yourTurn'));
+    speak(tMsg('game.yourTurn'));
+  }, [
+    cancelPending,
+    gameRef,
+    playerColorRef,
+    syncTheoryUi,
+    syncState,
+    setIsOpponentThinking,
+    setHeardText,
+    setWaitingForUser,
+    setLastMove,
+    setStatus,
+    speak,
+  ]);
+
+  const showExpectedMove = useCallback((): string | null => {
+    const opp = opponentRef.current;
+    const exit = opp?.getTheoryExit();
+    if (!opp || !exit || exit.kind !== 'player-deviation') return null;
+    const expected = exit.analysis?.availableMoves[0];
+    if (!expected) return null;
+
+    cancelPending();
+    speechService.cancel('hint');
+
+    // Undo the off-book move first.
+    const undoResult = undoPlayerTurn(gameRef.current, playerColorRef.current);
+    if (undoResult.kind === 'noop') return null;
+
+    opp.returnToTheory();
+    const game = gameRef.current;
+    const beforeFen = game.fen();
+    const choices = movesForPosition(opp.getRepertoire(), beforeFen);
+    const choice = choices.find((c) => c.uci === expected.uci) ?? choices[0];
+    if (!choice) {
+      syncTheoryUi();
+      syncState();
+      setWaitingForUser(true);
+      setStatus(tMsg('game.yourTurn'));
+      return null;
+    }
+
+    try {
+      const played = game.move({
+        from: choice.from,
+        to: choice.to,
+        promotion: choice.promotion || 'q',
+      }) as Move;
+      setLastMove({ from: played.from, to: played.to });
+      syncTheoryUi();
+      syncState();
+      const expectedLabel = expected.san;
+      setStatus(tMsg('openings.expectedMove', { move: expectedLabel }));
+      speak(tMsg('openings.expectedMove', { move: verbalMove(played) }));
+      setHeardText('');
+      setIsOpponentThinking(false);
+      if (game.isGameOver()) {
+        setWaitingForUser(false);
+      } else {
+        setWaitingForUser(false);
+        opponentMoveRef.current();
+      }
+      return expectedLabel;
+    } catch {
+      syncTheoryUi();
+      syncState();
+      setWaitingForUser(true);
+      setStatus(tMsg('game.yourTurn'));
+      return null;
+    }
+  }, [
+    cancelPending,
+    gameRef,
+    playerColorRef,
+    syncTheoryUi,
+    syncState,
+    setLastMove,
+    setStatus,
+    speak,
+    setHeardText,
+    setIsOpponentThinking,
+    setWaitingForUser,
+    opponentMoveRef,
+  ]);
 
   const changeColor = useCallback(
     (color: PlayerColor) => {
@@ -528,8 +707,12 @@ export function OpeningGameProvider({
         moveEvent,
         isSpeaking,
         phase,
+        trainingState,
         theoryExit,
         repertoireName,
+        openingLabel,
+        strengthBandId,
+        strengthBandLabel,
         ready,
         loadError,
         applyUserMove,
@@ -540,6 +723,11 @@ export function OpeningGameProvider({
         repeatLast,
         summarizeGame: summarizeGameHistory,
         undoMove,
+        continueVsEngine,
+        undoAndThinkAgain,
+        showExpectedMove,
+        restartLine,
+        nextLine,
         exportPgn,
         downloadPgn,
       }}
