@@ -1,11 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   RECORDS_CATEGORIES,
   listRecordsCategoryIds,
 } from '../recordsCatalog.ts';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { MoveNamingRecordsStore } from '../../moveNaming/MoveNamingRecords.ts';
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 describe('AnyChessRecords catalog', () => {
   it('lists categories that persist scores in the app', () => {
@@ -27,6 +32,14 @@ describe('AnyChessRecords catalog', () => {
     assert.equal(ids.includes('memorisation'), true);
     assert.equal(ids.includes('classic' as never), false);
     assert.equal(ids.includes('quiz' as never), false);
+  });
+
+  it('Records hub reuses ScreenHeader + router.back()', () => {
+    const src = readFileSync(join(here, '../../../app/records.tsx'), 'utf8');
+    assert.match(src, /ScreenHeader/);
+    assert.match(src, /records-back/);
+    assert.match(src, /router\.back\(\)/);
+    assert.match(src, /records\.title/);
   });
 });
 
