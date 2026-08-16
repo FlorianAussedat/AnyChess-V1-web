@@ -394,6 +394,11 @@ export type MessageKey =
   | 'quiz.backToHub'
   | 'quiz.identifyPrompt'
   | 'quiz.openingPlaceholder'
+  | 'quiz.selectFamily'
+  | 'quiz.selectVariation'
+  | 'quiz.selectOpening'
+  | 'quiz.stepFamily'
+  | 'quiz.stepVariation'
   | 'quiz.correctExclaim'
   | 'quiz.correctFamily'
   | 'quiz.answerIs'
@@ -1020,6 +1025,11 @@ const fr: Dict = {
   'quiz.backToHub': 'Retour à Culture générale',
   'quiz.identifyPrompt': 'Identifie l’ouverture après cette ligne :',
   'quiz.openingPlaceholder': 'Nom de l’ouverture',
+  'quiz.selectFamily': 'Quelle famille d’ouverture ?',
+  'quiz.selectVariation': 'Quelle variante ?',
+  'quiz.selectOpening': 'Quelle ouverture ?',
+  'quiz.stepFamily': 'Étape 1 — Famille',
+  'quiz.stepVariation': 'Étape 2 — Variante',
   'quiz.correctExclaim': 'Correct !',
   'quiz.correctFamily': 'Correct (famille acceptée) !',
   'quiz.answerIs': 'Réponse : {{name}}',
@@ -1684,6 +1694,11 @@ const en: Dict = {
   'quiz.backToHub': 'Back to General knowledge',
   'quiz.identifyPrompt': 'Identify the opening after this line:',
   'quiz.openingPlaceholder': 'Opening name',
+  'quiz.selectFamily': 'Which opening family?',
+  'quiz.selectVariation': 'Which variation?',
+  'quiz.selectOpening': 'Which opening?',
+  'quiz.stepFamily': 'Step 1 — Family',
+  'quiz.stepVariation': 'Step 2 — Variation',
   'quiz.correctExclaim': 'Correct!',
   'quiz.correctFamily': 'Correct (family accepted)!',
   'quiz.answerIs': 'Answer: {{name}}',

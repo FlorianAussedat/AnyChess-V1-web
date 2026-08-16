@@ -62,12 +62,14 @@ describe('construis wrong-answer contract', () => {
 });
 
 describe('quelle ouverture harmonization', () => {
-  it('uses NumberedSanRows + shared answer input + mic', () => {
+  it('uses NumberedSanRows + difficulty selector + answer paths', () => {
     const src = readFileSync(join(quizDir, 'quelle.tsx'), 'utf8');
     assert.match(src, /NumberedSanRows/);
+    assert.match(src, /DifficultySelector/);
     assert.match(src, /ChessAnswerInput/);
     assert.match(src, /GameMicButton/);
     assert.match(src, /quelle-mic/);
+    assert.match(src, /quelle-mcq/);
     assert.doesNotMatch(src, /Valider/);
     assert.doesNotMatch(src, /sans\.join\(/);
   });

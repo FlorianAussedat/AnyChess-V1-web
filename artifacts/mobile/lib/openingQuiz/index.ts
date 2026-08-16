@@ -12,6 +12,19 @@ export {
 } from './OpeningQuizSelector.ts';
 export { OpeningIdentificationSession } from './OpeningIdentificationSession.ts';
 export {
+  buildOpeningQuestion,
+  buildFamilyOptions,
+  buildVariationOptions,
+  familyOfOpeningName,
+  pickLineForDifficulty,
+  promptKindForQuestion,
+} from './openingQuestionBuilder.ts';
+export type {
+  BuiltOpeningQuestion,
+  OpeningQuizAnswerMode,
+  OpeningQuizPromptKind,
+} from './openingQuestionBuilder.ts';
+export {
   openingTargets,
   openingTargetsForFamily,
   findOpeningTarget,
