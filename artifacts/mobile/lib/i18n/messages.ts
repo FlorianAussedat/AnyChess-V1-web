@@ -119,6 +119,37 @@ export type MessageKey =
   | 'modes.visualisation.description'
   | 'modes.quiz-ouverture.title'
   | 'modes.quiz-ouverture.description'
+  | 'modes.parties.title'
+  | 'modes.parties.description'
+  | 'parties.title'
+  | 'parties.subtitle'
+  | 'parties.importPgn'
+  | 'parties.empty'
+  | 'parties.noMeta'
+  | 'parties.moveCount'
+  | 'parties.importOk'
+  | 'parties.importDuplicates'
+  | 'parties.importSkipped'
+  | 'parties.importNone'
+  | 'parties.importFailed'
+  | 'parties.deleteTitle'
+  | 'parties.deleteConfirm'
+  | 'parties.reader'
+  | 'parties.play'
+  | 'parties.pause'
+  | 'parties.prev'
+  | 'parties.next'
+  | 'parties.start'
+  | 'parties.end'
+  | 'parties.repeat'
+  | 'parties.hideMoves'
+  | 'parties.showMoves'
+  | 'parties.interval'
+  | 'parties.progress'
+  | 'parties.endOfGame'
+  | 'parties.backToLibrary'
+  | 'parties.notFound'
+  | 'parties.loading'
   // Game shared
   | 'game.movesPlayed'
   | 'game.exportPgn'
@@ -700,6 +731,38 @@ const fr: Dict = {
   'modes.quiz-ouverture.title': 'Culture générale',
   'modes.quiz-ouverture.description':
     'Teste tes connaissances sur les ouvertures et la culture échiquéenne.',
+  'modes.parties.title': 'Parties',
+  'modes.parties.description':
+    'Importe des PGN et rejoue-les à vue ou à l’écoute, coup après coup.',
+  'parties.title': 'Parties',
+  'parties.subtitle': 'Lecteur de parties',
+  'parties.importPgn': 'Importer un PGN',
+  'parties.empty': 'Aucune partie importée. Importe un fichier PGN pour commencer.',
+  'parties.noMeta': 'Métadonnées indisponibles',
+  'parties.moveCount': '{{count}} demi-coups',
+  'parties.importOk': '{{count}} partie(s) importée(s)',
+  'parties.importDuplicates': '{{count}} déjà présente(s)',
+  'parties.importSkipped': '{{count}} ignorée(s)',
+  'parties.importNone': 'Aucune nouvelle partie importée',
+  'parties.importFailed': 'Échec de l’import PGN',
+  'parties.deleteTitle': 'Supprimer la partie ?',
+  'parties.deleteConfirm': 'Supprimer',
+  'parties.reader': 'Lecteur de parties',
+  'parties.play': 'Lecture',
+  'parties.pause': 'Pause',
+  'parties.prev': 'Précédent',
+  'parties.next': 'Suivant',
+  'parties.start': 'Début',
+  'parties.end': 'Fin',
+  'parties.repeat': 'Répéter le dernier coup',
+  'parties.hideMoves': 'Masquer la notation',
+  'parties.showMoves': 'Afficher la notation',
+  'parties.interval': 'Intervalle',
+  'parties.progress': '{{label}} · {{ply}} / {{total}}',
+  'parties.endOfGame': 'Fin de la partie · {{result}}',
+  'parties.backToLibrary': 'Retour à la bibliothèque',
+  'parties.notFound': 'Partie introuvable',
+  'parties.loading': 'Chargement…',
   'game.movesPlayed': 'Coups joués',
   'game.exportPgn': 'Exporter en PGN',
   'game.export': 'Exporter',
@@ -1326,6 +1389,38 @@ const en: Dict = {
   'modes.quiz-ouverture.title': 'General knowledge',
   'modes.quiz-ouverture.description':
     'Test your knowledge of openings and chess culture.',
+  'modes.parties.title': 'Games',
+  'modes.parties.description':
+    'Import PGN files and replay them visually or by listening, move by move.',
+  'parties.title': 'Games',
+  'parties.subtitle': 'Game reader',
+  'parties.importPgn': 'Import a PGN',
+  'parties.empty': 'No imported games yet. Import a PGN file to get started.',
+  'parties.noMeta': 'No metadata available',
+  'parties.moveCount': '{{count}} plies',
+  'parties.importOk': '{{count}} game(s) imported',
+  'parties.importDuplicates': '{{count}} already present',
+  'parties.importSkipped': '{{count}} skipped',
+  'parties.importNone': 'No new games imported',
+  'parties.importFailed': 'PGN import failed',
+  'parties.deleteTitle': 'Delete this game?',
+  'parties.deleteConfirm': 'Delete',
+  'parties.reader': 'Game reader',
+  'parties.play': 'Play',
+  'parties.pause': 'Pause',
+  'parties.prev': 'Previous',
+  'parties.next': 'Next',
+  'parties.start': 'Start',
+  'parties.end': 'End',
+  'parties.repeat': 'Repeat last move',
+  'parties.hideMoves': 'Hide notation',
+  'parties.showMoves': 'Show notation',
+  'parties.interval': 'Interval',
+  'parties.progress': '{{label}} · {{ply}} / {{total}}',
+  'parties.endOfGame': 'End of game · {{result}}',
+  'parties.backToLibrary': 'Back to library',
+  'parties.notFound': 'Game not found',
+  'parties.loading': 'Loading…',
   'game.movesPlayed': 'Moves played',
   'game.exportPgn': 'Export PGN',
   'game.export': 'Export',

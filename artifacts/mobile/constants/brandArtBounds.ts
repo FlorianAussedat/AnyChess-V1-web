@@ -76,6 +76,12 @@ export const MASCOT_ART: Record<MainModeId, ArtBounds> = {
     right: 821 / 1024,
     bottom: 1054 / 1536,
   },
+  parties: {
+    left: 205 / 1024,
+    top: 305 / 1536,
+    right: 790 / 1024,
+    bottom: 926 / 1536,
+  },
 };
 
 export function artWidth(b: ArtBounds): number {

@@ -48,6 +48,7 @@ function RootLayoutNav() {
       <Stack.Screen name="puzzles" />
       <Stack.Screen name="visualisation" />
       <Stack.Screen name="quiz-ouverture" />
+      <Stack.Screen name="parties" />
       <Stack.Screen name="records" />
       <Stack.Screen name="utilisateur" />
       <Stack.Screen name="parametres" />

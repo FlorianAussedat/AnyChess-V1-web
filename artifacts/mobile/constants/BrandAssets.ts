@@ -26,6 +26,8 @@ export const BrandAssets = {
     puzzles: require('@/assets/brand/modes/tactics.png'),
     visualisation: require('@/assets/brand/modes/visualisation.png'),
     'quiz-ouverture': require('@/assets/brand/modes/quiz-ouverture.png'),
+    /** Temporary: openings art until a dedicated Parties mascot exists. */
+    parties: require('@/assets/brand/modes/openings.png'),
     target: require('@/assets/brand/modes/target.png'),
   },
   /**
@@ -56,6 +58,8 @@ export const BrandAssets = {
     puzzles: require('@/assets/brand/display/mascots/v1-mascot-tactics-knight-calculator.webp'),
     visualisation: require('@/assets/brand/display/mascots/v1-mascot-visualisation-knight-binoculars.webp'),
     'quiz-ouverture': require('@/assets/brand/display/mascots/V1-mascot-quiz-knight-detective.webp'),
+    /** Temporary reuse of openings mascot for Parties home card. */
+    parties: require('@/assets/brand/display/mascots/V1-mascot-openings-knight-reading.webp'),
   } as Partial<Record<MainModeId, ImageSourcePropType>>,
   sides: {
     white: require('@/assets/brand/sides/white.png'),

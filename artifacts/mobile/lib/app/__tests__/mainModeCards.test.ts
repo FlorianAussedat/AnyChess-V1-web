@@ -7,11 +7,27 @@ describe('main mode cards catalog', () => {
   it('exposes exactly the six existing modes with stable routes', () => {
     assert.deepEqual(
       MAIN_MODE_CARD_META.map((m) => m.id),
-      ['classic', 'openings', 'blind', 'puzzles', 'visualisation', 'quiz-ouverture'],
+      [
+        'classic',
+        'openings',
+        'blind',
+        'puzzles',
+        'visualisation',
+        'quiz-ouverture',
+        'parties',
+      ],
     );
     assert.deepEqual(
       MAIN_MODE_CARD_META.map((m) => String(m.route)),
-      ['/classic', '/openings', '/blind', '/puzzles', '/visualisation', '/quiz-ouverture'],
+      [
+        '/classic',
+        '/openings',
+        '/blind',
+        '/puzzles',
+        '/visualisation',
+        '/quiz-ouverture',
+        '/parties',
+      ],
     );
   });
 

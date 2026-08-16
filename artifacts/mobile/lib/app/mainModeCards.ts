@@ -70,4 +70,14 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     iconName: 'help-circle-outline',
     requiredMascotAsset: 'mascot-quiz-knight-detective.png',
   },
+  {
+    id: 'parties',
+    route: '/parties' as Href,
+    title: 'Parties',
+    description:
+      'Importe des PGN et rejoue-les à vue ou à l’écoute, coup après coup.',
+    iconName: 'play-circle-outline',
+    /** Temporary: reuse openings mascot until a dedicated asset ships. */
+    requiredMascotAsset: 'mascot-openings-knight-reading.png',
+  },
 ];
