@@ -115,7 +115,8 @@ describe('exercise hub mascot assets', () => {
   it('HubModeCard keeps contain sizing and no fill behind brand icons', () => {
     const card = read('components/HubModeCard.tsx');
     assert.match(card, /resizeMode=\"contain\"/);
-    assert.match(card, /modeIcon:\s*\{\s*width:\s*40,\s*height:\s*40\s*\}/);
+    assert.match(card, /modeIcon:\s*\{\s*width:\s*52,\s*height:\s*52\s*\}/);
+    assert.match(card, /iconWrap:\s*\{[\s\S]*?width:\s*64,[\s\S]*?height:\s*64,/);
     assert.match(
       card,
       /\{icon \? \([\s\S]*?<View style=\{styles\.iconWrap\}>[\s\S]*?\) : iconName \? \([\s\S]*?backgroundColor:\s*colors\.secondary/,

@@ -33,6 +33,7 @@ const HOME_SOURCES = [
   'mascots/v1-mascot-tactics-knight-calculator.png',
   'mascots/v1-mascot-visualisation-knight-binoculars.png',
   'mascots/V1-mascot-quiz-knight-detective.png',
+  'mascots/mascot-player-knight-dj.png',
 ];
 
 /**

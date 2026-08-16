@@ -84,13 +84,13 @@ const styles = StyleSheet.create({
     minHeight: 88,
   },
   iconWrap: {
-    width: 48,
-    height: 48,
+    width: 64,
+    height: 64,
     borderRadius: DesignTokens.radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modeIcon: { width: 40, height: 40 },
+  modeIcon: { width: 52, height: 52 },
   textCol: { flex: 1, gap: 3 },
   cardTitle: {
     fontSize: 16,

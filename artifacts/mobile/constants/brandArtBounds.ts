@@ -77,12 +77,19 @@ export const MASCOT_ART: Record<MainModeId, ArtBounds> = {
     bottom: 1054 / 1536,
   },
   parties: {
-    left: 205 / 1024,
-    top: 305 / 1536,
-    right: 790 / 1024,
-    bottom: 926 / 1536,
+    // Square DJ canvas (1254×1254) — subject nearly fills the frame.
+    left: 174 / 1254,
+    top: 53 / 1254,
+    right: 1104 / 1254,
+    bottom: 1185 / 1254,
   },
 };
+
+/** Canvas width/height for ModeCard scaling (most mascots are 2:3 portraits). */
+export function mascotCanvasAspect(modeId: MainModeId): number {
+  if (modeId === 'parties') return 1;
+  return 1024 / 1536;
+}
 
 export function artWidth(b: ArtBounds): number {
   return b.right - b.left;

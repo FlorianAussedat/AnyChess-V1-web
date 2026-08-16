@@ -73,11 +73,10 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
   {
     id: 'parties',
     route: '/parties' as Href,
-    title: 'Parties',
+    title: 'Lecteur de Parties',
     description:
       'Importe des PGN et rejoue-les à vue ou à l’écoute, coup après coup.',
     iconName: 'play-circle-outline',
-    /** Temporary: reuse openings mascot until a dedicated asset ships. */
-    requiredMascotAsset: 'mascot-openings-knight-reading.png',
+    requiredMascotAsset: 'mascot-player-knight-dj.png',
   },
 ];
