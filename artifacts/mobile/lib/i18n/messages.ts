@@ -375,8 +375,13 @@ export type MessageKey =
   | 'quiz.cultureMixed'
   | 'quiz.quelle'
   | 'quiz.quelleDesc'
-  | 'quiz.construis'
-  | 'quiz.construisDesc'
+  | 'quiz.defendsNulle'
+  | 'quiz.defendsNulleDesc'
+  | 'quiz.defendsNulleLead'
+  | 'quiz.defendsNulleProgress'
+  | 'quiz.defendsNulleThinking'
+  | 'quiz.defendsNulleLoading'
+  | 'quiz.defendsNulleAgain'
   | 'quiz.incorrect'
   | 'quiz.correct'
   | 'quiz.played'
@@ -1005,9 +1010,15 @@ const fr: Dict = {
   'quiz.quelle': 'Quelle ouverture ?',
   'quiz.quelleDesc':
     'Reconnais le nom de l’ouverture à partir de la ligne jouée (base ECO).',
-  'quiz.construis': 'Construis l’ouverture',
-  'quiz.construisDesc':
-    'Dicte la ligne jusqu’à la position qui identifie l’ouverture demandée.',
+  'quiz.defendsNulle': 'Défends la nulle',
+  'quiz.defendsNulleDesc':
+    'Tiens une position nulle pendant 10 coups. Tablebase d’abord, Stockfish en secours.',
+  'quiz.defendsNulleLead':
+    'Choisis un niveau, puis tiens la nulle pendant 10 de tes coups.',
+  'quiz.defendsNulleProgress': 'Coups tenus : {{current}} / {{total}}',
+  'quiz.defendsNulleThinking': 'L’adversaire réfléchit…',
+  'quiz.defendsNulleLoading': 'Chargement…',
+  'quiz.defendsNulleAgain': 'Nouvelle position',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Joué : {{moves}}',
@@ -1674,9 +1685,15 @@ const en: Dict = {
   'quiz.cultureMixed': 'Chess culture — 10 mixed questions',
   'quiz.quelle': 'Which opening?',
   'quiz.quelleDesc': 'Recognize the opening name from the played line (ECO base).',
-  'quiz.construis': 'Build the opening',
-  'quiz.construisDesc':
-    'Dictate the line until the position that identifies the requested opening.',
+  'quiz.defendsNulle': 'Defend the draw',
+  'quiz.defendsNulleDesc':
+    'Hold a drawn position for 10 moves. Tablebase first, Stockfish as fallback.',
+  'quiz.defendsNulleLead':
+    'Pick a level, then hold the draw for 10 of your moves.',
+  'quiz.defendsNulleProgress': 'Moves held: {{current}} / {{total}}',
+  'quiz.defendsNulleThinking': 'Opponent is thinking…',
+  'quiz.defendsNulleLoading': 'Loading…',
+  'quiz.defendsNulleAgain': 'New position',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Played: {{moves}}',

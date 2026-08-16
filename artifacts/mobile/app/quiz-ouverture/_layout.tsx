@@ -5,7 +5,7 @@ export default function QuizOuvertureLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="quelle" />
-      <Stack.Screen name="construis" />
+      <Stack.Screen name="defends-nulle" />
       <Stack.Screen name="culture" />
     </Stack>
   );

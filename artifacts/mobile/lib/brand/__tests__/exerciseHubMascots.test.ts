@@ -67,6 +67,7 @@ describe('exercise hub mascot assets', () => {
     assert.match(brand, /exercises:\s*\{/);
     for (const key of [
       'construisOuverture',
+      'defendsNulle',
       'ecouterPuisReconstruire',
       'problemesVisuels',
       'quiz',
@@ -97,9 +98,10 @@ describe('exercise hub mascot assets', () => {
 
     const culture = read('app/quiz-ouverture/index.tsx');
     assert.match(culture, /BrandAssets\.exercises\.quelleOuverture/);
-    assert.match(culture, /BrandAssets\.exercises\.construisOuverture/);
+    assert.match(culture, /BrandAssets\.exercises\.defendsNulle/);
     assert.match(culture, /BrandAssets\.exercises\.quiz/);
     assert.doesNotMatch(culture, /BrandAssets\.modes/);
+    assert.doesNotMatch(culture, /construisOuverture/);
 
     const blind = read('components/blind/BlindHubPhase.tsx');
     assert.match(blind, /BrandAssets\.exercises\.ecouterPuisReconstruire/);
