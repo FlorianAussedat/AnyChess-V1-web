@@ -18,6 +18,10 @@ import {
   validateChessCultureQuestionBank,
 } from '../quizEngine.ts';
 import {
+  localizeChessCultureQuestion,
+  localizeChessCultureQuestions,
+} from '../localizeQuestion.ts';
+import {
   QuestionFeedbackStore,
   CHESS_CULTURE_FEEDBACK_STORAGE_KEY,
   getBlacklistedChessCultureQuestionIds,
@@ -26,8 +30,9 @@ import {
 } from '../QuestionFeedbackStore.ts';
 import {
   listChessCultureImageIds,
-  resolveChessCultureImageSource,
-} from '../visualRegistry.ts';
+  hasChessCultureImage,
+} from '../imageRegistryIds.ts';
+import { resolveChessCultureImageSource } from '../resolveImage.ts';
 import type { ChessCultureQuestion } from '../types.ts';
 
 function sampleQuestion(
@@ -49,16 +54,33 @@ function sampleQuestion(
 }
 
 describe('chessCulture question bank', () => {
-  it('contains at least 40 questions with unique ids', () => {
-    assert.ok(CHESS_CULTURE_QUESTIONS.length >= 40);
+  it('contains at least 180 questions with unique ids', () => {
+    assert.ok(CHESS_CULTURE_QUESTIONS.length >= 180);
     const ids = CHESS_CULTURE_QUESTIONS.map((q) => q.id);
     assert.equal(new Set(ids).size, ids.length);
   });
 
-  it('has exactly 100 active valid questions', () => {
+  it('has a large active bank with practical category coverage', () => {
     const active = CHESS_CULTURE_QUESTIONS.filter((q) => q.active === true);
-    assert.equal(active.length, 100);
-    assert.equal(CHESS_CULTURE_QUESTIONS.length, 100);
+    assert.equal(active.length, CHESS_CULTURE_QUESTIONS.length);
+    assert.ok(active.length >= 180);
+    const categories = new Set(active.map((q) => q.category));
+    for (const required of [
+      'checkmates',
+      'terminology',
+      'visual',
+      'modern-chess',
+      'openings',
+      'rules',
+    ] as const) {
+      assert.ok(categories.has(required), `missing category ${required}`);
+    }
+    assert.ok(active.filter((q) => q.category === 'checkmates').length >= 10);
+    assert.ok(active.filter((q) => q.id.startsWith('terminology-new-')).length >= 20);
+    assert.ok(active.filter((q) => q.category === 'visual').length >= 15);
+    assert.ok(active.filter((q) => q.category === 'modern-chess').length >= 20);
+    assert.ok(active.filter((q) => q.id.startsWith('openings-new-')).length >= 10);
+    assert.ok(active.filter((q) => q.id.startsWith('rules-new-')).length >= 10);
   });
 
   it('passes schema validation including FEN questions', () => {
@@ -68,12 +90,18 @@ describe('chessCulture question bank', () => {
     assert.deepEqual(errors, []);
   });
 
-  it('keeps existing FEN presentation questions valid', () => {
+  it('keeps FEN presentation questions valid', () => {
     const fenQs = CHESS_CULTURE_QUESTIONS.filter((q) => q.presentation?.boardFen);
-    assert.ok(fenQs.length >= 1);
+    assert.ok(fenQs.length >= 15);
     for (const q of fenQs) {
       assert.deepEqual(validateChessCultureQuestion(q), []);
       assert.equal(isValidChessFen(q.presentation!.boardFen!), true);
+    }
+  });
+
+  it('assigns difficulty metadata in range 1..5', () => {
+    for (const q of CHESS_CULTURE_QUESTIONS) {
+      assert.ok(q.difficulty >= 1 && q.difficulty <= 5);
     }
   });
 
@@ -81,6 +109,27 @@ describe('chessCulture question bank', () => {
     const textOnly = CHESS_CULTURE_QUESTIONS.filter((q) => !q.presentation);
     assert.ok(textOnly.length >= 1);
     assert.deepEqual(validateChessCultureQuestion(textOnly[0]!), []);
+  });
+
+  it('provides bilingual copy for the practical expansion modules', () => {
+    const expansion = CHESS_CULTURE_QUESTIONS.filter(
+      (q) =>
+        q.id.startsWith('checkmates-') ||
+        q.id.startsWith('terminology-new-') ||
+        q.id.startsWith('visual-') ||
+        q.id.startsWith('modern-') ||
+        q.id.startsWith('player-photo-') ||
+        q.id.startsWith('player-clue-') ||
+        q.id.startsWith('openings-new-') ||
+        q.id.startsWith('rules-new-'),
+    );
+    assert.ok(expansion.length >= 90);
+    for (const q of expansion) {
+      assert.ok(q.i18nEn, `missing i18nEn for ${q.id}`);
+      assert.ok(q.i18nEn!.question.trim().length > 0);
+      assert.equal(q.i18nEn!.answers.length, 4);
+      assert.ok(q.i18nEn!.explanation.trim().length > 0);
+    }
   });
 
   it('does not mutate source question objects when building a session', () => {
@@ -94,6 +143,37 @@ describe('chessCulture question bank', () => {
     assert.ok(session.length > 0);
     assert.equal(JSON.stringify(frozen[0]), before);
     assert.equal(frozen[0]!.answers[0], CHESS_CULTURE_QUESTIONS[0]!.answers[0]);
+  });
+});
+
+describe('chessCulture localization', () => {
+  it('returns French canonical text when language is fr', () => {
+    const q = CHESS_CULTURE_QUESTIONS.find((item) => item.id === 'checkmates-001');
+    assert.ok(q?.i18nEn);
+    const localized = localizeChessCultureQuestion(q!, 'fr');
+    assert.equal(localized.question, q!.question);
+    assert.equal(localized.explanation, q!.explanation);
+  });
+
+  it('swaps EN copy without mutating the source question', () => {
+    const q = CHESS_CULTURE_QUESTIONS.find((item) => item.id === 'checkmates-001');
+    assert.ok(q?.i18nEn);
+    const before = JSON.stringify(q);
+    const localized = localizeChessCultureQuestion(q!, 'en');
+    assert.equal(localized.question, q!.i18nEn!.question);
+    assert.deepEqual(localized.answers, q!.i18nEn!.answers);
+    assert.equal(localized.explanation, q!.i18nEn!.explanation);
+    assert.equal(JSON.stringify(q), before);
+  });
+
+  it('localizes a bank for an English session while preserving ids', () => {
+    const sample = CHESS_CULTURE_QUESTIONS.filter((q) => q.i18nEn).slice(0, 5);
+    const localized = localizeChessCultureQuestions(sample, 'en');
+    assert.equal(localized.length, sample.length);
+    for (let i = 0; i < sample.length; i += 1) {
+      assert.equal(localized[i]!.id, sample[i]!.id);
+      assert.equal(localized[i]!.question, sample[i]!.i18nEn!.question);
+    }
   });
 });
 
@@ -316,6 +396,24 @@ describe('chessCulture FEN helpers', () => {
     assert.equal(board.length, 8);
     assert.equal(board[7]![4]?.type, 'k');
   });
+
+  it('rejects invalid FEN without throwing from isValidChessFen', () => {
+    assert.equal(isValidChessFen('8/8/8/8/8/8/8/8 w - - 0 1'), false);
+    assert.equal(isValidChessFen(''), false);
+  });
+
+  it('keeps bank validation resilient when a question has a bad FEN', () => {
+    const broken = sampleQuestion({
+      id: 'bad-fen-1',
+      presentation: { boardFen: 'not-a-real-fen' },
+    });
+    const errors = validateChessCultureQuestion(broken);
+    assert.ok(errors.some((e) => e.message.includes('boardFen')));
+    // Valid neighbors still validate independently.
+    const ok = CHESS_CULTURE_QUESTIONS.find((q) => q.presentation?.boardFen);
+    assert.ok(ok);
+    assert.deepEqual(validateChessCultureQuestion(ok!), []);
+  });
 });
 
 describe('chessCulture optional visuals', () => {
@@ -411,9 +509,10 @@ describe('chessCulture optional visuals', () => {
   });
 
   it('resolves missing images safely without throwing', () => {
-    assert.equal(resolveChessCultureImageSource(undefined), null);
-    assert.equal(resolveChessCultureImageSource(''), null);
-    assert.equal(resolveChessCultureImageSource('does-not-exist'), null);
+    const lookup = () => null;
+    assert.equal(resolveChessCultureImageSource(undefined, lookup), null);
+    assert.equal(resolveChessCultureImageSource('', lookup), null);
+    assert.equal(resolveChessCultureImageSource('does-not-exist', lookup), null);
     assert.equal(
       resolveChessCultureImageSource('x', () => {
         throw new Error('boom');

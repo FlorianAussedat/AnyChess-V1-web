@@ -11,6 +11,7 @@ export type {
   ChessCultureImageFit,
   ChessCulturePresentation,
   ChessCultureQuestion,
+  ChessCultureQuestionI18nEn,
   ChessCultureFeedbackStatus,
   ChessCultureQuestionFeedback,
   ChessCultureFeedbackSnapshot,
@@ -23,6 +24,13 @@ export type {
 export { CHESS_CULTURE_QUESTIONS } from './questions.ts';
 
 export {
+  localizeChessCultureQuestion,
+  localizeChessCultureQuestions,
+} from './localizeQuestion.ts';
+
+export type { AppQuizLanguage } from './localizeQuestion.ts';
+
+export {
   DEFAULT_CHESS_CULTURE_SESSION_SIZE,
   CHESS_CULTURE_BLACKLIST_DOWN_VOTES,
   isValidChessFen,
@@ -30,6 +38,7 @@ export {
   emptyChessCultureFeedbackSnapshot,
   getActiveChessCultureQuestions,
   getEligibleChessCultureQuestions,
+  hasResolvableChessCulturePresentation,
   createChessCultureQuizSession,
   calculateChessCultureScore,
   shouldBlacklistQuestion,
@@ -49,14 +58,31 @@ export type {
 } from './quizEngine.ts';
 
 export {
-  CHESS_CULTURE_IMAGE_REGISTRY,
   listChessCultureImageIds,
   hasChessCultureImage,
+  CHESS_CULTURE_REGISTERED_IMAGE_IDS,
+} from './imageRegistryIds.ts';
+
+export { resolveChessCultureImageSource as resolveChessCultureImageSourceWithLookup } from './resolveImage.ts';
+
+export {
+  CHESS_CULTURE_IMAGE_REGISTRY,
   getChessCultureImage,
   resolveChessCultureImageSource,
 } from './visualRegistry.ts';
 
 export type { ChessCultureRegisteredImageId } from './visualRegistry.ts';
+
+export {
+  PLAYER_IMAGE_KEYS,
+  PLAYER_IMAGE_IDENTITIES,
+  PLAYER_IMAGE_FILENAMES,
+  isPlayerImageKey,
+} from './playerImageMeta.ts';
+
+export { PLAYER_IMAGES, getPlayerImage } from './playerImages.ts';
+
+export type { PlayerImageKey } from './playerImageMeta.ts';
 
 export {
   QuestionFeedbackStore,
