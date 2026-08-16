@@ -175,7 +175,7 @@ describe('move naming session — 60s model', () => {
     scheduler.tick(COUNTDOWN_STEP_MS);
     assert.equal(session.snapshot().countdownLabel, '1');
     scheduler.tick(COUNTDOWN_STEP_MS);
-    assert.equal(session.snapshot().countdownLabel, 'GO');
+    assert.equal(session.snapshot().countdownLabel, 'Chess!');
     scheduler.tick(COUNTDOWN_STEP_MS);
     const snap = session.snapshot();
     assert.equal(snap.phase, 'playing');

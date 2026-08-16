@@ -13,7 +13,7 @@ import {
   View,
   type LayoutChangeEvent,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from '@/lib/feedback/haptics';
 import { useColors } from '@/hooks/useColors';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -69,11 +69,11 @@ type KeyDef = {
 };
 
 function lightTap() {
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  void triggerHaptic('keyTap');
 }
 
 function confirmTap() {
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  void triggerHaptic('keyTap');
 }
 
 export function ChessMoveKeypad({

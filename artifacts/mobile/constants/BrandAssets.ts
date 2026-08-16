@@ -65,6 +65,16 @@ export const BrandAssets = {
     black: require('@/assets/brand/sides/black.png'),
     random: require('@/assets/brand/sides/random.png'),
   },
+  /**
+   * Shared difficulty mascots (Débutant → Grand-Maître).
+   * Sources: assets/brand/mascots/difficulty/{debutant,confirme,expert,GM}.png
+   */
+  difficulty: {
+    debutant: require('@/assets/brand/mascots/difficulty/debutant.png'),
+    confirme: require('@/assets/brand/mascots/difficulty/confirme.png'),
+    expert: require('@/assets/brand/mascots/difficulty/expert.png'),
+    grandMaitre: require('@/assets/brand/mascots/difficulty/GM.png'),
+  },
   toggles: {
     board: {
       on: require('@/assets/brand/toggles/Board-ON.png'),

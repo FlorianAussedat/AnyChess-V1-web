@@ -35,6 +35,10 @@ export type MessageKey =
   | 'common.random'
   | 'common.start'
   | 'common.selectAll'
+  | 'difficulty.debutant'
+  | 'difficulty.confirme'
+  | 'difficulty.expert'
+  | 'difficulty.grandMaitre'
   | 'game.repeat'
   | 'game.undoAction'
   | 'game.summary'
@@ -636,6 +640,10 @@ const fr: Dict = {
   'common.random': 'Aléatoire',
   'common.start': 'Commencer',
   'common.selectAll': 'Tout sélectionner',
+  'difficulty.debutant': 'Débutant',
+  'difficulty.confirme': 'Confirmé',
+  'difficulty.expert': 'Expert',
+  'difficulty.grandMaitre': 'Grand-Maître',
   'game.repeat': 'Répéter',
   'game.undoAction': 'Annuler',
   'game.summary': 'Résumé',
@@ -1294,6 +1302,10 @@ const en: Dict = {
   'common.random': 'Random',
   'common.start': 'Start',
   'common.selectAll': 'Select all',
+  'difficulty.debutant': 'Beginner',
+  'difficulty.confirme': 'Intermediate',
+  'difficulty.expert': 'Expert',
+  'difficulty.grandMaitre': 'Grandmaster',
   'game.repeat': 'Repeat',
   'game.undoAction': 'Undo',
   'game.summary': 'Summary',
