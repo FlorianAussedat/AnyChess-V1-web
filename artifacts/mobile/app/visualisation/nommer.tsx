@@ -4,8 +4,10 @@ import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
+import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
 import { ChessBoard } from '@/components/ChessBoard';
 import { GameMicButton } from '@/components/game/GameMicButton';
+import { MoveFeedbackBanner } from '@/components/feedback/MoveFeedbackBanner';
 import {
   TimedVisionHud,
   TimedVisionResults,
@@ -17,6 +19,7 @@ import type { BoardPiece } from '@/contexts/GameContext';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useMoveFeedback } from '@/hooks/useMoveFeedback';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
@@ -44,6 +47,10 @@ export default function NommerLeCoupScreen() {
   const micPrimedRef = useRef(false);
   const [snap, setSnap] = useState<MoveNamingSnapshot>(() => sessionRef.current.snapshot());
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [keypadVisible, setKeypadVisible] = useState(true);
+  const feedback = useMoveFeedback();
+  const submittingRef = useRef(false);
 
   const sync = useCallback(() => {
     setSnap(sessionRef.current.snapshot());
@@ -80,15 +87,44 @@ export default function NommerLeCoupScreen() {
 
   const beginSession = useCallback(async () => {
     micPrimedRef.current = false;
+    feedback.clear();
+    setDraft('');
     const best = await records.loadBest().catch(() => 0);
     sessionRef.current.configure({ previousRecord: best, voiceEnabled: true });
     sessionRef.current.startCountdown();
     sync();
-  }, [sync]);
+  }, [sync, feedback]);
 
   const goRecords = useCallback(() => {
     router.push('/visualisation/records');
   }, [router]);
+
+  const handleAnswer = useCallback(
+    (raw: string) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      try {
+        feedback.onNextAttempt();
+        const before = sessionRef.current.snapshot();
+        sessionRef.current.answer(raw);
+        const after = sessionRef.current.snapshot();
+        if (after.lastFeedback === 'correct') {
+          feedback.signalCorrect();
+        } else if (after.lastFeedback === 'recognition-failure') {
+          feedback.signalInvalid(t('vision.unrecognizedRetry'));
+        } else if (after.lastFeedback === 'wrong') {
+          feedback.signalIncorrect(t('vision.incorrectRetry'));
+        } else if (after.score.correct > before.score.correct) {
+          feedback.signalCorrect();
+        }
+        setDraft('');
+        sync();
+      } finally {
+        submittingRef.current = false;
+      }
+    },
+    [feedback, sync, t],
+  );
 
   const { micActive, isListening, status, toggleMic, stopListening } = useSpeechInput({
     forceOff: snap.phase !== 'playing',
@@ -97,8 +133,7 @@ export default function NommerLeCoupScreen() {
     onTranscript: (raw) => {
       setShowRecognizedFlash(true);
       setTimeout(() => setShowRecognizedFlash(false), 900);
-      sessionRef.current.answer(raw);
-      sync();
+      handleAnswer(raw);
     },
   });
 
@@ -114,6 +149,7 @@ export default function NommerLeCoupScreen() {
   const perspectiveLabel = boardPerspectiveLabel(perspective);
   const boardFlipped = isFlippedForPerspective(perspective);
   const turnLabel = display ? sideToMoveLabel(display.turn()) : null;
+  const fen = snap.challenge?.positionFen ?? new Chess().fen();
 
   return (
     <ScrollView
@@ -170,6 +206,31 @@ export default function NommerLeCoupScreen() {
           >
             {perspectiveLabel}
           </Text>
+          <Text style={{ color: colors.mutedForeground }}>{t('vision.lastMovePrompt')}</Text>
+          <MoveFeedbackBanner state={feedback.state} testID="nommer-correct" />
+
+          {/* 1. Field above board */}
+          <ChessMoveInput
+            inputType="chess-move"
+            value={draft}
+            onChangeText={(text) => {
+              feedback.onNextAttempt();
+              setDraft(text);
+            }}
+            onSubmit={handleAnswer}
+            fen={fen}
+            enabled
+            persistFocus
+            autoSubmit
+            showSendButton={false}
+            attachKeypad={false}
+            keypadVisible={keypadVisible}
+            onKeypadVisibleChange={setKeypadVisible}
+            placeholder={t('vision.nommerPlaceholder')}
+            testID="nommer-move-input"
+          />
+
+          {/* 2. Board */}
           {display && (
             <View style={[styles.boardWrap, { width: boardSize }]}>
               <ChessBoard
@@ -185,30 +246,25 @@ export default function NommerLeCoupScreen() {
               ) : null}
             </View>
           )}
-          <Text style={{ color: colors.mutedForeground }}>{t('vision.lastMovePrompt')}</Text>
-          {snap.lastFeedback === 'correct' ? (
-            <Text style={{ color: colors.primary }} testID="nommer-correct">
-              {t('vision.correct')}
-            </Text>
+
+          {/* 3. Keypad below board (hideable) */}
+          {keypadVisible ? (
+            <ChessMoveKeypad
+              value={draft}
+              onChangeText={(text) => {
+                feedback.onNextAttempt();
+                setDraft(text);
+              }}
+              onSubmit={handleAnswer}
+              autoSubmit
+              fen={fen}
+              enabled
+              compact
+              testID="nommer-move-input-keypad"
+            />
           ) : null}
-          {snap.lastFeedback === 'wrong' ? (
-            <Text style={{ color: '#BE3030' }}>{t('vision.incorrectRetry')}</Text>
-          ) : null}
-          {snap.lastFeedback === 'recognition-failure' ? (
-            <Text style={{ color: colors.mutedForeground }}>{t('vision.unrecognizedRetry')}</Text>
-          ) : null}
-          <ChessMoveInput
-            inputType="chess-move"
-            onSubmit={(raw) => {
-              sessionRef.current.answer(raw);
-              sync();
-            }}
-            fen={snap.challenge?.positionFen ?? new Chess().fen()}
-            enabled
-            persistFocus
-            placeholder={t('vision.nommerPlaceholder')}
-            testID="nommer-move-input"
-          />
+
+          {/* 4. Mic under keypad */}
           <GameMicButton
             showRecognized={showRecognizedFlash}
             isListening={isListening}

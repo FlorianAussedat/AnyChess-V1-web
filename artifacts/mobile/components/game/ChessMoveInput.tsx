@@ -57,6 +57,12 @@ export type ChessMoveInputProps = {
   defaultKeypadVisible?: boolean;
   /** Optional trailing controls in the input row (e.g. compact mic). */
   trailingControls?: React.ReactNode;
+  /**
+   * When false, only the field row is rendered — parent places
+   * `ChessMoveKeypad` elsewhere (e.g. below the board). Toggle still
+   * controls `keypadVisible` when `showKeyboardToggle` is true.
+   */
+  attachKeypad?: boolean;
   compact?: boolean;
   testID?: string;
   inputProps?: Omit<
@@ -86,6 +92,7 @@ export function ChessMoveInput({
   onKeypadVisibleChange,
   defaultKeypadVisible = true,
   trailingControls,
+  attachKeypad = true,
   compact = true,
   testID = 'chess-move-input',
   inputProps,
@@ -191,7 +198,7 @@ export function ChessMoveInput({
         {trailingControls}
       </View>
 
-      {keypadVisible ? (
+      {attachKeypad && keypadVisible ? (
         <ChessMoveKeypad
           value={text}
           onChangeText={setText}

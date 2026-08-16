@@ -14,7 +14,9 @@ import {
 import type { BoardPiece } from '@/contexts/GameContext';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
+import { useMoveFeedback } from '@/hooks/useMoveFeedback';
 import { useColors } from '@/hooks/useColors';
+import { MoveFeedbackBanner } from '@/components/feedback/MoveFeedbackBanner';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -47,6 +49,8 @@ export default function JouerLeCoupScreen() {
   const [snap, setSnap] = useState<PlayMoveSnapshot>(() => sessionRef.current.snapshot());
   const [boardFen, setBoardFen] = useState<string | null>(null);
   const spokenChallengeIdRef = useRef<string | null>(null);
+  const feedback = useMoveFeedback();
+  const submittingRef = useRef(false);
 
   const sync = useCallback(() => {
     setSnap(sessionRef.current.snapshot());
@@ -100,12 +104,13 @@ export default function JouerLeCoupScreen() {
 
   const beginSession = useCallback(async () => {
     spokenChallengeIdRef.current = null;
+    feedback.clear();
     await audioSettings.ensureLoaded().catch(() => undefined);
     const best = await records.loadBest().catch(() => 0);
     sessionRef.current.configure({ previousRecord: best });
     sessionRef.current.startCountdown();
     sync();
-  }, [sync]);
+  }, [sync, feedback]);
 
   const goRecords = useCallback(() => {
     router.push('/visualisation/records');
@@ -117,16 +122,33 @@ export default function JouerLeCoupScreen() {
   const boardFlipped = isFlippedForSideToMove(sideToMove);
 
   const { touchSelected, legalDests, onSquarePress } = useBoardTouchSelection({
-    canAct: snap.phase === 'playing' && !!snap.challenge,
+    canAct: snap.phase === 'playing' && !!snap.challenge && !submittingRef.current,
     getLegalDestinations: (square) => {
       if (!game || !snap.challenge) return [];
       return legalDestinationsForSquare(game, square, sideToMove, { waitingForUser: true });
     },
     movePieceBySquare: (from, to) => {
-      if (!snap.challenge) return false;
-      sessionRef.current.attemptBoardMove(from, to, snap.challenge.setupMove.promotion ?? null);
-      sync();
-      return true;
+      if (!snap.challenge || submittingRef.current) return false;
+      submittingRef.current = true;
+      try {
+        feedback.onNextAttempt();
+        const before = sessionRef.current.snapshot();
+        sessionRef.current.attemptBoardMove(
+          from,
+          to,
+          snap.challenge.setupMove.promotion ?? null,
+        );
+        const after = sessionRef.current.snapshot();
+        if (after.lastFeedback === 'wrong') {
+          feedback.signalIncorrect(t('vision.incorrectRetry'));
+        } else if (after.score.correct > before.score.correct) {
+          feedback.signalCorrect();
+        }
+        sync();
+        return true;
+      } finally {
+        submittingRef.current = false;
+      }
     },
   });
 
@@ -182,11 +204,7 @@ export default function JouerLeCoupScreen() {
           <Text style={[styles.prompt, { color: colors.primary }]} testID="jouer-prompt">
             {snap.challenge.promptVerbal}
           </Text>
-          {snap.lastFeedback === 'wrong' ? (
-            <Text style={{ color: '#BE3030' }} testID="jouer-wrong">
-              {t('vision.incorrectRetry')}
-            </Text>
-          ) : null}
+          <MoveFeedbackBanner state={feedback.state} testID="jouer-feedback" />
           <View style={[styles.boardWrap, { width: boardSize }]}>
             <ChessBoard
               board={game.board() as (BoardPiece | null)[][]}

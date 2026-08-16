@@ -4,6 +4,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/AppButton';
+import { RecordCelebration } from '@/components/feedback/RecordCelebration';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
@@ -104,9 +105,12 @@ export function TimedVisionResults({
       </Text>
       <Text style={[styles.scoreValue, { color: colors.foreground }]}>{score}</Text>
       {isNewRecord ? (
-        <Text style={[styles.newRecord, { color: colors.primary }]} testID={newRecordTestID}>
-          {t('vision.newRecord')}
-        </Text>
+        <>
+          <RecordCelebration visible testID={`${newRecordTestID}-celebration`} />
+          <Text style={[styles.newRecord, { color: colors.primary }]} testID={newRecordTestID}>
+            {t('vision.newRecord')}
+          </Text>
+        </>
       ) : null}
       <Text style={{ color: colors.foreground }}>
         {correctLabel} : {correctCount}

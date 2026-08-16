@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
@@ -10,13 +9,16 @@ import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { BoardToolbar } from '@/components/BoardToolbar';
 import { GameMicButton } from '@/components/game/GameMicButton';
+import { MoveFeedbackBanner } from '@/components/feedback/MoveFeedbackBanner';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useBoardSize } from '@/hooks/useBoardSize';
+import { useMoveFeedback } from '@/hooks/useMoveFeedback';
 import { usePreferences } from '@/hooks/usePreferences';
+import { triggerHaptic } from '@/lib/feedback/haptics';
 import { formatSanLineForDisplay } from '@/lib/chess/notation';
 
 export function PuzzlePlayingPhase() {
@@ -26,6 +28,8 @@ export function PuzzlePlayingPhase() {
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
   const wideBoardSize = useBoardSize('wide');
+  const feedback = useMoveFeedback();
+  const submittingRef = useRef(false);
   const {
     phase,
     submode,
@@ -61,18 +65,36 @@ export function PuzzlePlayingPhase() {
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
 
-  const submitSpoken = useCallback(
-    (text: string) => {
-      setShowRecognizedFlash(true);
-      setTimeout(() => setShowRecognizedFlash(false), 900);
-      const r = applySpokenMove(text);
+  const applyResultFeedback = useCallback(
+    (r: string) => {
       if (r === 'correct' || r === 'complete') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        feedback.signalCorrect(
+          r === 'complete' ? t('puzzle.solved') : t('common.correct'),
+        );
       } else if (r === 'wrong-legal' || r === 'illegal') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        feedback.signalIncorrect(t('puzzle.incorrect'));
+      } else if (r === 'recognition-failure') {
+        feedback.signalInvalid();
       }
     },
-    [applySpokenMove],
+    [feedback, t],
+  );
+
+  const submitSpoken = useCallback(
+    (text: string) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      try {
+        setShowRecognizedFlash(true);
+        setTimeout(() => setShowRecognizedFlash(false), 900);
+        feedback.onNextAttempt();
+        const r = applySpokenMove(text);
+        applyResultFeedback(r);
+      } finally {
+        submittingRef.current = false;
+      }
+    },
+    [applySpokenMove, applyResultFeedback, feedback],
   );
 
   const {
@@ -90,11 +112,21 @@ export function PuzzlePlayingPhase() {
   useEffect(() => {
     setSelected(null);
     setLegalDests([]);
-  }, [puzzle?.id, lastMove?.from, lastMove?.to]);
+    feedback.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on puzzle change only
+  }, [puzzle?.id]);
 
   const onSquarePress = useCallback(
     (square: string) => {
-      if (isReplaying || isPreviewing || submode !== 'visual' || !boardVisible) return;
+      if (
+        isReplaying ||
+        isPreviewing ||
+        submode !== 'visual' ||
+        !boardVisible ||
+        submittingRef.current
+      ) {
+        return;
+      }
       if (selected === null) {
         const dests = getLegalDestinations(square);
         if (dests.length > 0) {
@@ -105,14 +137,16 @@ export function PuzzlePlayingPhase() {
         setSelected(null);
         setLegalDests([]);
       } else if (legalDests.includes(square)) {
-        const r = attemptBoardMove(selected, square);
-        if (r === 'correct' || r === 'complete') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } else if (r === 'wrong-legal' || r === 'illegal') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        submittingRef.current = true;
+        try {
+          feedback.onNextAttempt();
+          const r = attemptBoardMove(selected, square);
+          applyResultFeedback(r);
+          setSelected(null);
+          setLegalDests([]);
+        } finally {
+          submittingRef.current = false;
         }
-        setSelected(null);
-        setLegalDests([]);
       } else {
         const dests = getLegalDestinations(square);
         if (dests.length > 0) {
@@ -133,6 +167,8 @@ export function PuzzlePlayingPhase() {
       legalDests,
       getLegalDestinations,
       attemptBoardMove,
+      applyResultFeedback,
+      feedback,
     ],
   );
 
@@ -199,6 +235,9 @@ export function PuzzlePlayingPhase() {
           </View>
         )}
 
+        {/* Shared Correct / incorrect banner */}
+        <MoveFeedbackBanner state={feedback.state} testID="puzzle-move-feedback" />
+
         {(submode === 'visual' || phase === 'solution-replay') && (
           <View
             style={[
@@ -207,7 +246,12 @@ export function PuzzlePlayingPhase() {
             ]}
           >
             <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
-              {lastFeedback ?? (isReplaying ? t('puzzle.replaying') : t('puzzle.findMove'))}
+              {feedback.state.kind === 'idle'
+                ? (lastFeedback ?? (isReplaying ? t('puzzle.replaying') : t('puzzle.findMove')))
+                : (feedback.state.message ??
+                  (feedback.state.kind === 'correct'
+                    ? t('common.correct')
+                    : t('common.incorrect')))}
             </Text>
             {!!nextMoveHint && !solutionLine && (
               <Text
@@ -281,6 +325,8 @@ export function PuzzlePlayingPhase() {
               fen={currentFen}
               enabled={!isReplaying && !isPreviewing}
               persistFocus
+              autoSubmit
+              showSendButton={false}
               placeholder={t('puzzle.movePlaceholder')}
               testID="puzzle-move-input"
             />
@@ -291,7 +337,7 @@ export function PuzzlePlayingPhase() {
               micActive={micActive}
               micMessage={micStatus.message}
               onToggle={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                void triggerHaptic('keyTap');
                 toggleMic();
               }}
               testID={
