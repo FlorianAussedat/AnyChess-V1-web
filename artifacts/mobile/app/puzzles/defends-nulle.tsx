@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -22,8 +30,12 @@ import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import {
   DefendDrawSession,
   DEFEND_DRAW_TARGET_MOVES,
+  opponentEloForDifficulty,
+  opponentMoveTimeMs,
   type DefendDrawSnapshot,
 } from '@/lib/defendDraw';
+import { StockfishEngine } from '@/lib/engines/stockfish';
+import { MAX_UCI_ELO } from '@/lib/engines/stockfish/uci';
 
 function boardFromFen(fen: string): (BoardPiece | null)[][] {
   return new Chess(fen).board() as (BoardPiece | null)[][];
@@ -37,20 +49,51 @@ export default function DefendsNulleScreen() {
   const wideBoardSize = useBoardSize('wide');
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
 
+  const engineRef = useRef<StockfishEngine | null>(null);
   const sessionRef = useRef(
     new DefendDrawSession({
-      probeOptions: { tablebaseTimeoutMs: 2000 },
+      probeOptions: { tablebaseTimeoutMs: 2800 },
       targetMoves: DEFEND_DRAW_TARGET_MOVES,
     }),
   );
   const [difficulty, setDifficulty] = useState<AnyChessDifficultyId>('debutant');
-  const [snap, setSnap] = useState<DefendDrawSnapshot>(() => sessionRef.current.snapshot());
+  const [snap, setSnap] = useState<DefendDrawSnapshot>(() =>
+    sessionRef.current.snapshot(),
+  );
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
   const recentRef = useRef<string[]>([]);
   const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const engine = new StockfishEngine({
+      elo: MAX_UCI_ELO,
+      multiPv: 3,
+      varietyMarginCp: 25,
+      moveTimeMs: opponentMoveTimeMs(),
+    });
+    engineRef.current = engine;
+    sessionRef.current.setStockfishPick(async (game) => {
+      const move = await engine.pickMove(game);
+      if (!move) return null;
+      return {
+        from: move.from,
+        to: move.to,
+        promotion: move.promotion,
+      };
+    });
+    void engine.init().catch(() => {
+      /* Random / TB-only fallback remains */
+    });
+    return () => {
+      sessionRef.current.setStockfishPick(undefined);
+      engine.destroy();
+      engineRef.current = null;
+    };
+  }, []);
 
   const refresh = useCallback((next: DefendDrawSnapshot) => {
     setSnap(next);
@@ -62,9 +105,11 @@ export default function DefendsNulleScreen() {
     async (diff: AnyChessDifficultyId) => {
       setBusy(true);
       try {
+        // Keep opponent at max strength regardless of difficulty band.
+        void opponentEloForDifficulty(diff);
         const next = await sessionRef.current.start(diff, recentRef.current);
         if (next.position) {
-          recentRef.current = [next.position.id, ...recentRef.current].slice(0, 8);
+          recentRef.current = [next.position.id, ...recentRef.current].slice(0, 12);
         }
         refresh(next);
       } finally {
@@ -85,13 +130,30 @@ export default function DefendsNulleScreen() {
     void startRound(next);
   };
 
+  const nextPosition = useCallback(() => {
+    void startRound(difficulty);
+  }, [difficulty, startRound]);
+
+  const restartSame = useCallback(async () => {
+    setBusy(true);
+    try {
+      refresh(await sessionRef.current.restart());
+    } finally {
+      setBusy(false);
+    }
+  }, [refresh]);
+
+  const continueFreeplay = useCallback(() => {
+    refresh(sessionRef.current.continueFreeplay());
+  }, [refresh]);
+
   const playUserMove = useCallback(
     async (from: string, to: string) => {
-      if (busy || snap.phase !== 'playing') return;
+      if (busy) return;
+      if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
       setBusy(true);
       try {
-        const next = await sessionRef.current.attemptMove(from, to);
-        refresh(next);
+        refresh(await sessionRef.current.attemptMove(from, to));
       } finally {
         setBusy(false);
       }
@@ -101,11 +163,11 @@ export default function DefendsNulleScreen() {
 
   const submitSan = useCallback(
     async (raw: string) => {
-      if (busy || snap.phase !== 'playing') return;
+      if (busy) return;
+      if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
       setBusy(true);
       try {
-        const next = await sessionRef.current.answerSan(raw);
-        refresh(next);
+        refresh(await sessionRef.current.answerSan(raw));
       } finally {
         setBusy(false);
       }
@@ -114,7 +176,7 @@ export default function DefendsNulleScreen() {
   );
 
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
-    forceOff: busy || snap.phase !== 'playing',
+    forceOff: busy || (snap.phase !== 'playing' && snap.phase !== 'freeplay'),
     isSpeaking: false,
     onTranscript: (raw) => {
       setShowRecognizedFlash(true);
@@ -125,7 +187,8 @@ export default function DefendsNulleScreen() {
 
   const onSquarePress = useCallback(
     (square: string) => {
-      if (busy || snap.phase !== 'playing') return;
+      if (busy) return;
+      if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
       if (selected === null) {
         const dests = sessionRef.current.getLegalDestinations(square);
         if (dests.length > 0) {
@@ -157,8 +220,10 @@ export default function DefendsNulleScreen() {
 
   const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
   const lastMove = snap.lastMove as LastMove | null;
-  const finished =
+  const challengeEnded =
     snap.phase === 'won' || snap.phase === 'lost' || snap.phase === 'drawn-early';
+  const canMove =
+    !busy && (snap.phase === 'playing' || snap.phase === 'freeplay');
 
   const statusColor =
     snap.phase === 'won' || snap.phase === 'drawn-early'
@@ -212,7 +277,9 @@ export default function DefendsNulleScreen() {
         toolbar={
           <BoardToolbar
             label={
-              snap.playerColor === 'w' ? t('puzzle.youPlayWhite') : t('puzzle.youPlayBlack')
+              snap.playerColor === 'w'
+                ? t('puzzle.youPlayWhite')
+                : t('puzzle.youPlayBlack')
             }
             showCoordinates={showCoordinates}
             onToggleCoordinates={() => {
@@ -239,18 +306,26 @@ export default function DefendsNulleScreen() {
         <View style={styles.busyRow}>
           <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.mutedForeground }}>
-            {snap.phase === 'thinking' ? t('quiz.defendsNulleThinking') : t('quiz.defendsNulleLoading')}
+            {snap.phase === 'thinking'
+              ? t('quiz.defendsNulleThinking')
+              : t('quiz.defendsNulleLoading')}
           </Text>
         </View>
       )}
 
       {!!snap.lastFeedback && (
-        <Text style={{ color: statusColor, fontFamily: DesignTokens.typography.weightSemiBold }}>
+        <Text
+          style={{
+            color: statusColor,
+            fontFamily: DesignTokens.typography.weightSemiBold,
+          }}
+          testID="defends-nulle-feedback"
+        >
           {snap.lastFeedback}
         </Text>
       )}
 
-      {!finished && snap.phase === 'playing' && !busy && (
+      {canMove && (
         <View style={{ gap: DesignTokens.spacing.md }}>
           <ChessMoveInput
             inputType="chess-move"
@@ -273,13 +348,40 @@ export default function DefendsNulleScreen() {
         </View>
       )}
 
-      {finished && (
-        <AppButton
-          label={t('quiz.defendsNulleAgain')}
-          onPress={() => void startRound(difficulty)}
-          testID="defends-nulle-again"
-        />
+      {challengeEnded && (
+        <View style={styles.endActions} testID="defends-nulle-end-actions">
+          <AppButton
+            label={t('quiz.defendsNulleContinue')}
+            onPress={continueFreeplay}
+            testID="defends-nulle-continue"
+          />
+          <AppButton
+            label={t('quiz.defendsNulleRestart')}
+            onPress={() => void restartSame()}
+            testID="defends-nulle-restart"
+          />
+          <AppButton
+            label={t('quiz.defendsNulleAnother')}
+            onPress={nextPosition}
+            testID="defends-nulle-another"
+          />
+        </View>
       )}
+
+      {/* Permanent skip — never counts as win/loss */}
+      <Pressable
+        onPress={nextPosition}
+        disabled={busy}
+        style={({ pressed }) => [
+          styles.nextLink,
+          { opacity: busy ? 0.4 : pressed ? 0.7 : 1 },
+        ]}
+        testID="defends-nulle-next"
+      >
+        <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
+          {t('quiz.defendsNulleNext')}
+        </Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -294,5 +396,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  endActions: {
+    gap: DesignTokens.spacing.sm,
+  },
+  nextLink: {
+    alignSelf: 'center',
+    paddingVertical: DesignTokens.spacing.md,
+    marginTop: DesignTokens.spacing.sm,
   },
 });

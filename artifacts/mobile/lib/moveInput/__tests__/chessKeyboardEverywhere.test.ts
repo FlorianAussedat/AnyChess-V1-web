@@ -50,7 +50,7 @@ describe('modes migrated to chess-move keyboard', () => {
       'components/blind/BlindRecitationPhase.tsx',
       'components/blind/BlindReconstructionPhase.tsx',
       'app/openings/continue.tsx',
-      'app/quiz-ouverture/defends-nulle.tsx',
+      'app/puzzles/defends-nulle.tsx',
       'app/visualisation/nommer.tsx',
     ];
     for (const file of files) {

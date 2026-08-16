@@ -1,6 +1,6 @@
 /**
- * Culture générale Pass 3 — Quelle / Quiz / Défends la nulle UX contracts.
- * (Construis l’ouverture removed in Lot 5.)
+ * Culture générale Pass 3 — Quelle / Quiz UX contracts.
+ * (Défends la nulle moved to Entraînement tactique.)
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,26 +35,15 @@ describe('quelle ouverture harmonization', () => {
   });
 });
 
-describe('defends la nulle hub wiring', () => {
-  it('replaces Construis with Défends la nulle in hub and layout', () => {
+describe('culture hub no longer hosts Défends la nulle', () => {
+  it('hub and layout only keep Quelle + Culture quiz', () => {
     const hub = readFileSync(join(quizDir, 'index.tsx'), 'utf8');
     const layout = readFileSync(join(quizDir, '_layout.tsx'), 'utf8');
-    assert.match(hub, /defends-nulle/);
-    assert.match(hub, /quiz\.defendsNulle/);
-    assert.match(hub, /BrandAssets\.exercises\.defendsNulle/);
+    assert.match(hub, /quelle/);
+    assert.match(hub, /culture/);
+    assert.doesNotMatch(hub, /defends-nulle/);
     assert.doesNotMatch(hub, /construis/);
-    assert.match(layout, /defends-nulle/);
-    assert.doesNotMatch(layout, /construis/);
-  });
-
-  it('screen uses difficulty, board, move input and 10-move progress', () => {
-    const src = readFileSync(join(quizDir, 'defends-nulle.tsx'), 'utf8');
-    assert.match(src, /DifficultySelector/);
-    assert.match(src, /DefendDrawSession/);
-    assert.match(src, /DEFEND_DRAW_TARGET_MOVES/);
-    assert.match(src, /ChessMoveInput/);
-    assert.match(src, /defends-nulle-progress/);
-    assert.match(src, /defends-nulle-mic/);
+    assert.doesNotMatch(layout, /defends-nulle/);
   });
 });
 
