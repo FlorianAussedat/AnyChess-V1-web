@@ -20,6 +20,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePreferences } from '@/hooks/usePreferences';
 import { DesignTokens } from '@/constants/designTokens';
 import {
   CHESS_CULTURE_QUESTIONS,
@@ -28,6 +29,7 @@ import {
   calculateChessCultureScore,
   createChessCultureQuizSession,
   getEligibleChessCultureQuestions,
+  localizeChessCultureQuestions,
   questionFeedbackStore,
   type ChessCultureFeedbackSnapshot,
   type ChessCultureFeedbackVote,
@@ -39,6 +41,7 @@ type Phase = 'loading' | 'playing' | 'finished';
 export default function CultureGeneraleQuizScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const { language } = usePreferences();
   const insets = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
   const router = useRouter();
@@ -60,7 +63,8 @@ export default function CultureGeneraleQuizScreen() {
   const startSession = useCallback(async () => {
     setPhase('loading');
     const snapshot = await questionFeedbackStore.getSnapshot();
-    const eligible = getEligibleChessCultureQuestions(CHESS_CULTURE_QUESTIONS, snapshot);
+    const localized = localizeChessCultureQuestions(CHESS_CULTURE_QUESTIONS, language);
+    const eligible = getEligibleChessCultureQuestions(localized, snapshot);
     const next = createChessCultureQuizSession(
       eligible,
       DEFAULT_CHESS_CULTURE_SESSION_SIZE,
@@ -74,7 +78,7 @@ export default function CultureGeneraleQuizScreen() {
     setHasAnswered(false);
     setPresentationVote(null);
     setPhase(next.length === 0 ? 'finished' : 'playing');
-  }, []);
+  }, [language]);
 
   useEffect(() => {
     void startSession();

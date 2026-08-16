@@ -11,6 +11,7 @@ export type {
   ChessCultureImageFit,
   ChessCulturePresentation,
   ChessCultureQuestion,
+  ChessCultureQuestionI18nEn,
   ChessCultureFeedbackStatus,
   ChessCultureQuestionFeedback,
   ChessCultureFeedbackSnapshot,
@@ -21,6 +22,13 @@ export type {
 } from './types.ts';
 
 export { CHESS_CULTURE_QUESTIONS } from './questions.ts';
+
+export {
+  localizeChessCultureQuestion,
+  localizeChessCultureQuestions,
+} from './localizeQuestion.ts';
+
+export type { AppQuizLanguage } from './localizeQuestion.ts';
 
 export {
   DEFAULT_CHESS_CULTURE_SESSION_SIZE,

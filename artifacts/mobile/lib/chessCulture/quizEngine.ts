@@ -30,6 +30,12 @@ const CATEGORIES: ReadonlySet<string> = new Set([
   'terminology',
   'famous-games',
   'chess-culture',
+  'checkmates',
+  'openings',
+  'tactics',
+  'strategy',
+  'modern-chess',
+  'visual',
   'other',
 ]);
 
@@ -328,6 +334,32 @@ export function validateChessCultureQuestion(
   }
   if (typeof q.active !== 'boolean') {
     errors.push({ id, message: `${id ?? label}: active must be boolean` });
+  }
+  if (q.i18nEn !== undefined) {
+    const en = q.i18nEn;
+    if (!en || typeof en !== 'object' || Array.isArray(en)) {
+      errors.push({ id, message: `${id ?? label}: i18nEn must be an object` });
+    } else {
+      if (typeof en.question !== 'string' || en.question.trim().length === 0) {
+        errors.push({ id, message: `${id ?? label}: i18nEn.question must be non-empty` });
+      }
+      if (
+        !Array.isArray(en.answers) ||
+        en.answers.length !== 4 ||
+        en.answers.some((a) => typeof a !== 'string' || a.trim().length === 0)
+      ) {
+        errors.push({
+          id,
+          message: `${id ?? label}: i18nEn.answers must be exactly 4 non-empty strings`,
+        });
+      }
+      if (typeof en.explanation !== 'string' || en.explanation.trim().length === 0) {
+        errors.push({
+          id,
+          message: `${id ?? label}: i18nEn.explanation must be non-empty`,
+        });
+      }
+    }
   }
   if (q.presentation !== undefined) {
     if (
