@@ -1,5 +1,5 @@
 /**
- * Défends la nulle — hard defensive endgames, 30-move challenge, TB truth.
+ * Défends la nulle — certified starts + Stockfish-only mid-game logic.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -8,18 +8,23 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Chess } from 'chess.js';
 import {
-  DefendDrawSession,
+  CLEARLY_LOST_CP_MAX,
+  CLEARLY_LOST_STREAK_REQUIRED,
+  CLEARLY_LOST_WDL_LOSS_MIN,
   DEFEND_DRAW_POSITIONS,
   DEFEND_DRAW_TARGET_MOVES,
-  defensivePrecision,
-  isEligibleDefendDrawPosition,
+  DefendDrawSession,
+  createMockDefenseAnalyzer,
+  endgamePositionRepository,
+  evaluateClearlyLostSignal,
+  isClearlyLostPosition,
   isTrivialInsufficientMaterial,
-  pickDefendDrawPosition,
-  pickOpponentMove,
-  positionsForDifficulty,
-  probeWdl,
+  listCertifiedEndgames,
+  pickCertifiedEndgame,
   verdictFromCp,
+  type DefenseAnalysis,
 } from '../index.ts';
+import { parseInfoScoreSnapshot } from '../../engines/stockfish/uci.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = join(here, '../../..');
@@ -28,199 +33,217 @@ function read(rel: string): string {
   return readFileSync(join(mobileRoot, rel), 'utf8');
 }
 
-describe('wdl helpers', () => {
-  it('maps centipawns into win/draw/loss buckets', () => {
-    assert.equal(verdictFromCp(200), 'win');
-    assert.equal(verdictFromCp(-200), 'loss');
-    assert.equal(verdictFromCp(10), 'draw');
-  });
+function baseAnalysis(partial: Partial<DefenseAnalysis> = {}): DefenseAnalysis {
+  return {
+    scoreCp: 0,
+    mateIn: null,
+    depth: 12,
+    wdl: { win: 100, draw: 800, loss: 100 },
+    bestMove: { from: 'e1', to: 'e2' },
+    ...partial,
+  };
+}
 
-  it('targets 30 player moves', () => {
+describe('constants', () => {
+  it('targets 30 player moves and keeps conservative loss thresholds', () => {
     assert.equal(DEFEND_DRAW_TARGET_MOVES, 30);
+    assert.ok(CLEARLY_LOST_CP_MAX <= -600);
+    assert.ok(CLEARLY_LOST_WDL_LOSS_MIN >= 850);
+    assert.equal(CLEARLY_LOST_STREAK_REQUIRED, 2);
   });
 });
 
-describe('position selection quality', () => {
-  it('rejects trivial dead material', () => {
-    assert.equal(
-      isTrivialInsufficientMaterial('8/8/8/4k3/8/8/8/4K3 w - - 0 1'),
-      true,
+describe('parseInfoScoreSnapshot', () => {
+  it('parses cp, mate and optional wdl', () => {
+    const cp = parseInfoScoreSnapshot(
+      'info depth 14 score cp -42 wdl 20 100 880 pv e2e4',
     );
-    assert.equal(
-      isTrivialInsufficientMaterial('8/8/8/4k3/8/8/8/4KB2 w - - 0 1'),
-      true,
+    assert.ok(cp);
+    assert.equal(cp!.scoreCp, -42);
+    assert.equal(cp!.mateIn, null);
+    assert.deepEqual(cp!.wdl, { win: 20, draw: 100, loss: 880 });
+    assert.equal(cp!.pvMove, 'e2e4');
+
+    const mate = parseInfoScoreSnapshot('info depth 10 score mate -3 pv a1a2');
+    assert.ok(mate);
+    assert.equal(mate!.mateIn, -3);
+  });
+});
+
+describe('isClearlyLostPosition', () => {
+  it('does not treat a mild negative eval as lost', () => {
+    const fen = '8/8/8/4k3/8/4K3/8/8 w - - 0 1';
+    const mild = evaluateClearlyLostSignal(
+      baseAnalysis({ scoreCp: -120, wdl: null, depth: 14 }),
+      fen,
+      'w',
     );
+    assert.equal(mild.lost, false);
+  });
+
+  it('detects forced mate against the defender immediately', () => {
+    const fen = '8/8/8/4k3/8/4K3/8/8 w - - 0 1';
+    // White to move, mate against white (negative mateIn)
+    const r = isClearlyLostPosition(
+      baseAnalysis({ mateIn: -2, scoreCp: -999000, wdl: null }),
+      fen,
+      'w',
+      0,
+    );
+    assert.equal(r.clearlyLost, true);
+    assert.equal(r.verdict.reason, 'mate');
+  });
+
+  it('requires a streak for non-mate clear losses', () => {
+    const fen = '8/8/8/4k3/8/4K3/8/8 w - - 0 1';
+    const analysis = baseAnalysis({
+      scoreCp: -800,
+      wdl: { win: 10, draw: 20, loss: 970 },
+      depth: 14,
+    });
+    const first = isClearlyLostPosition(analysis, fen, 'w', 0);
+    assert.equal(first.clearlyLost, false);
+    assert.equal(first.nextStreak, 1);
+    const second = isClearlyLostPosition(analysis, fen, 'w', first.nextStreak);
+    assert.equal(second.clearlyLost, true);
+    assert.equal(second.verdict.reason, 'wdl');
+  });
+});
+
+describe('EndgamePositionRepository', () => {
+  it('only exposes certified non-trivial draws', () => {
+    const all = listCertifiedEndgames();
+    assert.ok(all.length >= 8);
+    for (const p of all) {
+      assert.equal(p.initialOutcome, 'draw');
+      assert.equal(p.verified, true);
+      assert.equal(isTrivialInsufficientMaterial(p.fen), false);
+      assert.ok(p.drawingMoves >= 1);
+    }
     assert.equal(
-      isTrivialInsufficientMaterial('4k3/8/4K3/4P3/8/8/8/8 b - - 0 1'),
+      DEFEND_DRAW_POSITIONS.some((p) =>
+        isTrivialInsufficientMaterial(p.fen),
+      ),
       false,
     );
   });
 
-  it('keeps no K vs K / lone-minor positions in the main pool', () => {
-    for (const p of DEFEND_DRAW_POSITIONS) {
-      assert.equal(
-        isTrivialInsufficientMaterial(p.fen),
-        false,
-        p.id,
-      );
-      assert.ok(isEligibleDefendDrawPosition(p), p.id);
-      assert.ok(p.drawingMoves >= 1, p.id);
-      assert.ok(p.legalMoves >= p.drawingMoves, p.id);
-      // Sanity: fen loads and player to move matches
-      const g = new Chess(p.fen);
-      assert.equal(g.turn(), p.playerColor, p.id);
-    }
-  });
-
-  it('exposes positions for every difficulty with tension', () => {
-    for (const d of ['debutant', 'confirme', 'expert', 'grandMaitre'] as const) {
-      const pool = positionsForDifficulty(d);
-      assert.ok(pool.length >= 2, d);
-      const pick = pickDefendDrawPosition(d, [], () => 0);
-      assert.equal(pick.difficulty, d);
-      const precision = defensivePrecision(pick.drawingMoves, pick.legalMoves);
-      assert.ok(precision <= 1);
-      // Grand-maître / expert should be relatively precise
-      if (d === 'grandMaitre') {
-        assert.ok(pick.drawingMoves <= 2, pick.id);
-      }
+  it('picks per difficulty without immediate repeats when possible', () => {
+    const a = pickCertifiedEndgame('expert', [], () => 0);
+    const b = endgamePositionRepository.pick('expert', [a.id], () => 0.1);
+    assert.equal(a.difficulty, 'expert');
+    assert.equal(b.difficulty, 'expert');
+    if (endgamePositionRepository.list('expert').length > 1) {
+      assert.notEqual(b.id, a.id);
     }
   });
 });
 
-describe('DefendDrawSession challenge rules', () => {
-  it('starts at 0 and wins at 30 without counting as loss on skip', async () => {
+describe('DefendDrawSession with mock Stockfish', () => {
+  it('starts from a certified draw and counts only player moves', async () => {
+    const analyzer = createMockDefenseAnalyzer((fen) => {
+      const g = new Chess(fen);
+      const m = g.moves({ verbose: true })[0];
+      return baseAnalysis({
+        bestMove: m
+          ? { from: m.from, to: m.to, promotion: m.promotion }
+          : null,
+        scoreCp: 0,
+        wdl: { win: 100, draw: 800, loss: 100 },
+      });
+    });
     const session = new DefendDrawSession({
-      probeOptions: { disableTablebase: true },
+      analyzer,
       targetMoves: 30,
     });
     const snap = await session.start('debutant', [], () => 0);
     assert.equal(snap.playerMovesMade, 0);
     assert.equal(snap.targetMoves, 30);
+    assert.equal(snap.position?.initialOutcome, 'draw');
     assert.equal(snap.phase, 'playing');
-    assert.equal(snap.challengeComplete, false);
   });
 
-  it('increments only on player moves and wins at target', async () => {
-    const session = new DefendDrawSession({
-      probeOptions: { disableTablebase: true },
-      targetMoves: 1,
+  it('wins at target without treating mild eval as loss', async () => {
+    const analyzer = createMockDefenseAnalyzer((fen) => {
+      const g = new Chess(fen);
+      const m = g.moves({ verbose: true })[0];
+      return baseAnalysis({
+        bestMove: m
+          ? { from: m.from, to: m.to, promotion: m.promotion }
+          : null,
+        scoreCp: -150,
+        wdl: { win: 200, draw: 600, loss: 200 },
+        depth: 14,
+      });
     });
+    const session = new DefendDrawSession({ analyzer, targetMoves: 1 });
     await session.start('debutant', [], () => 0);
-    const dests = session.getLegalDestinations(
-      session.getChess().turn() === 'w' ? 'e1' : 'e8',
-    );
-    // Find any legal move from a piece that has dests
-    const game = session.getChess();
-    const legal = game.moves({ verbose: true });
-    assert.ok(legal.length > 0);
-    const m = legal[0]!;
-    const after = await session.attemptMove(m.from, m.to, m.promotion ?? 'q');
-    assert.equal(after.playerMovesMade, 1);
-    // With target 1, challenge completes as won unless probe said loss
-    if (after.lastProbe?.verdict !== 'loss') {
-      assert.ok(
-        after.phase === 'won' ||
-          after.phase === 'thinking' ||
-          after.phase === 'playing' ||
-          after.phase === 'drawn-early',
-      );
-    }
-  });
-
-  it('restart resets counter on the same position', async () => {
-    const session = new DefendDrawSession({
-      probeOptions: { disableTablebase: true },
-      targetMoves: 30,
-    });
-    const first = await session.start('debutant', [], () => 0.2);
-    const id = first.position!.id;
     const legal = session.getChess().moves({ verbose: true })[0]!;
-    await session.attemptMove(legal.from, legal.to, legal.promotion ?? 'q');
-    const again = await session.restart();
-    assert.equal(again.position!.id, id);
-    assert.equal(again.playerMovesMade, 0);
-    assert.equal(again.fen, first.fen);
-    assert.equal(again.phase, 'playing');
+    const after = await session.attemptMove(legal.from, legal.to);
+    assert.equal(after.playerMovesMade, 1);
+    assert.equal(after.phase, 'won');
+    assert.match(after.lastFeedback ?? '', /Nulle défendue pendant/);
   });
 
-  it('loss feedback uses the perfect-play message when forced', async () => {
-    // Inject a probe that always returns loss after the first move via custom fetch-less path:
-    // use a mate-in-1 style isn't available; instead verify message constant on direct set via lost path
-    // by simulating checkmate against defender is hard offline — check the string is wired in source.
-    const src = read('lib/defendDraw/DefendDrawSession.ts');
-    assert.match(src, /Partie perdue sur jeu parfait de l’adversaire/);
-    assert.match(src, /Nulle défendue pendant/);
-  });
-});
-
-describe('opponent pressure picker', () => {
-  it('returns a legal move and prefers TB pressure when mocked', async () => {
-    const fen = '4r3/8/8/3Pk3/8/3K4/8/8 b - - 0 1';
-    // Opponent is white to move after black... actually fen is black to move.
-    // Pick from a white-to-move position: after a null black move we use white STM.
-    const whiteFen = '8/8/8/3Pk3/8/3K4/8/4r3 w - - 0 1';
-    const pick = await pickOpponentMove(whiteFen, 'b', {
-      probeOptions: { disableTablebase: true },
-      rng: () => 0,
+  it('marks loss with Stockfish wording (not tablebase perfect play)', async () => {
+    let calls = 0;
+    const analyzer = createMockDefenseAnalyzer((fen) => {
+      calls += 1;
+      const g = new Chess(fen);
+      const m = g.moves({ verbose: true })[0];
+      return baseAnalysis({
+        bestMove: m
+          ? { from: m.from, to: m.to, promotion: m.promotion }
+          : null,
+        mateIn: g.turn() === 'w' ? -1 : 1,
+        scoreCp: -900000,
+        wdl: null,
+        depth: 16,
+      });
     });
-    assert.ok(pick);
-    const g = new Chess(whiteFen);
-    assert.ok(
-      g
-        .moves({ verbose: true })
-        .some((m) => m.from === pick!.from && m.to === pick!.to),
+    const session = new DefendDrawSession({ analyzer, targetMoves: 30 });
+    const start = await session.start('debutant', [], () => 0);
+    const legal = session.getChess().moves({ verbose: true })[0]!;
+    const after = await session.attemptMove(legal.from, legal.to);
+    assert.equal(after.phase, 'lost');
+    assert.match(
+      after.lastFeedback ?? '',
+      /perdante|Mat forcé|suite forcée/i,
     );
+    assert.doesNotMatch(
+      after.lastFeedback ?? '',
+      /jeu parfait de l’adversaire/,
+    );
+    assert.ok(calls >= 1);
+    assert.equal(start.position?.verified, true);
   });
 
-  it('uses stockfish suggestion when it matches a top-pressure move', async () => {
-    const fen = '8/8/8/3Pk3/8/3K4/8/4r3 w - - 0 1';
-    const legal = new Chess(fen).moves({ verbose: true })[0]!;
-    const pick = await pickOpponentMove(fen, 'b', {
-      probeOptions: { disableTablebase: true },
-      stockfishPick: async () => ({
-        from: legal.from,
-        to: legal.to,
-        promotion: legal.promotion,
-      }),
-      rng: () => 0,
-    });
-    assert.equal(pick!.from, legal.from);
-    assert.equal(pick!.to, legal.to);
-  });
-});
-
-describe('tablebase priority contract', () => {
-  it('probeWdl prefers terminal/tablebase before stockfish', async () => {
-    let sfCalls = 0;
-    const r = await probeWdl('8/8/8/4k3/8/8/8/4K3 w - - 0 1', {
-      disableTablebase: true,
-      stockfishEval: async () => {
-        sfCalls += 1;
-        return 999;
-      },
-    });
-    assert.equal(r.verdict, 'draw');
-    assert.equal(r.source, 'terminal');
-    assert.equal(sfCalls, 0);
+  it('session source no longer probes tablebase mid-game', () => {
+    const src = read('lib/defendDraw/DefendDrawSession.ts');
+    assert.doesNotMatch(src, /probeWdl/);
+    assert.doesNotMatch(src, /WdlProbe/);
+    assert.doesNotMatch(src, /opponentMove/);
+    assert.match(src, /isClearlyLostPosition/);
+    assert.match(src, /analyzer\.analyze/);
   });
 });
 
-describe('navigation: Entraînement tactique', () => {
-  it('lists Défends la nulle under puzzles hub, not Culture G', () => {
-    const puzzleHub = read('components/puzzles/PuzzleHubPhase.tsx');
-    const cultureHub = read('app/quiz-ouverture/index.tsx');
-    const puzzleLayout = read('app/puzzles/_layout.tsx');
-    const cultureLayout = read('app/quiz-ouverture/_layout.tsx');
+describe('navigation still under Entraînement tactique', () => {
+  it('uses StockfishAnalysisService on the screen', () => {
     const screen = read('app/puzzles/defends-nulle.tsx');
+    assert.match(screen, /StockfishAnalysisService/);
+    assert.doesNotMatch(screen, /RandomEngine/);
+    assert.doesNotMatch(screen, /probeWdl/);
+    const hub = read('components/puzzles/PuzzleHubPhase.tsx');
+    assert.match(hub, /puzzle-card-defends-nulle/);
+    const culture = read('app/quiz-ouverture/index.tsx');
+    assert.doesNotMatch(culture, /defends-nulle/);
+  });
+});
 
-    assert.match(puzzleHub, /puzzle-card-defends-nulle/);
-    assert.match(puzzleHub, /\/puzzles\/defends-nulle/);
-    assert.match(puzzleLayout, /defends-nulle/);
-    assert.doesNotMatch(cultureHub, /defends-nulle/);
-    assert.doesNotMatch(cultureLayout, /defends-nulle/);
-    assert.match(screen, /defends-nulle-next/);
-    assert.match(screen, /DEFEND_DRAW_TARGET_MOVES/);
-    assert.match(screen, /StockfishEngine/);
+describe('wdl cp helper still works', () => {
+  it('maps centipawns coarsely', () => {
+    assert.equal(verdictFromCp(200), 'win');
+    assert.equal(verdictFromCp(-200), 'loss');
   });
 });

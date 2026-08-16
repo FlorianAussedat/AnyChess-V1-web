@@ -14,12 +14,50 @@ export {
 } from './positions.ts';
 export type { DefendDrawPosition } from './positions.ts';
 export {
+  EndgamePositionRepository,
+  endgamePositionRepository,
+  endgamesForDifficulty,
+  listCertifiedEndgames,
+  pickCertifiedEndgame,
+} from './EndgamePositionRepository.ts';
+export type { CertifiedEndgamePosition } from './EndgamePositionRepository.ts';
+export {
   annotatePrecision,
   isDeadOrTrivialHold,
   isEligibleDefendDrawPosition,
   isTrivialInsufficientMaterial,
   precisionFitsDifficulty,
 } from './defensivePrecision.ts';
+export {
+  CLEARLY_LOST_CP_MAX,
+  CLEARLY_LOST_MIN_DEPTH,
+  CLEARLY_LOST_STREAK_REQUIRED,
+  CLEARLY_LOST_WDL_DRAW_MAX,
+  CLEARLY_LOST_WDL_LOSS_MIN,
+  evaluateClearlyLostSignal,
+  isClearlyLostPosition,
+} from './isClearlyLostPosition.ts';
+export type {
+  ClearlyLostReason,
+  ClearlyLostVerdict,
+} from './isClearlyLostPosition.ts';
+export {
+  StockfishAnalysisService,
+  createMockDefenseAnalyzer,
+} from './StockfishAnalysisService.ts';
+export type {
+  DefenseAnalysis,
+  DefenseAnalyzer,
+  DefenseBestMove,
+  StockfishAnalysisServiceOptions,
+} from './StockfishAnalysisService.ts';
+export { DefendDrawSession } from './DefendDrawSession.ts';
+export type {
+  DefendDrawPhase,
+  DefendDrawSessionOptions,
+  DefendDrawSnapshot,
+} from './DefendDrawSession.ts';
+// Legacy helpers kept for offline tooling / tests (not used mid-game by session).
 export {
   countDrawingMoves,
   heuristicWdl,
@@ -32,15 +70,3 @@ export type {
   TablebaseMove,
   WdlProbeOptions,
 } from './WdlProbe.ts';
-export { pickOpponentMove } from './opponentMove.ts';
-export type {
-  OpponentPick,
-  PickOpponentMoveOptions,
-  StockfishPickFn,
-} from './opponentMove.ts';
-export { DefendDrawSession } from './DefendDrawSession.ts';
-export type {
-  DefendDrawPhase,
-  DefendDrawSessionOptions,
-  DefendDrawSnapshot,
-} from './DefendDrawSession.ts';

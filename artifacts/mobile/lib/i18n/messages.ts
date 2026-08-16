@@ -386,6 +386,7 @@ export type MessageKey =
   | 'quiz.defendsNulleContinue'
   | 'quiz.defendsNulleRestart'
   | 'quiz.defendsNulleAnother'
+  | 'quiz.defendsNulleEngineUnavailable'
   | 'quiz.incorrect'
   | 'quiz.correct'
   | 'quiz.played'
@@ -1018,15 +1019,17 @@ const fr: Dict = {
   'quiz.defendsNulleDesc':
     'Tiens une finale difficile face à un adversaire qui joue au maximum.',
   'quiz.defendsNulleLead':
-    'La position est objectivement nulle — tiens-la 30 coups face à un jeu presque parfait.',
+    'Position de départ certifiée nulle — tiens-la 30 coups face à Stockfish.',
   'quiz.defendsNulleProgress': 'Coups tenus : {{current}} / {{total}}',
-  'quiz.defendsNulleThinking': 'L’adversaire réfléchit…',
+  'quiz.defendsNulleThinking': 'Stockfish analyse…',
   'quiz.defendsNulleLoading': 'Chargement…',
   'quiz.defendsNulleAgain': 'Nouvelle position',
   'quiz.defendsNulleNext': 'Position suivante',
   'quiz.defendsNulleContinue': 'Continuer',
   'quiz.defendsNulleRestart': 'Recommencer',
   'quiz.defendsNulleAnother': 'Jouer une autre finale',
+  'quiz.defendsNulleEngineUnavailable':
+    'Stockfish est requis pour ce mode et n’est pas disponible ici.',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Joué : {{moves}}',
@@ -1697,15 +1700,17 @@ const en: Dict = {
   'quiz.defendsNulleDesc':
     'Hold a difficult endgame against a near-perfect opponent.',
   'quiz.defendsNulleLead':
-    'The position is objectively drawn — hold it for 30 moves against near-perfect play.',
+    'Certified drawn start — hold it for 30 moves against Stockfish.',
   'quiz.defendsNulleProgress': 'Moves held: {{current}} / {{total}}',
-  'quiz.defendsNulleThinking': 'Opponent is thinking…',
+  'quiz.defendsNulleThinking': 'Stockfish is analyzing…',
   'quiz.defendsNulleLoading': 'Loading…',
   'quiz.defendsNulleAgain': 'New position',
   'quiz.defendsNulleNext': 'Next position',
   'quiz.defendsNulleContinue': 'Continue',
   'quiz.defendsNulleRestart': 'Restart',
   'quiz.defendsNulleAnother': 'Play another endgame',
+  'quiz.defendsNulleEngineUnavailable':
+    'Stockfish is required for this mode and is not available here.',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Played: {{moves}}',

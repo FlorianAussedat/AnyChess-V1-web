@@ -103,6 +103,11 @@ describe('exercise hub mascot assets', () => {
     assert.doesNotMatch(culture, /defendsNulle/);
     assert.doesNotMatch(culture, /construisOuverture/);
 
+    const blind = read('components/blind/BlindHubPhase.tsx');
+    assert.match(blind, /BrandAssets\.exercises\.ecouterPuisReconstruire/);
+    assert.match(blind, /BrandAssets\.exercises\.regarderPuisReciter/);
+    assert.doesNotMatch(blind, /iconName=/);
+
     const puzzles = read('components/puzzles/PuzzleHubPhase.tsx');
     assert.match(puzzles, /BrandAssets\.exercises\.problemesVisuels/);
     assert.match(puzzles, /BrandAssets\.exercises\.problemesAveugle/);

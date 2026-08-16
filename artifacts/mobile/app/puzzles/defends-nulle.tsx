@@ -30,12 +30,10 @@ import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import {
   DefendDrawSession,
   DEFEND_DRAW_TARGET_MOVES,
-  opponentEloForDifficulty,
+  StockfishAnalysisService,
   opponentMoveTimeMs,
   type DefendDrawSnapshot,
 } from '@/lib/defendDraw';
-import { StockfishEngine } from '@/lib/engines/stockfish';
-import { MAX_UCI_ELO } from '@/lib/engines/stockfish/uci';
 
 function boardFromFen(fen: string): (BoardPiece | null)[][] {
   return new Chess(fen).board() as (BoardPiece | null)[][];
@@ -49,10 +47,9 @@ export default function DefendsNulleScreen() {
   const wideBoardSize = useBoardSize('wide');
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
 
-  const engineRef = useRef<StockfishEngine | null>(null);
+  const analyzerRef = useRef<StockfishAnalysisService | null>(null);
   const sessionRef = useRef(
     new DefendDrawSession({
-      probeOptions: { tablebaseTimeoutMs: 2800 },
       targetMoves: DEFEND_DRAW_TARGET_MOVES,
     }),
   );
@@ -63,37 +60,44 @@ export default function DefendsNulleScreen() {
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [engineReady, setEngineReady] = useState(Platform.OS !== 'web');
+  const [engineError, setEngineError] = useState<string | null>(null);
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
   const recentRef = useRef<string[]>([]);
   const startedRef = useRef(false);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    const engine = new StockfishEngine({
-      elo: MAX_UCI_ELO,
-      multiPv: 3,
-      varietyMarginCp: 25,
+    if (Platform.OS !== 'web') {
+      setEngineError(t('quiz.defendsNulleEngineUnavailable'));
+      return;
+    }
+    const service = new StockfishAnalysisService({
       moveTimeMs: opponentMoveTimeMs(),
     });
-    engineRef.current = engine;
-    sessionRef.current.setStockfishPick(async (game) => {
-      const move = await engine.pickMove(game);
-      if (!move) return null;
-      return {
-        from: move.from,
-        to: move.to,
-        promotion: move.promotion,
-      };
-    });
-    void engine.init().catch(() => {
-      /* Random / TB-only fallback remains */
-    });
+    analyzerRef.current = service;
+    sessionRef.current.setAnalyzer(service);
+    let cancelled = false;
+    void service
+      .init()
+      .then(() => {
+        if (!cancelled) {
+          setEngineReady(true);
+          setEngineError(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setEngineError(t('quiz.defendsNulleEngineUnavailable'));
+          setEngineReady(false);
+        }
+      });
     return () => {
-      sessionRef.current.setStockfishPick(undefined);
-      engine.destroy();
-      engineRef.current = null;
+      cancelled = true;
+      sessionRef.current.setAnalyzer(null);
+      service.destroy();
+      analyzerRef.current = null;
     };
-  }, []);
+  }, [t]);
 
   const refresh = useCallback((next: DefendDrawSnapshot) => {
     setSnap(next);
@@ -105,8 +109,6 @@ export default function DefendsNulleScreen() {
     async (diff: AnyChessDifficultyId) => {
       setBusy(true);
       try {
-        // Keep opponent at max strength regardless of difficulty band.
-        void opponentEloForDifficulty(diff);
         const next = await sessionRef.current.start(diff, recentRef.current);
         if (next.position) {
           recentRef.current = [next.position.id, ...recentRef.current].slice(0, 12);
@@ -149,7 +151,7 @@ export default function DefendsNulleScreen() {
 
   const playUserMove = useCallback(
     async (from: string, to: string) => {
-      if (busy) return;
+      if (busy || !engineReady) return;
       if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
       setBusy(true);
       try {
@@ -158,12 +160,12 @@ export default function DefendsNulleScreen() {
         setBusy(false);
       }
     },
-    [busy, snap.phase, refresh],
+    [busy, engineReady, snap.phase, refresh],
   );
 
   const submitSan = useCallback(
     async (raw: string) => {
-      if (busy) return;
+      if (busy || !engineReady) return;
       if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
       setBusy(true);
       try {
@@ -172,11 +174,14 @@ export default function DefendsNulleScreen() {
         setBusy(false);
       }
     },
-    [busy, snap.phase, refresh],
+    [busy, engineReady, snap.phase, refresh],
   );
 
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
-    forceOff: busy || (snap.phase !== 'playing' && snap.phase !== 'freeplay'),
+    forceOff:
+      busy ||
+      !engineReady ||
+      (snap.phase !== 'playing' && snap.phase !== 'freeplay'),
     isSpeaking: false,
     onTranscript: (raw) => {
       setShowRecognizedFlash(true);
@@ -187,7 +192,7 @@ export default function DefendsNulleScreen() {
 
   const onSquarePress = useCallback(
     (square: string) => {
-      if (busy) return;
+      if (busy || !engineReady) return;
       if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
       if (selected === null) {
         const dests = sessionRef.current.getLegalDestinations(square);
@@ -215,7 +220,7 @@ export default function DefendsNulleScreen() {
         setLegalDests([]);
       }
     },
-    [busy, snap.phase, selected, legalDests, playUserMove],
+    [busy, engineReady, snap.phase, selected, legalDests, playUserMove],
   );
 
   const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
@@ -223,7 +228,7 @@ export default function DefendsNulleScreen() {
   const challengeEnded =
     snap.phase === 'won' || snap.phase === 'lost' || snap.phase === 'drawn-early';
   const canMove =
-    !busy && (snap.phase === 'playing' || snap.phase === 'freeplay');
+    engineReady && !busy && (snap.phase === 'playing' || snap.phase === 'freeplay');
 
   const statusColor =
     snap.phase === 'won' || snap.phase === 'drawn-early'
@@ -302,7 +307,13 @@ export default function DefendsNulleScreen() {
         />
       </ChessBoardSection>
 
-      {(busy || snap.phase === 'thinking') && (
+      {!!engineError && (
+        <Text style={{ color: '#c44' }} testID="defends-nulle-engine-error">
+          {engineError}
+        </Text>
+      )}
+
+      {(busy || snap.phase === 'thinking' || (!engineReady && !engineError)) && (
         <View style={styles.busyRow}>
           <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.mutedForeground }}>
@@ -368,7 +379,6 @@ export default function DefendsNulleScreen() {
         </View>
       )}
 
-      {/* Permanent skip — never counts as win/loss */}
       <Pressable
         onPress={nextPosition}
         disabled={busy}

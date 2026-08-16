@@ -3,7 +3,7 @@
  * No engine/worker/DOM dependencies — trivially unit-testable.
  */
 import type { StockfishConfig } from './types';
-import { recommendedStockfishElo } from '@/lib/difficulty/PlayerDifficultyProfile';
+import { recommendedStockfishElo } from '../../difficulty/PlayerDifficultyProfile.ts';
 
 /**
  * Default engine configuration.
@@ -117,6 +117,64 @@ export function parseInfoLine(line: string): CandidateLine | null {
   }
 
   return { multipv, scoreCp, move: pvMatch[1] };
+}
+
+/** Richer info-line parse for defence analysis (mate distance + optional WDL). */
+export type InfoScoreSnapshot = {
+  scoreCp: number;
+  /** Positive = STM mates in N; negative = STM is mated in N. */
+  mateIn: number | null;
+  depth: number;
+  /** Permille WDL for side-to-move when `UCI_ShowWDL` is on. */
+  wdl: { win: number; draw: number; loss: number } | null;
+  /** First PV move in UCI, if present. */
+  pvMove: string | null;
+};
+
+export function parseInfoScoreSnapshot(line: string): InfoScoreSnapshot | null {
+  if (!line.startsWith('info ')) return null;
+  const depthMatch = line.match(/\bdepth\s+(\d+)/);
+  const scoreMatch = line.match(/\bscore\s+(cp|mate)\s+(-?\d+)/);
+  if (!scoreMatch && !depthMatch) return null;
+
+  let scoreCp = 0;
+  let mateIn: number | null = null;
+  if (scoreMatch) {
+    const value = parseInt(scoreMatch[2]!, 10);
+    if (scoreMatch[1] === 'mate') {
+      mateIn = value;
+      scoreCp = (value >= 0 ? 1 : -1) * (MATE_SCORE - Math.abs(value));
+    } else {
+      scoreCp = value;
+    }
+  }
+
+  const wdlMatch = line.match(/\bwdl\s+(\d+)\s+(\d+)\s+(\d+)/);
+  const wdl = wdlMatch
+    ? {
+        win: parseInt(wdlMatch[1]!, 10),
+        draw: parseInt(wdlMatch[2]!, 10),
+        loss: parseInt(wdlMatch[3]!, 10),
+      }
+    : null;
+
+  const pvMatch = line.match(/\bpv\s+(\S+)/);
+  return {
+    scoreCp,
+    mateIn,
+    depth: depthMatch ? parseInt(depthMatch[1]!, 10) : 0,
+    wdl,
+    pvMove: pvMatch?.[1] ?? null,
+  };
+}
+
+/** Options for a full-strength defence engine (no Elo cap). */
+export function fullStrengthAnalysisOptionCommands(multiPv = 1): string[] {
+  return [
+    'setoption name UCI_LimitStrength value false',
+    'setoption name UCI_ShowWDL value true',
+    `setoption name MultiPV value ${Math.max(1, Math.round(multiPv))}`,
+  ];
 }
 
 /**
