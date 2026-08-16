@@ -33,7 +33,7 @@ export const BrandAssets = {
    * HubModeCard exercise mascots — lightweight display WebPs (192px).
    * Sources: assets/brand/modes/*.png (originals untouched).
    * Regenerate with: `pnpm run optimize:brand-display`
-   * HubModeCard renders these at 52×52 (contain).
+   * HubModeCard renders these at 66×66 (contain).
    */
   exercises: {
     construisOuverture: require('@/assets/brand/display/modes/construis-ouverture.webp'),
