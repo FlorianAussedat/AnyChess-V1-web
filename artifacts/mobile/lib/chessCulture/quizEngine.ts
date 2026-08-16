@@ -4,6 +4,7 @@
  */
 import { Chess } from 'chess.js';
 import type { BoardPiece } from '../game/types.ts';
+import { hasChessCultureImage } from './imageRegistryIds.ts';
 import type {
   ChessCultureCategory,
   ChessCultureDifficulty,
@@ -90,8 +91,21 @@ function matchesFilters(
 }
 
 /**
+ * Photo questions must resolve to a registered local asset.
+ * Never fall back to another player's image; omit the question instead.
+ */
+export function hasResolvableChessCulturePresentation(
+  question: Pick<ChessCultureQuestion, 'presentation'>,
+): boolean {
+  const imageId = question.presentation?.imageId;
+  if (imageId === undefined) return true;
+  return hasChessCultureImage(imageId);
+}
+
+/**
  * Active source questions minus locally blacklisted ones.
  * Optionally applies future category/difficulty/tag filters (not exposed in UI yet).
+ * Questions with an unresolved imageId are excluded from the pool.
  */
 export function getEligibleChessCultureQuestions(
   questions: readonly ChessCultureQuestion[],
@@ -99,6 +113,7 @@ export function getEligibleChessCultureQuestions(
   filters?: ChessCultureQuizFilters,
 ): ChessCultureQuestion[] {
   return getActiveChessCultureQuestions(questions).filter((q) => {
+    if (!hasResolvableChessCulturePresentation(q)) return false;
     const fb = feedback.questions[q.id];
     if (fb && fb.status === 'blacklisted' && fb.questionRevision === q.revision) {
       return false;

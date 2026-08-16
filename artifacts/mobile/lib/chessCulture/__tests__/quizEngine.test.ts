@@ -30,8 +30,9 @@ import {
 } from '../QuestionFeedbackStore.ts';
 import {
   listChessCultureImageIds,
-  resolveChessCultureImageSource,
-} from '../visualRegistry.ts';
+  hasChessCultureImage,
+} from '../imageRegistryIds.ts';
+import { resolveChessCultureImageSource } from '../resolveImage.ts';
 import type { ChessCultureQuestion } from '../types.ts';
 
 function sampleQuestion(
@@ -117,6 +118,8 @@ describe('chessCulture question bank', () => {
         q.id.startsWith('terminology-new-') ||
         q.id.startsWith('visual-') ||
         q.id.startsWith('modern-') ||
+        q.id.startsWith('player-photo-') ||
+        q.id.startsWith('player-clue-') ||
         q.id.startsWith('openings-new-') ||
         q.id.startsWith('rules-new-'),
     );
@@ -506,9 +509,10 @@ describe('chessCulture optional visuals', () => {
   });
 
   it('resolves missing images safely without throwing', () => {
-    assert.equal(resolveChessCultureImageSource(undefined), null);
-    assert.equal(resolveChessCultureImageSource(''), null);
-    assert.equal(resolveChessCultureImageSource('does-not-exist'), null);
+    const lookup = () => null;
+    assert.equal(resolveChessCultureImageSource(undefined, lookup), null);
+    assert.equal(resolveChessCultureImageSource('', lookup), null);
+    assert.equal(resolveChessCultureImageSource('does-not-exist', lookup), null);
     assert.equal(
       resolveChessCultureImageSource('x', () => {
         throw new Error('boom');

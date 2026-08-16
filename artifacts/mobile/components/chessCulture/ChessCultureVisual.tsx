@@ -26,8 +26,12 @@ export function ChessCultureVisual({ presentation, testID = 'culture-visual' }: 
   if (!source) return null;
 
   const fit = presentation?.imageFit === 'cover' ? 'cover' : 'contain';
-  const maxWidth = Math.min(width - 36, 420);
-  const maxHeight = Math.min(Math.round(maxWidth * 0.85), 280);
+  // Keep portraits compact so answer choices stay near the first viewport on phones.
+  const maxWidth = Math.min(width - 36, fit === 'cover' ? 280 : 420);
+  const maxHeight =
+    fit === 'cover'
+      ? Math.min(Math.round(maxWidth * 0.72), 200)
+      : Math.min(Math.round(maxWidth * 0.85), 280);
 
   return (
     <View style={styles.wrap} testID={testID}>
@@ -38,13 +42,13 @@ export function ChessCultureVisual({ presentation, testID = 'culture-visual' }: 
             borderColor: colors.border,
             backgroundColor: colors.card,
             width: maxWidth,
-            maxHeight,
+            height: maxHeight,
           },
         ]}
       >
         <Image
           source={source}
-          style={{ width: '100%', height: maxHeight - 2 }}
+          style={{ width: '100%', height: '100%' }}
           contentFit={fit}
           accessibilityLabel={presentation?.imageAlt ?? t('a11y.illustration')}
           recyclingKey={imageId}

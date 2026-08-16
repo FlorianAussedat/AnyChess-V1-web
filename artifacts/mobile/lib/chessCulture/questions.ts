@@ -9,6 +9,7 @@ import { CHECKMATE_QUESTIONS } from './questions/checkmates.ts';
 import { LEGACY_CHESS_CULTURE_QUESTIONS } from './questions/legacyBank.ts';
 import { MODERN_CHESS_QUESTIONS } from './questions/modernChess.ts';
 import { OPENINGS_QUESTIONS } from './questions/openings.ts';
+import { PLAYER_PHOTO_QUESTIONS } from './questions/playerPhotos.ts';
 import { RULES_QUESTIONS } from './questions/rules.ts';
 import { TERMINOLOGY_QUESTIONS } from './questions/terminology.ts';
 import { VISUAL_QUESTIONS } from './questions/visual.ts';
@@ -20,6 +21,7 @@ export const CHESS_CULTURE_QUESTIONS: ChessCultureQuestion[] = [
   ...TERMINOLOGY_QUESTIONS,
   ...VISUAL_QUESTIONS,
   ...MODERN_CHESS_QUESTIONS,
+  ...PLAYER_PHOTO_QUESTIONS,
   ...OPENINGS_QUESTIONS,
   ...RULES_QUESTIONS,
 ];
