@@ -29,11 +29,34 @@ export {
   isDeadOrTrivialHold,
   isDeadOppositeBishopHold,
   isEligibleDefendDrawPosition,
+  isStructurallyTrivialDefendDraw,
   isTrivialDefendDrawPosition,
   isTrivialInsufficientMaterial,
   opponentLacksPracticalPressure,
   precisionFitsDifficulty,
 } from './defensivePrecision.ts';
+export {
+  hasProvenDrawCertification,
+  isAcceptableVerifiedDrawFlag,
+  STOCKFISH_CERT_ENGINE_LABEL,
+  STOCKFISH_CERT_MAX_ABS_CP,
+  STOCKFISH_CERT_MIN_DEPTH,
+  SYZYGY_MAX_PIECES,
+} from './certification.ts';
+export type {
+  DefendDrawVerification,
+  DefendDrawVerificationMethod,
+} from './certification.ts';
+export {
+  certifyDefendDrawPosition,
+  validateDefendDrawBase,
+} from './certifyPosition.ts';
+export type {
+  CertifyBaseInput,
+  CertifyPositionOptions,
+  CertifyPositionResult,
+  StockfishCertAnalysis,
+} from './certifyPosition.ts';
 export {
   isDefendDrawStartLegal,
   validateDefendDrawFen,

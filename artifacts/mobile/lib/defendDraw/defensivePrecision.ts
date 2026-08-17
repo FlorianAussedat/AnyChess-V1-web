@@ -83,17 +83,29 @@ export function isDeadOppositeBishopHold(fen: string): boolean {
 }
 
 /**
+ * Structural triviality (material / pressure) — ignores hold-ratio metadata.
+ * Used before Syzygy counting; ratio is applied after certification counts exist.
+ */
+export function isStructurallyTrivialDefendDraw(
+  fen: string,
+  defenderColor: 'w' | 'b',
+): boolean {
+  if (isTrivialInsufficientMaterial(fen)) return true;
+  if (opponentLacksPracticalPressure(fen, defenderColor)) return true;
+  if (isDeadOppositeBishopHold(fen)) return true;
+  return false;
+}
+
+/**
  * Central triviality gate for starts and selection.
  * Not based solely on piece count.
  */
 export function isTrivialDefendDrawPosition(
   position: Pick<DefendDrawPosition, 'fen' | 'defenderColor' | 'drawingMoves' | 'legalMoves'>,
 ): boolean {
-  if (isTrivialInsufficientMaterial(position.fen)) return true;
-  if (opponentLacksPracticalPressure(position.fen, position.defenderColor)) {
+  if (isStructurallyTrivialDefendDraw(position.fen, position.defenderColor)) {
     return true;
   }
-  if (isDeadOppositeBishopHold(position.fen)) return true;
   if (position.legalMoves <= 0 || position.drawingMoves <= 0) return true;
   // Almost every move holds and there are many of them → no exercise
   if (
@@ -118,6 +130,7 @@ export function isDeadOrTrivialHold(
 
 export function isEligibleDefendDrawPosition(pos: DefendDrawPosition): boolean {
   if (pos.verifiedDraw !== true) return false;
+  if (!pos.verification || pos.verification.result !== 'draw') return false;
   if (isTrivialDefendDrawPosition(pos)) return false;
   return true;
 }

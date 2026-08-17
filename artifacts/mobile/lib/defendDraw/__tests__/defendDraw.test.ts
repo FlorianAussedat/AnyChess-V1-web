@@ -145,9 +145,10 @@ describe('EndgamePositionRepository', () => {
 
   it('never stamps verifiedDraw at runtime — dataset owns the flag', () => {
     const src = read('lib/defendDraw/EndgamePositionRepository.ts');
-    assert.match(src, /verifiedDraw !== true/);
+    assert.match(src, /isAcceptableVerifiedDrawFlag/);
     assert.match(src, /getDefendDrawPosition/);
     assert.doesNotMatch(src, /asCertified/);
+    assert.match(src, /verification\.result === \"draw\"|proven certification/);
   });
 });
 

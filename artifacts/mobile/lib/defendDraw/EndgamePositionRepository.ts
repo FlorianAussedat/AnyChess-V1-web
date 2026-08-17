@@ -6,6 +6,7 @@
  * No random / procedural FEN fallback.
  */
 import type { AnyChessDifficultyId } from '../difficulty/anyChessDifficulty.ts';
+import { isAcceptableVerifiedDrawFlag } from './certification.ts';
 import {
   isEligibleDefendDrawPosition,
   isTrivialDefendDrawPosition,
@@ -28,7 +29,7 @@ export class DefendDrawPoolEmptyError extends Error {
   constructor(difficulty: AnyChessDifficultyId) {
     super(
       `[DefendDraw] Aucune position certifiée disponible pour « ${difficulty} ». ` +
-        `Vérifiez CERTIFIED_DEFEND_DRAW_POSITIONS (verifiedDraw + filtres).`,
+        `Vérifiez CERTIFIED_DEFEND_DRAW_POSITIONS (verification.result === "draw").`,
     );
     this.name = 'DefendDrawPoolEmptyError';
   }
@@ -51,14 +52,17 @@ function logRejected(id: string, reason: string): void {
 }
 
 /**
- * Dataset rows that are structurally usable (verified + legal + non-trivial).
+ * Dataset rows that are structurally usable + proven certified draws.
  * Invalid entries are skipped (and logged in DEV) — never shown.
  */
 export function listCertifiedEndgames(): CertifiedEndgamePosition[] {
   const out: CertifiedEndgamePosition[] = [];
   for (const raw of CERTIFIED_DEFEND_DRAW_POSITIONS) {
-    if (raw.verifiedDraw !== true) {
-      logRejected(raw.id, 'verifiedDraw !== true');
+    if (!isAcceptableVerifiedDrawFlag(raw.verifiedDraw, raw.verification)) {
+      logRejected(
+        raw.id,
+        'missing proven certification (verifiedDraw alone is insufficient)',
+      );
       continue;
     }
     const fenCheck = validateDefendDrawFen(raw.fen, raw.defenderColor);

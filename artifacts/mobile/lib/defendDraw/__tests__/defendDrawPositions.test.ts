@@ -36,10 +36,15 @@ function baseAnalysis(partial: Partial<DefenseAnalysis> = {}): DefenseAnalysis {
 }
 
 describe('certified dataset integrity', () => {
-  it('every entry has verifiedDraw true, legal FEN, and is non-trivial', () => {
+  it('every entry has verifiedDraw true, legal FEN, proven certification, and is non-trivial', () => {
     assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length >= 16);
     for (const p of CERTIFIED_DEFEND_DRAW_POSITIONS) {
       assert.equal(p.verifiedDraw, true, p.id);
+      assert.equal(p.verification.result, 'draw', p.id);
+      assert.ok(
+        p.verification.method === 'syzygy' || p.verification.method === 'stockfish',
+        p.id,
+      );
       assert.match(p.id, /^DD-\d{3}$/, p.id);
       const fen = validateDefendDrawFen(p.fen, p.defenderColor);
       assert.equal(fen.ok, true, `${p.id}: ${!fen.ok ? fen.reason : ''}`);
@@ -144,6 +149,7 @@ describe('session regulatory success stops before Stockfish', () => {
       defenderColor: 'b' as const,
       playerColor: 'b' as const,
       verifiedDraw: true as const,
+      verification: { method: 'syzygy' as const, result: 'draw' as const },
       verified: true as const,
       initialOutcome: 'draw' as const,
       legalMoves: 8,
@@ -198,6 +204,7 @@ describe('session regulatory success stops before Stockfish', () => {
       defenderColor: 'w' as const,
       playerColor: 'w' as const,
       verifiedDraw: true as const,
+      verification: { method: 'syzygy' as const, result: 'draw' as const },
       verified: true as const,
       initialOutcome: 'draw' as const,
       legalMoves: 10,
