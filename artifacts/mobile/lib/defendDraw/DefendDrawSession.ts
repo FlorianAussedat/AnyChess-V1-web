@@ -1,13 +1,16 @@
 /**
  * Défends la nulle session — certified draw start, then Stockfish-only play.
  * Offline WDL verification is authoring-time only; mid-game uses Stockfish.
+ * Regulatory draws/mates use the live chess.js game as single source of truth.
  */
 import { Chess, type Move, type Square } from 'chess.js';
 import type { AnyChessDifficultyId } from '../difficulty/anyChessDifficulty.ts';
 import {
+  DefendDrawPoolEmptyError,
   endgamePositionRepository,
   type CertifiedEndgamePosition,
 } from './EndgamePositionRepository.ts';
+import type { EndgameFamily } from './taxonomy.ts';
 import {
   isClearlyLostPosition,
   type ClearlyLostVerdict,
@@ -17,6 +20,10 @@ import type {
   DefenseAnalyzer,
 } from './defenseTypes.ts';
 import { defendDrawMoveTimeMs } from './engineConfig.ts';
+import {
+  evaluateRegulatoryEnd,
+  regulatorySuccessMessage,
+} from './gameEnd.ts';
 import { DEFEND_DRAW_TARGET_MOVES } from './wdl.ts';
 
 export type DefendDrawPhase =
@@ -36,11 +43,14 @@ export type DefendDrawSnapshot = {
   playerMovesMade: number;
   targetMoves: number;
   challengeComplete: boolean;
+  /** True when rules ended the game (mate/draw) — Continuer should be hidden. */
+  boardGameOver: boolean;
   lastFeedback: string | null;
   lastAnalysis: DefenseAnalysis | null;
   lastLostVerdict: ClearlyLostVerdict | null;
   lastMove: { from: string; to: string } | null;
   difficulty: AnyChessDifficultyId;
+  poolError: string | null;
 };
 
 export type DefendDrawSessionOptions = {
@@ -69,6 +79,8 @@ export class DefendDrawSession {
   private lastMove: { from: string; to: string } | null = null;
   private difficulty: AnyChessDifficultyId = 'debutant';
   private casBStreak = 0;
+  private poolError: string | null = null;
+  private recentFamilies: EndgameFamily[] = [];
   private readonly targetMoves: number;
   private analyzer: DefenseAnalyzer | null;
   private readonly repository: typeof endgamePositionRepository;
@@ -89,19 +101,38 @@ export class DefendDrawSession {
     rng: () => number = Math.random,
   ): Promise<DefendDrawSnapshot> {
     this.difficulty = difficulty;
-    const chosen = this.repository.pick(difficulty, recentIds, rng);
-    // Pool entries are pre-certified draws — no mid-session WDL probes.
-    this.position = chosen;
-    this.startFen = chosen.fen;
-    this.game = new Chess(chosen.fen);
-    this.phase = 'playing';
-    this.playerMovesMade = 0;
-    this.challengeComplete = false;
-    this.lastFeedback = null;
-    this.lastMove = null;
-    this.lastAnalysis = null;
-    this.lastLostVerdict = null;
-    this.casBStreak = 0;
+    this.poolError = null;
+    try {
+      const chosen = this.repository.pick(
+        difficulty,
+        recentIds,
+        rng,
+        this.recentFamilies,
+      );
+      this.position = chosen;
+      this.startFen = chosen.fen;
+      this.game = new Chess(chosen.fen);
+      this.phase = 'playing';
+      this.playerMovesMade = 0;
+      this.challengeComplete = false;
+      this.lastFeedback = null;
+      this.lastMove = null;
+      this.lastAnalysis = null;
+      this.lastLostVerdict = null;
+      this.casBStreak = 0;
+      this.recentFamilies = [chosen.family, ...this.recentFamilies].slice(0, 8);
+    } catch (err) {
+      this.position = null;
+      this.startFen = null;
+      this.phase = 'ready';
+      this.poolError =
+        err instanceof DefendDrawPoolEmptyError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      this.lastFeedback = this.poolError;
+    }
     return this.snapshot();
   }
 
@@ -116,6 +147,7 @@ export class DefendDrawSession {
     this.lastAnalysis = null;
     this.lastLostVerdict = null;
     this.casBStreak = 0;
+    this.poolError = null;
     return this.snapshot();
   }
 
@@ -133,6 +165,34 @@ export class DefendDrawSession {
     return this.game
       .moves({ square: from as Square, verbose: true })
       .map((m) => m.to);
+  }
+
+  /**
+   * Apply regulatory end if the live game is finished.
+   * Returns true when the challenge stopped (no Stockfish call).
+   */
+  private applyRegulatoryEnd(): boolean {
+    const end = evaluateRegulatoryEnd(this.game);
+    if (!end) return false;
+
+    this.challengeComplete = true;
+
+    if (end.kind === 'checkmate') {
+      const defenderWon = end.winner === this.position!.playerColor;
+      if (defenderWon) {
+        this.phase = 'won';
+        this.lastFeedback = 'Mat ! Position gagnée.';
+      } else {
+        this.phase = 'lost';
+        this.lastFeedback = MATE_MESSAGE;
+      }
+      return true;
+    }
+
+    // Any regulatory draw is a success for "defend the draw".
+    this.phase = 'drawn-early';
+    this.lastFeedback = regulatorySuccessMessage(end.kind);
+    return true;
   }
 
   async attemptMove(
@@ -169,21 +229,8 @@ export class DefendDrawSession {
       this.playerMovesMade += 1;
     }
 
-    // Terminal board states (no engine needed)
-    if (this.game.isCheckmate()) {
-      // Defender delivered mate → success / flipped
-      this.challengeComplete = true;
-      this.phase = 'won';
-      this.lastFeedback =
-        this.playerMovesMade >= this.targetMoves
-          ? `Nulle défendue pendant ${this.targetMoves} coups. Finale réussie !`
-          : 'Mat ! Position gagnée.';
-      return this.snapshot();
-    }
-    if (this.game.isStalemate() || this.game.isThreefoldRepetition()) {
-      this.challengeComplete = true;
-      this.phase = 'drawn-early';
-      this.lastFeedback = 'Nulle atteinte.';
+    // Rules first — never call Stockfish after a finished game.
+    if (this.applyRegulatoryEnd()) {
       return this.snapshot();
     }
 
@@ -230,7 +277,6 @@ export class DefendDrawSession {
       return this.snapshot();
     }
 
-    // Opponent reply — Stockfish best move from the post-player analysis (STM = opponent).
     await this.applyOpponentBestMove(analysis);
     return this.snapshot();
   }
@@ -261,7 +307,6 @@ export class DefendDrawSession {
     if (!this.position || !this.analyzer) return;
 
     let pick = analysis.bestMove;
-    // Ensure we search from the opponent's turn.
     if (this.game.turn() === this.position.playerColor || !pick) {
       const refreshed = await this.analyzer.analyze(
         this.game.fen(),
@@ -288,16 +333,7 @@ export class DefendDrawSession {
       return;
     }
 
-    if (this.game.isCheckmate()) {
-      this.challengeComplete = true;
-      this.phase = 'lost';
-      this.lastFeedback = MATE_MESSAGE;
-      return;
-    }
-    if (this.game.isStalemate() || this.game.isThreefoldRepetition()) {
-      this.challengeComplete = true;
-      this.phase = 'drawn-early';
-      this.lastFeedback = 'Nulle atteinte.';
+    if (this.applyRegulatoryEnd()) {
       return;
     }
 
@@ -326,6 +362,7 @@ export class DefendDrawSession {
     this.phase = this.challengeComplete ? 'freeplay' : 'playing';
     if (this.phase === 'playing') this.lastFeedback = null;
   }
+
   snapshot(): DefendDrawSnapshot {
     return {
       phase: this.phase,
@@ -335,11 +372,13 @@ export class DefendDrawSession {
       playerMovesMade: this.playerMovesMade,
       targetMoves: this.targetMoves,
       challengeComplete: this.challengeComplete,
+      boardGameOver: this.game.isGameOver(),
       lastFeedback: this.lastFeedback,
       lastAnalysis: this.lastAnalysis,
       lastLostVerdict: this.lastLostVerdict,
       lastMove: this.lastMove,
       difficulty: this.difficulty,
+      poolError: this.poolError,
     };
   }
 

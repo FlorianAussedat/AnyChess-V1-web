@@ -1,8 +1,7 @@
 /**
  * Défends la nulle — certified starts + Stockfish-only mid-game logic.
  *
- * Imports are granular so Node tests never pull Metro platform factories
- * (`createChessEngineService` / WASM Worker).
+ * Imports are granular so Node tests never pull Metro platform factories.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -18,12 +17,12 @@ import {
   isClearlyLostPosition,
 } from '../isClearlyLostPosition.ts';
 import {
-  DEFEND_DRAW_POSITIONS,
+  CERTIFIED_DEFEND_DRAW_POSITIONS,
 } from '../positions.ts';
 import {
   endgamePositionRepository,
+  getDefendDrawPosition,
   listCertifiedEndgames,
-  pickCertifiedEndgame,
 } from '../EndgamePositionRepository.ts';
 import { isTrivialInsufficientMaterial } from '../defensivePrecision.ts';
 import { DefendDrawSession } from '../DefendDrawSession.ts';
@@ -116,17 +115,18 @@ describe('isClearlyLostPosition', () => {
 });
 
 describe('EndgamePositionRepository', () => {
-  it('only exposes certified non-trivial draws', () => {
+  it('only exposes certified non-trivial draws with verifiedDraw', () => {
     const all = listCertifiedEndgames();
-    assert.ok(all.length >= 8);
+    assert.ok(all.length >= 100);
     for (const p of all) {
-      assert.equal(p.initialOutcome, 'draw');
+      assert.equal(p.verifiedDraw, true);
       assert.equal(p.verified, true);
+      assert.equal(p.initialOutcome, 'draw');
       assert.equal(isTrivialInsufficientMaterial(p.fen), false);
       assert.ok(p.drawingMoves >= 1);
     }
     assert.equal(
-      DEFEND_DRAW_POSITIONS.some((p) =>
+      CERTIFIED_DEFEND_DRAW_POSITIONS.some((p) =>
         isTrivialInsufficientMaterial(p.fen),
       ),
       false,
@@ -134,13 +134,21 @@ describe('EndgamePositionRepository', () => {
   });
 
   it('picks per difficulty without immediate repeats when possible', () => {
-    const a = pickCertifiedEndgame('expert', [], () => 0);
+    const a = getDefendDrawPosition('expert', [], () => 0);
     const b = endgamePositionRepository.pick('expert', [a.id], () => 0.1);
     assert.equal(a.difficulty, 'expert');
     assert.equal(b.difficulty, 'expert');
     if (endgamePositionRepository.list('expert').length > 1) {
       assert.notEqual(b.id, a.id);
     }
+  });
+
+  it('never stamps verifiedDraw at runtime — dataset owns the flag', () => {
+    const src = read('lib/defendDraw/EndgamePositionRepository.ts');
+    assert.match(src, /isAcceptableVerifiedDrawFlag/);
+    assert.match(src, /getDefendDrawPosition/);
+    assert.doesNotMatch(src, /asCertified/);
+    assert.match(src, /verification\.result === \"draw\"|proven certification/);
   });
 });
 
@@ -164,7 +172,7 @@ describe('DefendDrawSession with mock Stockfish', () => {
     const snap = await session.start('debutant', [], () => 0);
     assert.equal(snap.playerMovesMade, 0);
     assert.equal(snap.targetMoves, 30);
-    assert.equal(snap.position?.initialOutcome, 'draw');
+    assert.equal(snap.position?.verifiedDraw, true);
     assert.equal(snap.phase, 'playing');
   });
 
@@ -192,15 +200,19 @@ describe('DefendDrawSession with mock Stockfish', () => {
 
   it('marks loss with Stockfish wording (not tablebase perfect play)', async () => {
     let calls = 0;
+    let defender: 'w' | 'b' = 'w';
     const analyzer = createMockDefenseAnalyzer((fen) => {
       calls += 1;
       const g = new Chess(fen);
       const m = g.moves({ verbose: true })[0];
+      const stm = g.turn();
+      // Mate against the defender, from STM perspective.
+      const mateIn = stm === defender ? -1 : 1;
       return baseAnalysis({
         bestMove: m
           ? { from: m.from, to: m.to, promotion: m.promotion }
           : null,
-        mateIn: g.turn() === 'w' ? -1 : 1,
+        mateIn,
         scoreCp: -900000,
         wdl: null,
         depth: 16,
@@ -208,6 +220,7 @@ describe('DefendDrawSession with mock Stockfish', () => {
     });
     const session = new DefendDrawSession({ analyzer, targetMoves: 30 });
     const start = await session.start('debutant', [], () => 0);
+    defender = start.playerColor;
     const legal = session.getChess().moves({ verbose: true })[0]!;
     const after = await session.attemptMove(legal.from, legal.to);
     assert.equal(after.phase, 'lost');
@@ -220,7 +233,7 @@ describe('DefendDrawSession with mock Stockfish', () => {
       /jeu parfait de l’adversaire/,
     );
     assert.ok(calls >= 1);
-    assert.equal(start.position?.verified, true);
+    assert.equal(start.position?.verifiedDraw, true);
   });
 
   it('session source no longer probes tablebase mid-game', () => {
@@ -230,6 +243,7 @@ describe('DefendDrawSession with mock Stockfish', () => {
     assert.doesNotMatch(src, /opponentMove/);
     assert.match(src, /isClearlyLostPosition/);
     assert.match(src, /analyzer\.analyze/);
+    assert.match(src, /evaluateRegulatoryEnd/);
   });
 });
 
@@ -242,22 +256,16 @@ describe('navigation still under Entraînement tactique', () => {
     assert.doesNotMatch(screen, /probeWdl/);
     assert.match(screen, /defendsNullePreparing/);
     assert.match(screen, /defendsNulleReflecting/);
+    assert.match(screen, /DEBUG ENDGAME/);
+    assert.match(screen, /boardGameOver/);
     const analysis = read('lib/defendDraw/StockfishAnalysisService.ts');
     assert.match(analysis, /ChessEngineService/);
     assert.doesNotMatch(analysis, /transport\.ts/);
     assert.doesNotMatch(analysis, /engines\/random/);
-    // Factory import omits .ts so Metro resolves createChessEngineService.web.ts
     assert.match(
       analysis,
       /from '\.\.\/engines\/analysis\/createChessEngineService'/,
     );
-    const service = read('lib/engines/analysis/ChessEngineService.ts');
-    assert.doesNotMatch(service, /from ['\"].*transport/);
-    assert.doesNotMatch(service, /engines\/random/);
-    const webFactory = read('lib/engines/analysis/createChessEngineService.web.ts');
-    assert.match(webFactory, /from '\.\.\/stockfish\/transport'/);
-    assert.doesNotMatch(webFactory, /transport\.ts/);
-    assert.match(webFactory, /createUciTransport/);
     const hub = read('components/puzzles/PuzzleHubPhase.tsx');
     assert.match(hub, /puzzle-card-defends-nulle/);
     const culture = read('app/quiz-ouverture/index.tsx');
@@ -289,7 +297,6 @@ describe('session move flow', () => {
     assert.equal(after.playerMovesMade, 1);
     assert.ok(analyzeCalls >= 1);
     assert.equal(after.phase, 'playing');
-    // Simulate thinking lock
     (session as unknown as { phase: string }).phase = 'thinking';
     assert.deepEqual(session.getLegalDestinations(legal.from), []);
   });

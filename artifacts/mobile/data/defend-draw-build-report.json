@@ -1,0 +1,670 @@
+{
+  "seed": 45,
+  "targets": {
+    "debutant": 30,
+    "confirme": 40,
+    "expert": 40,
+    "grandMaitre": 25
+  },
+  "totals": {
+    "candidates": 863,
+    "certified": 117,
+    "selected": 117,
+    "rejected": 708
+  },
+  "byDifficulty": {
+    "debutant": 12,
+    "confirme": 40,
+    "expert": 40,
+    "grandMaitre": 25
+  },
+  "byFamily": {
+    "pawn": 39,
+    "rook": 65,
+    "queen": 8,
+    "minor-piece": 2,
+    "fortress": 3,
+    "imbalanced": 0
+  },
+  "bySource": {
+    "syzygy": 117,
+    "stockfish": 0,
+    "theoretical": 117,
+    "masterGame": 0
+  },
+  "keptFromExisting": [
+    "DD-001",
+    "DD-002",
+    "DD-003",
+    "DD-005",
+    "DD-006",
+    "DD-007",
+    "DD-010",
+    "DD-011",
+    "DD-012",
+    "DD-013",
+    "DD-014",
+    "DD-015",
+    "DD-018",
+    "DD-020",
+    "DD-021",
+    "DD-022",
+    "DD-023",
+    "DD-029",
+    "DD-039",
+    "DD-049",
+    "DD-061",
+    "DD-066",
+    "DD-078",
+    "DD-085",
+    "DD-089",
+    "DD-113",
+    "DD-117",
+    "DD-126",
+    "DD-136",
+    "DD-145",
+    "DD-148",
+    "DD-163",
+    "DD-168",
+    "DD-170",
+    "DD-175",
+    "DD-180",
+    "DD-184",
+    "DD-201",
+    "DD-203",
+    "DD-213",
+    "DD-228",
+    "DD-246",
+    "DD-260",
+    "DD-271",
+    "DD-282",
+    "DD-294",
+    "DD-302",
+    "DD-307",
+    "DD-314",
+    "DD-321",
+    "DD-324",
+    "DD-328",
+    "DD-330",
+    "DD-340",
+    "DD-353",
+    "DD-359",
+    "DD-365",
+    "DD-399",
+    "DD-407",
+    "DD-412",
+    "DD-417",
+    "DD-421",
+    "DD-426",
+    "DD-431",
+    "DD-435",
+    "DD-438",
+    "DD-456",
+    "DD-459",
+    "DD-464",
+    "DD-487",
+    "DD-499",
+    "DD-501",
+    "DD-506",
+    "DD-509",
+    "DD-523",
+    "DD-525",
+    "DD-529",
+    "DD-551",
+    "DD-574",
+    "DD-580",
+    "DD-591",
+    "DD-596",
+    "DD-601",
+    "DD-603",
+    "DD-607",
+    "DD-621",
+    "DD-625",
+    "DD-626",
+    "DD-631",
+    "DD-643",
+    "DD-654",
+    "DD-655",
+    "DD-659",
+    "DD-661",
+    "DD-665",
+    "DD-695",
+    "DD-700",
+    "DD-705",
+    "DD-710",
+    "DD-715",
+    "DD-733",
+    "DD-735",
+    "DD-774",
+    "DD-784",
+    "DD-809"
+  ],
+  "reclassified": [
+    {
+      "id": "DD-003",
+      "from": "expert",
+      "to": "grandMaitre"
+    },
+    {
+      "id": "DD-011",
+      "from": "debutant",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-022",
+      "from": "confirme",
+      "to": "expert"
+    },
+    {
+      "id": "DD-023",
+      "from": "debutant",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-061",
+      "from": "debutant",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-148",
+      "from": "debutant",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-163",
+      "from": "expert",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-180",
+      "from": "expert",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-201",
+      "from": "expert",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-228",
+      "from": "debutant",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-260",
+      "from": "confirme",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-340",
+      "from": "confirme",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-359",
+      "from": "expert",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-435",
+      "from": "confirme",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-438",
+      "from": "expert",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-459",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-501",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-506",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-525",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-551",
+      "from": "debutant",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-580",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-596",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-601",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-607",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-625",
+      "from": "confirme",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-643",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-655",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-661",
+      "from": "expert",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-705",
+      "from": "expert",
+      "to": "confirme"
+    },
+    {
+      "id": "DD-735",
+      "from": "expert",
+      "to": "debutant"
+    },
+    {
+      "id": "DD-809",
+      "from": "expert",
+      "to": "confirme"
+    }
+  ],
+  "removed": [
+    {
+      "id": "DD-029",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-049",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-078",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-089",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-117",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-145",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-168",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-175",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-184",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-213",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-246",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-271",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-302",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-314",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-324",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-330",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-353",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-365",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-412",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-421",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-431",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-456",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-464",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-499",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-509",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-529",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-574",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-591",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-603",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-621",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-626",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-654",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-659",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-665",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-700",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-710",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-733",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    },
+    {
+      "id": "DD-784",
+      "reason": "syzygy unavailable or inconclusive; no stockfish fallback"
+    }
+  ],
+  "added": [
+    "DD-025",
+    "DD-036",
+    "DD-041",
+    "DD-046",
+    "DD-051",
+    "DD-056",
+    "DD-062",
+    "DD-087",
+    "DD-098",
+    "DD-103",
+    "DD-116",
+    "DD-153",
+    "DD-177",
+    "DD-190",
+    "DD-214",
+    "DD-234",
+    "DD-238",
+    "DD-250",
+    "DD-254",
+    "DD-261",
+    "DD-266",
+    "DD-288",
+    "DD-293",
+    "DD-332",
+    "DD-350",
+    "DD-356",
+    "DD-367",
+    "DD-372",
+    "DD-382",
+    "DD-465",
+    "DD-476",
+    "DD-512",
+    "DD-527",
+    "DD-537",
+    "DD-542",
+    "DD-554",
+    "DD-575",
+    "DD-588",
+    "DD-632",
+    "DD-637",
+    "DD-672",
+    "DD-676",
+    "DD-693",
+    "DD-708",
+    "DD-714",
+    "DD-732",
+    "DD-747",
+    "DD-789"
+  ],
+  "rejectionsByReason": {
+    "certification-failed": 708
+  },
+  "familyWarnings": [
+    "debutant: family \"rook\" dominates (10/12)"
+  ],
+  "examples": {
+    "debutant": [
+      {
+        "id": "DD-527",
+        "family": "rook",
+        "concepts": [
+          "rook-activity",
+          "king-activity"
+        ],
+        "pieces": 11,
+        "drawLeg": "14/18",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      },
+      {
+        "id": "DD-542",
+        "family": "rook",
+        "concepts": [
+          "rook-activity",
+          "king-activity"
+        ],
+        "pieces": 11,
+        "drawLeg": "11/14",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      },
+      {
+        "id": "DD-554",
+        "family": "rook",
+        "concepts": [
+          "rook-activity",
+          "king-activity"
+        ],
+        "pieces": 11,
+        "drawLeg": "15/19",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      }
+    ],
+    "confirme": [
+      {
+        "id": "DD-025",
+        "family": "rook",
+        "concepts": [
+          "rook-activity",
+          "king-activity"
+        ],
+        "pieces": 11,
+        "drawLeg": "4/4",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      },
+      {
+        "id": "DD-036",
+        "family": "rook",
+        "concepts": [
+          "rook-activity",
+          "king-activity"
+        ],
+        "pieces": 11,
+        "drawLeg": "15/19",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      },
+      {
+        "id": "DD-041",
+        "family": "rook",
+        "concepts": [
+          "rook-activity",
+          "king-activity"
+        ],
+        "pieces": 11,
+        "drawLeg": "14/19",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      }
+    ],
+    "expert": [
+      {
+        "id": "DD-001",
+        "family": "pawn",
+        "concepts": [
+          "king-activity",
+          "opposition"
+        ],
+        "pieces": 10,
+        "drawLeg": "3/3",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      },
+      {
+        "id": "DD-002",
+        "family": "pawn",
+        "concepts": [
+          "king-activity",
+          "opposition"
+        ],
+        "pieces": 10,
+        "drawLeg": "3/3",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      },
+      {
+        "id": "DD-005",
+        "family": "pawn",
+        "concepts": [
+          "square-of-pawn",
+          "king-activity",
+          "opposition"
+        ],
+        "pieces": 10,
+        "drawLeg": "3/5",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      }
+    ],
+    "grandMaitre": [
+      {
+        "id": "DD-003",
+        "family": "pawn",
+        "concepts": [
+          "square-of-pawn",
+          "king-activity",
+          "accurate-defense",
+          "opposition"
+        ],
+        "pieces": 10,
+        "drawLeg": "1/8",
+        "criticalMoves": 3,
+        "uniqueMoveMoments": 3
+      },
+      {
+        "id": "DD-007",
+        "family": "pawn",
+        "concepts": [
+          "square-of-pawn",
+          "king-activity",
+          "accurate-defense",
+          "opposition"
+        ],
+        "pieces": 10,
+        "drawLeg": "2/2",
+        "criticalMoves": 1,
+        "uniqueMoveMoments": 0
+      },
+      {
+        "id": "DD-011",
+        "family": "minor-piece",
+        "concepts": [
+          "promotion-race",
+          "king-activity",
+          "opposition",
+          "accurate-defense"
+        ],
+        "pieces": 13,
+        "drawLeg": "9/13",
+        "criticalMoves": 0,
+        "uniqueMoveMoments": 0
+      }
+    ]
+  }
+}
