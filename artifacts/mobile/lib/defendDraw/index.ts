@@ -13,6 +13,25 @@ export {
 } from './positions.ts';
 export type { DefendDrawPosition } from './positions.ts';
 export {
+  DEFEND_DRAW_DIFFICULTIES,
+  ENDGAME_CONCEPTS,
+  ENDGAME_FAMILIES,
+  isEndgameConcept,
+  isEndgameFamily,
+  resolveDefendDrawDifficulty,
+} from './taxonomy.ts';
+export type {
+  DefendDrawDifficulty,
+  DefendDrawDifficultyAlias,
+  DefendDrawSource,
+  DifficultyMetrics,
+  EndgameConcept,
+  EndgameFamily,
+} from './taxonomy.ts';
+export { pickVariedCertifiedPosition } from './variety.ts';
+export { analyzeDrawingWalk } from './analyzeDifficulty.ts';
+export type { DrawWalkMetrics } from './analyzeDifficulty.ts';
+export {
   DefendDrawPoolEmptyError,
   EndgamePositionRepository,
   endgamePositionRepository,

@@ -16,6 +16,12 @@ import {
   CERTIFIED_DEFEND_DRAW_POSITIONS,
   type DefendDrawPosition,
 } from './positions.ts';
+import {
+  resolveDefendDrawDifficulty,
+  type DefendDrawDifficultyAlias,
+  type EndgameFamily,
+} from './taxonomy.ts';
+import { pickVariedCertifiedPosition } from './variety.ts';
 
 export type CertifiedEndgamePosition = DefendDrawPosition & {
   verifiedDraw: true;
@@ -78,6 +84,10 @@ export function listCertifiedEndgames(): CertifiedEndgamePosition[] {
       logRejected(raw.id, 'failed eligibility');
       continue;
     }
+    if (!raw.family || !raw.concepts?.length) {
+      logRejected(raw.id, 'missing family or concepts');
+      continue;
+    }
     out.push(toCertified(raw));
   }
   return out;
@@ -92,29 +102,21 @@ export function endgamesForDifficulty(
 /**
  * Select a verified start for the difficulty.
  * Never falls back to an unfiltered / random / trivial position.
+ * Prefer a different family than the last few when the pool allows it.
  */
 export function getDefendDrawPosition(
-  difficulty: AnyChessDifficultyId,
+  difficulty: AnyChessDifficultyId | DefendDrawDifficultyAlias,
   recentIds: string[] = [],
   rng: () => number = Math.random,
+  recentFamilies: EndgameFamily[] = [],
 ): CertifiedEndgamePosition {
-  const pool = endgamesForDifficulty(difficulty);
+  const resolved = resolveDefendDrawDifficulty(difficulty);
+  const pool = endgamesForDifficulty(resolved);
   if (pool.length === 0) {
-    throw new DefendDrawPoolEmptyError(difficulty);
+    throw new DefendDrawPoolEmptyError(resolved);
   }
 
-  const fresh = pool.filter((p) => !recentIds.includes(p.id));
-  const use = fresh.length > 0 ? fresh : pool;
-
-  // Prefer tighter holds (lower drawingMoves / legalMoves) with light randomness.
-  const scored = [...use].sort((a, b) => {
-    const pa = a.drawingMoves / Math.max(1, a.legalMoves);
-    const pb = b.drawingMoves / Math.max(1, b.legalMoves);
-    return pa - pb;
-  });
-  const window = Math.max(1, Math.ceil(scored.length * 0.7));
-  const candidates = scored.slice(0, window);
-  const chosen = candidates[Math.floor(rng() * candidates.length)]!;
+  const chosen = pickVariedCertifiedPosition(pool, rng, recentIds, recentFamilies);
 
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     console.log(
@@ -122,6 +124,8 @@ export function getDefendDrawPosition(
         'DefendDraw position',
         `id: ${chosen.id}`,
         `difficulty: ${chosen.difficulty}`,
+        `family: ${chosen.family}`,
+        `concepts: ${chosen.concepts.join(', ')}`,
         `theme: ${chosen.theme}`,
         `fen: ${chosen.fen}`,
         `verifiedDraw: ${chosen.verifiedDraw}`,
@@ -167,8 +171,9 @@ export class EndgamePositionRepository {
     difficulty: AnyChessDifficultyId,
     recentIds: string[] = [],
     rng: () => number = Math.random,
+    recentFamilies: EndgameFamily[] = [],
   ): CertifiedEndgamePosition {
-    return getDefendDrawPosition(difficulty, recentIds, rng);
+    return getDefendDrawPosition(difficulty, recentIds, rng, recentFamilies);
   }
 }
 

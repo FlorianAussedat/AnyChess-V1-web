@@ -10,6 +10,7 @@ import {
   endgamePositionRepository,
   type CertifiedEndgamePosition,
 } from './EndgamePositionRepository.ts';
+import type { EndgameFamily } from './taxonomy.ts';
 import {
   isClearlyLostPosition,
   type ClearlyLostVerdict,
@@ -79,6 +80,7 @@ export class DefendDrawSession {
   private difficulty: AnyChessDifficultyId = 'debutant';
   private casBStreak = 0;
   private poolError: string | null = null;
+  private recentFamilies: EndgameFamily[] = [];
   private readonly targetMoves: number;
   private analyzer: DefenseAnalyzer | null;
   private readonly repository: typeof endgamePositionRepository;
@@ -101,7 +103,12 @@ export class DefendDrawSession {
     this.difficulty = difficulty;
     this.poolError = null;
     try {
-      const chosen = this.repository.pick(difficulty, recentIds, rng);
+      const chosen = this.repository.pick(
+        difficulty,
+        recentIds,
+        rng,
+        this.recentFamilies,
+      );
       this.position = chosen;
       this.startFen = chosen.fen;
       this.game = new Chess(chosen.fen);
@@ -113,6 +120,7 @@ export class DefendDrawSession {
       this.lastAnalysis = null;
       this.lastLostVerdict = null;
       this.casBStreak = 0;
+      this.recentFamilies = [chosen.family, ...this.recentFamilies].slice(0, 8);
     } catch (err) {
       this.position = null;
       this.startFen = null;

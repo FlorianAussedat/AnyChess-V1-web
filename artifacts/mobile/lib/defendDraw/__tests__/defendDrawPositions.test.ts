@@ -51,6 +51,8 @@ describe('certified dataset integrity', () => {
       assert.equal(isTrivialInsufficientMaterial(p.fen), false, p.id);
       assert.equal(isTrivialDefendDrawPosition(p), false, p.id);
       assert.equal(p.playerColor, p.defenderColor, p.id);
+      assert.ok(p.family, p.id);
+      assert.ok(p.concepts.length >= 1, p.id);
     }
   });
 
@@ -144,6 +146,8 @@ describe('session regulatory success stops before Stockfish', () => {
       // Black Kb3 captures Nb4 → K vs K.
       fen: '8/8/8/8/1N6/1k6/8/K7 b - - 0 1',
       difficulty: 'debutant' as const,
+      family: 'pawn' as const,
+      concepts: ['king-activity'] as const,
       theme: 'test',
       label: 'test',
       defenderColor: 'b' as const,
@@ -199,6 +203,8 @@ describe('session regulatory success stops before Stockfish', () => {
       id: 'DD-STALE',
       fen: before.fen(),
       difficulty: 'debutant' as const,
+      family: 'queen' as const,
+      concepts: ['accurate-defense'] as const,
       theme: 'test',
       label: 'test',
       defenderColor: 'w' as const,
