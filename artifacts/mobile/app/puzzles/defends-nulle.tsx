@@ -298,6 +298,21 @@ export default function DefendsNulleScreen() {
         </Text>
       )}
 
+      {typeof __DEV__ !== 'undefined' && __DEV__ && !!snap.position && (
+        <Text
+          style={{ color: colors.mutedForeground, fontSize: 11, opacity: 0.7 }}
+          testID="defends-nulle-debug-id"
+        >
+          {`DEBUG ENDGAME: ${snap.position.id}`}
+        </Text>
+      )}
+
+      {!!snap.poolError && (
+        <Text style={{ color: '#c44' }} testID="defends-nulle-pool-error">
+          {snap.poolError}
+        </Text>
+      )}
+
       <ChessBoardSection
         boardSize={wideBoardSize}
         style={{ gap: 8 }}
@@ -379,11 +394,13 @@ export default function DefendsNulleScreen() {
 
       {challengeEnded && (
         <View style={styles.endActions} testID="defends-nulle-end-actions">
-          <AppButton
-            label={t('quiz.defendsNulleContinue')}
-            onPress={continueFreeplay}
-            testID="defends-nulle-continue"
-          />
+          {!snap.boardGameOver && (
+            <AppButton
+              label={t('quiz.defendsNulleContinue')}
+              onPress={continueFreeplay}
+              testID="defends-nulle-continue"
+            />
+          )}
           <AppButton
             label={t('quiz.defendsNulleRestart')}
             onPress={() => void restartSame()}

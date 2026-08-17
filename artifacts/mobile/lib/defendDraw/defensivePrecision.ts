@@ -1,19 +1,30 @@
 /**
- * Defensive-precision helpers + trivial-position rejection for Défends la nulle.
+ * Trivial / dead-position rejection for Défends la nulle starts.
+ * Central helper — selection must never trust labels alone.
  */
 import { Chess } from 'chess.js';
-import type { AnyChessDifficultyId } from '../difficulty/anyChessDifficulty.ts';
-import { defensivePrecision } from './wdl.ts';
 import type { DefendDrawPosition } from './positions.ts';
+
+type Piece = { type: string; color: 'w' | 'b' };
+
+function piecesOnBoard(fen: string): Piece[] {
+  const game = new Chess(fen);
+  return game
+    .board()
+    .flat()
+    .filter(Boolean) as Piece[];
+}
 
 /** Material that is a dead draw with no defensive content. */
 export function isTrivialInsufficientMaterial(fen: string): boolean {
-  const game = new Chess(fen);
+  let game: Chess;
+  try {
+    game = new Chess(fen);
+  } catch {
+    return true;
+  }
   if (game.isInsufficientMaterial()) return true;
-  const pieces = game
-    .board()
-    .flat()
-    .filter(Boolean) as { type: string; color: 'w' | 'b' }[];
+  const pieces = piecesOnBoard(fen);
   if (pieces.length <= 2) return true; // K vs K
   const nonKings = pieces.filter((p) => p.type !== 'k');
   if (nonKings.length === 0) return true;
@@ -24,7 +35,7 @@ export function isTrivialInsufficientMaterial(fen: string): boolean {
   ) {
     return true;
   }
-  // Two knights vs king — theoretically drawn / no forced mate, no tension for our mode
+  // Two knights vs king — no forced mate, no tension for this mode
   if (
     nonKings.length === 2 &&
     nonKings.every((p) => p.type === 'n') &&
@@ -36,54 +47,100 @@ export function isTrivialInsufficientMaterial(fen: string): boolean {
 }
 
 /**
- * Reject positions where almost every move holds (no real exercise),
- * or where there is no drawing move at all.
+ * Opponent must have practical winning chances (else the "defence" is hollow).
+ * Requires a pawn or a heavy piece / mating-capable force on the attacking side.
  */
+export function opponentLacksPracticalPressure(
+  fen: string,
+  defenderColor: 'w' | 'b',
+): boolean {
+  const attacker = defenderColor === 'w' ? 'b' : 'w';
+  const pieces = piecesOnBoard(fen).filter((p) => p.color === attacker);
+  const types = pieces.map((p) => p.type);
+  if (types.includes('p')) return false;
+  if (types.includes('q') || types.includes('r')) return false;
+  // Two bishops, or bishop+knight, can mate — still some content
+  const bishops = types.filter((t) => t === 'b').length;
+  const knights = types.filter((t) => t === 'n').length;
+  if (bishops >= 2) return false;
+  if (bishops >= 1 && knights >= 1) return false;
+  // Lone king or lone minor (already insufficient) → no pressure
+  return true;
+}
+
+/**
+ * Dead opposite-bishop "holds" with no pawns left to create play.
+ */
+export function isDeadOppositeBishopHold(fen: string): boolean {
+  const pieces = piecesOnBoard(fen);
+  const nonKings = pieces.filter((p) => p.type !== 'k');
+  if (nonKings.some((p) => p.type === 'p')) return false;
+  const bishops = nonKings.filter((p) => p.type === 'b');
+  if (bishops.length !== 2) return false;
+  if (bishops[0]!.color === bishops[1]!.color) return false;
+  // Only K+B vs K+B opposite — classic dead draw
+  return nonKings.every((p) => p.type === 'b');
+}
+
+/**
+ * Central triviality gate for starts and selection.
+ * Not based solely on piece count.
+ */
+export function isTrivialDefendDrawPosition(
+  position: Pick<DefendDrawPosition, 'fen' | 'defenderColor' | 'drawingMoves' | 'legalMoves'>,
+): boolean {
+  if (isTrivialInsufficientMaterial(position.fen)) return true;
+  if (opponentLacksPracticalPressure(position.fen, position.defenderColor)) {
+    return true;
+  }
+  if (isDeadOppositeBishopHold(position.fen)) return true;
+  if (position.legalMoves <= 0 || position.drawingMoves <= 0) return true;
+  // Almost every move holds and there are many of them → no exercise
+  if (
+    position.drawingMoves >= 6 &&
+    position.drawingMoves / position.legalMoves >= 0.85
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** @deprecated Prefer isTrivialDefendDrawPosition */
 export function isDeadOrTrivialHold(
   drawingMoves: number,
   legalMoves: number,
 ): boolean {
   if (legalMoves <= 0) return true;
   if (drawingMoves <= 0) return true;
-  const p = defensivePrecision(drawingMoves, legalMoves);
-  // >85% of moves hold → too easy / "dead" for this mode
-  if (p >= 0.85 && drawingMoves >= 6) return true;
+  if (drawingMoves >= 6 && drawingMoves / legalMoves >= 0.85) return true;
   return false;
 }
 
-/** Expected precision band per difficulty (soft filter on curated pool). */
+export function isEligibleDefendDrawPosition(pos: DefendDrawPosition): boolean {
+  if (pos.verifiedDraw !== true) return false;
+  if (isTrivialDefendDrawPosition(pos)) return false;
+  return true;
+}
+
+/** Soft band check kept for tooling; selection does not rely on labels alone. */
 export function precisionFitsDifficulty(
   precision: number,
   drawingMoves: number,
-  difficulty: AnyChessDifficultyId,
+  difficulty: import('../difficulty/anyChessDifficulty.ts').AnyChessDifficultyId,
 ): boolean {
   switch (difficulty) {
     case 'debutant':
-      // Pedagogical: several holds, not only-move
-      return precision >= 0.25 && precision <= 0.75 && drawingMoves >= 3;
+      return precision >= 0.25 && precision <= 0.75 && drawingMoves >= 2;
     case 'confirme':
-      return precision >= 0.12 && precision <= 0.45 && drawingMoves >= 2;
+      return precision >= 0.12 && precision <= 0.5 && drawingMoves >= 2;
     case 'expert':
-      // Often ~1–3 holding moves
-      return drawingMoves >= 1 && drawingMoves <= 4 && precision <= 0.28;
+      return drawingMoves >= 1 && drawingMoves <= 4 && precision <= 0.35;
     case 'grandMaitre':
-      // Extremely precise — often a single hold
-      return drawingMoves >= 1 && drawingMoves <= 2 && precision <= 0.15;
+      return drawingMoves >= 1 && drawingMoves <= 2 && precision <= 0.2;
   }
 }
 
 export function annotatePrecision(pos: DefendDrawPosition): number {
-  return defensivePrecision(pos.drawingMoves, pos.legalMoves);
-}
-
-export function isEligibleDefendDrawPosition(pos: DefendDrawPosition): boolean {
-  if (isTrivialInsufficientMaterial(pos.fen)) return false;
-  if (isDeadOrTrivialHold(pos.drawingMoves, pos.legalMoves)) return false;
-  if (pos.drawingMoves < 1 || pos.legalMoves < 1) return false;
-  // Curated bank assigns difficulty manually; soft-check only rejects
-  // obviously mismatched "only-move" pedagogy in débutant when legalMoves is large.
-  if (pos.difficulty === 'debutant' && pos.drawingMoves === 1 && pos.legalMoves >= 12) {
-    return false;
-  }
-  return true;
+  if (pos.legalMoves <= 0) return 0;
+  return pos.drawingMoves / pos.legalMoves;
 }
