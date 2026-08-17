@@ -53,7 +53,7 @@ describe('certification metadata', () => {
 
   it('listCertifiedEndgames / getDefendDrawPosition only expose certified rows', () => {
     const all = listCertifiedEndgames();
-    assert.ok(all.length >= 16);
+    assert.ok(all.length >= 100);
     for (const p of all) {
       assert.equal(p.verification.result, 'draw');
       assert.ok(p.verification.method === 'syzygy' || p.verification.method === 'stockfish');

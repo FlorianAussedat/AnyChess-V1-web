@@ -93,6 +93,8 @@ export type DifficultyMetrics = {
   drawingRatio?: number;
   /** How many successive defender plies have ≤2 drawing replies (Syzygy walk). */
   criticalMoves?: number;
+  /** Moments along the analyzed PV where exactly one move holds the draw. */
+  uniqueMoveMoments?: number;
 };
 
 export type DefendDrawSource = {

@@ -49,7 +49,8 @@ for (const p of CERTIFIED_DEFEND_DRAW_POSITIONS) {
   console.log(`drawing moves: ${metrics.drawingMoves}`);
   console.log(`losing moves: ${metrics.losingMoves}`);
   console.log(`drawing ratio: ${ratioPct}`);
-  console.log(`critical defensive decisions: ${metrics.criticalMoves}`);
+    console.log(`critical defensive decisions: ${metrics.criticalMoves}`);
+    console.log(`unique move moments: ${metrics.uniqueMoveMoments}`);
   console.log('');
 
   rows.push({

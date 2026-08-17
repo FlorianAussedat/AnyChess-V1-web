@@ -117,7 +117,7 @@ describe('isClearlyLostPosition', () => {
 describe('EndgamePositionRepository', () => {
   it('only exposes certified non-trivial draws with verifiedDraw', () => {
     const all = listCertifiedEndgames();
-    assert.ok(all.length >= 16);
+    assert.ok(all.length >= 100);
     for (const p of all) {
       assert.equal(p.verifiedDraw, true);
       assert.equal(p.verified, true);

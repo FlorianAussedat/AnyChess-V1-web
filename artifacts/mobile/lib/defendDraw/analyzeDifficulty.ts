@@ -13,6 +13,8 @@ export type DrawWalkMetrics = {
   drawingRatio: number;
   /** Defender plies (including start) with ≤2 drawing replies, along one drawing PV. */
   criticalMoves: number;
+  /** Defender plies where exactly one move holds the draw. */
+  uniqueMoveMoments: number;
 };
 
 function mapCat(category: string | undefined): 'draw' | 'win' | 'loss' | null {
@@ -54,6 +56,14 @@ function applyUci(fen: string, uci: string): string | null {
   }
 }
 
+function countMoments(
+  drawingCount: number,
+  critical: { criticalMoves: number; uniqueMoveMoments: number },
+): void {
+  if (drawingCount === 1) critical.uniqueMoveMoments += 1;
+  if (drawingCount > 0 && drawingCount <= 2) critical.criticalMoves += 1;
+}
+
 /**
  * Count drawing/losing STM moves, then walk up to `plyDepth` drawing replies
  * (and a typical opponent reply) to count successive "critical" defender decisions.
@@ -74,7 +84,9 @@ export async function analyzeDrawingWalk(
   const losingMoves = legalMoves - drawingMoves;
   const drawingRatio = legalMoves > 0 ? drawingMoves / legalMoves : 0;
 
-  let criticalMoves = drawingMoves > 0 && drawingMoves <= 2 ? 1 : 0;
+  const critical = { criticalMoves: 0, uniqueMoveMoments: 0 };
+  countMoments(drawingMoves, critical);
+
   let currentFen = fen;
   let drawingUcis = root.moves
     .filter((m) => mapCat(m.category) === 'draw' && m.uci)
@@ -85,7 +97,6 @@ export async function analyzeDrawingWalk(
     if (!nextFen) break;
     if (pauseMs) await new Promise((r) => setTimeout(r, pauseMs));
     const afterDef = await fetchTb(nextFen);
-    // Opponent reply: pick a non-losing move for the attacker if possible
     const oppMoves = afterDef?.moves ?? [];
     const oppPick =
       oppMoves.find((m) => mapCat(m.category) === 'win' && m.uci)?.uci ??
@@ -100,7 +111,7 @@ export async function analyzeDrawingWalk(
     drawingUcis = nextRoot.moves
       .filter((m) => mapCat(m.category) === 'draw' && m.uci)
       .map((m) => m.uci!);
-    if (drawingUcis.length > 0 && drawingUcis.length <= 2) criticalMoves += 1;
+    countMoments(drawingUcis.length, critical);
     currentFen = afterOpp;
   }
 
@@ -109,6 +120,7 @@ export async function analyzeDrawingWalk(
     drawingMoves,
     losingMoves,
     drawingRatio,
-    criticalMoves,
+    criticalMoves: critical.criticalMoves,
+    uniqueMoveMoments: critical.uniqueMoveMoments,
   };
 }

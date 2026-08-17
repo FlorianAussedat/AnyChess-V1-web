@@ -18,16 +18,27 @@ let validated = 0;
 console.log(`Certifying ${CERTIFIED_DEFEND_DRAW_POSITIONS.length} dataset rows…\n`);
 
 for (const pos of CERTIFIED_DEFEND_DRAW_POSITIONS) {
-  const cert = await certifyDefendDrawPosition(
-    {
-      id: pos.id,
-      fen: pos.fen,
-      defenderColor: pos.defenderColor,
-      legalMoves: pos.legalMoves,
-      drawingMoves: pos.drawingMoves,
-    },
-    { allowStockfishFallback: false, tablebaseTimeoutMs: 12_000 },
-  );
+  let cert = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    cert = await certifyDefendDrawPosition(
+      {
+        id: pos.id,
+        fen: pos.fen,
+        defenderColor: pos.defenderColor,
+        legalMoves: pos.legalMoves,
+        drawingMoves: pos.drawingMoves,
+      },
+      { allowStockfishFallback: false, tablebaseTimeoutMs: 15_000 },
+    );
+    if (cert.ok) break;
+    if (
+      !/unavailable|inconclusive/i.test(cert.reason) ||
+      attempt === 2
+    ) {
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+  }
 
   if (!cert.ok) {
     rejected += 1;

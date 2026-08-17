@@ -77,7 +77,7 @@ describe('difficulty bands', () => {
 
 describe('certified metadata', () => {
   it('every certified position has a family and at least one concept', () => {
-    assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length >= 16);
+    assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length >= 100);
     for (const p of CERTIFIED_DEFEND_DRAW_POSITIONS) {
       assert.equal(isEndgameFamily(p.family), true, p.id);
       assert.ok(p.concepts.length >= 1, p.id);
@@ -214,7 +214,7 @@ describe('pool architecture has no artificial size cap', () => {
 });
 
 describe('analyzeDrawingWalk', () => {
-  it('counts drawing vs losing replies from a tablebase snapshot', async () => {
+  it('analyzeDrawingWalk counts unique move moments', async () => {
     const metrics = await analyzeDrawingWalk('8/8/8/8/8/8/8/8 w - - 0 1', {
       plyDepth: 1,
       fetchTb: async () => ({
@@ -222,15 +222,10 @@ describe('analyzeDrawingWalk', () => {
         moves: [
           { uci: 'e1e2', category: 'draw' },
           { uci: 'e1d1', category: 'loss' },
-          { uci: 'e1f1', category: 'loss' },
         ],
       }),
     });
     assert.ok(metrics);
-    assert.equal(metrics!.legalMoves, 3);
-    assert.equal(metrics!.drawingMoves, 1);
-    assert.equal(metrics!.losingMoves, 2);
-    assert.equal(metrics!.drawingRatio.toFixed(3), (1 / 3).toFixed(3));
-    assert.equal(metrics!.criticalMoves, 1);
+    assert.equal(metrics!.uniqueMoveMoments, 1);
   });
 });

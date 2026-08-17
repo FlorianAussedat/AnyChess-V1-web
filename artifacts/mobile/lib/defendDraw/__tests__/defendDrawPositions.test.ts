@@ -37,7 +37,7 @@ function baseAnalysis(partial: Partial<DefenseAnalysis> = {}): DefenseAnalysis {
 
 describe('certified dataset integrity', () => {
   it('every entry has verifiedDraw true, legal FEN, proven certification, and is non-trivial', () => {
-    assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length >= 16);
+    assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length >= 100);
     for (const p of CERTIFIED_DEFEND_DRAW_POSITIONS) {
       assert.equal(p.verifiedDraw, true, p.id);
       assert.equal(p.verification.result, 'draw', p.id);
