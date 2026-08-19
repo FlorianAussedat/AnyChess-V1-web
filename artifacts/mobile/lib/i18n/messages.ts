@@ -389,6 +389,12 @@ export type MessageKey =
   | 'quiz.defendsNulleRestart'
   | 'quiz.defendsNulleAnother'
   | 'quiz.defendsNulleEngineUnavailable'
+  | 'quiz.endgameObjectiveWin'
+  | 'quiz.endgameObjectiveDraw'
+  | 'quiz.endgameOfferDraw'
+  | 'quiz.endgameCopyFen'
+  | 'quiz.endgameFenCopied'
+  | 'quiz.endgameReplay'
   | 'quiz.incorrect'
   | 'quiz.correct'
   | 'quiz.played'
@@ -1017,12 +1023,12 @@ const fr: Dict = {
   'quiz.quelle': 'Quelle ouverture ?',
   'quiz.quelleDesc':
     'Reconnais le nom de l’ouverture à partir de la ligne jouée (base ECO).',
-  'quiz.defendsNulle': 'Défends la nulle',
+  'quiz.defendsNulle': 'Entraînement aux Finales',
   'quiz.defendsNulleDesc':
-    'Tiens une finale difficile face à un adversaire qui joue au maximum.',
+    'Jouer des finales contre Stockfish. Convertis les positions gagnantes et défends celles où la nulle est encore possible.',
   'quiz.defendsNulleLead':
-    'Position de départ certifiée nulle — tiens-la 30 coups face à Stockfish.',
-  'quiz.defendsNulleProgress': 'Coups tenus : {{current}} / {{total}}',
+    'Joue la finale jusqu\u2019au bout contre Stockfish au maximum.',
+  'quiz.defendsNulleProgress': 'Coups joués : {{current}}',
   'quiz.defendsNulleThinking': 'Stockfish analyse…',
   'quiz.defendsNullePreparing': 'Préparation de Stockfish…',
   'quiz.defendsNulleReflecting': 'Stockfish réfléchit…',
@@ -1034,6 +1040,12 @@ const fr: Dict = {
   'quiz.defendsNulleAnother': 'Jouer une autre finale',
   'quiz.defendsNulleEngineUnavailable':
     'Stockfish n’est pas disponible sur cette version de l’application.',
+  'quiz.endgameObjectiveWin': 'Objectif : gagne cette finale',
+  'quiz.endgameObjectiveDraw': 'Objectif : sauve la nulle',
+  'quiz.endgameOfferDraw': 'Proposer la nulle',
+  'quiz.endgameCopyFen': 'Copier le FEN',
+  'quiz.endgameFenCopied': 'FEN copié !',
+  'quiz.endgameReplay': 'Rejouer la finale',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Joué : {{moves}}',
@@ -1700,12 +1712,12 @@ const en: Dict = {
   'quiz.cultureMixed': 'Chess culture — 10 mixed questions',
   'quiz.quelle': 'Which opening?',
   'quiz.quelleDesc': 'Recognize the opening name from the played line (ECO base).',
-  'quiz.defendsNulle': 'Defend the draw',
+  'quiz.defendsNulle': 'Endgame Training',
   'quiz.defendsNulleDesc':
-    'Hold a difficult endgame against a near-perfect opponent.',
+    'Play endgames against Stockfish. Convert winning positions and defend those where a draw is still possible.',
   'quiz.defendsNulleLead':
-    'Certified drawn start — hold it for 30 moves against Stockfish.',
-  'quiz.defendsNulleProgress': 'Moves held: {{current}} / {{total}}',
+    'Play the endgame to its conclusion against Stockfish at full strength.',
+  'quiz.defendsNulleProgress': 'Moves played: {{current}}',
   'quiz.defendsNulleThinking': 'Stockfish is analyzing…',
   'quiz.defendsNullePreparing': 'Preparing Stockfish…',
   'quiz.defendsNulleReflecting': 'Stockfish is thinking…',
@@ -1717,6 +1729,12 @@ const en: Dict = {
   'quiz.defendsNulleAnother': 'Play another endgame',
   'quiz.defendsNulleEngineUnavailable':
     'Stockfish is not available in this version of the app.',
+  'quiz.endgameObjectiveWin': 'Objective: win this endgame',
+  'quiz.endgameObjectiveDraw': 'Objective: save the draw',
+  'quiz.endgameOfferDraw': 'Offer draw',
+  'quiz.endgameCopyFen': 'Copy FEN',
+  'quiz.endgameFenCopied': 'FEN copied!',
+  'quiz.endgameReplay': 'Replay endgame',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Played: {{moves}}',

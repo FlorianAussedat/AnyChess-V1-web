@@ -24,15 +24,18 @@ import { useBoardSize } from '@/hooks/useBoardSize';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
+import { copyToClipboard } from '@/lib/clipboard';
 import type { AnyChessDifficultyId } from '@/lib/difficulty/anyChessDifficulty';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import type { EngineStatus } from '@/lib/engines';
 import {
   DefendDrawSession,
   DEFEND_DRAW_ENGINE_CONFIG,
-  DEFEND_DRAW_TARGET_MOVES,
   StockfishAnalysisService,
-  type DefendDrawSnapshot,
+  toggleFavorite,
+  isFavorite,
+  type EndgameSnapshot,
+  type FirstErrorResult,
 } from '@/lib/defendDraw';
 
 function boardFromFen(fen: string): (BoardPiece | null)[][] {
@@ -48,13 +51,9 @@ export default function DefendsNulleScreen() {
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
 
   const analyzerRef = useRef<StockfishAnalysisService | null>(null);
-  const sessionRef = useRef(
-    new DefendDrawSession({
-      targetMoves: DEFEND_DRAW_TARGET_MOVES,
-    }),
-  );
+  const sessionRef = useRef(new DefendDrawSession({}));
   const [difficulty, setDifficulty] = useState<AnyChessDifficultyId>('debutant');
-  const [snap, setSnap] = useState<DefendDrawSnapshot>(() =>
+  const [snap, setSnap] = useState<EndgameSnapshot>(() =>
     sessionRef.current.snapshot(),
   );
   const [selected, setSelected] = useState<string | null>(null);
@@ -63,12 +62,13 @@ export default function DefendsNulleScreen() {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>('uninitialized');
   const [engineError, setEngineError] = useState<string | null>(null);
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+  const [fenCopied, setFenCopied] = useState(false);
+  const [isFav, setIsFav] = useState(false);
+  const [firstError, setFirstError] = useState<FirstErrorResult | null>(null);
   const recentRef = useRef<string[]>([]);
   const startedRef = useRef(false);
 
   useEffect(() => {
-    // Real Stockfish only — no random-move fallback. Service reports unavailable
-    // on native until a UCI transport exists; on web boots WASM Worker.
     const service = new StockfishAnalysisService({
       moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
       analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
@@ -109,10 +109,12 @@ export default function DefendsNulleScreen() {
   const enginePreparing =
     engineStatus === 'loading' || engineStatus === 'uninitialized';
 
-  const refresh = useCallback((next: DefendDrawSnapshot) => {
+  const refresh = useCallback((next: EndgameSnapshot) => {
     setSnap(next);
     setSelected(null);
     setLegalDests([]);
+    setFirstError(null);
+    setFenCopied(false);
   }, []);
 
   const startRound = useCallback(
@@ -122,6 +124,7 @@ export default function DefendsNulleScreen() {
         const next = await sessionRef.current.start(diff, recentRef.current);
         if (next.position) {
           recentRef.current = [next.position.id, ...recentRef.current].slice(0, 12);
+          isFavorite(next.position.id).then(setIsFav).catch(() => setIsFav(false));
         }
         refresh(next);
       } finally {
@@ -156,14 +159,53 @@ export default function DefendsNulleScreen() {
     }
   }, [refresh]);
 
-  const continueFreeplay = useCallback(() => {
-    refresh(sessionRef.current.continueFreeplay());
-  }, [refresh]);
+  const handleOfferDraw = useCallback(async () => {
+    if (busy || !engineReady) return;
+    setBusy(true);
+    try {
+      refresh(await sessionRef.current.offerDraw());
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, engineReady, refresh]);
+
+  const handleCopyFen = useCallback(async () => {
+    if (!snap.startFen) return;
+    const ok = await copyToClipboard(snap.startFen);
+    if (ok) {
+      setFenCopied(true);
+      setTimeout(() => setFenCopied(false), 2000);
+    }
+  }, [snap.startFen]);
+
+  const handleToggleFavorite = useCallback(async () => {
+    if (!snap.position) return;
+    const nowFav = await toggleFavorite(snap.position.id);
+    setIsFav(nowFav);
+  }, [snap.position]);
+
+  const handleAnalyzeError = useCallback(async () => {
+    if (snap.phase !== 'failure') return;
+    setBusy(true);
+    try {
+      const result = await sessionRef.current.analyzeFirstError();
+      setFirstError(result);
+    } finally {
+      setBusy(false);
+    }
+  }, [snap.phase]);
+
+  // Auto-analyze on failure
+  useEffect(() => {
+    if (snap.phase === 'failure' && !firstError) {
+      void handleAnalyzeError();
+    }
+  }, [snap.phase, firstError, handleAnalyzeError]);
 
   const playUserMove = useCallback(
     async (from: string, to: string) => {
       if (busy || !engineReady) return;
-      if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
+      if (snap.phase !== 'playing') return;
       setBusy(true);
       try {
         refresh(await sessionRef.current.attemptMove(from, to));
@@ -177,7 +219,7 @@ export default function DefendsNulleScreen() {
   const submitSan = useCallback(
     async (raw: string) => {
       if (busy || !engineReady) return;
-      if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
+      if (snap.phase !== 'playing') return;
       setBusy(true);
       try {
         refresh(await sessionRef.current.answerSan(raw));
@@ -192,10 +234,7 @@ export default function DefendsNulleScreen() {
     busy || snap.phase === 'thinking' || engineStatus === 'thinking';
 
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
-    forceOff:
-      thinking ||
-      !engineReady ||
-      (snap.phase !== 'playing' && snap.phase !== 'freeplay'),
+    forceOff: thinking || !engineReady || snap.phase !== 'playing',
     isSpeaking: false,
     onTranscript: (raw) => {
       setShowRecognizedFlash(true);
@@ -207,7 +246,7 @@ export default function DefendsNulleScreen() {
   const onSquarePress = useCallback(
     (square: string) => {
       if (thinking || !engineReady) return;
-      if (snap.phase !== 'playing' && snap.phase !== 'freeplay') return;
+      if (snap.phase !== 'playing') return;
       if (selected === null) {
         const dests = sessionRef.current.getLegalDestinations(square);
         if (dests.length > 0) {
@@ -239,19 +278,17 @@ export default function DefendsNulleScreen() {
 
   const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
   const lastMove = snap.lastMove as LastMove | null;
-  const challengeEnded =
-    snap.phase === 'won' || snap.phase === 'lost' || snap.phase === 'drawn-early';
-  const canMove =
-    engineReady &&
-    !thinking &&
-    (snap.phase === 'playing' || snap.phase === 'freeplay');
+  const challengeEnded = snap.phase === 'success' || snap.phase === 'failure';
+  const canMove = engineReady && !thinking && snap.phase === 'playing';
 
   const statusColor =
-    snap.phase === 'won' || snap.phase === 'drawn-early'
+    snap.phase === 'success'
       ? '#398a55'
-      : snap.phase === 'lost'
+      : snap.phase === 'failure'
         ? '#c44'
         : colors.foreground;
+
+  const objectiveColor = snap.objective === 'WIN' ? '#e8a735' : '#4a9eff';
 
   const busyLabel = enginePreparing
     ? t('quiz.defendsNullePreparing')
@@ -282,14 +319,31 @@ export default function DefendsNulleScreen() {
         testID="defends-nulle-difficulty"
       />
 
+      {!!snap.position && (
+        <View style={styles.objectiveRow}>
+          <Text
+            style={{
+              color: objectiveColor,
+              fontFamily: DesignTokens.typography.weightSemiBold,
+              fontSize: 15,
+            }}
+            testID="defends-nulle-objective"
+          >
+            {snap.objective === 'WIN'
+              ? t('quiz.endgameObjectiveWin')
+              : t('quiz.endgameObjectiveDraw')}
+          </Text>
+          <Pressable onPress={handleToggleFavorite} hitSlop={8}>
+            <Text style={{ fontSize: 20 }}>{isFav ? '★' : '☆'}</Text>
+          </Pressable>
+        </View>
+      )}
+
       <Text
         style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightSemiBold }}
         testID="defends-nulle-progress"
       >
-        {t('quiz.defendsNulleProgress', {
-          current: snap.playerMovesMade,
-          total: snap.targetMoves,
-        })}
+        {t('quiz.defendsNulleProgress', { current: snap.playerMovesMade })}
       </Text>
 
       {!!snap.position && (
@@ -389,27 +443,52 @@ export default function DefendsNulleScreen() {
             onToggle={toggleMic}
             testID="defends-nulle-mic"
           />
+          {snap.canOfferDraw && (
+            <AppButton
+              label={t('quiz.endgameOfferDraw')}
+              onPress={() => void handleOfferDraw()}
+              testID="defends-nulle-offer-draw"
+            />
+          )}
         </View>
       )}
 
       {challengeEnded && (
         <View style={styles.endActions} testID="defends-nulle-end-actions">
-          {!snap.boardGameOver && (
-            <AppButton
-              label={t('quiz.defendsNulleContinue')}
-              onPress={continueFreeplay}
-              testID="defends-nulle-continue"
-            />
+          {firstError?.found && (
+            <View style={[styles.errorBox, { borderColor: '#c44' }]}>
+              <Text style={{ color: '#c44', fontFamily: DesignTokens.typography.weightSemiBold }}>
+                {firstError.message}
+              </Text>
+              <Text style={{ color: colors.foreground }}>
+                {`Coup joué : ${firstError.moveSan}`}
+              </Text>
+              {firstError.bestMoveSan && (
+                <Text style={{ color: colors.foreground }}>
+                  {`Meilleur coup : ${firstError.bestMoveSan}`}
+                </Text>
+              )}
+            </View>
+          )}
+          {snap.phase === 'failure' && firstError && !firstError.found && (
+            <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
+              {firstError.message}
+            </Text>
           )}
           <AppButton
-            label={t('quiz.defendsNulleRestart')}
+            label={t('quiz.endgameReplay')}
             onPress={() => void restartSame()}
             testID="defends-nulle-restart"
           />
           <AppButton
-            label={t('quiz.defendsNulleAnother')}
+            label={t('quiz.defendsNulleNext')}
             onPress={nextPosition}
             testID="defends-nulle-another"
+          />
+          <AppButton
+            label={fenCopied ? t('quiz.endgameFenCopied') : t('quiz.endgameCopyFen')}
+            onPress={() => void handleCopyFen()}
+            testID="defends-nulle-copy-fen"
           />
         </View>
       )}
@@ -437,6 +516,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: DesignTokens.spacing.xl,
     gap: DesignTokens.spacing.md,
   },
+  objectiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   busyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -444,6 +529,12 @@ const styles = StyleSheet.create({
   },
   endActions: {
     gap: DesignTokens.spacing.sm,
+  },
+  errorBox: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    gap: 4,
   },
   nextLink: {
     alignSelf: 'center',

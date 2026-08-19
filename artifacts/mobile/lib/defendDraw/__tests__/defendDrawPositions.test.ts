@@ -165,13 +165,12 @@ describe('session regulatory success stops before Stockfish', () => {
     };
     const session2 = new DefendDrawSession({
       analyzer,
-      targetMoves: 30,
       repository: repo as never,
     });
     await session2.start('debutant', [], () => 0);
     analyzeCalls = 0;
     const after = await session2.attemptMove('b3', 'b4');
-    assert.equal(after.phase, 'drawn-early');
+    assert.equal(after.phase, 'success');
     assert.match(after.lastFeedback ?? '', /matériel insuffisant/i);
     assert.equal(after.boardGameOver, true);
     assert.equal(analyzeCalls, 0);
@@ -223,7 +222,7 @@ describe('session regulatory success stops before Stockfish', () => {
     await session.start('debutant', [], () => 0);
     analyzeCalls = 0;
     const after = await session.attemptMove(stalemateMove!.from, stalemateMove!.to);
-    assert.equal(after.phase, 'drawn-early');
+    assert.equal(after.phase, 'success');
     assert.match(after.lastFeedback ?? '', /Pat/i);
     assert.equal(analyzeCalls, 0);
   });
