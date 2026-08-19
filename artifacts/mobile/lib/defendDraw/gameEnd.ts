@@ -56,3 +56,47 @@ export function isRegulatoryDraw(end: RegulatoryEnd): end is Exclude<
 > {
   return end.kind !== 'checkmate';
 }
+
+/**
+ * Determine if the game result means success for the player given their objective.
+ * WIN: only a player win is success. DRAW: draw or win = success, loss = failure.
+ */
+export function isObjectiveSuccess(
+  end: RegulatoryEnd,
+  playerColor: 'w' | 'b',
+  objective: 'WIN' | 'DRAW',
+): boolean {
+  if (end.kind === 'checkmate') {
+    const playerWon = end.winner === playerColor;
+    return objective === 'WIN' ? playerWon : playerWon;
+  }
+  // All regulatory draws
+  return objective === 'DRAW';
+}
+
+/**
+ * Feedback message adapted to the objective.
+ */
+export function objectiveFeedbackMessage(
+  end: RegulatoryEnd,
+  playerColor: 'w' | 'b',
+  objective: 'WIN' | 'DRAW',
+): string {
+  if (end.kind === 'checkmate') {
+    const playerWon = end.winner === playerColor;
+    if (playerWon) {
+      return objective === 'WIN'
+        ? 'Mat ! Finale gagnée !'
+        : 'Mat ! Position gagnée.';
+    }
+    return 'Mat forcé détecté.';
+  }
+
+  const drawLabel = regulatorySuccessMessage(end.kind);
+  if (objective === 'DRAW') {
+    return drawLabel;
+  }
+  // WIN objective + draw = failure
+  const reason = drawLabel.replace(/Finale réussie !$/, '').trim();
+  return `${reason} Nulle — objectif non atteint.`;
+}

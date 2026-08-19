@@ -168,6 +168,12 @@ export const StorageKeys = {
     shape: 'GameLibrarySnapshot { version: 1, games: ImportedChessGame[] (main-line + rawPgn) }',
     documentVersion: 1,
   },
+  endgameFavorites: {
+    key: 'anychess.endgames.favorites.v1',
+    feature: 'endgame-training',
+    shape: 'string[] position ids (stable across generations)',
+    documentVersion: 1,
+  },
 } as const satisfies Record<string, StorageKeyMeta>;
 
 export type StorageKeyId = keyof typeof StorageKeys;

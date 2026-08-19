@@ -18,6 +18,8 @@ import type {
 } from './taxonomy.ts';
 import { GENERATED_DEFEND_DRAW_POOL } from './data/pool.generated.ts';
 
+export type EndgameObjective = 'WIN' | 'DRAW';
+
 export type DefendDrawPosition = {
   id: string;
   fen: string;
@@ -34,6 +36,8 @@ export type DefendDrawPosition = {
   difficultyMetrics?: DifficultyMetrics;
   source?: DefendDrawSource;
   playerColor: 'w' | 'b';
+  /** WIN = must convert, DRAW = must hold. Defaults to 'DRAW' for existing pool. */
+  objective?: EndgameObjective;
 };
 
 export const CERTIFIED_DEFEND_DRAW_POSITIONS: readonly DefendDrawPosition[] =

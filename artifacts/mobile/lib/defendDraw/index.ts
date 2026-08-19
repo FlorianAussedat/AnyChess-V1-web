@@ -11,7 +11,7 @@ export {
   opponentEloForDifficulty,
   opponentMoveTimeMs,
 } from './positions.ts';
-export type { DefendDrawPosition } from './positions.ts';
+export type { DefendDrawPosition, EndgameObjective } from './positions.ts';
 export {
   DEFEND_DRAW_DIFFICULTIES,
   ENDGAME_CONCEPTS,
@@ -82,7 +82,9 @@ export {
 } from './fenValidation.ts';
 export {
   evaluateRegulatoryEnd,
+  isObjectiveSuccess,
   isRegulatoryDraw,
+  objectiveFeedbackMessage,
   regulatorySuccessMessage,
 } from './gameEnd.ts';
 export type {
@@ -120,7 +122,25 @@ export type {
   DefendDrawPhase,
   DefendDrawSessionOptions,
   DefendDrawSnapshot,
+  EndgamePhase,
+  EndgameSessionOptions,
+  EndgameSnapshot,
 } from './DefendDrawSession.ts';
+export { findFirstError } from './firstError.ts';
+export type { FirstErrorResult } from './firstError.ts';
+export {
+  canOfferDraw,
+  evaluateDrawOffer,
+  DRAW_OFFER_CONFIG,
+} from './drawOffer.ts';
+export type { DrawOfferResult } from './drawOffer.ts';
+export {
+  isFavorite,
+  toggleFavorite,
+  getFavoriteIds,
+  removeFavorite,
+  clearFavoritesCache,
+} from './favoritesStore.ts';
 // Legacy helpers kept for offline tooling / tests (not used mid-game by session).
 export {
   countDrawingMoves,
