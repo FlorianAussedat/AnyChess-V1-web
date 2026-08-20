@@ -37,6 +37,12 @@ import {
   stripClkTags,
   type ImportedChessGame,
 } from '@/lib/gameLibrary';
+import {
+  getEndgameAnalysisOverlay,
+  type EndgameAnalysisPayload,
+} from '@/lib/endgameTraining';
+import { PressureGauge } from '@/lib/endgameTraining/ui/PressureGauge';
+import { EvaluationCurve } from '@/lib/endgameTraining/ui/EvaluationCurve';
 import type { DictationPace } from '@/lib/preferences/dictationPace';
 import type { MessageKey } from '@/lib/i18n';
 
@@ -49,6 +55,57 @@ const PACE_LABEL: Record<DictationPace, MessageKey> = {
 };
 
 const READER_RESERVED_CHROME = 360;
+
+/** Recover Orientation from headers / raw PGN when overlay is absent. */
+function orientationFromGame(game: ImportedChessGame): 'white' | 'black' | null {
+  const headerExtra = game.headers as ImportedChessGame['headers'] & {
+    orientation?: string;
+    Orientation?: string;
+  };
+  const fromHeader = headerExtra.orientation ?? headerExtra.Orientation;
+  if (typeof fromHeader === 'string') {
+    const v = fromHeader.trim().toLowerCase();
+    if (v === 'black' || v === 'b') return 'black';
+    if (v === 'white' || v === 'w') return 'white';
+  }
+  const raw = game.source.rawPgn;
+  if (!raw) return null;
+  const match = /\[Orientation\s+"?(white|black)"?\]/i.exec(raw);
+  if (!match?.[1]) return null;
+  return match[1].toLowerCase() === 'black' ? 'black' : 'white';
+}
+
+/**
+ * Map playback ply → timeline eval for the pressure gauge.
+ * timeline[0] is initial; defender moves are counted from start FEN STM.
+ */
+function evalAtPly(
+  overlay: EndgameAnalysisPayload,
+  ply: number,
+): { scoreCp: number; mateIn: number | null } {
+  const timeline = overlay.timeline;
+  if (timeline.length === 0) {
+    return { scoreCp: 0, mateIn: null };
+  }
+
+  const stm = overlay.startFen.split(' ')[1] === 'b' ? 'black' : 'white';
+  const defender = overlay.orientation;
+  const played = overlay.moveSans.slice(0, Math.max(0, ply));
+  let mover: 'white' | 'black' = stm;
+  let defenderMoves = 0;
+  for (let i = 0; i < played.length; i += 1) {
+    if (mover === defender) defenderMoves += 1;
+    mover = mover === 'white' ? 'black' : 'white';
+  }
+
+  let best = timeline[0]!;
+  for (const point of timeline) {
+    if (point.playerMoveNumber <= defenderMoves) {
+      best = point;
+    }
+  }
+  return { scoreCp: best.scoreCp, mateIn: best.mateIn };
+}
 
 export default function GameReaderScreen() {
   const { gameId } = useLocalSearchParams<{ gameId: string }>();
@@ -169,6 +226,21 @@ function GameReaderBody({
     voiceEnabled,
   });
 
+  // Keep overlay in memory across re-entry (do not clear on unmount).
+  const overlay = useMemo(
+    () => getEndgameAnalysisOverlay(game.id),
+    [game.id],
+  );
+
+  const boardOrientation =
+    overlay?.orientation ?? orientationFromGame(game) ?? 'white';
+  const isFlipped = boardOrientation === 'black';
+
+  const gaugeEval = useMemo(() => {
+    if (!overlay) return null;
+    return evalAtPly(overlay, playback.ply);
+  }, [overlay, playback.ply]);
+
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
     const reserved =
@@ -176,7 +248,8 @@ function GameReaderBody({
       contentTop +
       contentBottom +
       (boardVisible ? 0 : -120) +
-      (movesVisible ? 0 : -80);
+      (movesVisible ? 0 : -80) +
+      (overlay ? 80 : 0);
     return fitBoardSizeToViewport(wide, windowHeight, Math.max(220, reserved));
   }, [
     windowWidth,
@@ -185,6 +258,7 @@ function GameReaderBody({
     contentBottom,
     boardVisible,
     movesVisible,
+    overlay,
   ]);
 
   const title = gamePlayersTitle(game.headers);
@@ -231,12 +305,21 @@ function GameReaderBody({
         </Pressable>
       </View>
 
+      {overlay && gaugeEval ? (
+        <PressureGauge
+          scoreCp={gaugeEval.scoreCp}
+          mateIn={gaugeEval.mateIn}
+          visible
+          testID="game-reader-pressure-gauge"
+        />
+      ) : null}
+
       {boardVisible ? (
         <ChessBoardSection boardSize={boardSize}>
           <ChessBoard
             board={playback.board}
             lastMove={playback.lastMove}
-            isFlipped={false}
+            isFlipped={isFlipped}
             showCoordinates={showCoordinates}
             sizeMode="wide"
             size={boardSize}
@@ -254,6 +337,15 @@ function GameReaderBody({
           total: playback.snapshot.totalPlies,
         })}
       </Text>
+
+      {overlay ? (
+        <EvaluationCurve
+          timeline={overlay.timeline}
+          firstMajorTurn={overlay.firstMajorTurn}
+          width={Math.min(boardSize, Math.max(240, windowWidth - 48))}
+          testID="game-reader-eval-curve"
+        />
+      ) : null}
 
       <GamePlaybackControls
         isPlaying={playback.isPlaying}
