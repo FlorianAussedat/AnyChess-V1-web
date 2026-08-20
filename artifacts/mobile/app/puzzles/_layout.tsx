@@ -6,6 +6,7 @@ export default function PuzzlesLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="records" />
       <Stack.Screen name="defends-nulle" />
+      <Stack.Screen name="defends-nulle-play" />
     </Stack>
   );
 }
