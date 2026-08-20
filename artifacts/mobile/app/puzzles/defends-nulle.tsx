@@ -47,10 +47,9 @@ export default function EndgameTrainingMenuScreen() {
       setPoolExhausted(true);
       return;
     }
-    router.push({
-      pathname: '/puzzles/defends-nulle-play',
-      params: { positionId: pos.id, source: 'new' },
-    } as Href);
+    router.push(
+      `/puzzles/defends-nulle-play?positionId=${encodeURIComponent(pos.id)}&source=new` as Href,
+    );
   };
 
   const startTryAgain = async () => {
@@ -64,10 +63,9 @@ export default function EndgameTrainingMenuScreen() {
       setEmptyTryAgain(true);
       return;
     }
-    router.push({
-      pathname: '/puzzles/defends-nulle-play',
-      params: { positionId: pos.id, source: 'try-again' },
-    } as Href);
+    router.push(
+      `/puzzles/defends-nulle-play?positionId=${encodeURIComponent(pos.id)}&source=try-again` as Href,
+    );
   };
 
   return (

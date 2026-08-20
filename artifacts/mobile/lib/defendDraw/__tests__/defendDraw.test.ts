@@ -534,21 +534,21 @@ describe('clipboard support', () => {
     assert.match(src, /expo-clipboard/);
   });
 
-  it('screen uses the shared clipboard utility', () => {
-    const src = read('app/puzzles/defends-nulle.tsx');
-    assert.match(src, /copyToClipboard/);
-    assert.match(src, /from ['"]@\/lib\/clipboard['"]/);
-    assert.doesNotMatch(src, /navigator\.clipboard\.writeText/);
+  it('rebuilt endgame screens do not rely on ad-hoc navigator clipboard', () => {
+    const menu = read('app/puzzles/defends-nulle.tsx');
+    const play = read('app/puzzles/defends-nulle-play.tsx');
+    assert.doesNotMatch(menu, /navigator\.clipboard\.writeText/);
+    assert.doesNotMatch(play, /navigator\.clipboard\.writeText/);
   });
 });
 
 describe('favorites', () => {
-  it('favoritesStore exports expected API', () => {
+  it('legacy favoritesStore remains but product uses Try Again v2', () => {
     const src = read('lib/defendDraw/favoritesStore.ts');
     assert.match(src, /export async function isFavorite/);
-    assert.match(src, /export async function toggleFavorite/);
-    assert.match(src, /export async function getFavoriteIds/);
-    assert.match(src, /export async function removeFavorite/);
     assert.match(src, /StorageKeys\.endgameFavorites/);
+    const store = read('lib/endgameTraining/persistence/EndgameTrainingStore.ts');
+    assert.match(store, /tryAgainIds/);
+    assert.match(store, /endgameTrainingV2/);
   });
 });
