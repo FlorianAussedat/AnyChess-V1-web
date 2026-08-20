@@ -1,5 +1,5 @@
 /**
- * Certified start positions for Défends la nulle.
+ * Certified start positions for Entraînement aux Finales.
  *
  * ONLY entries with proven certification may reach the board:
  *   verifiedDraw === true AND verification.result === 'draw'
@@ -16,6 +16,11 @@ import type {
   EndgameFamily,
   DefendDrawSource,
 } from './taxonomy.ts';
+import type {
+  EndgameQualityMetrics,
+  EndgameQualityOverride,
+  EndgameTrainingStyle,
+} from './qualityConfig.ts';
 import { GENERATED_DEFEND_DRAW_POOL } from './data/pool.generated.ts';
 
 export type EndgameObjective = 'WIN' | 'DRAW';
@@ -38,6 +43,16 @@ export type DefendDrawPosition = {
   playerColor: 'w' | 'b';
   /** WIN = must convert, DRAW = must hold. Defaults to 'DRAW' for existing pool. */
   objective?: EndgameObjective;
+  /** Internal pedagogical style — not necessarily shown to the player. */
+  trainingStyle?: EndgameTrainingStyle;
+  /** Compact material signature e.g. "KRP-krp". */
+  materialSignature?: string;
+  /** Offline quality metrics (liquidation, pressure, similarity). */
+  qualityMetrics?: EndgameQualityMetrics;
+  /** Manual keep override — never auto-applied. */
+  qualityOverride?: EndgameQualityOverride;
+  /** Human-readable difficulty justification (especially for GM). */
+  difficultyJustification?: string;
 };
 
 export const CERTIFIED_DEFEND_DRAW_POSITIONS: readonly DefendDrawPosition[] =

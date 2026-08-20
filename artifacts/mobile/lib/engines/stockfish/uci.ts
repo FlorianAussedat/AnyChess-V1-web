@@ -129,6 +129,8 @@ export type InfoScoreSnapshot = {
   wdl: { win: number; draw: number; loss: number } | null;
   /** First PV move in UCI, if present. */
   pvMove: string | null;
+  /** 1-based MultiPV rank when present (default 1). */
+  multipv: number;
 };
 
 export function parseInfoScoreSnapshot(line: string): InfoScoreSnapshot | null {
@@ -159,12 +161,14 @@ export function parseInfoScoreSnapshot(line: string): InfoScoreSnapshot | null {
     : null;
 
   const pvMatch = line.match(/\bpv\s+(\S+)/);
+  const multipvMatch = line.match(/\bmultipv\s+(\d+)/);
   return {
     scoreCp,
     mateIn,
     depth: depthMatch ? parseInt(depthMatch[1]!, 10) : 0,
     wdl,
     pvMove: pvMatch?.[1] ?? null,
+    multipv: multipvMatch ? parseInt(multipvMatch[1]!, 10) : 1,
   };
 }
 

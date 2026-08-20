@@ -45,7 +45,7 @@ describe('suggestDefendDrawDifficulty', () => {
     assert.equal(band, 'debutant');
   });
 
-  it('biases Q vs R toward grandmaster', () => {
+  it('does not promote Q vs R to GM from material alone', () => {
     const fen = '8/8/8/4k3/8/4r3/4K3/4Q3 w - - 0 1';
     const band = suggestDefendDrawDifficulty({
       fen,
@@ -55,11 +55,12 @@ describe('suggestDefendDrawDifficulty', () => {
         drawingMoves: 2,
         losingMoves: 10,
         drawingRatio: 0.16,
-        criticalMoves: 2,
-        uniqueMoveMoments: 1,
+        criticalMoves: 0,
+        uniqueMoveMoments: 0,
       },
+      qualityScore: 40,
     });
-    assert.ok(band === 'grandMaitre' || band === 'expert');
+    assert.notEqual(band, 'grandMaitre');
   });
 });
 

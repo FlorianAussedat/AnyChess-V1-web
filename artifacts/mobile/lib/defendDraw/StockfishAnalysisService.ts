@@ -29,6 +29,7 @@ function toDefense(a: EngineAnalysis): DefenseAnalysis {
     depth: a.depth,
     wdl: a.wdl,
     bestMove: a.bestMove,
+    lines: a.lines,
   };
 }
 
@@ -69,6 +70,20 @@ export class StockfishAnalysisService implements DefenseAnalyzer {
 
   async analyze(fen: string, movetimeMs?: number): Promise<DefenseAnalysis> {
     return toDefense(await this.engine.analyze(fen, movetimeMs));
+  }
+
+  async analyzePosition(options: {
+    fen: string;
+    movetimeMs?: number;
+    multiPv?: number;
+  }): Promise<DefenseAnalysis> {
+    return toDefense(
+      await this.engine.analyzePosition({
+        fen: options.fen,
+        movetimeMs: options.movetimeMs,
+        multiPv: options.multiPv,
+      }),
+    );
   }
 
   getEngine(): ChessEngineService {

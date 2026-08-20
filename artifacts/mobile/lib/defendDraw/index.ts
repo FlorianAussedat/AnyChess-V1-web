@@ -141,6 +141,32 @@ export {
   removeFavorite,
   clearFavoritesCache,
 } from './favoritesStore.ts';
+export {
+  ENDGAME_QUALITY_CONFIG,
+  PRACTICAL_PRESSURE_CONFIG,
+} from './qualityConfig.ts';
+export type {
+  EndgameTrainingStyle,
+  EndgameQualityMetrics,
+  EndgameQualityOverride,
+  EndgameOpponentPolicy,
+} from './qualityConfig.ts';
+export {
+  evaluateEndgameQuality,
+  inferTrainingStyle,
+  shouldRejectForQuality,
+} from './qualityFilter.ts';
+export {
+  materialSignature,
+  similarityKey,
+  isBareHeavySymmetry,
+  countMaterial,
+} from './materialSignature.ts';
+export {
+  pickPracticalPressureMove,
+  chooseOpponentMove,
+  resolveOpponentPolicy,
+} from './practicalPressure.ts';
 // Legacy helpers kept for offline tooling / tests (not used mid-game by session).
 export {
   countDrawingMoves,

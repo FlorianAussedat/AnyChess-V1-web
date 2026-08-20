@@ -38,6 +38,13 @@ import {
   type DrawOfferResult,
 } from './drawOffer.ts';
 import { findFirstError, type FirstErrorResult } from './firstError.ts';
+import {
+  chooseOpponentMove,
+  resolveOpponentPolicy,
+} from './practicalPressure.ts';
+import { PRACTICAL_PRESSURE_CONFIG } from './qualityConfig.ts';
+import type { EndgameOpponentPolicy, EndgameTrainingStyle } from './qualityConfig.ts';
+import { materialSignature } from './materialSignature.ts';
 
 export type EndgamePhase =
   | 'ready'
@@ -102,10 +109,13 @@ export class DefendDrawSession {
   private casBStreak = 0;
   private poolError: string | null = null;
   private recentFamilies: EndgameFamily[] = [];
+  private recentMaterialSignatures: string[] = [];
+  private recentStyles: EndgameTrainingStyle[] = [];
   private lastDrawOfferMove: number | null = null;
   private moveHistory: string[] = [];
   private analyzer: DefenseAnalyzer | null;
   private readonly repository: typeof endgamePositionRepository;
+  private opponentPolicy: EndgameOpponentPolicy = 'practical-pressure';
 
   constructor(options: EndgameSessionOptions = {}) {
     this.analyzer = options.analyzer ?? null;
@@ -129,10 +139,13 @@ export class DefendDrawSession {
         recentIds,
         rng,
         this.recentFamilies,
+        this.recentMaterialSignatures,
+        this.recentStyles,
       );
       this.position = chosen;
       this.startFen = chosen.fen;
       this.objective = chosen.objective ?? 'DRAW';
+      this.opponentPolicy = resolveOpponentPolicy(this.objective);
       this.game = new Chess(chosen.fen);
       this.phase = 'playing';
       this.playerMovesMade = 0;
@@ -144,6 +157,12 @@ export class DefendDrawSession {
       this.lastDrawOfferMove = null;
       this.moveHistory = [];
       this.recentFamilies = [chosen.family, ...this.recentFamilies].slice(0, 8);
+      const mat = chosen.materialSignature ?? materialSignature(chosen.fen);
+      this.recentMaterialSignatures = [mat, ...this.recentMaterialSignatures].slice(0, 8);
+      this.recentStyles = [
+        chosen.trainingStyle ?? 'practical',
+        ...this.recentStyles,
+      ].slice(0, 8);
     } catch (err) {
       this.position = null;
       this.startFen = null;
@@ -241,7 +260,7 @@ export class DefendDrawSession {
 
     this.phase = 'thinking';
     const thinkMs = defendDrawMoveTimeMs(this.difficulty);
-    const analysis = await this.analyzer.analyze(this.game.fen(), thinkMs);
+    const analysis = await this.analyzeForOpponent(this.game.fen(), thinkMs);
     this.lastAnalysis = analysis;
 
     const lost = isClearlyLostPosition(
@@ -319,17 +338,47 @@ export class DefendDrawSession {
     return this.snapshot();
   }
 
+  private async analyzeForOpponent(
+    fen: string,
+    thinkMs: number,
+  ): Promise<DefenseAnalysis> {
+    if (!this.analyzer) {
+      throw new Error('Stockfish indisponible.');
+    }
+    if (
+      this.opponentPolicy === 'practical-pressure' &&
+      this.analyzer.analyzePosition
+    ) {
+      return this.analyzer.analyzePosition({
+        fen,
+        movetimeMs: thinkMs || PRACTICAL_PRESSURE_CONFIG.thinkTimeMs,
+        multiPv: PRACTICAL_PRESSURE_CONFIG.multiPv,
+      });
+    }
+    return this.analyzer.analyze(fen, thinkMs);
+  }
+
   private async applyOpponentBestMove(analysis: DefenseAnalysis): Promise<void> {
     if (!this.position || !this.analyzer) return;
 
-    let pick = analysis.bestMove;
+    let working = analysis;
+    let pick = chooseOpponentMove(
+      this.game.fen(),
+      working,
+      this.opponentPolicy,
+    );
+
     if (this.game.turn() === this.position.playerColor || !pick) {
-      const refreshed = await this.analyzer.analyze(
+      working = await this.analyzeForOpponent(
         this.game.fen(),
         defendDrawMoveTimeMs(this.difficulty),
       );
-      this.lastAnalysis = refreshed;
-      pick = refreshed.bestMove;
+      this.lastAnalysis = working;
+      pick = chooseOpponentMove(
+        this.game.fen(),
+        working,
+        this.opponentPolicy,
+      );
     }
 
     if (!pick || this.game.turn() === this.position.playerColor) {

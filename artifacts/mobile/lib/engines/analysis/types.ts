@@ -33,6 +33,15 @@ export type EngineBestMove = {
 };
 
 /** Common analysis payload — independent of web/native transport. */
+export type EngineAnalysisLine = {
+  multipv: number;
+  scoreCp: number;
+  mateIn: number | null;
+  wdl: EngineWdl | null;
+  depth: number;
+  bestMove: EngineBestMove | null;
+};
+
 export type EngineAnalysis = {
   bestMove: EngineBestMove | null;
   ponder?: EngineBestMove | null;
@@ -43,12 +52,16 @@ export type EngineAnalysis = {
   mateIn: number | null;
   wdl: EngineWdl | null;
   depth: number;
+  /** MultiPV candidate lines when requested (rank 1 first). Empty if unavailable. */
+  lines?: EngineAnalysisLine[];
 };
 
 export type AnalyzePositionOptions = {
   fen: string;
   depth?: number;
   movetimeMs?: number;
+  /** Request MultiPV candidates (1 = classic single best). */
+  multiPv?: number;
 };
 
 export type ChessEngineServiceOptions = {

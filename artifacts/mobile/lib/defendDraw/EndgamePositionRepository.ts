@@ -109,6 +109,8 @@ export function getDefendDrawPosition(
   recentIds: string[] = [],
   rng: () => number = Math.random,
   recentFamilies: EndgameFamily[] = [],
+  recentMaterialSignatures: string[] = [],
+  recentStyles: import('./qualityConfig.ts').EndgameTrainingStyle[] = [],
 ): CertifiedEndgamePosition {
   const resolved = resolveDefendDrawDifficulty(difficulty);
   const pool = endgamesForDifficulty(resolved);
@@ -116,7 +118,14 @@ export function getDefendDrawPosition(
     throw new DefendDrawPoolEmptyError(resolved);
   }
 
-  const chosen = pickVariedCertifiedPosition(pool, rng, recentIds, recentFamilies);
+  const chosen = pickVariedCertifiedPosition(
+    pool,
+    rng,
+    recentIds,
+    recentFamilies,
+    recentMaterialSignatures,
+    recentStyles,
+  );
 
   if (typeof __DEV__ !== 'undefined' && __DEV__) {
     console.log(
@@ -172,8 +181,17 @@ export class EndgamePositionRepository {
     recentIds: string[] = [],
     rng: () => number = Math.random,
     recentFamilies: EndgameFamily[] = [],
+    recentMaterialSignatures: string[] = [],
+    recentStyles: import('./qualityConfig.ts').EndgameTrainingStyle[] = [],
   ): CertifiedEndgamePosition {
-    return getDefendDrawPosition(difficulty, recentIds, rng, recentFamilies);
+    return getDefendDrawPosition(
+      difficulty,
+      recentIds,
+      rng,
+      recentFamilies,
+      recentMaterialSignatures,
+      recentStyles,
+    );
   }
 }
 
