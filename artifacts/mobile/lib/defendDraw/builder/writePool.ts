@@ -14,8 +14,26 @@ function esc(s: string): string {
 function formatPosition(p: DefendDrawPosition, indent: string): string {
   const concepts = p.concepts.map((c) => `'${c}'`).join(', ');
   const trailing: string[] = [];
+  if (p.objective) {
+    trailing.push(`objective: '${p.objective}'`);
+  }
+  if (p.trainingStyle) {
+    trailing.push(`trainingStyle: '${p.trainingStyle}'`);
+  }
+  if (p.materialSignature) {
+    trailing.push(`materialSignature: '${esc(p.materialSignature)}'`);
+  }
   if (p.difficultyMetrics) {
     trailing.push(`difficultyMetrics: ${JSON.stringify(p.difficultyMetrics)}`);
+  }
+  if (p.qualityMetrics) {
+    trailing.push(`qualityMetrics: ${JSON.stringify(p.qualityMetrics)}`);
+  }
+  if (p.qualityOverride) {
+    trailing.push(`qualityOverride: ${JSON.stringify(p.qualityOverride)}`);
+  }
+  if (p.difficultyJustification) {
+    trailing.push(`difficultyJustification: '${esc(p.difficultyJustification)}'`);
   }
   if (p.source) {
     trailing.push(`source: ${JSON.stringify(p.source)}`);

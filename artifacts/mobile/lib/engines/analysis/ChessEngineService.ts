@@ -32,6 +32,9 @@ type PendingAnalysis = {
   reject: (err: Error) => void;
   fen: string;
   latest: InfoScoreSnapshot | null;
+  /** MultiPV snapshots keyed by rank. */
+  linesByPv: Map<number, InfoScoreSnapshot>;
+  multiPv: number;
   timeout: ReturnType<typeof setTimeout> | null;
 };
 
@@ -47,6 +50,7 @@ function toBestMove(
 function snapshotToAnalysis(
   latest: InfoScoreSnapshot | null,
   bestMove: EngineBestMove | null,
+  lines: EngineAnalysis['lines'] = [],
 ): EngineAnalysis {
   let score: EngineScore | null = null;
   let scoreCp = 0;
@@ -67,6 +71,7 @@ function snapshotToAnalysis(
     mateIn,
     wdl: latest?.wdl ?? null,
     depth: latest?.depth ?? 0,
+    lines,
   };
 }
 
@@ -115,6 +120,7 @@ export class ChessEngineService {
   private readonly analysisTimeoutMs: number;
   private readonly createTransport: ((enginePath: string) => UciTransport) | null;
   private readonly listeners = new Set<(status: EngineStatus) => void>();
+  private activeMultiPv = 1;
 
   constructor(options: ChessEngineServiceOptions = {}) {
     this.enginePath = options.enginePath ?? DEFAULT_STOCKFISH_CONFIG.enginePath;
@@ -194,7 +200,7 @@ export class ChessEngineService {
       const p = this.pending;
       this.clearPendingTimeout(p);
       this.pending = null;
-      p.resolve(snapshotToAnalysis(p.latest, null));
+      p.resolve(snapshotToAnalysis(p.latest, null, []));
     }
     if (this.transport && this.status !== 'unavailable') {
       try {
@@ -217,12 +223,18 @@ export class ChessEngineService {
       const stale = this.pending;
       this.clearPendingTimeout(stale);
       this.pending = null;
-      stale.resolve(snapshotToAnalysis(stale.latest, null));
+      stale.resolve(snapshotToAnalysis(stale.latest, null, []));
     }
 
     const movetime = options.movetimeMs ?? this.defaultMoveTimeMs;
+    const multiPv = Math.max(1, Math.round(options.multiPv ?? 1));
     const id = this.nextRequestId++;
     this.setStatus('thinking');
+
+    if (multiPv !== this.activeMultiPv) {
+      this.transport.send(`setoption name MultiPV value ${multiPv}`);
+      this.activeMultiPv = multiPv;
+    }
 
     return new Promise<EngineAnalysis>((resolve, reject) => {
       const pending: PendingAnalysis = {
@@ -236,7 +248,7 @@ export class ChessEngineService {
                 ? `mate ${result.score.value}`
                 : `${(result.scoreCp / 100).toFixed(2)}`;
             console.log(
-              `[ChessEngineService] Engine: Stockfish | depth ${result.depth} | eval ${evalLabel} | best ${bm}`,
+              `[ChessEngineService] Engine: Stockfish | depth ${result.depth} | eval ${evalLabel} | best ${bm} | multipv ${result.lines?.length ?? 1}`,
             );
           }
           resolve(result);
@@ -248,6 +260,8 @@ export class ChessEngineService {
         },
         fen: options.fen,
         latest: null,
+        linesByPv: new Map(),
+        multiPv,
         timeout: null,
       };
       pending.timeout = setTimeout(() => {
@@ -358,7 +372,18 @@ export class ChessEngineService {
 
         if (this.pending && line.startsWith('info ')) {
           const snap = parseInfoScoreSnapshot(line);
-          if (snap) this.pending.latest = snap;
+          if (snap) {
+            this.pending.linesByPv.set(snap.multipv, snap);
+            // Prefer PV1 for the headline score.
+            if (snap.multipv === 1 || !this.pending.latest) {
+              this.pending.latest = snap;
+            } else if (
+              this.pending.latest.multipv !== 1 &&
+              snap.depth >= this.pending.latest.depth
+            ) {
+              this.pending.latest = snap;
+            }
+          }
           return;
         }
 
@@ -367,12 +392,23 @@ export class ChessEngineService {
           this.pending = null;
           this.clearPendingTimeout(pending);
           const uci = parseBestMove(line);
+          const pv1 = pending.linesByPv.get(1) ?? pending.latest;
           const bestMove = resolveLegalBestMove(
             pending.fen,
             uci,
-            pending.latest?.pvMove ?? null,
+            pv1?.pvMove ?? null,
           );
-          pending.resolve(snapshotToAnalysis(pending.latest, bestMove));
+          const lines = [...pending.linesByPv.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([rank, snap]) => ({
+              multipv: rank,
+              scoreCp: snap.scoreCp,
+              mateIn: snap.mateIn,
+              wdl: snap.wdl,
+              depth: snap.depth,
+              bestMove: resolveLegalBestMove(pending.fen, null, snap.pvMove),
+            }));
+          pending.resolve(snapshotToAnalysis(pv1, bestMove, lines));
         }
       };
 

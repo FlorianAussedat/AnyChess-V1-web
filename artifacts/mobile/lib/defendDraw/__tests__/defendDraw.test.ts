@@ -124,7 +124,7 @@ describe('isClearlyLostPosition', () => {
 describe('EndgamePositionRepository', () => {
   it('only exposes certified non-trivial draws with verifiedDraw', () => {
     const all = listCertifiedEndgames();
-    assert.ok(all.length >= 100);
+    assert.ok(all.length >= 20);
     for (const p of all) {
       assert.equal(p.verifiedDraw, true);
       assert.equal(p.verified, true);
@@ -235,7 +235,7 @@ describe('navigation still under Entraînement tactique', () => {
     assert.doesNotMatch(screen, /probeWdl/);
     assert.match(screen, /defendsNullePreparing/);
     assert.match(screen, /defendsNulleReflecting/);
-    assert.match(screen, /DEBUG ENDGAME/);
+    assert.doesNotMatch(screen, /DEBUG ENDGAME/);
     assert.match(screen, /endgameOfferDraw|endgameObjective/);
     const analysis = read('lib/defendDraw/StockfishAnalysisService.ts');
     assert.match(analysis, /ChessEngineService/);
@@ -290,9 +290,14 @@ describe('wdl cp helper still works', () => {
 
 // ───────────────────── New combined tests ─────────────────────
 
-describe('117 positions integrity after merge', () => {
-  it('pool contains at least 117 positions', () => {
-    assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length >= 117);
+describe('quality-filtered pool integrity after merge', () => {
+  it('pool is reduced and excludes known bad positions', () => {
+    assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length >= 20);
+    assert.ok(CERTIFIED_DEFEND_DRAW_POSITIONS.length < 117);
+    assert.equal(
+      CERTIFIED_DEFEND_DRAW_POSITIONS.some((p) => p.id === 'DD-113'),
+      false,
+    );
   });
 
   it('all positions default to DRAW objective', () => {
