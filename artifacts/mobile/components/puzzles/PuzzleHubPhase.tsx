@@ -45,6 +45,13 @@ export function PuzzleHubPhase() {
         onPress={() => router.push('/puzzles/defends-nulle' as Href)}
         testID="puzzle-card-defends-nulle"
       />
+      <HubModeCard
+        title={t('quiz.theoreticalEndgameTitle')}
+        description={t('quiz.theoreticalEndgameDesc')}
+        icon={BrandAssets.exercises.finalesTheoriques}
+        onPress={() => router.push('/puzzles/finales-theoriques' as Href)}
+        testID="puzzle-card-finales-theoriques"
+      />
       <Pressable
         onPress={() => router.push('/puzzles/records' as Href)}
         hitSlop={8}

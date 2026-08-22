@@ -419,6 +419,43 @@ export type MessageKey =
   | 'quiz.endgameCopyFen'
   | 'quiz.endgameFenCopied'
   | 'quiz.endgameReplay'
+  | 'quiz.theoreticalEndgameTitle'
+  | 'quiz.theoreticalEndgameDesc'
+  | 'quiz.theoreticalEndgameLead'
+  | 'quiz.theoreticalRandom'
+  | 'quiz.theoreticalViewList'
+  | 'quiz.theoreticalViewCards'
+  | 'quiz.theoreticalAllMastered'
+  | 'quiz.theoreticalNoAttempts'
+  | 'quiz.theoreticalCompleted'
+  | 'quiz.theoreticalObjectiveWin'
+  | 'quiz.theoreticalObjectiveDraw'
+  | 'quiz.theoreticalMovesPlayed'
+  | 'quiz.theoreticalOffScore'
+  | 'quiz.theoreticalVerifying'
+  | 'quiz.theoreticalAnalyse'
+  | 'quiz.theoreticalRetry'
+  | 'quiz.theoreticalNext'
+  | 'quiz.theoreticalContinueOffScore'
+  | 'quiz.theoreticalBackThemes'
+  | 'quiz.theoreticalExitTitle'
+  | 'quiz.theoreticalExitBody'
+  | 'quiz.theoreticalExitContinue'
+  | 'quiz.theoreticalExitConfirm'
+  | 'quiz.theoreticalScoreOld'
+  | 'quiz.theoreticalScoreNew'
+  | 'quiz.theoreticalScoreAttempts'
+  | 'quiz.theoreticalThemeQueenMate'
+  | 'quiz.theoreticalThemeRookMate'
+  | 'quiz.theoreticalThemeTwoBishopsMate'
+  | 'quiz.theoreticalThemePawnSquare'
+  | 'quiz.theoreticalThemeOpposition'
+  | 'quiz.theoreticalThemeKpVsK'
+  | 'quiz.theoreticalThemePawnRace'
+  | 'quiz.theoreticalThemePawnBreakthrough'
+  | 'quiz.theoreticalThemeThreePawns'
+  | 'quiz.theoreticalThemeLucena'
+  | 'quiz.theoreticalThemePhilidor'
   | 'quiz.incorrect'
   | 'quiz.correct'
   | 'quiz.played'
@@ -1099,6 +1136,45 @@ const fr: Dict = {
   'quiz.endgameCopyFen': 'Copier le FEN',
   'quiz.endgameFenCopied': 'FEN copié !',
   'quiz.endgameReplay': 'Rejouer la finale',
+  'quiz.theoreticalEndgameTitle': 'Finales théoriques',
+  'quiz.theoreticalEndgameDesc':
+    'Automatismes fondamentaux : choisis un thème, joue la position, affronte Stockfish.',
+  'quiz.theoreticalEndgameLead': 'Travaille les finales essentielles par répétition.',
+  'quiz.theoreticalRandom': 'Aléatoire',
+  'quiz.theoreticalViewList': 'Liste',
+  'quiz.theoreticalViewCards': 'Cartes',
+  'quiz.theoreticalAllMastered': 'Tous les thèmes sont maîtrisés — position aléatoire du pool.',
+  'quiz.theoreticalNoAttempts': '—/10',
+  'quiz.theoreticalCompleted': 'Terminé',
+  'quiz.theoreticalObjectiveWin': 'Gagne la position',
+  'quiz.theoreticalObjectiveDraw': 'Obtiens la nulle',
+  'quiz.theoreticalMovesPlayed': 'Coups joués : {{count}} / cible {{target}}',
+  'quiz.theoreticalOffScore': 'Suite hors score',
+  'quiz.theoreticalVerifying': 'Vérification…',
+  'quiz.theoreticalAnalyse': 'Analyser',
+  'quiz.theoreticalRetry': 'Retenter',
+  'quiz.theoreticalNext': 'Suivante',
+  'quiz.theoreticalContinueOffScore': 'Continuer hors score',
+  'quiz.theoreticalBackThemes': 'Retour aux thèmes',
+  'quiz.theoreticalExitTitle': 'Quitter cette finale ?',
+  'quiz.theoreticalExitBody':
+    'Cette tentative sera abandonnée et ne modifiera pas ta note.',
+  'quiz.theoreticalExitContinue': 'Continuer la finale',
+  'quiz.theoreticalExitConfirm': 'Quitter',
+  'quiz.theoreticalScoreOld': 'Ancienne note : {{score}}',
+  'quiz.theoreticalScoreNew': 'Nouvelle note : {{score}}',
+  'quiz.theoreticalScoreAttempts': '{{count}} tentative(s) comptabilisée(s)',
+  'quiz.theoreticalThemeQueenMate': 'Dame et roi contre roi',
+  'quiz.theoreticalThemeRookMate': 'Tour et roi contre roi',
+  'quiz.theoreticalThemeTwoBishopsMate': 'Deux fous et roi contre roi',
+  'quiz.theoreticalThemePawnSquare': 'Carré du pion',
+  'quiz.theoreticalThemeOpposition': 'Opposition',
+  'quiz.theoreticalThemeKpVsK': 'Roi et pion contre roi',
+  'quiz.theoreticalThemePawnRace': 'Courses de pions',
+  'quiz.theoreticalThemePawnBreakthrough': 'Percées de pions',
+  'quiz.theoreticalThemeThreePawns': 'Trois pions contre trois pions',
+  'quiz.theoreticalThemeLucena': 'Position de Lucena',
+  'quiz.theoreticalThemePhilidor': 'Position de Philidor',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Joué : {{moves}}',
@@ -1817,6 +1893,45 @@ const en: Dict = {
   'quiz.endgameCopyFen': 'Copy FEN',
   'quiz.endgameFenCopied': 'FEN copied!',
   'quiz.endgameReplay': 'Replay endgame',
+  'quiz.theoreticalEndgameTitle': 'Theoretical Endgames',
+  'quiz.theoreticalEndgameDesc':
+    'Core endgame drills: pick a theme, play the position, face Stockfish.',
+  'quiz.theoreticalEndgameLead': 'Practice essential endgames through repetition.',
+  'quiz.theoreticalRandom': 'Random',
+  'quiz.theoreticalViewList': 'List',
+  'quiz.theoreticalViewCards': 'Cards',
+  'quiz.theoreticalAllMastered': 'All themes mastered — random position from the pool.',
+  'quiz.theoreticalNoAttempts': '—/10',
+  'quiz.theoreticalCompleted': 'Completed',
+  'quiz.theoreticalObjectiveWin': 'Win the position',
+  'quiz.theoreticalObjectiveDraw': 'Obtain the draw',
+  'quiz.theoreticalMovesPlayed': 'Moves played: {{count}} / target {{target}}',
+  'quiz.theoreticalOffScore': 'Off-score continuation',
+  'quiz.theoreticalVerifying': 'Verifying…',
+  'quiz.theoreticalAnalyse': 'Analyse',
+  'quiz.theoreticalRetry': 'Retry',
+  'quiz.theoreticalNext': 'Next',
+  'quiz.theoreticalContinueOffScore': 'Continue off score',
+  'quiz.theoreticalBackThemes': 'Back to themes',
+  'quiz.theoreticalExitTitle': 'Leave this endgame?',
+  'quiz.theoreticalExitBody':
+    'This attempt will be abandoned and will not affect your score.',
+  'quiz.theoreticalExitContinue': 'Continue the endgame',
+  'quiz.theoreticalExitConfirm': 'Leave',
+  'quiz.theoreticalScoreOld': 'Previous score: {{score}}',
+  'quiz.theoreticalScoreNew': 'New score: {{score}}',
+  'quiz.theoreticalScoreAttempts': '{{count}} scored attempt(s)',
+  'quiz.theoreticalThemeQueenMate': 'Queen and king vs king',
+  'quiz.theoreticalThemeRookMate': 'Rook and king vs king',
+  'quiz.theoreticalThemeTwoBishopsMate': 'Two bishops and king vs king',
+  'quiz.theoreticalThemePawnSquare': 'Pawn square',
+  'quiz.theoreticalThemeOpposition': 'Opposition',
+  'quiz.theoreticalThemeKpVsK': 'King and pawn vs king',
+  'quiz.theoreticalThemePawnRace': 'Pawn races',
+  'quiz.theoreticalThemePawnBreakthrough': 'Pawn breakthroughs',
+  'quiz.theoreticalThemeThreePawns': 'Three pawns vs three pawns',
+  'quiz.theoreticalThemeLucena': 'Lucena position',
+  'quiz.theoreticalThemePhilidor': 'Philidor position',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Played: {{moves}}',
