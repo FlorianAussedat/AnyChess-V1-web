@@ -180,6 +180,12 @@ export const StorageKeys = {
     shape: 'EndgameTrainingStoreV2 { tryAgainIds, finishedIds, statsByPosition, showGauge, … }',
     documentVersion: 2,
   },
+  theoreticalEndgameV1: {
+    key: 'anychess.theoreticalEndgame.v1',
+    feature: 'theoretical-endgame',
+    shape: 'TheoreticalEndgameStoreV1 { catalogView, themeAttempts, … }',
+    documentVersion: 1,
+  },
 } as const satisfies Record<string, StorageKeyMeta>;
 
 export type StorageKeyId = keyof typeof StorageKeys;

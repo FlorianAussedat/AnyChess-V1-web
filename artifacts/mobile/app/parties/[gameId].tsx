@@ -41,6 +41,13 @@ import {
   getEndgameAnalysisOverlay,
   type EndgameAnalysisPayload,
 } from '@/lib/endgameTraining';
+import {
+  getTheoreticalAnalysisOverlay,
+  type TheoreticalAnalysisPayload,
+} from '@/lib/theoreticalEndgame';
+import { buildTheoreticalTimeline } from '@/lib/theoreticalEndgame/review/buildTheoreticalTimeline';
+import { StockfishAnalysisService, DEFEND_DRAW_ENGINE_CONFIG } from '@/lib/defendDraw';
+import type { EvaluationPoint, FirstMajorTurn } from '@/lib/endgameTraining/domain/types';
 import { PressureGauge } from '@/lib/endgameTraining/ui/PressureGauge';
 import { EvaluationCurve } from '@/lib/endgameTraining/ui/EvaluationCurve';
 import type { DictationPace } from '@/lib/preferences/dictationPace';
@@ -75,12 +82,39 @@ function orientationFromGame(game: ImportedChessGame): 'white' | 'black' | null 
   return match[1].toLowerCase() === 'black' ? 'black' : 'white';
 }
 
-/**
- * Map playback ply → timeline eval for the pressure gauge.
- * timeline[0] is initial; defender moves are counted from start FEN STM.
- */
-function evalAtPly(
-  overlay: EndgameAnalysisPayload,
+type UnifiedReaderOverlay = {
+  startFen: string;
+  orientation: 'white' | 'black';
+  moveSans: string[];
+  timeline: EvaluationPoint[];
+  firstMajorTurn: FirstMajorTurn | null;
+};
+
+function endgameToUnified(overlay: EndgameAnalysisPayload): UnifiedReaderOverlay {
+  return {
+    startFen: overlay.startFen,
+    orientation: overlay.orientation,
+    moveSans: overlay.moveSans,
+    timeline: overlay.timeline,
+    firstMajorTurn: overlay.firstMajorTurn ?? null,
+  };
+}
+
+function theoreticalToUnified(
+  overlay: TheoreticalAnalysisPayload,
+  timeline: EvaluationPoint[],
+): UnifiedReaderOverlay {
+  return {
+    startFen: overlay.startFen,
+    orientation: overlay.orientation,
+    moveSans: overlay.moveSans,
+    timeline: timeline.length > 0 ? timeline : overlay.timeline,
+    firstMajorTurn: overlay.firstMajorTurn,
+  };
+}
+
+function evalAtUnifiedOverlay(
+  overlay: UnifiedReaderOverlay,
   ply: number,
 ): { scoreCp: number; mateIn: number | null } {
   const timeline = overlay.timeline;
@@ -89,18 +123,18 @@ function evalAtPly(
   }
 
   const stm = overlay.startFen.split(' ')[1] === 'b' ? 'black' : 'white';
-  const defender = overlay.orientation;
+  const player = overlay.orientation;
   const played = overlay.moveSans.slice(0, Math.max(0, ply));
   let mover: 'white' | 'black' = stm;
-  let defenderMoves = 0;
+  let playerMoves = 0;
   for (let i = 0; i < played.length; i += 1) {
-    if (mover === defender) defenderMoves += 1;
+    if (mover === player) playerMoves += 1;
     mover = mover === 'white' ? 'black' : 'white';
   }
 
   let best = timeline[0]!;
   for (const point of timeline) {
-    if (point.playerMoveNumber <= defenderMoves) {
+    if (point.playerMoveNumber <= playerMoves) {
       best = point;
     }
   }
@@ -227,18 +261,74 @@ function GameReaderBody({
   });
 
   // Keep overlay in memory across re-entry (do not clear on unmount).
-  const overlay = useMemo(
+  const endgameOverlay = useMemo(
     () => getEndgameAnalysisOverlay(game.id),
     [game.id],
   );
+  const theoreticalOverlay = useMemo(
+    () => getTheoreticalAnalysisOverlay(game.id),
+    [game.id],
+  );
+  const [theoryTimeline, setTheoryTimeline] = useState<EvaluationPoint[]>([]);
+  const [theoryTimelineLoading, setTheoryTimelineLoading] = useState(false);
+
+  useEffect(() => {
+    if (!theoreticalOverlay) {
+      setTheoryTimeline([]);
+      return;
+    }
+    if (theoreticalOverlay.timeline.length > 0) {
+      setTheoryTimeline(theoreticalOverlay.timeline);
+      return;
+    }
+
+    const service = new StockfishAnalysisService({
+      moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
+      analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
+      bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
+    });
+    let cancelled = false;
+    void (async () => {
+      setTheoryTimelineLoading(true);
+      try {
+        await service.init();
+        const built = await buildTheoreticalTimeline({
+          startFen: theoreticalOverlay.startFen,
+          moveSans: theoreticalOverlay.moveSans,
+          playerColor: theoreticalOverlay.orientation,
+          analyzer: service,
+          thinkTimeMs: 300,
+        });
+        if (!cancelled) setTheoryTimeline(built);
+      } catch {
+        if (!cancelled) setTheoryTimeline([]);
+      } finally {
+        if (!cancelled) setTheoryTimelineLoading(false);
+        service.destroy();
+      }
+    })();
+    return () => {
+      cancelled = true;
+      service.destroy();
+    };
+  }, [theoreticalOverlay]);
+
+  const overlay: UnifiedReaderOverlay | null = endgameOverlay
+    ? endgameToUnified(endgameOverlay)
+    : theoreticalOverlay
+      ? theoreticalToUnified(theoreticalOverlay, theoryTimeline)
+      : null;
 
   const boardOrientation =
-    overlay?.orientation ?? orientationFromGame(game) ?? 'white';
+    endgameOverlay?.orientation ??
+    theoreticalOverlay?.orientation ??
+    orientationFromGame(game) ??
+    'white';
   const isFlipped = boardOrientation === 'black';
 
   const gaugeEval = useMemo(() => {
     if (!overlay) return null;
-    return evalAtPly(overlay, playback.ply);
+    return evalAtUnifiedOverlay(overlay, playback.ply);
   }, [overlay, playback.ply]);
 
   const boardSize = useMemo(() => {
@@ -312,6 +402,13 @@ function GameReaderBody({
           visible
           testID="game-reader-pressure-gauge"
         />
+      ) : theoryTimelineLoading ? (
+        <View style={styles.timelineLoading}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+            {t('parties.loading')}
+          </Text>
+        </View>
       ) : null}
 
       {boardVisible ? (
@@ -454,6 +551,11 @@ const styles = StyleSheet.create({
     gap: 10,
     flexWrap: 'wrap',
     width: '100%',
+  },
+  timelineLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   movesToggle: {
     borderWidth: 1,

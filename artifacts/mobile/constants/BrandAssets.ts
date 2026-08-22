@@ -39,6 +39,8 @@ export const BrandAssets = {
     construisOuverture: require('@/assets/brand/display/modes/construis-ouverture.webp'),
     /** Défends la nulle — reuses fortress/endgame-adjacent mascot until dedicated art. */
     defendsNulle: require('@/assets/brand/display/modes/construis-ouverture.webp'),
+    /** Finales théoriques — placeholder until dedicated art is provided. */
+    finalesTheoriques: require('@/assets/brand/display/modes/jouer-le-coup.webp'),
     ecouterPuisReconstruire: require('@/assets/brand/display/modes/ecouter-puis-reconstruire.webp'),
     problemesVisuels: require('@/assets/brand/display/modes/problemes-visuels.webp'),
     quiz: require('@/assets/brand/display/modes/quiz.webp'),
