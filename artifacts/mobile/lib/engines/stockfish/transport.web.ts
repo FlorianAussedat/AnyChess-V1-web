@@ -1,33 +1,49 @@
 /**
- * Web transport: runs Stockfish (WASM) in a dedicated Web Worker so all
- * engine calculation happens off the main/UI thread. This keeps the interface
- * responsive and — crucially for this app — never blocks the microphone
- * listener, speech synthesis, or board updates while the engine thinks.
+ * Web transport: Stockfish WASM in a dedicated Web Worker.
  *
- * Metro resolves this file (over `transport.ts`) automatically on the web
- * platform. The worker script and its `.wasm` sibling are served from
- * `public/engine/`; the worker loads the `.wasm` from its own directory.
+ * Metro resolves this over `transport.ts` on web.
+ * Worker script + `.wasm` are served from `public/engine/`.
  */
 import type { UciTransport } from './types';
 
-export function createUciTransport(enginePath: string): UciTransport {
+export type WebTransportOptions = {
+  onWorkerError?: (message: string) => void;
+};
+
+export function createUciTransport(
+  enginePath: string,
+  options: WebTransportOptions = {},
+): UciTransport {
   let worker: Worker | null = null;
 
   return {
     start(onLine: (line: string) => void): Promise<void> {
-      worker = new Worker(enginePath);
+      try {
+        worker = new Worker(enginePath);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        options.onWorkerError?.(msg);
+        return Promise.reject(new Error(`[Stockfish] Worker failed: ${msg}`));
+      }
+
       worker.onmessage = (event: MessageEvent) => {
-        const data = event.data;
-        const line = typeof data === 'string' ? data : String(data ?? '');
-        if (line) onLine(line);
+        const raw = typeof event.data === 'string' ? event.data : String(event.data ?? '');
+        for (const part of raw.split(/\r?\n/)) {
+          const line = part.trim();
+          if (line) onLine(line);
+        }
       };
+
       worker.onerror = (event: ErrorEvent) => {
-        // Non-fatal: surface for debugging but let the engine promise time out
-        // / the caller fall back gracefully.
-        console.error('[Stockfish] worker error:', event.message);
+        const msg = event.message || 'Worker error';
+        console.error('[Stockfish] worker error:', msg, event.filename, event.lineno);
+        options.onWorkerError?.(msg);
       };
-      // Worker creation is synchronous; UCI readiness is tracked separately by
-      // StockfishEngine via the uciok/readyok handshake.
+
+      worker.onmessageerror = () => {
+        options.onWorkerError?.('Worker message error');
+      };
+
       return Promise.resolve();
     },
 

@@ -390,6 +390,13 @@ export type MessageKey =
   | 'quiz.defendsNulleRestart'
   | 'quiz.defendsNulleAnother'
   | 'quiz.defendsNulleEngineUnavailable'
+  | 'quiz.stockfishPreparing'
+  | 'quiz.stockfishWebError'
+  | 'quiz.stockfishNativeUnavailable'
+  | 'quiz.stockfishRetry'
+  | 'quiz.stockfishBack'
+  | 'quiz.positionNotFound'
+  | 'quiz.stockfishDevDetail'
   | 'quiz.endgameNewFinales'
   | 'quiz.endgameNewFinalesDesc'
   | 'quiz.endgameTryAgain'
@@ -1102,6 +1109,16 @@ const fr: Dict = {
   'quiz.defendsNulleAnother': 'Jouer une autre finale',
   'quiz.defendsNulleEngineUnavailable':
     'Stockfish n’est pas disponible sur cette version de l’application.',
+  'quiz.stockfishPreparing': 'Préparation de Stockfish…',
+  'quiz.stockfishWebError':
+    'Stockfish n’a pas pu démarrer dans ce navigateur.',
+  'quiz.stockfishNativeUnavailable':
+    'Stockfish n’est pas encore disponible sur cette plateforme mobile.',
+  'quiz.stockfishRetry': 'Réessayer',
+  'quiz.stockfishBack': 'Retour',
+  'quiz.positionNotFound': 'Cette position est introuvable.',
+  'quiz.stockfishDevDetail':
+    'Statut : {{status}}\nErreur : {{error}}\nWorker : {{worker}}',
   'quiz.endgameNewFinales': 'Nouvelles Finales !',
   'quiz.endgameNewFinalesDesc':
     'Une position aléatoire et variée que tu n’as jamais terminée.',
@@ -1859,6 +1876,15 @@ const en: Dict = {
   'quiz.defendsNulleAnother': 'Play another endgame',
   'quiz.defendsNulleEngineUnavailable':
     'Stockfish is not available in this version of the app.',
+  'quiz.stockfishPreparing': 'Preparing Stockfish…',
+  'quiz.stockfishWebError': 'Stockfish could not start in this browser.',
+  'quiz.stockfishNativeUnavailable':
+    'Stockfish is not yet available on this mobile platform.',
+  'quiz.stockfishRetry': 'Retry',
+  'quiz.stockfishBack': 'Back',
+  'quiz.positionNotFound': 'This position could not be found.',
+  'quiz.stockfishDevDetail':
+    'Status: {{status}}\nError: {{error}}\nWorker: {{worker}}',
   'quiz.endgameNewFinales': 'New Endgames!',
   'quiz.endgameNewFinalesDesc':
     'A random varied position you have never finished.',

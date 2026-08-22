@@ -238,11 +238,12 @@ describe('navigation still under Entraînement tactique', () => {
     assert.doesNotMatch(menu, /debutant|confirme|expert|grand.?maitre/i);
 
     const play = read('app/puzzles/defends-nulle-play.tsx');
-    assert.match(play, /StockfishAnalysisService/);
+    assert.match(play, /useSharedStockfishRuntime|SharedStockfishRuntime/);
     assert.match(play, /EndgameTrainingSession/);
     assert.match(play, /defendsNulleReflecting|endgameVerifying/);
     assert.doesNotMatch(play, /DEBUG ENDGAME/);
     assert.doesNotMatch(play, /from ['\"]@?\/?.*engines\/random/);
+    assert.doesNotMatch(play, /new StockfishAnalysisService/);
 
     const analysis = read('lib/defendDraw/StockfishAnalysisService.ts');
     assert.match(analysis, /ChessEngineService/);

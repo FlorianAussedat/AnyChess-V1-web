@@ -32,6 +32,7 @@ import {
   type CatalogViewMode,
   type TheoreticalThemeId,
 } from '@/lib/theoreticalEndgame';
+import { getSharedStockfishRuntime } from '@/lib/engines/runtime';
 
 const ICON_MAP = {
   defendsNulle: BrandAssets.exercises.defendsNulle,
@@ -62,6 +63,10 @@ export default function TheoreticalEndgameCatalogScreen() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    getSharedStockfishRuntime().prewarm();
+  }, []);
 
   const toggleView = async () => {
     const next = viewMode === 'cards' ? 'list' : 'cards';

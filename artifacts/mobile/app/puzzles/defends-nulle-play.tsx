@@ -25,9 +25,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
-import type { EngineStatus } from '@/lib/engines';
-import { StockfishAnalysisService } from '@/lib/defendDraw';
-import { DEFEND_DRAW_ENGINE_CONFIG } from '@/lib/defendDraw';
+import {
+  EndgameEngineStatusBanner,
+  useSharedStockfishRuntime,
+} from '@/lib/engines/runtime';
 import {
   EndgameTrainingSession,
   getPositionById,
@@ -61,14 +62,13 @@ export default function EndgameTrainingPlayScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
 
-  const analyzerRef = useRef<StockfishAnalysisService | null>(null);
   const sessionRef = useRef(new EndgameTrainingSession({}));
   const [snap, setSnap] = useState<SessionSnapshot>(() => sessionRef.current.snapshot());
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [engineStatus, setEngineStatus] = useState<EngineStatus>('uninitialized');
-  const [engineError, setEngineError] = useState<string | null>(null);
+  const [positionMissing, setPositionMissing] = useState(false);
+  const [positionReady, setPositionReady] = useState(false);
   const [showGauge, setShowGaugeState] = useState(true);
   const [inTryAgain, setInTryAgain] = useState(false);
   const [stats, setStats] = useState<PositionAttemptStats | null>(null);
@@ -76,55 +76,41 @@ export default function EndgameTrainingPlayScreen() {
   const startedRef = useRef(false);
   const recordedRef = useRef(false);
 
+  const {
+    snapshot: engineSnap,
+    engineReady,
+    retry: retryEngine,
+    runtime,
+  } = useSharedStockfishRuntime();
+
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
     return fitBoardSizeToViewport(wide, windowHeight, 320);
   }, [windowWidth, windowHeight]);
 
   useEffect(() => {
-    const service = new StockfishAnalysisService({
-      moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
-      analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
-      bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
-    });
-    analyzerRef.current = service;
-    sessionRef.current.setAnalyzer(service);
-    let cancelled = false;
-    const unsub = service.onStatusChange((s) => {
-      if (!cancelled) setEngineStatus(s);
-    });
-    void getShowGauge().then((v) => {
-      if (!cancelled) setShowGaugeState(v);
-    });
-    void service
-      .init()
-      .then(() => {
-        if (!cancelled) {
-          setEngineStatus(service.getStatus());
-          setEngineError(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setEngineError(t('quiz.defendsNulleEngineUnavailable'));
-          setEngineStatus(service.getStatus());
-        }
-      });
+    void getShowGauge().then(setShowGaugeState);
     return () => {
-      cancelled = true;
-      unsub();
       sessionRef.current.setAnalyzer(null);
-      // Abandon if leaving mid-attempt without result
       const cur = sessionRef.current.snapshot();
       if (cur.phase === 'playing' || cur.phase === 'thinking' || cur.phase === 'verifying-loss') {
         sessionRef.current.abandon();
       }
-      service.destroy();
-      analyzerRef.current = null;
     };
-  }, [t]);
+  }, []);
 
-  const engineReady = engineStatus === 'ready' || engineStatus === 'thinking';
+  useEffect(() => {
+    if (!engineReady) return;
+    const service = runtime.getService();
+    if (service) sessionRef.current.setAnalyzer(service);
+  }, [engineReady, runtime]);
+
+  useEffect(() => {
+    startedRef.current = false;
+    setPositionReady(false);
+    setPositionMissing(false);
+    recordedRef.current = false;
+  }, [positionId]);
 
   const refresh = useCallback((next: SessionSnapshot) => {
     setSnap(next);
@@ -133,11 +119,10 @@ export default function EndgameTrainingPlayScreen() {
   }, []);
 
   useEffect(() => {
-    if (startedRef.current) return;
-    if (!engineReady || !positionId) return;
+    if (startedRef.current || !positionId) return;
     const pos = getPositionById(String(positionId));
     if (!pos) {
-      setEngineError('Position introuvable.');
+      setPositionMissing(true);
       return;
     }
     startedRef.current = true;
@@ -145,13 +130,14 @@ export default function EndgameTrainingPlayScreen() {
       setBusy(true);
       try {
         refresh(await sessionRef.current.start(pos));
+        setPositionReady(true);
         setInTryAgain(await isInTryAgain(pos.id));
         setStats(await getPositionStats(pos.id));
       } finally {
         setBusy(false);
       }
     })();
-  }, [engineReady, positionId, refresh]);
+  }, [positionId, refresh]);
 
   // Persist finished attempts once
   useEffect(() => {
@@ -233,7 +219,7 @@ export default function EndgameTrainingPlayScreen() {
     busy ||
     snap.phase === 'thinking' ||
     snap.phase === 'verifying-loss' ||
-    engineStatus === 'thinking';
+    engineSnap.status === 'thinking';
   const canMove =
     engineReady &&
     !thinking &&
@@ -282,6 +268,43 @@ export default function EndgameTrainingPlayScreen() {
       routerPush: (href) => router.push(href as Href),
     });
   };
+
+  if (positionMissing) {
+    return (
+      <ChessScreenScaffold
+        title={t('quiz.defendsNullePageTitle')}
+        onBack={() => router.back()}
+        testID="endgame-training-play"
+      >
+        <View style={styles.missingBox}>
+          <Text style={{ color: colors.foreground }} testID="endgame-position-missing">
+            {t('quiz.positionNotFound')}
+          </Text>
+          <AppButton
+            label={t('quiz.stockfishBack')}
+            onPress={() => router.back()}
+            variant="secondary"
+            testID="endgame-position-missing-back"
+          />
+        </View>
+      </ChessScreenScaffold>
+    );
+  }
+
+  if (!positionReady) {
+    return (
+      <ChessScreenScaffold
+        title={t('quiz.defendsNullePageTitle')}
+        onBack={() => router.back()}
+        testID="endgame-training-play"
+      >
+        <View style={styles.busyRow} testID="endgame-position-loading">
+          <ActivityIndicator color={colors.primary} />
+          <Text style={{ color: colors.mutedForeground }}>{t('quiz.defendsNulleLoading')}</Text>
+        </View>
+      </ChessScreenScaffold>
+    );
+  }
 
   return (
     <ChessScreenScaffold
@@ -351,13 +374,13 @@ export default function EndgameTrainingPlayScreen() {
           />
         </ChessBoardSection>
 
-        {!!engineError && (
-          <Text style={{ color: '#c44' }} testID="endgame-engine-error">
-            {engineError}
-          </Text>
-        )}
+        <EndgameEngineStatusBanner
+          snapshot={engineSnap}
+          onRetry={() => void retryEngine()}
+          onBack={() => router.back()}
+        />
 
-        {thinking && !engineError && (
+        {thinking && engineReady && (
           <View style={styles.busyRow}>
             <ActivityIndicator color={colors.primary} />
             <Text style={{ color: colors.mutedForeground }}>
@@ -508,4 +531,5 @@ const styles = StyleSheet.create({
   result: { gap: DesignTokens.spacing.sm },
   statsBox: { gap: 2 },
   subtle: { alignSelf: 'center', paddingVertical: 8 },
+  missingBox: { gap: DesignTokens.spacing.md, paddingVertical: DesignTokens.spacing.lg },
 });
