@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Chess } from 'chess.js';
 import {
-  absoluteStockfishWorkerUrl,
+  getStockfishWorkerUrl,
   resolveStockfishPaths,
 } from '../stockfishWorkerUrl.ts';
 import { EndgameTrainingSession } from '../../../endgameTraining/session/EndgameTrainingSession.ts';
@@ -25,7 +25,7 @@ function read(rel: string): string {
 }
 
 describe('stockfishWorkerUrl', () => {
-  it('builds worker URL with absolute wasm url in hash fragment', () => {
+  it('builds worker URL with wasm hash required by stockfish.js', () => {
     const { jsPath, wasmPath, workerUrl } = resolveStockfishPaths(
       DEFAULT_STOCKFISH_CONFIG.enginePath,
       'http://localhost:8081',
@@ -34,12 +34,12 @@ describe('stockfishWorkerUrl', () => {
     assert.equal(wasmPath, '/engine/stockfish-18-lite-single.wasm');
     assert.equal(
       workerUrl,
-      `http://localhost:8081/engine/stockfish-18-lite-single.js#${encodeURIComponent('http://localhost:8081/engine/stockfish-18-lite-single.wasm')},worker`,
+      `http://localhost:8081/engine/stockfish-18-lite-single.js#${encodeURIComponent('/engine/stockfish-18-lite-single.wasm')},worker`,
     );
   });
 
   it('prefixes origin when available', () => {
-    const url = absoluteStockfishWorkerUrl('http://localhost:8081', DEFAULT_STOCKFISH_CONFIG.enginePath);
+    const url = getStockfishWorkerUrl('http://localhost:8081', DEFAULT_STOCKFISH_CONFIG.enginePath);
     assert.match(url, /^http:\/\/localhost:8081\/engine\/stockfish-18-lite-single\.js#/);
     assert.match(url, /%2Fengine%2Fstockfish-18-lite-single\.wasm/);
   });
@@ -52,6 +52,12 @@ describe('web backend resolution', () => {
     assert.doesNotMatch(webFactory, /RandomEngine/);
     const webTransport = read('lib/engines/stockfish/transport.web.ts');
     assert.match(webTransport, /new Worker\(enginePath\)/);
+  });
+
+  it('StockfishEngine uses hashed worker URL on web', () => {
+    const src = read('lib/engines/stockfish/StockfishEngine.ts');
+    assert.match(src, /getStockfishWorkerUrl/);
+    assert.match(src, /Platform\.OS === 'web'/);
   });
 
   it('native stub transport throws instead of falling back to RandomEngine', () => {

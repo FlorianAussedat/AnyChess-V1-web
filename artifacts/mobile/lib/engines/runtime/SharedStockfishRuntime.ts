@@ -8,7 +8,7 @@ import { DEFEND_DRAW_ENGINE_CONFIG } from '../../defendDraw/engineConfig.ts';
 import type { EngineStatus } from '../analysis/types.ts';
 import { STOCKFISH_PLATFORM_NOTES } from '../analysis/types.ts';
 import { DEFAULT_STOCKFISH_CONFIG } from '../stockfish/uci.ts';
-import { absoluteStockfishWorkerUrl } from './stockfishWorkerUrl.ts';
+import { getStockfishWorkerUrl } from '../stockfish/workerUrl.ts';
 
 export type SharedStockfishStatus =
   | 'uninitialized'
@@ -47,7 +47,7 @@ export class SharedStockfishRuntime {
 
   private constructor() {
     this.platformOs = Platform.OS;
-    this.workerPath = absoluteStockfishWorkerUrl(undefined, DEFAULT_STOCKFISH_CONFIG.enginePath);
+    this.workerPath = getStockfishWorkerUrl(undefined, DEFAULT_STOCKFISH_CONFIG.enginePath);
     if (Platform.OS !== 'web') {
       this.status = 'unavailable';
       this.lastError = STOCKFISH_PLATFORM_NOTES.expoGo.reason;

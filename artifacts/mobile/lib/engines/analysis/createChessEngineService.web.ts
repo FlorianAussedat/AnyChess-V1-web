@@ -3,6 +3,7 @@
  * Metro resolves this file over `createChessEngineService.ts` on web.
  */
 import { createUciTransport as createWebUciTransport } from '../stockfish/transport';
+import { getStockfishWorkerUrl } from '../stockfish/workerUrl.ts';
 import { ChessEngineService } from './ChessEngineService.ts';
 import type { ChessEngineServiceOptions } from './types.ts';
 import { STOCKFISH_PLATFORM_NOTES } from './types.ts';
@@ -19,6 +20,7 @@ export function createChessEngineService(
   }
   return new ChessEngineService({
     ...options,
+    enginePath: options.enginePath ?? getStockfishWorkerUrl(),
     createTransport:
       options.createTransport ??
       ((enginePath: string) => createWebUciTransport(enginePath)),

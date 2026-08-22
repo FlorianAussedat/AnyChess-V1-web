@@ -16,9 +16,12 @@
  */
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
+import { Platform } from 'react-native';
 import type { ChessEngine } from '../../engine';
+import { DEFEND_DRAW_ENGINE_CONFIG } from '../../defendDraw/engineConfig.ts';
 import { createUciTransport } from './transport';
 import type { StockfishConfig, UciTransport } from './types';
+import { getStockfishWorkerUrl } from './workerUrl.ts';
 import {
   chooseVariedMove,
   DEFAULT_STOCKFISH_CONFIG,
@@ -102,7 +105,9 @@ export class StockfishEngine implements ChessEngine {
 
       let transport: UciTransport;
       try {
-        transport = createUciTransport(this.config.enginePath);
+        const enginePath =
+          Platform.OS === 'web' ? getStockfishWorkerUrl() : this.config.enginePath;
+        transport = createUciTransport(enginePath);
       } catch (err) {
         reject(err);
         return;
@@ -125,13 +130,18 @@ export class StockfishEngine implements ChessEngine {
         reject(error);
       };
 
+      const bootTimeoutMs =
+        Platform.OS === 'web'
+          ? DEFEND_DRAW_ENGINE_CONFIG.webBootTimeoutMs
+          : 30_000;
+
       this.bootTimeout = setTimeout(() => {
         this.bootTimeout = null;
         if (this.destroyed || this.isReady) return;
         failBoot(
           new Error('[StockfishEngine] Timed out waiting for engine to become ready.'),
         );
-      }, 30_000);
+      }, bootTimeoutMs);
 
       const onLine = (line: string) => {
         if (this.destroyed || this.transport !== transport) return;
