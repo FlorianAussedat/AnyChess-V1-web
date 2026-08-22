@@ -41,6 +41,7 @@ export class SharedStockfishRuntime {
   private readyAt: number | null = null;
   private unsubStatus: (() => void) | null = null;
   private readonly listeners = new Set<Listener>();
+  private cachedSnapshot: SharedStockfishSnapshot;
   readonly workerPath: string;
   readonly platformOs: string;
 
@@ -51,6 +52,7 @@ export class SharedStockfishRuntime {
       this.status = 'unavailable';
       this.lastError = STOCKFISH_PLATFORM_NOTES.expoGo.reason;
     }
+    this.cachedSnapshot = this.buildSnapshot();
   }
 
   static get(): SharedStockfishRuntime {
@@ -65,6 +67,15 @@ export class SharedStockfishRuntime {
   }
 
   getSnapshot(): SharedStockfishSnapshot {
+    return this.cachedSnapshot;
+  }
+
+  subscribe(listener: Listener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private buildSnapshot(): SharedStockfishSnapshot {
     return {
       status: this.status,
       lastError: this.lastError,
@@ -79,20 +90,25 @@ export class SharedStockfishRuntime {
     };
   }
 
-  subscribe(listener: Listener): () => void {
-    this.listeners.add(listener);
-    listener(this.getSnapshot());
-    return () => this.listeners.delete(listener);
-  }
-
-  private emit(): void {
-    const snap = this.getSnapshot();
-    for (const l of this.listeners) l(snap);
+  private publishSnapshot(): void {
+    const next = this.buildSnapshot();
+    const prev = this.cachedSnapshot;
+    if (
+      prev.status === next.status &&
+      prev.lastError === next.lastError &&
+      prev.bootStartedAt === next.bootStartedAt &&
+      prev.readyAt === next.readyAt
+    ) {
+      return;
+    }
+    this.cachedSnapshot = next;
+    for (const l of this.listeners) l(this.cachedSnapshot);
   }
 
   private setStatus(next: SharedStockfishStatus): void {
+    if (this.status === next) return;
     this.status = next;
-    this.emit();
+    this.publishSnapshot();
   }
 
   prewarm(): void {
@@ -122,18 +138,21 @@ export class SharedStockfishRuntime {
     this.bootStartedAt = Date.now();
     this.readyAt = null;
     this.lastError = null;
-    this.setStatus('loading');
+    this.status = 'loading';
+    this.publishSnapshot();
 
     this.initPromise = this.bootFresh()
       .then((svc) => {
         this.readyAt = Date.now();
-        this.setStatus('ready');
+        this.status = 'ready';
+        this.publishSnapshot();
         return svc;
       })
       .catch((err) => {
         this.lastError = err instanceof Error ? err.message : String(err);
         console.error('[SharedStockfishRuntime] boot failed:', err);
-        this.setStatus('error');
+        this.status = 'error';
+        this.publishSnapshot();
         throw err;
       })
       .finally(() => {
@@ -167,7 +186,8 @@ export class SharedStockfishRuntime {
     this.lastError = null;
     this.bootStartedAt = null;
     this.readyAt = null;
-    this.setStatus('uninitialized');
+    this.status = 'uninitialized';
+    this.publishSnapshot();
     return this.ensureService();
   }
 

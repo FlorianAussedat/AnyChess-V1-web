@@ -1,26 +1,26 @@
 /**
  * React hook — observe shared Stockfish runtime (endgame modes).
+ *
+ * useSyncExternalStore requires a stable snapshot reference when values
+ * are unchanged; SharedStockfishRuntime caches and reuses its snapshot.
  */
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import {
   getSharedStockfishRuntime,
   type SharedStockfishSnapshot,
 } from './SharedStockfishRuntime.ts';
 
+function subscribe(onStoreChange: () => void): () => void {
+  return getSharedStockfishRuntime().subscribe(() => onStoreChange());
+}
+
+function getSnapshot(): SharedStockfishSnapshot {
+  return getSharedStockfishRuntime().getSnapshot();
+}
+
 export function useSharedStockfishRuntime(options?: { prewarm?: boolean }) {
-  const runtime = getSharedStockfishRuntime();
-
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => runtime.subscribe(() => onStoreChange()),
-    [runtime],
-  );
-
-  const getSnapshot = useCallback(
-    () => runtime.getSnapshot(),
-    [runtime],
-  );
-
   const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const runtime = getSharedStockfishRuntime();
 
   useEffect(() => {
     if (options?.prewarm) runtime.prewarm();
