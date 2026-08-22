@@ -74,7 +74,7 @@ function runtimePoolIds(): Set<string> {
   return new Set(ENDGAME_TRAINING_POOL.map((p) => p.id));
 }
 
-/** Drop saved ids that no longer exist in the product pool. */
+/** Drop saved ids that no longer exist in the product pool. Keep attempt stats for history. */
 export function sanitizeStoreAgainstPool(
   store: EndgameTrainingStoreV2,
 ): boolean {
@@ -95,12 +95,7 @@ export function sanitizeStoreAgainstPool(
     changed = true;
   }
 
-  for (const id of Object.keys(store.statsByPosition)) {
-    if (!poolIds.has(id)) {
-      delete store.statsByPosition[id];
-      changed = true;
-    }
-  }
+  // Stats are kept even when a position is disabled — history remains readable.
 
   if (store.datasetVersion !== ENDGAME_POOL_DATASET_VERSION) {
     store.datasetVersion = ENDGAME_POOL_DATASET_VERSION;

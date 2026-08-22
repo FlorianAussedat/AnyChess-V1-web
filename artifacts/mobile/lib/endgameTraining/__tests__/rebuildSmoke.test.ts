@@ -51,9 +51,10 @@ describe('endgame training rebuild smoke', () => {
     assert.equal(StorageKeys.endgameTrainingV2.key, 'anychess.endgameTraining.v2');
   });
 
-  it('runtime pool is empty pending realistic import', () => {
+  it('runtime pool is populated from Lichess pipeline', () => {
     const pool = read('lib/endgameTraining/data/pool.generated.ts');
-    assert.match(pool, /ENDGAME_TRAINING_POOL: readonly EndgameTrainingPosition\[\] = \[\]/);
+    assert.match(pool, /ENDGAME_TRAINING_POOL: readonly EndgameTrainingPosition\[\] = \[/);
+    assert.match(pool, /ET-LP-/);
     assert.doesNotMatch(pool, /DD-001/);
   });
 });

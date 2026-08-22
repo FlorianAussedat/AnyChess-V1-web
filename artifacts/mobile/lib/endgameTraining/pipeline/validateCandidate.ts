@@ -8,7 +8,16 @@ import {
   materialSignature as defendMaterialSignature,
 } from '../../defendDraw/materialSignature.ts';
 import { isTrivialInsufficientMaterial } from '../../defendDraw/defensivePrecision.ts';
-import type { EndgameFamilyKind, RejectionReason } from './types.ts';
+import { inferEndgameFamily } from './pool/family.ts';
+import type { RejectionReason } from './types.ts';
+
+export type EndgameFamilyKind =
+  | 'pawn'
+  | 'rook'
+  | 'minor-piece'
+  | 'rook-and-minor'
+  | 'queen'
+  | 'mixed';
 
 export type StructuralValidation =
   | { ok: true; family: EndgameFamilyKind; materialSignature: string }
@@ -30,27 +39,10 @@ function isKingsOnly(fen: string): boolean {
 }
 
 /**
- * Infer family from piece counts:
- * pawn / rook / minor / queen / mixed
+ * Infer family from piece counts (spec taxonomy).
  */
 export function inferFamily(fen: string): EndgameFamilyKind {
-  const c = countMaterial(fen);
-  const queens = c.Q + c.q;
-  const rooks = c.R + c.r;
-  const minors = c.B + c.b + c.N + c.n;
-  const pawns = c.P + c.p;
-
-  const kinds =
-    (queens > 0 ? 1 : 0) +
-    (rooks > 0 ? 1 : 0) +
-    (minors > 0 ? 1 : 0);
-
-  if (kinds >= 2) return 'mixed';
-  if (queens > 0) return 'queen';
-  if (rooks > 0) return 'rook';
-  if (minors > 0) return 'minor';
-  if (pawns > 0) return 'pawn';
-  return 'pawn';
+  return inferEndgameFamily(fen);
 }
 
 /**

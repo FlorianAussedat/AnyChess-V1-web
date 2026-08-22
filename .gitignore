@@ -46,6 +46,7 @@ Thumbs.db
 
 # Replit
 .cache/
+scripts/.cache/
 .local/
 # Local version export archives (see artifacts/releases/README.txt)
 artifacts/releases/*.zip

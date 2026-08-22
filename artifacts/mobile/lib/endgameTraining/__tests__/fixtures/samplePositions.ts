@@ -8,6 +8,7 @@ export const FIXTURE_KP_VS_K: EndgameTrainingPosition = {
   id: 'FIXTURE-ET-1',
   fen: '8/8/3k4/3P4/3K4/8/8/8 b - - 0 1',
   defender: 'black',
+  objective: 'DRAW',
   source: {
     provider: 'test-fixture',
     sourceId: 'FIXTURE-ET-1',
@@ -16,6 +17,7 @@ export const FIXTURE_KP_VS_K: EndgameTrainingPosition = {
   },
   family: 'pawn',
   materialSignature: 'KP-k',
+  tags: ['pawn'],
   quality: {
     initialEvaluation: 0,
     validationKind: 'syzygy',
@@ -30,6 +32,7 @@ export const FIXTURE_PAWN_RACE: EndgameTrainingPosition = {
   id: 'FIXTURE-ET-2',
   fen: '8/1p6/8/8/8/8/1P6/k1K5 w - - 0 1',
   defender: 'white',
+  objective: 'DRAW',
   source: {
     provider: 'test-fixture',
     sourceId: 'FIXTURE-ET-2',
@@ -38,6 +41,7 @@ export const FIXTURE_PAWN_RACE: EndgameTrainingPosition = {
   },
   family: 'pawn',
   materialSignature: 'KP-kp',
+  tags: ['pawn', 'promotion-race'],
   quality: {
     initialEvaluation: 0,
     validationKind: 'syzygy',

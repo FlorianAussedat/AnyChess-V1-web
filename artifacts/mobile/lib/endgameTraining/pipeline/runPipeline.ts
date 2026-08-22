@@ -187,6 +187,7 @@ export async function runPipeline(
       id: `LICHESS-${fields.puzzleId}`,
       fen: fields.startFen,
       defender: fields.defender,
+      objective: 'DRAW',
       source: {
         provider,
         sourceId: fields.puzzleId,
@@ -195,6 +196,7 @@ export async function runPipeline(
       },
       family: structural.family,
       materialSignature: structural.materialSignature,
+      tags: fields.themes ?? [],
       quality: {
         initialEvaluation: evalBeforeCp,
         validationKind: options.analyzer ? 'stockfish' : 'syzygy',

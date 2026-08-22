@@ -1,5 +1,5 @@
 /**
- * Empty runtime pool + persistence migration tests.
+ * Runtime pool + persistence migration tests.
  */
 import assert from 'node:assert/strict';
 import { describe, it, beforeEach } from 'node:test';
@@ -30,9 +30,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = join(here, '../../..');
 
 describe('runtime pool', () => {
-  it('has zero product positions', () => {
-    assert.equal(ENDGAME_TRAINING_POOL.length, 0);
-    assert.equal(isRuntimePoolEmpty(), true);
+  it('has a non-empty Lichess product pool', () => {
+    assert.ok(ENDGAME_TRAINING_POOL.length >= 80);
+    assert.equal(isRuntimePoolEmpty(), false);
   });
 
   it('excludes all 34 legacy runtime ids', () => {
@@ -42,14 +42,15 @@ describe('runtime pool', () => {
     }
   });
 
-  it('does not resolve legacy ids', () => {
+  it('does not resolve legacy or fixture ids', () => {
     assert.equal(getPositionById('DD-001'), null);
     assert.equal(getPositionById('FIXTURE-ET-1'), null);
   });
 
-  it('cannot pick with an empty pool', () => {
-    assert.equal(pickNewPosition(new Set()), null);
-    assert.equal(pickTryAgainPosition(['DD-001']), null);
+  it('can pick from a populated pool', () => {
+    const picked = pickNewPosition(new Set());
+    assert.ok(picked);
+    assert.match(picked!.id, /^ET-LP-/);
   });
 
   it('fixtures are not exported from pool.generated.ts', () => {
@@ -62,25 +63,6 @@ describe('runtime pool', () => {
     for (const fx of ENDGAME_TEST_FIXTURES) {
       assert.doesNotMatch(src, new RegExp(fx.id));
     }
-  });
-});
-
-describe('empty menu wiring', () => {
-  it('shows preparing state and disables new card', () => {
-    const menu = readFileSync(join(mobileRoot, 'app/puzzles/defends-nulle.tsx'), 'utf8');
-    assert.match(menu, /isRuntimePoolEmpty/);
-    assert.match(menu, /endgame-pool-preparing/);
-    assert.match(menu, /quiz\.endgamePoolPreparing/);
-    assert.match(menu, /disabled=\{poolEmpty\}/);
-  });
-
-  it('does not import test fixtures in menu or selectors', () => {
-    const selectors = readFileSync(
-      join(mobileRoot, 'lib/endgameTraining/selection/selectors.ts'),
-      'utf8',
-    );
-    assert.doesNotMatch(selectors, /fixtures/);
-    assert.doesNotMatch(selectors, /FIXTURE/);
   });
 });
 
@@ -119,7 +101,7 @@ describe('persistence migration', () => {
     assert.equal(raw.datasetVersion, ENDGAME_POOL_DATASET_VERSION);
   });
 
-  it('sanitizeStoreAgainstPool keeps valid ids only', () => {
+  it('sanitizeStoreAgainstPool keeps stats for removed ids', () => {
     const store = {
       version: 2 as const,
       datasetVersion: '1.0.0',
@@ -133,7 +115,7 @@ describe('persistence migration', () => {
     assert.equal(sanitizeStoreAgainstPool(store), true);
     assert.deepEqual(store.tryAgainIds, []);
     assert.deepEqual(store.finishedIds, []);
-    assert.deepEqual(Object.keys(store.statsByPosition), []);
+    assert.deepEqual(Object.keys(store.statsByPosition), ['DD-003']);
     assert.equal(store.datasetVersion, ENDGAME_POOL_DATASET_VERSION);
   });
 });

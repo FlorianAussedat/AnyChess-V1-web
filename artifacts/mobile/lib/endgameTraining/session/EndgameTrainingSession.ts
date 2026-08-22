@@ -478,14 +478,24 @@ export class EndgameTrainingSession {
   }
 
   private buildResult(): AttemptResult {
+    const pos = this.position;
     const result = buildAttemptResult({
       state: this.counter,
       timeline: this.timeline,
       moveSans: this.moveSans,
       startFen: this.startFen ?? this.game.fen(),
       endFen: this.game.fen(),
-      positionId: this.position?.id ?? '',
+      positionId: pos?.id ?? '',
       officialDrawReason: this.officialDrawReason,
+      positionSnapshot: pos
+        ? {
+            positionId: pos.id,
+            initialFen: pos.fen,
+            playerColor: pos.defender,
+            sourceLabel: pos.source.sourceId ?? pos.source.provider,
+            datasetContentVersion: pos.datasetContentVersion ?? '',
+          }
+        : undefined,
     });
     if (result.outcome === 'loss' && !result.firstMajorTurn) {
       // attach progressive message via firstMajorTurn null — UI uses helper

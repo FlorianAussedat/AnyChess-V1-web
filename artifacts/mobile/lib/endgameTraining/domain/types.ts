@@ -9,12 +9,36 @@
 
 export type DefenderColor = 'white' | 'black';
 
+export type EndgameFamilyKind =
+  | 'pawn'
+  | 'rook'
+  | 'minor-piece'
+  | 'rook-and-minor'
+  | 'queen'
+  | 'mixed';
+
 export type EndgameSource = {
-  provider: string;
+  provider: 'lichess-puzzle' | 'manual' | string;
   sourceId?: string;
   gameUrl?: string;
   license: string;
-  importedAt: string;
+  importedAt?: string;
+  sourcePly?: number;
+};
+
+export type OriginCriticalMove = {
+  uci: string;
+  san: string;
+  verdictBefore: 'DRAW';
+  verdictAfter: 'LOSS';
+  evaluationBefore?: number;
+  evaluationAfter?: number;
+};
+
+export type PositionCertification = {
+  type: 'syzygy' | 'stockfish-stable-draw';
+  result: 'DRAW';
+  details: Record<string, unknown>;
 };
 
 export type EndgamePositionQuality = {
@@ -23,19 +47,40 @@ export type EndgamePositionQuality = {
   validationKind: 'syzygy' | 'stockfish';
   validationDepth?: number;
   defensiveMoveCount?: number;
+  pieceCount?: number;
+  safeMoveCount?: number;
+  pressureCp?: number;
+  expectedDuration?: number;
+  liquidationRisk?: number;
+  similarityGroup?: string;
 };
 
 export type EndgameTrainingPosition = {
   id: string;
   fen: string;
+  /** Alias for playerColor in dataset docs — side the user defends. */
   defender: DefenderColor;
+  objective: 'DRAW';
   source: EndgameSource;
-  family: string;
+  family: EndgameFamilyKind | string;
   materialSignature: string;
+  tags: string[];
   quality: EndgamePositionQuality;
+  originCriticalMove?: OriginCriticalMove;
+  certification?: PositionCertification;
+  /** Hash fingerprint of active pool content — stable per position entry. */
+  datasetContentVersion?: string;
   /** Optional internal difficulty hint — never shown as a level selector. */
   estimatedDifficulty?: 'easy' | 'medium' | 'hard';
   pressureType?: string;
+};
+
+export type PositionSnapshot = {
+  positionId: string;
+  initialFen: string;
+  playerColor: DefenderColor;
+  sourceLabel?: string;
+  datasetContentVersion: string;
 };
 
 export type EvaluationPoint = {
@@ -75,6 +120,8 @@ export type AttemptResult = {
   startFen: string;
   endFen: string;
   positionId: string;
+  /** Minimal position snapshot for history after pool changes. */
+  positionSnapshot?: PositionSnapshot;
   finishedAt: string;
 };
 
