@@ -21,6 +21,7 @@ import {
   getVarietyContext,
   isRuntimePoolEmpty,
 } from '@/lib/endgameTraining';
+import { getSharedStockfishRuntime } from '@/lib/engines/runtime';
 
 export default function EndgameTrainingMenuScreen() {
   const colors = useColors();
@@ -42,6 +43,10 @@ export default function EndgameTrainingMenuScreen() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    getSharedStockfishRuntime().prewarm();
+  }, []);
 
   const startNew = async () => {
     if (poolEmpty) return;

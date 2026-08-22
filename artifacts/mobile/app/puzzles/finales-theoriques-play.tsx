@@ -26,9 +26,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
-import type { EngineStatus } from '@/lib/engines';
-import { StockfishAnalysisService } from '@/lib/defendDraw';
-import { DEFEND_DRAW_ENGINE_CONFIG } from '@/lib/defendDraw';
+import {
+  EndgameEngineStatusBanner,
+  useSharedStockfishRuntime,
+} from '@/lib/engines/runtime';
 import {
   TheoreticalEndgameSession,
   getPositionById,
@@ -63,19 +64,25 @@ export default function TheoreticalEndgamePlayScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
 
-  const analyzerRef = useRef<StockfishAnalysisService | null>(null);
   const sessionRef = useRef(new TheoreticalEndgameSession());
   const [snap, setSnap] = useState<SessionSnapshot>(() => sessionRef.current.snapshot());
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [engineStatus, setEngineStatus] = useState<EngineStatus>('uninitialized');
-  const [engineError, setEngineError] = useState<string | null>(null);
+  const [positionMissing, setPositionMissing] = useState(false);
+  const [positionReady, setPositionReady] = useState(false);
   const [scoreDelta, setScoreDelta] = useState<{ old: number; new: number; count: number } | null>(
     null,
   );
   const startedRef = useRef(false);
   const recordedRef = useRef(false);
+
+  const {
+    snapshot: engineSnap,
+    engineReady,
+    retry: retryEngine,
+    runtime,
+  } = useSharedStockfishRuntime();
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
@@ -83,45 +90,28 @@ export default function TheoreticalEndgamePlayScreen() {
   }, [windowWidth, windowHeight]);
 
   useEffect(() => {
-    const service = new StockfishAnalysisService({
-      moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
-      analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
-      bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
-    });
-    analyzerRef.current = service;
-    sessionRef.current.setAnalyzer(service);
-    let cancelled = false;
-    const unsub = service.onStatusChange((s) => {
-      if (!cancelled) setEngineStatus(s);
-    });
-    void service
-      .init()
-      .then(() => {
-        if (!cancelled) {
-          setEngineStatus(service.getStatus());
-          setEngineError(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setEngineError(t('quiz.defendsNulleEngineUnavailable'));
-          setEngineStatus(service.getStatus());
-        }
-      });
     return () => {
-      cancelled = true;
-      unsub();
       sessionRef.current.setAnalyzer(null);
       const cur = sessionRef.current.snapshot();
       if (cur.phase === 'playing' || cur.phase === 'thinking' || cur.phase === 'verifying') {
         sessionRef.current.abandon();
       }
-      service.destroy();
-      analyzerRef.current = null;
     };
-  }, [t]);
+  }, []);
 
-  const engineReady = engineStatus === 'ready' || engineStatus === 'thinking';
+  useEffect(() => {
+    if (!engineReady) return;
+    const service = runtime.getService();
+    if (service) sessionRef.current.setAnalyzer(service);
+  }, [engineReady, runtime]);
+
+  useEffect(() => {
+    startedRef.current = false;
+    setPositionReady(false);
+    setPositionMissing(false);
+    recordedRef.current = false;
+    setScoreDelta(null);
+  }, [positionId]);
 
   const refresh = useCallback((next: SessionSnapshot) => {
     setSnap(next);
@@ -130,11 +120,10 @@ export default function TheoreticalEndgamePlayScreen() {
   }, []);
 
   useEffect(() => {
-    if (startedRef.current) return;
-    if (!engineReady || !positionId) return;
+    if (startedRef.current || !positionId) return;
     const pos = getPositionById(String(positionId));
     if (!pos) {
-      setEngineError('Position introuvable.');
+      setPositionMissing(true);
       return;
     }
     startedRef.current = true;
@@ -142,11 +131,12 @@ export default function TheoreticalEndgamePlayScreen() {
       setBusy(true);
       try {
         refresh(await sessionRef.current.start(pos));
+        setPositionReady(true);
       } finally {
         setBusy(false);
       }
     })();
-  }, [engineReady, positionId, refresh]);
+  }, [positionId, refresh]);
 
   useEffect(() => {
     if (!snap.result || recordedRef.current) return;
@@ -237,7 +227,7 @@ export default function TheoreticalEndgamePlayScreen() {
       : t('quiz.theoreticalObjectiveDraw');
 
   const thinking =
-    busy || snap.phase === 'thinking' || snap.phase === 'verifying' || engineStatus === 'thinking';
+    busy || snap.phase === 'thinking' || snap.phase === 'verifying' || engineSnap.status === 'thinking';
   const canMove =
     engineReady && !thinking && (snap.phase === 'playing' || snap.phase === 'off-score');
   const showResult = snap.phase === 'success' || snap.phase === 'theoretical-loss';
@@ -280,6 +270,43 @@ export default function TheoreticalEndgamePlayScreen() {
     refresh(sessionRef.current.continueOffScore());
   };
 
+  if (positionMissing) {
+    return (
+      <ChessScreenScaffold
+        title={themeTitle || t('quiz.theoreticalEndgameTitle')}
+        onBack={confirmExit}
+        testID="theoretical-endgame-play"
+      >
+        <View style={styles.missingBox}>
+          <Text style={{ color: colors.foreground }} testID="theoretical-position-missing">
+            {t('quiz.positionNotFound')}
+          </Text>
+          <AppButton
+            label={t('quiz.stockfishBack')}
+            onPress={() => router.back()}
+            variant="secondary"
+            testID="theoretical-position-missing-back"
+          />
+        </View>
+      </ChessScreenScaffold>
+    );
+  }
+
+  if (!positionReady) {
+    return (
+      <ChessScreenScaffold
+        title={themeTitle || t('quiz.theoreticalEndgameTitle')}
+        onBack={confirmExit}
+        testID="theoretical-endgame-play"
+      >
+        <View style={styles.busyRow} testID="theoretical-position-loading">
+          <ActivityIndicator color={colors.primary} />
+          <Text style={{ color: colors.mutedForeground }}>{t('quiz.defendsNulleLoading')}</Text>
+        </View>
+      </ChessScreenScaffold>
+    );
+  }
+
   return (
     <ChessScreenScaffold
       title={themeTitle}
@@ -321,9 +348,13 @@ export default function TheoreticalEndgamePlayScreen() {
           />
         </ChessBoardSection>
 
-        {!!engineError && <Text style={{ color: '#c44' }}>{engineError}</Text>}
+        <EndgameEngineStatusBanner
+          snapshot={engineSnap}
+          onRetry={() => void retryEngine()}
+          onBack={confirmExit}
+        />
 
-        {thinking && !engineError && (
+        {thinking && engineReady && (
           <View style={styles.busyRow}>
             <ActivityIndicator color={colors.primary} />
             <Text style={{ color: colors.mutedForeground }}>
@@ -412,4 +443,5 @@ const styles = StyleSheet.create({
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   result: { gap: DesignTokens.spacing.sm },
   statsBox: { gap: 2 },
+  missingBox: { gap: DesignTokens.spacing.md, paddingVertical: DesignTokens.spacing.lg },
 });
