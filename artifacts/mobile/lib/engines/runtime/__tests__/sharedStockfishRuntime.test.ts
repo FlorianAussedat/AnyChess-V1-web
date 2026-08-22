@@ -1,5 +1,5 @@
 /**
- * Shared Stockfish runtime + worker URL + position/engine decoupling tests.
+ * Shared Stockfish runtime + position/engine decoupling tests.
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -7,15 +7,11 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Chess } from 'chess.js';
-import {
-  getStockfishWorkerUrl,
-  resolveStockfishPaths,
-} from '../stockfishWorkerUrl.ts';
+import { getStockfishWorkerUrl } from '../../stockfish/workerUrl.ts';
 import { EndgameTrainingSession } from '../../../endgameTraining/session/EndgameTrainingSession.ts';
 import { getPositionById } from '../../../endgameTraining/index.ts';
 import { TheoreticalEndgameSession } from '../../../theoreticalEndgame/session/TheoreticalEndgameSession.ts';
 import { getPositionById as getTheoreticalPositionById } from '../../../theoreticalEndgame/index.ts';
-import { DEFAULT_STOCKFISH_CONFIG } from '../../stockfish/uci.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = join(here, '../../../..');
@@ -24,27 +20,6 @@ function read(rel: string): string {
   return readFileSync(join(mobileRoot, rel), 'utf8');
 }
 
-describe('stockfishWorkerUrl', () => {
-  it('builds worker URL with wasm hash required by stockfish.js', () => {
-    const { jsPath, wasmPath, workerUrl } = resolveStockfishPaths(
-      DEFAULT_STOCKFISH_CONFIG.enginePath,
-      'http://localhost:8081',
-    );
-    assert.equal(jsPath, '/engine/stockfish-18-lite-single.js');
-    assert.equal(wasmPath, '/engine/stockfish-18-lite-single.wasm');
-    assert.equal(
-      workerUrl,
-      `http://localhost:8081/engine/stockfish-18-lite-single.js#${encodeURIComponent('/engine/stockfish-18-lite-single.wasm')},worker`,
-    );
-  });
-
-  it('prefixes origin when available', () => {
-    const url = getStockfishWorkerUrl('http://localhost:8081', DEFAULT_STOCKFISH_CONFIG.enginePath);
-    assert.match(url, /^http:\/\/localhost:8081\/engine\/stockfish-18-lite-single\.js#/);
-    assert.match(url, /%2Fengine%2Fstockfish-18-lite-single\.wasm/);
-  });
-});
-
 describe('web backend resolution', () => {
   it('uses createChessEngineService.web.ts with Worker transport', () => {
     const webFactory = read('lib/engines/analysis/createChessEngineService.web.ts');
@@ -52,12 +27,6 @@ describe('web backend resolution', () => {
     assert.doesNotMatch(webFactory, /RandomEngine/);
     const webTransport = read('lib/engines/stockfish/transport.web.ts');
     assert.match(webTransport, /new Worker\(enginePath\)/);
-  });
-
-  it('StockfishEngine uses hashed worker URL on web', () => {
-    const src = read('lib/engines/stockfish/StockfishEngine.ts');
-    assert.match(src, /getStockfishWorkerUrl/);
-    assert.match(src, /Platform\.OS === 'web'/);
   });
 
   it('native stub transport throws instead of falling back to RandomEngine', () => {
@@ -124,6 +93,11 @@ describe('SharedStockfishRuntime (static contract)', () => {
     const theorMenu = read('app/puzzles/finales-theoriques.tsx');
     assert.match(defendMenu, /getSharedStockfishRuntime\(\)\.prewarm\(\)/);
     assert.match(theorMenu, /getSharedStockfishRuntime\(\)\.prewarm\(\)/);
+  });
+
+  it('worker URL helper excludes internal ,worker suffix', () => {
+    const url = getStockfishWorkerUrl();
+    assert.doesNotMatch(url, /,worker/);
   });
 });
 

@@ -351,11 +351,17 @@ export class ChessEngineService {
         failBoot(new Error('[ChessEngineService] Boot timeout.'));
       }, this.bootTimeoutMs);
 
+      const bootStartedAt =
+        typeof __DEV__ !== 'undefined' && __DEV__ ? Date.now() : 0;
+
       const onLine = (line: string) => {
         if (this.destroyed || this.transport !== transport) return;
 
         if (this.status === 'loading' || this.status === 'uninitialized') {
           if (line.startsWith('uciok')) {
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log('[Stockfish] uciok received');
+            }
             for (const cmd of fullStrengthAnalysisOptionCommands(1)) {
               transport.send(cmd);
             }
@@ -363,6 +369,10 @@ export class ChessEngineService {
             return;
           }
           if (line.startsWith('readyok')) {
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log('[Stockfish] readyok received');
+              console.log('[Stockfish] boot duration:', Date.now() - bootStartedAt, 'ms');
+            }
             this.clearBootTimeout();
             this.setStatus('ready');
             resolve();

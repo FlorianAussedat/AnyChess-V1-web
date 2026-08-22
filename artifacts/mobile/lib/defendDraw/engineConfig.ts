@@ -9,13 +9,7 @@ export const DEFEND_DRAW_ENGINE_CONFIG = {
   moveTimeMs: 1000,
   /** Safety ceiling so the UI never hangs on "Stockfish réfléchit…". */
   analysisTimeoutMs: 12_000,
-  /** Native / fast desktop boot budget. */
   bootTimeoutMs: 30_000,
-  /**
-   * Web cold boot — lite WASM is ~7 MB; mobile dev tunnels need extra headroom
-   * for download + compile before the first uciok/readyok.
-   */
-  webBootTimeoutMs: 120_000,
   byDifficulty: {
     debutant: 400,
     confirme: 700,

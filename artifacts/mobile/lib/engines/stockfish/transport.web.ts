@@ -18,6 +18,9 @@ export function createUciTransport(
 
   return {
     start(onLine: (line: string) => void): Promise<void> {
+      if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        console.log('[Stockfish] main worker URL:', enginePath);
+      }
       try {
         worker = new Worker(enginePath);
       } catch (err) {

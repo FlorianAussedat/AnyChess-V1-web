@@ -130,10 +130,7 @@ export class StockfishEngine implements ChessEngine {
         reject(error);
       };
 
-      const bootTimeoutMs =
-        Platform.OS === 'web'
-          ? DEFEND_DRAW_ENGINE_CONFIG.webBootTimeoutMs
-          : 30_000;
+      const bootTimeoutMs = DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs;
 
       this.bootTimeout = setTimeout(() => {
         this.bootTimeout = null;
@@ -143,12 +140,18 @@ export class StockfishEngine implements ChessEngine {
         );
       }, bootTimeoutMs);
 
+      const bootStartedAt =
+        typeof __DEV__ !== 'undefined' && __DEV__ ? Date.now() : 0;
+
       const onLine = (line: string) => {
         if (this.destroyed || this.transport !== transport) return;
 
         // Handshake progression.
         if (!this.isReady) {
           if (line.startsWith('uciok')) {
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log('[Stockfish] uciok received');
+            }
             for (const cmd of setupOptionCommands(this.config.elo, this.config.multiPv)) {
               transport.send(cmd);
             }
@@ -156,6 +159,10 @@ export class StockfishEngine implements ChessEngine {
             return;
           }
           if (line.startsWith('readyok')) {
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log('[Stockfish] readyok received');
+              console.log('[Stockfish] boot duration:', Date.now() - bootStartedAt, 'ms');
+            }
             this.isReady = true;
             this.clearBootTimeout();
             transport.send('ucinewgame');

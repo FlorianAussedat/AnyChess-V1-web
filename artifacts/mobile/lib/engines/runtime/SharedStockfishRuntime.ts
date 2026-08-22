@@ -7,7 +7,6 @@ import { StockfishAnalysisService } from '../../defendDraw/StockfishAnalysisServ
 import { DEFEND_DRAW_ENGINE_CONFIG } from '../../defendDraw/engineConfig.ts';
 import type { EngineStatus } from '../analysis/types.ts';
 import { STOCKFISH_PLATFORM_NOTES } from '../analysis/types.ts';
-import { DEFAULT_STOCKFISH_CONFIG } from '../stockfish/uci.ts';
 import { getStockfishWorkerUrl } from '../stockfish/workerUrl.ts';
 
 export type SharedStockfishStatus =
@@ -47,7 +46,7 @@ export class SharedStockfishRuntime {
 
   private constructor() {
     this.platformOs = Platform.OS;
-    this.workerPath = getStockfishWorkerUrl(undefined, DEFAULT_STOCKFISH_CONFIG.enginePath);
+    this.workerPath = getStockfishWorkerUrl();
     if (Platform.OS !== 'web') {
       this.status = 'unavailable';
       this.lastError = STOCKFISH_PLATFORM_NOTES.expoGo.reason;
@@ -164,14 +163,10 @@ export class SharedStockfishRuntime {
 
   private bootFresh(): Promise<StockfishAnalysisService> {
     this.detachService();
-    const bootTimeoutMs =
-      Platform.OS === 'web'
-        ? DEFEND_DRAW_ENGINE_CONFIG.webBootTimeoutMs
-        : DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs;
     const service = new StockfishAnalysisService({
       moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
       analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
-      bootTimeoutMs,
+      bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
       enginePath: this.workerPath,
     });
     this.service = service;
