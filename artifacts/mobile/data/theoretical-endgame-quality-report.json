@@ -1,0 +1,428 @@
+{
+  "generatedAt": "2026-08-22T06:37:05.111Z",
+  "datasetVersion": "1.0.0",
+  "poolPath": "lib/theoreticalEndgame/data/pool.generated.ts",
+  "summary": {
+    "totalPositions": 44,
+    "uniqueIds": 44,
+    "uniqueFens": 44,
+    "whitePlayerPositions": 25,
+    "blackPlayerPositions": 19,
+    "themeCounts": {
+      "queen-mate": 4,
+      "rook-mate": 4,
+      "two-bishops-mate": 4,
+      "pawn-square": 4,
+      "opposition": 4,
+      "kp-vs-k": 4,
+      "pawn-race": 4,
+      "pawn-breakthrough": 4,
+      "three-pawns": 4,
+      "lucena": 4,
+      "philidor": 4
+    },
+    "errorCount": 0,
+    "warningCount": 0,
+    "valid": true
+  },
+  "errors": [],
+  "warnings": [],
+  "positions": [
+    {
+      "id": "TE-001",
+      "themeId": "queen-mate",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 10
+    },
+    {
+      "id": "TE-002",
+      "themeId": "queen-mate",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 10
+    },
+    {
+      "id": "TE-003",
+      "themeId": "queen-mate",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 9
+    },
+    {
+      "id": "TE-004",
+      "themeId": "queen-mate",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 11
+    },
+    {
+      "id": "TE-005",
+      "themeId": "rook-mate",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 12
+    },
+    {
+      "id": "TE-006",
+      "themeId": "rook-mate",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 14
+    },
+    {
+      "id": "TE-007",
+      "themeId": "rook-mate",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 12
+    },
+    {
+      "id": "TE-008",
+      "themeId": "rook-mate",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 15
+    },
+    {
+      "id": "TE-009",
+      "themeId": "two-bishops-mate",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 18
+    },
+    {
+      "id": "TE-010",
+      "themeId": "two-bishops-mate",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 17
+    },
+    {
+      "id": "TE-011",
+      "themeId": "two-bishops-mate",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 18
+    },
+    {
+      "id": "TE-012",
+      "themeId": "two-bishops-mate",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 19
+    },
+    {
+      "id": "TE-013",
+      "themeId": "pawn-square",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 4
+    },
+    {
+      "id": "TE-014",
+      "themeId": "pawn-square",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 5
+    },
+    {
+      "id": "TE-015",
+      "themeId": "pawn-square",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 3
+    },
+    {
+      "id": "TE-016",
+      "themeId": "pawn-square",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 5
+    },
+    {
+      "id": "TE-017",
+      "themeId": "opposition",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 6
+    },
+    {
+      "id": "TE-018",
+      "themeId": "opposition",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 5
+    },
+    {
+      "id": "TE-019",
+      "themeId": "opposition",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 4
+    },
+    {
+      "id": "TE-020",
+      "themeId": "opposition",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 7
+    },
+    {
+      "id": "TE-021",
+      "themeId": "kp-vs-k",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 8
+    },
+    {
+      "id": "TE-022",
+      "themeId": "kp-vs-k",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 10
+    },
+    {
+      "id": "TE-023",
+      "themeId": "kp-vs-k",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 7
+    },
+    {
+      "id": "TE-024",
+      "themeId": "kp-vs-k",
+      "objective": "DRAW",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 6
+    },
+    {
+      "id": "TE-025",
+      "themeId": "pawn-race",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 4
+    },
+    {
+      "id": "TE-026",
+      "themeId": "pawn-race",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 5,
+      "certification": "SYZYGY",
+      "targetUserMoves": 5
+    },
+    {
+      "id": "TE-027",
+      "themeId": "pawn-race",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 3,
+      "certification": "SYZYGY",
+      "targetUserMoves": 3
+    },
+    {
+      "id": "TE-028",
+      "themeId": "pawn-race",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 4
+    },
+    {
+      "id": "TE-029",
+      "themeId": "pawn-breakthrough",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 5
+    },
+    {
+      "id": "TE-030",
+      "themeId": "pawn-breakthrough",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 6
+    },
+    {
+      "id": "TE-031",
+      "themeId": "pawn-breakthrough",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 7
+    },
+    {
+      "id": "TE-032",
+      "themeId": "pawn-breakthrough",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 5
+    },
+    {
+      "id": "TE-033",
+      "themeId": "three-pawns",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 8,
+      "certification": "ENGINE",
+      "targetUserMoves": 12
+    },
+    {
+      "id": "TE-034",
+      "themeId": "three-pawns",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 8,
+      "certification": "ENGINE",
+      "targetUserMoves": 11
+    },
+    {
+      "id": "TE-035",
+      "themeId": "three-pawns",
+      "objective": "WIN",
+      "playerColor": "black",
+      "pieceCount": 8,
+      "certification": "ENGINE",
+      "targetUserMoves": 13
+    },
+    {
+      "id": "TE-036",
+      "themeId": "three-pawns",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 8,
+      "certification": "ENGINE",
+      "targetUserMoves": 10
+    },
+    {
+      "id": "TE-037",
+      "themeId": "lucena",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 10
+    },
+    {
+      "id": "TE-038",
+      "themeId": "lucena",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 9
+    },
+    {
+      "id": "TE-039",
+      "themeId": "lucena",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 11
+    },
+    {
+      "id": "TE-040",
+      "themeId": "lucena",
+      "objective": "WIN",
+      "playerColor": "white",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 12
+    },
+    {
+      "id": "TE-041",
+      "themeId": "philidor",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 7
+    },
+    {
+      "id": "TE-042",
+      "themeId": "philidor",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 8
+    },
+    {
+      "id": "TE-043",
+      "themeId": "philidor",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 6
+    },
+    {
+      "id": "TE-044",
+      "themeId": "philidor",
+      "objective": "DRAW",
+      "playerColor": "black",
+      "pieceCount": 4,
+      "certification": "SYZYGY",
+      "targetUserMoves": 9
+    }
+  ]
+}
