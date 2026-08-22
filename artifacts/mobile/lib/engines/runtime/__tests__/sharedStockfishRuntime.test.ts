@@ -25,13 +25,16 @@ function read(rel: string): string {
 }
 
 describe('stockfishWorkerUrl', () => {
-  it('builds worker URL with wasm hash fragment required by stockfish.js', () => {
-    const { jsPath, wasmPath, workerUrl } = resolveStockfishPaths();
+  it('builds worker URL with absolute wasm url in hash fragment', () => {
+    const { jsPath, wasmPath, workerUrl } = resolveStockfishPaths(
+      DEFAULT_STOCKFISH_CONFIG.enginePath,
+      'http://localhost:8081',
+    );
     assert.equal(jsPath, '/engine/stockfish-18-lite-single.js');
     assert.equal(wasmPath, '/engine/stockfish-18-lite-single.wasm');
     assert.equal(
       workerUrl,
-      `/engine/stockfish-18-lite-single.js#${encodeURIComponent('/engine/stockfish-18-lite-single.wasm')},worker`,
+      `http://localhost:8081/engine/stockfish-18-lite-single.js#${encodeURIComponent('http://localhost:8081/engine/stockfish-18-lite-single.wasm')},worker`,
     );
   });
 

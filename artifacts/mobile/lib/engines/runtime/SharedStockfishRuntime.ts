@@ -164,10 +164,14 @@ export class SharedStockfishRuntime {
 
   private bootFresh(): Promise<StockfishAnalysisService> {
     this.detachService();
+    const bootTimeoutMs =
+      Platform.OS === 'web'
+        ? DEFEND_DRAW_ENGINE_CONFIG.webBootTimeoutMs
+        : DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs;
     const service = new StockfishAnalysisService({
       moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
       analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
-      bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
+      bootTimeoutMs,
       enginePath: this.workerPath,
     });
     this.service = service;
