@@ -171,8 +171,14 @@ export const StorageKeys = {
   endgameFavorites: {
     key: 'anychess.endgames.favorites.v1',
     feature: 'endgame-training',
-    shape: 'string[] position ids (stable across generations)',
+    shape: 'string[] position ids (stable across generations) — abandoned; superseded by tryAgain in v2',
     documentVersion: 1,
+  },
+  endgameTrainingV2: {
+    key: 'anychess.endgameTraining.v2',
+    feature: 'endgame-training',
+    shape: 'EndgameTrainingStoreV2 { tryAgainIds, finishedIds, statsByPosition, showGauge, … }',
+    documentVersion: 2,
   },
 } as const satisfies Record<string, StorageKeyMeta>;
 

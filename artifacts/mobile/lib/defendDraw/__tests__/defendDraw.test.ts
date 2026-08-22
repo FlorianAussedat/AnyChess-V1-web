@@ -227,16 +227,23 @@ describe('DefendDrawSession with mock Stockfish', () => {
 });
 
 describe('navigation still under Entraînement tactique', () => {
-  it('uses ChessEngineService / StockfishAnalysisService — no random opponent', () => {
-    const screen = read('app/puzzles/defends-nulle.tsx');
-    assert.match(screen, /StockfishAnalysisService/);
-    assert.doesNotMatch(screen, /from ['\"]@?\/?.*engines\/random/);
-    assert.doesNotMatch(screen, /createOpponentEngine/);
-    assert.doesNotMatch(screen, /probeWdl/);
-    assert.match(screen, /defendsNullePreparing/);
-    assert.match(screen, /defendsNulleReflecting/);
-    assert.doesNotMatch(screen, /DEBUG ENDGAME/);
-    assert.match(screen, /endgameOfferDraw|endgameObjective/);
+  it('hub card routes to endgame menu; play uses StockfishAnalysisService — no random opponent', () => {
+    const menu = read('app/puzzles/defends-nulle.tsx');
+    assert.match(menu, /endgameNewFinales|Nouvelles Finales/);
+    assert.match(menu, /endgameTryAgain|Essaie encore/);
+    assert.doesNotMatch(menu, /DEBUG ENDGAME/);
+    assert.doesNotMatch(menu, /from ['\"]@?\/?.*engines\/random/);
+    assert.doesNotMatch(menu, /createOpponentEngine/);
+    assert.doesNotMatch(menu, /probeWdl/);
+    assert.doesNotMatch(menu, /debutant|confirme|expert|grand.?maitre/i);
+
+    const play = read('app/puzzles/defends-nulle-play.tsx');
+    assert.match(play, /StockfishAnalysisService/);
+    assert.match(play, /EndgameTrainingSession/);
+    assert.match(play, /defendsNulleReflecting|endgameVerifying/);
+    assert.doesNotMatch(play, /DEBUG ENDGAME/);
+    assert.doesNotMatch(play, /from ['\"]@?\/?.*engines\/random/);
+
     const analysis = read('lib/defendDraw/StockfishAnalysisService.ts');
     assert.match(analysis, /ChessEngineService/);
     assert.doesNotMatch(analysis, /transport\.ts/);
@@ -527,21 +534,21 @@ describe('clipboard support', () => {
     assert.match(src, /expo-clipboard/);
   });
 
-  it('screen uses the shared clipboard utility', () => {
-    const src = read('app/puzzles/defends-nulle.tsx');
-    assert.match(src, /copyToClipboard/);
-    assert.match(src, /from ['"]@\/lib\/clipboard['"]/);
-    assert.doesNotMatch(src, /navigator\.clipboard\.writeText/);
+  it('rebuilt endgame screens do not rely on ad-hoc navigator clipboard', () => {
+    const menu = read('app/puzzles/defends-nulle.tsx');
+    const play = read('app/puzzles/defends-nulle-play.tsx');
+    assert.doesNotMatch(menu, /navigator\.clipboard\.writeText/);
+    assert.doesNotMatch(play, /navigator\.clipboard\.writeText/);
   });
 });
 
 describe('favorites', () => {
-  it('favoritesStore exports expected API', () => {
+  it('legacy favoritesStore remains but product uses Try Again v2', () => {
     const src = read('lib/defendDraw/favoritesStore.ts');
     assert.match(src, /export async function isFavorite/);
-    assert.match(src, /export async function toggleFavorite/);
-    assert.match(src, /export async function getFavoriteIds/);
-    assert.match(src, /export async function removeFavorite/);
     assert.match(src, /StorageKeys\.endgameFavorites/);
+    const store = read('lib/endgameTraining/persistence/EndgameTrainingStore.ts');
+    assert.match(store, /tryAgainIds/);
+    assert.match(store, /endgameTrainingV2/);
   });
 });

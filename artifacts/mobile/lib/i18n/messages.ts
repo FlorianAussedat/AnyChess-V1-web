@@ -376,6 +376,7 @@ export type MessageKey =
   | 'quiz.quelle'
   | 'quiz.quelleDesc'
   | 'quiz.defendsNulle'
+  | 'quiz.defendsNullePageTitle'
   | 'quiz.defendsNulleDesc'
   | 'quiz.defendsNulleLead'
   | 'quiz.defendsNulleProgress'
@@ -389,6 +390,29 @@ export type MessageKey =
   | 'quiz.defendsNulleRestart'
   | 'quiz.defendsNulleAnother'
   | 'quiz.defendsNulleEngineUnavailable'
+  | 'quiz.endgameNewFinales'
+  | 'quiz.endgameNewFinalesDesc'
+  | 'quiz.endgameTryAgain'
+  | 'quiz.endgameTryAgainDesc'
+  | 'quiz.endgameTryAgainEmpty'
+  | 'quiz.endgamePoolExhausted'
+  | 'quiz.endgamePoolPreparing'
+  | 'quiz.endgameMovesResisted'
+  | 'quiz.endgameHideGauge'
+  | 'quiz.endgameShowGauge'
+  | 'quiz.endgameOffScore'
+  | 'quiz.endgameVerifying'
+  | 'quiz.endgameThisAttempt'
+  | 'quiz.endgamePrevAttempt'
+  | 'quiz.endgameBestAttempt'
+  | 'quiz.endgameAnalyse'
+  | 'quiz.endgameAddTryAgain'
+  | 'quiz.endgameAddedTryAgain'
+  | 'quiz.endgameRetry'
+  | 'quiz.endgameContinuePosition'
+  | 'quiz.endgameContinueOffScore'
+  | 'quiz.endgameRemoveTryAgain'
+  | 'quiz.endgameBackMenu'
   | 'quiz.endgameObjectiveWin'
   | 'quiz.endgameObjectiveDraw'
   | 'quiz.endgameOfferDraw'
@@ -1023,11 +1047,12 @@ const fr: Dict = {
   'quiz.quelle': 'Quelle ouverture ?',
   'quiz.quelleDesc':
     'Reconnais le nom de l’ouverture à partir de la ligne jouée (base ECO).',
-  'quiz.defendsNulle': 'Entraînement aux Finales',
+  'quiz.defendsNulle': 'Défends la nulle !',
+  'quiz.defendsNullePageTitle': 'Entraînement aux Finales',
   'quiz.defendsNulleDesc':
-    'Jouer des finales contre Stockfish. Convertis les positions gagnantes et défends celles où la nulle est encore possible.',
+    'Défends une position nulle contre Stockfish. Résiste 30 coups ou obtiens une vraie nulle.',
   'quiz.defendsNulleLead':
-    'Joue la finale jusqu\u2019au bout contre Stockfish au maximum.',
+    'Choisis une nouvelle finale ou rejoue une position de Essaie encore !',
   'quiz.defendsNulleProgress': 'Coups joués : {{current}}',
   'quiz.defendsNulleThinking': 'Stockfish analyse…',
   'quiz.defendsNullePreparing': 'Préparation de Stockfish…',
@@ -1040,6 +1065,34 @@ const fr: Dict = {
   'quiz.defendsNulleAnother': 'Jouer une autre finale',
   'quiz.defendsNulleEngineUnavailable':
     'Stockfish n’est pas disponible sur cette version de l’application.',
+  'quiz.endgameNewFinales': 'Nouvelles Finales !',
+  'quiz.endgameNewFinalesDesc':
+    'Une position aléatoire et variée que tu n’as jamais terminée.',
+  'quiz.endgameTryAgain': 'Essaie encore !',
+  'quiz.endgameTryAgainDesc':
+    'Rejoue une position que tu as choisie d’ajouter après une tentative.',
+  'quiz.endgameTryAgainEmpty':
+    'Aucune position pour l’instant. Tu pourras en ajouter après une tentative perdue.',
+  'quiz.endgamePoolExhausted':
+    'Tu as terminé toutes les nouvelles positions disponibles. Reviens plus tard ou ouvre Essaie encore !',
+  'quiz.endgamePoolPreparing':
+    'De nouvelles finales sont en préparation.',
+  'quiz.endgameMovesResisted': 'Coups résistés : {{count}}',
+  'quiz.endgameHideGauge': 'Masquer la jauge',
+  'quiz.endgameShowGauge': 'Afficher la jauge',
+  'quiz.endgameOffScore': 'Suite hors score',
+  'quiz.endgameVerifying': 'Vérification…',
+  'quiz.endgameThisAttempt': 'Cette tentative : {{count}} coups',
+  'quiz.endgamePrevAttempt': 'Tentative précédente : {{count}} coups',
+  'quiz.endgameBestAttempt': 'Meilleure tentative : {{count}} coups',
+  'quiz.endgameAnalyse': 'Analyse !',
+  'quiz.endgameAddTryAgain': 'Ajouter à Essaie encore',
+  'quiz.endgameAddedTryAgain': 'Ajoutée à Essaie encore',
+  'quiz.endgameRetry': 'Retenter',
+  'quiz.endgameContinuePosition': 'Continuer la position',
+  'quiz.endgameContinueOffScore': 'Continuer hors score',
+  'quiz.endgameRemoveTryAgain': 'Retirer de Essaie encore',
+  'quiz.endgameBackMenu': 'Retour au menu',
   'quiz.endgameObjectiveWin': 'Objectif : gagne cette finale',
   'quiz.endgameObjectiveDraw': 'Objectif : sauve la nulle',
   'quiz.endgameOfferDraw': 'Proposer la nulle',
@@ -1712,11 +1765,12 @@ const en: Dict = {
   'quiz.cultureMixed': 'Chess culture — 10 mixed questions',
   'quiz.quelle': 'Which opening?',
   'quiz.quelleDesc': 'Recognize the opening name from the played line (ECO base).',
-  'quiz.defendsNulle': 'Endgame Training',
+  'quiz.defendsNulle': 'Defend the draw!',
+  'quiz.defendsNullePageTitle': 'Endgame Training',
   'quiz.defendsNulleDesc':
-    'Play endgames against Stockfish. Convert winning positions and defend those where a draw is still possible.',
+    'Defend a drawn position against Stockfish. Resist 30 moves or reach an official draw.',
   'quiz.defendsNulleLead':
-    'Play the endgame to its conclusion against Stockfish at full strength.',
+    'Pick a new endgame or replay a position from Try again!',
   'quiz.defendsNulleProgress': 'Moves played: {{current}}',
   'quiz.defendsNulleThinking': 'Stockfish is analyzing…',
   'quiz.defendsNullePreparing': 'Preparing Stockfish…',
@@ -1729,6 +1783,34 @@ const en: Dict = {
   'quiz.defendsNulleAnother': 'Play another endgame',
   'quiz.defendsNulleEngineUnavailable':
     'Stockfish is not available in this version of the app.',
+  'quiz.endgameNewFinales': 'New Endgames!',
+  'quiz.endgameNewFinalesDesc':
+    'A random varied position you have never finished.',
+  'quiz.endgameTryAgain': 'Try again!',
+  'quiz.endgameTryAgainDesc':
+    'Replay a position you chose to add after an attempt.',
+  'quiz.endgameTryAgainEmpty':
+    'No positions yet. You can add some after a lost attempt.',
+  'quiz.endgamePoolExhausted':
+    'You have finished every available new position. Come back later or open Try again!',
+  'quiz.endgamePoolPreparing':
+    'New endgames are being prepared.',
+  'quiz.endgameMovesResisted': 'Moves resisted: {{count}}',
+  'quiz.endgameHideGauge': 'Hide gauge',
+  'quiz.endgameShowGauge': 'Show gauge',
+  'quiz.endgameOffScore': 'Off-score continuation',
+  'quiz.endgameVerifying': 'Verifying…',
+  'quiz.endgameThisAttempt': 'This attempt: {{count}} moves',
+  'quiz.endgamePrevAttempt': 'Previous attempt: {{count}} moves',
+  'quiz.endgameBestAttempt': 'Best attempt: {{count}} moves',
+  'quiz.endgameAnalyse': 'Analyse!',
+  'quiz.endgameAddTryAgain': 'Add to Try again',
+  'quiz.endgameAddedTryAgain': 'Added to Try again',
+  'quiz.endgameRetry': 'Retry',
+  'quiz.endgameContinuePosition': 'Continue the position',
+  'quiz.endgameContinueOffScore': 'Continue off score',
+  'quiz.endgameRemoveTryAgain': 'Remove from Try again',
+  'quiz.endgameBackMenu': 'Back to menu',
   'quiz.endgameObjectiveWin': 'Objective: win this endgame',
   'quiz.endgameObjectiveDraw': 'Objective: save the draw',
   'quiz.endgameOfferDraw': 'Offer draw',
