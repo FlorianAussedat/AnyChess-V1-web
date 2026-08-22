@@ -102,7 +102,7 @@ describe('SharedStockfishRuntime (static contract)', () => {
     assert.match(src, /static get\(\)/);
     assert.match(src, /prewarm\(\)/);
     assert.match(src, /retry\(\)/);
-    assert.match(src, /absoluteStockfishWorkerUrl/);
+    assert.match(src, /getStockfishWorkerUrl/);
     assert.match(src, /initPromise/);
     assert.doesNotMatch(src, /RandomEngine/);
     assert.match(src, /STOCKFISH_PLATFORM_NOTES\.web\.backend/);
