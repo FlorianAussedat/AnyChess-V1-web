@@ -13,22 +13,26 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { BrandAssets } from '@/constants/BrandAssets';
 import {
+  loadEndgameStore,
   getTryAgainIds,
   pickNewPosition,
   pickTryAgainPosition,
   getFinishedIds,
   getVarietyContext,
+  isRuntimePoolEmpty,
 } from '@/lib/endgameTraining';
 
 export default function EndgameTrainingMenuScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
+  const poolEmpty = isRuntimePoolEmpty();
   const [tryAgainCount, setTryAgainCount] = useState(0);
   const [emptyTryAgain, setEmptyTryAgain] = useState(false);
   const [poolExhausted, setPoolExhausted] = useState(false);
 
   const refresh = useCallback(async () => {
+    await loadEndgameStore();
     const ids = await getTryAgainIds();
     setTryAgainCount(ids.length);
     setEmptyTryAgain(false);
@@ -40,6 +44,7 @@ export default function EndgameTrainingMenuScreen() {
   }, [refresh]);
 
   const startNew = async () => {
+    if (poolEmpty) return;
     const finished = await getFinishedIds();
     const variety = await getVarietyContext();
     const pos = pickNewPosition(finished, variety.recentFamilies, variety.recentSignatures);
@@ -80,6 +85,7 @@ export default function EndgameTrainingMenuScreen() {
         description={t('quiz.endgameNewFinalesDesc')}
         icon={BrandAssets.exercises.defendsNulle}
         onPress={() => void startNew()}
+        disabled={poolEmpty}
         testID="endgame-card-new"
       />
       <HubModeCard
@@ -87,8 +93,17 @@ export default function EndgameTrainingMenuScreen() {
         description={t('quiz.endgameTryAgainDesc')}
         icon={BrandAssets.exercises.defendsNulle}
         onPress={() => void startTryAgain()}
+        disabled={tryAgainCount === 0}
         testID="endgame-card-try-again"
       />
+
+      {poolEmpty && (
+        <View style={styles.emptyBox} testID="endgame-pool-preparing">
+          <Text style={{ color: colors.mutedForeground, lineHeight: 20 }}>
+            {t('quiz.endgamePoolPreparing')}
+          </Text>
+        </View>
+      )}
 
       {emptyTryAgain && (
         <View style={styles.emptyBox} testID="endgame-try-again-empty">
@@ -98,7 +113,7 @@ export default function EndgameTrainingMenuScreen() {
         </View>
       )}
 
-      {poolExhausted && (
+      {poolExhausted && !poolEmpty && (
         <View style={styles.emptyBox} testID="endgame-pool-exhausted">
           <Text style={{ color: colors.mutedForeground, lineHeight: 20 }}>
             {t('quiz.endgamePoolExhausted')}

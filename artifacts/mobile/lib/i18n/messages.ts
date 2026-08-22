@@ -396,6 +396,7 @@ export type MessageKey =
   | 'quiz.endgameTryAgainDesc'
   | 'quiz.endgameTryAgainEmpty'
   | 'quiz.endgamePoolExhausted'
+  | 'quiz.endgamePoolPreparing'
   | 'quiz.endgameMovesResisted'
   | 'quiz.endgameHideGauge'
   | 'quiz.endgameShowGauge'
@@ -1074,6 +1075,8 @@ const fr: Dict = {
     'Aucune position pour l’instant. Tu pourras en ajouter après une tentative perdue.',
   'quiz.endgamePoolExhausted':
     'Tu as terminé toutes les nouvelles positions disponibles. Reviens plus tard ou ouvre Essaie encore !',
+  'quiz.endgamePoolPreparing':
+    'De nouvelles finales sont en préparation.',
   'quiz.endgameMovesResisted': 'Coups résistés : {{count}}',
   'quiz.endgameHideGauge': 'Masquer la jauge',
   'quiz.endgameShowGauge': 'Afficher la jauge',
@@ -1790,6 +1793,8 @@ const en: Dict = {
     'No positions yet. You can add some after a lost attempt.',
   'quiz.endgamePoolExhausted':
     'You have finished every available new position. Come back later or open Try again!',
+  'quiz.endgamePoolPreparing':
+    'New endgames are being prepared.',
   'quiz.endgameMovesResisted': 'Moves resisted: {{count}}',
   'quiz.endgameHideGauge': 'Hide gauge',
   'quiz.endgameShowGauge': 'Show gauge',

@@ -6,6 +6,8 @@ import { StorageKeys } from '../../storage/StorageKeys.ts';
 import type { KeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { defaultKeyValueStorage } from '../../storage/AsyncKeyValueStorage.ts';
 import type { AttemptResult } from '../domain/types.ts';
+import { ENDGAME_TRAINING_POOL } from '../data/pool.generated.ts';
+import { ENDGAME_POOL_DATASET_VERSION } from '../data/poolMetadata.ts';
 
 export type PositionAttemptStats = {
   positionId: string;
@@ -26,6 +28,8 @@ export type PositionAttemptStats = {
 
 export type EndgameTrainingStoreV2 = {
   version: 2;
+  /** Last loaded product pool dataset version — drives stale-id cleanup. */
+  datasetVersion: string;
   tryAgainIds: string[];
   /** Positions the user has finished (win or loss) — excluded from Nouvelles Finales. */
   finishedIds: string[];
@@ -54,6 +58,7 @@ export function resetEndgameStoreStorage(): void {
 function emptyStore(): EndgameTrainingStoreV2 {
   return {
     version: 2,
+    datasetVersion: ENDGAME_POOL_DATASET_VERSION,
     tryAgainIds: [],
     finishedIds: [],
     statsByPosition: {},
@@ -64,6 +69,46 @@ function emptyStore(): EndgameTrainingStoreV2 {
 }
 
 let cache: EndgameTrainingStoreV2 | null = null;
+
+function runtimePoolIds(): Set<string> {
+  return new Set(ENDGAME_TRAINING_POOL.map((p) => p.id));
+}
+
+/** Drop saved ids that no longer exist in the product pool. */
+export function sanitizeStoreAgainstPool(
+  store: EndgameTrainingStoreV2,
+): boolean {
+  const poolIds = runtimePoolIds();
+  let changed = false;
+
+  const filterKnown = (ids: string[]) => ids.filter((id) => poolIds.has(id));
+
+  const nextTryAgain = filterKnown(store.tryAgainIds);
+  if (nextTryAgain.length !== store.tryAgainIds.length) {
+    store.tryAgainIds = nextTryAgain;
+    changed = true;
+  }
+
+  const nextFinished = filterKnown(store.finishedIds);
+  if (nextFinished.length !== store.finishedIds.length) {
+    store.finishedIds = nextFinished;
+    changed = true;
+  }
+
+  for (const id of Object.keys(store.statsByPosition)) {
+    if (!poolIds.has(id)) {
+      delete store.statsByPosition[id];
+      changed = true;
+    }
+  }
+
+  if (store.datasetVersion !== ENDGAME_POOL_DATASET_VERSION) {
+    store.datasetVersion = ENDGAME_POOL_DATASET_VERSION;
+    changed = true;
+  }
+
+  return changed;
+}
 
 export async function loadEndgameStore(): Promise<EndgameTrainingStoreV2> {
   if (cache) return cache;
@@ -78,6 +123,10 @@ export async function loadEndgameStore(): Promise<EndgameTrainingStoreV2> {
       ...emptyStore(),
       ...parsed,
       version: 2,
+      datasetVersion:
+        typeof parsed.datasetVersion === 'string'
+          ? parsed.datasetVersion
+          : ENDGAME_POOL_DATASET_VERSION,
       tryAgainIds: Array.isArray(parsed.tryAgainIds) ? parsed.tryAgainIds : [],
       finishedIds: Array.isArray(parsed.finishedIds) ? parsed.finishedIds : [],
       statsByPosition: parsed.statsByPosition ?? {},
@@ -85,6 +134,9 @@ export async function loadEndgameStore(): Promise<EndgameTrainingStoreV2> {
       recentFamilies: parsed.recentFamilies ?? [],
       recentSignatures: parsed.recentSignatures ?? [],
     };
+    if (sanitizeStoreAgainstPool(cache)) {
+      await persist(cache);
+    }
     return cache;
   } catch {
     cache = emptyStore();

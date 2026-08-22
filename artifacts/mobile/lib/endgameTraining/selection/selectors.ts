@@ -4,6 +4,10 @@
 import type { EndgameTrainingPosition } from '../domain/types.ts';
 import { ENDGAME_TRAINING_POOL } from '../data/pool.generated.ts';
 
+export function isRuntimePoolEmpty(): boolean {
+  return ENDGAME_TRAINING_POOL.length === 0;
+}
+
 export function listPool(): readonly EndgameTrainingPosition[] {
   return ENDGAME_TRAINING_POOL;
 }
@@ -21,6 +25,7 @@ export function pickNewPosition(
   recentSignatures: string[] = [],
   rng: () => number = Math.random,
 ): EndgameTrainingPosition | null {
+  if (ENDGAME_TRAINING_POOL.length === 0) return null;
   const fresh = ENDGAME_TRAINING_POOL.filter((p) => !finishedIds.has(p.id));
   if (fresh.length === 0) return null;
 

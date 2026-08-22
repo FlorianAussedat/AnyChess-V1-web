@@ -14,11 +14,13 @@ import {
   getShowGauge,
   getTryAgainIds,
   isInTryAgain,
+  loadEndgameStore,
   recordFinishedAttempt,
   removeFromTryAgain,
   resetEndgameStoreStorage,
   setShowGauge,
 } from '../EndgameTrainingStore.ts';
+import { ENDGAME_POOL_DATASET_VERSION } from '../../data/poolMetadata.ts';
 
 function baseResult(
   partial: Partial<AttemptResult> & { positionId: string; outcome: AttemptResult['outcome'] },
@@ -77,6 +79,11 @@ describe('EndgameTrainingStore', () => {
 
   it('uses storage key anychess.endgameTraining.v2', () => {
     assert.equal(StorageKeys.endgameTrainingV2.key, 'anychess.endgameTraining.v2');
+  });
+
+  it('tracks dataset version on store', async () => {
+    const store = await loadEndgameStore();
+    assert.equal(store.datasetVersion, ENDGAME_POOL_DATASET_VERSION);
   });
 
   it('resetEndgameStoreStorage restores default backend hook', () => {

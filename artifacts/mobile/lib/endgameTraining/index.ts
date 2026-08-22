@@ -34,6 +34,7 @@ export {
   clearEndgameStoreCache,
   configureEndgameStoreStorage,
   resetEndgameStoreStorage,
+  sanitizeStoreAgainstPool,
 } from './persistence/EndgameTrainingStore.ts';
 export type { PositionAttemptStats } from './persistence/EndgameTrainingStore.ts';
 export {
@@ -41,8 +42,13 @@ export {
   getPositionById,
   pickNewPosition,
   pickTryAgainPosition,
+  isRuntimePoolEmpty,
 } from './selection/selectors.ts';
 export { ENDGAME_TRAINING_POOL } from './data/pool.generated.ts';
+export {
+  ENDGAME_POOL_DATASET_VERSION,
+  ENDGAME_POOL_GENERATION,
+} from './data/poolMetadata.ts';
 export {
   openEndgameInReader,
   getEndgameAnalysisOverlay,

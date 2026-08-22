@@ -67,7 +67,7 @@ Example fixture:
   --csv lib/endgameTraining/pipeline/__fixtures__/sample-lichess.csv --limit 10 --dry-run
 
 Note: .zst files require zstd on PATH (or decompress to .csv first).
-The committed pool.generated.ts is the Syzygy quality seed — do not overwrite casually.`);
+The product pool is generated offline — an import with zero accepted positions fails explicitly.`);
   process.exit(1);
 }
 
@@ -92,6 +92,12 @@ console.log(`Analysis time: ${report.analysisTimeMs}ms`);
 if (args.dryRun) {
   console.log('\nDry run — not writing pool/report.');
 } else {
+  if (positions.length === 0) {
+    console.error(
+      '\nImport produced zero positions — refusing to overwrite pool.generated.ts.',
+    );
+    process.exit(1);
+  }
   const written = writeGeneratedPool({
     poolPath: args.outPool,
     reportPath: args.outReport,
