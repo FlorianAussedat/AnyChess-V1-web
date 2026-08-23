@@ -99,15 +99,26 @@ export function FinishGameOverlay({ visible, payload, onClose }: Props) {
             getPositionById(payload.positionId ?? '') ??
             ({
               id: payload.positionId ?? 'finish',
-              themeId: 'queen-mate',
+              themeId: 'queen-mate' as const,
               initialFen: payload.fen,
               playerColor: payload.orientation,
-              objective: 'WIN',
-              completion: { type: 'CHECKMATE' },
+              objective: 'WIN' as const,
+              completion: { type: 'CHECKMATE' as const },
               targetUserMoves: 10,
-              certification: { type: 'ENGINE', engine: 'stockfish', depth: 12, result: 'WIN' },
+              certification: {
+                type: 'ENGINE' as const,
+                engine: 'stockfish',
+                depth: 12,
+                result: 'WIN' as const,
+              },
+              diagramOrientation: payload.orientation,
+              active: true,
+              explanation: {
+                fr: { principle: '', seek: '', method: '', avoid: '' },
+                en: { principle: '', seek: '', method: '', avoid: '' },
+              },
               tags: [],
-            } as const);
+            });
           refresh(
             await session.startFinishGameFromState({
               position: pos,

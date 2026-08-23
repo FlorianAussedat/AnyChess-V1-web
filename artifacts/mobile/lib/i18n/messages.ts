@@ -463,6 +463,13 @@ export type MessageKey =
   | 'quiz.theoreticalThemeThreePawns'
   | 'quiz.theoreticalThemeLucena'
   | 'quiz.theoreticalThemePhilidor'
+  | 'quiz.theoreticalExplainLink'
+  | 'quiz.theoreticalExplainPrinciple'
+  | 'quiz.theoreticalExplainSeek'
+  | 'quiz.theoreticalExplainMethod'
+  | 'quiz.theoreticalExplainAvoid'
+  | 'quiz.theoreticalExplainPlay'
+  | 'quiz.theoreticalExplainClose'
   | 'quiz.incorrect'
   | 'quiz.correct'
   | 'quiz.played'
@@ -1183,15 +1190,22 @@ const fr: Dict = {
   'quiz.theoreticalScoreAttempts': '{{count}} tentative(s) comptabilisée(s)',
   'quiz.theoreticalThemeQueenMate': 'Dame et roi contre roi',
   'quiz.theoreticalThemeRookMate': 'Tour et roi contre roi',
-  'quiz.theoreticalThemeTwoBishopsMate': 'Deux fous et roi contre roi',
+  'quiz.theoreticalThemeTwoBishopsMate': 'Deux fous contre roi',
   'quiz.theoreticalThemePawnSquare': 'Carré du pion',
   'quiz.theoreticalThemeOpposition': 'Opposition',
   'quiz.theoreticalThemeKpVsK': 'Roi et pion contre roi',
-  'quiz.theoreticalThemePawnRace': 'Courses de pions',
-  'quiz.theoreticalThemePawnBreakthrough': 'Percées de pions',
+  'quiz.theoreticalThemePawnRace': 'Course de pions',
+  'quiz.theoreticalThemePawnBreakthrough': 'Percée de pions',
   'quiz.theoreticalThemeThreePawns': 'Trois pions contre trois pions',
   'quiz.theoreticalThemeLucena': 'Position de Lucena',
   'quiz.theoreticalThemePhilidor': 'Position de Philidor',
+  'quiz.theoreticalExplainLink': 'Explication de la finale',
+  'quiz.theoreticalExplainPrinciple': 'Principe',
+  'quiz.theoreticalExplainSeek': 'Ce qu’il faut chercher',
+  'quiz.theoreticalExplainMethod': 'Méthode',
+  'quiz.theoreticalExplainAvoid': 'Erreur à éviter',
+  'quiz.theoreticalExplainPlay': 'Jouer cette finale',
+  'quiz.theoreticalExplainClose': 'Fermer',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Joué : {{moves}}',
@@ -1949,15 +1963,22 @@ const en: Dict = {
   'quiz.theoreticalScoreAttempts': '{{count}} scored attempt(s)',
   'quiz.theoreticalThemeQueenMate': 'Queen and king vs king',
   'quiz.theoreticalThemeRookMate': 'Rook and king vs king',
-  'quiz.theoreticalThemeTwoBishopsMate': 'Two bishops and king vs king',
+  'quiz.theoreticalThemeTwoBishopsMate': 'Two bishops vs king',
   'quiz.theoreticalThemePawnSquare': 'Pawn square',
   'quiz.theoreticalThemeOpposition': 'Opposition',
   'quiz.theoreticalThemeKpVsK': 'King and pawn vs king',
-  'quiz.theoreticalThemePawnRace': 'Pawn races',
-  'quiz.theoreticalThemePawnBreakthrough': 'Pawn breakthroughs',
+  'quiz.theoreticalThemePawnRace': 'Pawn race',
+  'quiz.theoreticalThemePawnBreakthrough': 'Pawn breakthrough',
   'quiz.theoreticalThemeThreePawns': 'Three pawns vs three pawns',
   'quiz.theoreticalThemeLucena': 'Lucena position',
   'quiz.theoreticalThemePhilidor': 'Philidor position',
+  'quiz.theoreticalExplainLink': 'Endgame explanation',
+  'quiz.theoreticalExplainPrinciple': 'Principle',
+  'quiz.theoreticalExplainSeek': 'What to look for',
+  'quiz.theoreticalExplainMethod': 'Method',
+  'quiz.theoreticalExplainAvoid': 'Mistake to avoid',
+  'quiz.theoreticalExplainPlay': 'Play this endgame',
+  'quiz.theoreticalExplainClose': 'Close',
   'quiz.incorrect': 'Incorrect.',
   'quiz.correct': 'Correct.',
   'quiz.played': 'Played: {{moves}}',

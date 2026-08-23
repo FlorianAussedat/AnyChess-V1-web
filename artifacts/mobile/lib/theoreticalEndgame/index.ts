@@ -26,6 +26,7 @@ export {
   getAllThemeScores,
   clearTheoreticalStoreCache,
   configureTheoreticalStoreStorage,
+  migrateTheoreticalStore,
 } from './persistence/TheoreticalEndgameStore.ts';
 export type { ThemeAttemptRecord } from './persistence/TheoreticalEndgameStore.ts';
 export {
@@ -36,6 +37,12 @@ export {
   pickRandomFromActiveThemes,
 } from './selection/selectors.ts';
 export { THEORETICAL_ENDGAME_POOL } from './data/pool.generated.ts';
+export { THEORETICAL_POOL_METADATA } from './data/poolMetadata.ts';
+export {
+  validateFenLegality,
+  validateThemeMaterial,
+  LEGACY_THEORETICAL_IDS,
+} from './domain/fenLegality.ts';
 export {
   openTheoreticalInReader,
   getTheoreticalAnalysisOverlay,

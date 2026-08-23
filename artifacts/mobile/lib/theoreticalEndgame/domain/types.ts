@@ -14,7 +14,6 @@ export type TheoreticalThemeId =
   | 'kp-vs-k'
   | 'pawn-race'
   | 'pawn-breakthrough'
-  | 'three-pawns'
   | 'lucena'
   | 'philidor';
 
@@ -32,6 +31,18 @@ export type PositionSource = {
   license: string;
 };
 
+export type EndgameExplanation = {
+  principle: string;
+  seek: string;
+  method: string;
+  avoid: string;
+};
+
+export type BilingualExplanation = {
+  fr: EndgameExplanation;
+  en: EndgameExplanation;
+};
+
 export type TheoreticalEndgamePosition = {
   id: string;
   themeId: TheoreticalThemeId;
@@ -42,6 +53,11 @@ export type TheoreticalEndgamePosition = {
   /** Target player moves for comprehension scoring. */
   targetUserMoves: number;
   certification: PositionCertification;
+  /** Board orientation for diagrams (usually matches playerColor). */
+  diagramOrientation: PlayerColor;
+  explanation: BilingualExplanation;
+  /** When false, excluded from runtime selectors (future multi-position themes). */
+  active: boolean;
   source?: PositionSource;
   tags: string[];
   /** Optional variant group for color/transform siblings. */
@@ -110,5 +126,7 @@ export const THEORETICAL_ENDGAME_CONFIG = {
   /** WDL threshold (permille) to call a theoretical result lost. */
   wdlLossThreshold: 700,
   wdlDrawThreshold: 700,
-  datasetVersion: '1.0.0',
+  datasetVersion: '2.0.0',
+  contentVersion: 'canonical-10-v1',
+  expectedActiveCount: 10,
 } as const;

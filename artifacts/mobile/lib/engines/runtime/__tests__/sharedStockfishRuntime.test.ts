@@ -54,7 +54,7 @@ describe('position decoupled from engine', () => {
   });
 
   it('TheoreticalEndgameSession.start shows real FEN and target without analyzer', async () => {
-    const pos = getTheoreticalPositionById('TE-001');
+    const pos = getTheoreticalPositionById('TE-CANON-QUEEN-MATE');
     assert.ok(pos);
     const session = new TheoreticalEndgameSession();
     const snap = await session.start(pos!);
@@ -108,9 +108,11 @@ describe('pool counts unchanged', () => {
     assert.equal(matches?.length, 209);
   });
 
-  it('theoretical pool has 44 positions', () => {
+  it('theoretical pool has 10 canonical positions', () => {
     const pool = read('lib/theoreticalEndgame/data/pool.generated.ts');
-    const matches = pool.match(/\bid: 'TE-/g);
-    assert.equal(matches?.length, 44);
+    const matches = pool.match(/\bid: 'TE-CANON-/g);
+    assert.equal(matches?.length, 10);
+    assert.doesNotMatch(pool, /three-pawns/);
+    assert.doesNotMatch(pool, /id: 'TE-\d{3}'/);
   });
 });

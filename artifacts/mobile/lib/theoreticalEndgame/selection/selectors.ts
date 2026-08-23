@@ -1,5 +1,6 @@
 /**
  * Position selection — theme, random, non-repeat.
+ * Supports multiple positions per theme in the future; this version has one each.
  */
 import type { TheoreticalEndgamePosition, TheoreticalThemeId } from '../domain/types.ts';
 import { THEORETICAL_ENDGAME_POOL } from '../data/pool.generated.ts';
@@ -7,15 +8,15 @@ import { averageComprehensionScore, isThemeMastered } from '../domain/comprehens
 import type { ThemeAttemptRecord } from '../persistence/TheoreticalEndgameStore.ts';
 
 export function listPool(): readonly TheoreticalEndgamePosition[] {
-  return THEORETICAL_ENDGAME_POOL;
+  return THEORETICAL_ENDGAME_POOL.filter((p) => p.active !== false);
 }
 
 export function getPositionById(id: string): TheoreticalEndgamePosition | null {
-  return THEORETICAL_ENDGAME_POOL.find((p) => p.id === id) ?? null;
+  return listPool().find((p) => p.id === id) ?? null;
 }
 
 export function listByTheme(themeId: TheoreticalThemeId): TheoreticalEndgamePosition[] {
-  return THEORETICAL_ENDGAME_POOL.filter((p) => p.themeId === themeId);
+  return listPool().filter((p) => p.themeId === themeId);
 }
 
 export function pickPositionInTheme(
@@ -38,14 +39,16 @@ export function pickRandomTheme(
   rng: () => number = Math.random,
 ): { themeId: TheoreticalThemeId; allMastered: boolean } {
   const active: TheoreticalThemeId[] = [];
-  for (const p of THEORETICAL_ENDGAME_POOL) {
-    if (active.includes(p.themeId)) continue;
+  const seen = new Set<TheoreticalThemeId>();
+  for (const p of listPool()) {
+    if (seen.has(p.themeId)) continue;
+    seen.add(p.themeId);
     const rec = themeScores[p.themeId]?.attempts ?? [];
     const { score } = averageComprehensionScore(rec);
     if (!isThemeMastered(score)) active.push(p.themeId);
   }
   if (active.length === 0) {
-    const all = [...new Set(THEORETICAL_ENDGAME_POOL.map((p) => p.themeId))];
+    const all = [...seen];
     return {
       themeId: all[Math.floor(rng() * all.length)]!,
       allMastered: true,

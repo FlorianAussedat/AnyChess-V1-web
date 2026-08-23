@@ -1,76 +1,44 @@
 {
-  "generatedAt": "2026-08-23T13:37:34.072Z",
+  "generatedAt": "2026-08-23T13:37:33.434Z",
   "datasetVersion": "2.0.0",
   "contentVersion": "canonical-10-v1",
-  "summary": {
-    "positionsBefore": 44,
-    "positionsAfter": 10,
-    "legacyIdsPresent": 0,
-    "themesBefore": [
-      "queen-mate",
-      "rook-mate",
-      "two-bishops-mate",
-      "pawn-square",
-      "opposition",
-      "kp-vs-k",
-      "pawn-race",
-      "pawn-breakthrough",
-      "lucena",
-      "philidor",
-      "three-pawns"
-    ],
-    "themesAfter": [
-      "queen-mate",
-      "rook-mate",
-      "two-bishops-mate",
-      "pawn-square",
-      "opposition",
-      "kp-vs-k",
-      "pawn-race",
-      "pawn-breakthrough",
-      "lucena",
-      "philidor"
-    ],
-    "winCount": 9,
-    "drawCount": 1,
-    "whitePlayerPositions": 9,
-    "blackPlayerPositions": 1,
-    "syzygyCertified": 9,
-    "errorCount": 0,
-    "warningCount": 0,
-    "valid": true,
-    "gates": {
-      "activeCount10": true,
-      "themes10": true,
-      "onePerTheme": true,
-      "noLegacyIds": true,
-      "noThreePawns": true,
-      "bothKingsNotInCheck": true,
-      "materialOk": true,
-      "certificationOk": true,
-      "lucenaStructure": true,
-      "philidorStructure": true
-    }
-  },
-  "errors": [],
-  "warnings": [],
+  "contentHash": "db9fa54d3eb875f2",
+  "expectedActiveCount": 10,
+  "activeCount": 10,
+  "themes": [
+    "queen-mate",
+    "rook-mate",
+    "two-bishops-mate",
+    "pawn-square",
+    "opposition",
+    "kp-vs-k",
+    "pawn-race",
+    "pawn-breakthrough",
+    "lucena",
+    "philidor"
+  ],
+  "removedThemes": [
+    "three-pawns"
+  ],
+  "legacyIdsBanned": 44,
   "positions": [
     {
       "id": "TE-CANON-QUEEN-MATE",
       "themeId": "queen-mate",
-      "fen": "8/8/8/4k3/8/8/8/4K2Q w - - 0 1",
-      "pieces": "White: K Q · Black: k",
+      "initialFen": "8/8/8/4k3/8/8/8/4K2Q w - - 0 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 3,
+      "pieces": "White: K Q · Black: k",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 13,
+        "dtm": 13
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
           "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2Q_w_-_-_0_1",
@@ -86,25 +54,25 @@
           "method": "theoretical-reference"
         }
       ],
-      "choiceRationale": "Open board with Black king centralized and White queen on h1 — teaches gradual restriction without an initial check.",
-      "alerts": []
+      "choiceRationale": "Open board with Black king centralized and White queen on h1 — teaches gradual restriction without an initial check."
     },
     {
       "id": "TE-CANON-ROOK-MATE",
       "themeId": "rook-mate",
-      "fen": "8/8/8/4k3/8/8/8/4K2R w - - 0 1",
-      "pieces": "White: K R · Black: k",
+      "initialFen": "8/8/8/4k3/8/8/8/4K2R w - - 0 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 3,
+      "pieces": "White: K R · Black: k",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 27,
+        "dtm": 27
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
           "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2R_w_-_-_0_1",
@@ -120,25 +88,25 @@
           "method": "theoretical-reference"
         }
       ],
-      "choiceRationale": "Standard KRK start with kings facing and rook on h1 — illustrates cutting the king before mating on the edge.",
-      "alerts": []
+      "choiceRationale": "Standard KRK start with kings facing and rook on h1 — illustrates cutting the king before mating on the edge."
     },
     {
       "id": "TE-CANON-TWO-BISHOPS-MATE",
       "themeId": "two-bishops-mate",
-      "fen": "8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1",
-      "pieces": "White: K 2×B · Black: k",
+      "initialFen": "8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 4,
+      "pieces": "White: K 2×B · Black: k",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 33,
+        "dtm": 33
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
           "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/2B1KB2_w_-_-_0_1",
@@ -154,25 +122,25 @@
           "method": "theoretical-reference"
         }
       ],
-      "choiceRationale": "Opposite-colored bishops on c1 and f1 with centralized black king — teaches coordination without an initial check.",
-      "alerts": []
+      "choiceRationale": "Opposite-colored bishops on c1 and f1 with centralized black king — teaches coordination without an initial check."
     },
     {
       "id": "TE-CANON-PAWN-SQUARE",
       "themeId": "pawn-square",
-      "fen": "8/8/8/3P4/8/8/8/k6K w - - 0 1",
-      "pieces": "White: K P · Black: k",
+      "initialFen": "8/8/8/3P4/8/8/8/k6K w - - 0 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 3,
+      "pieces": "White: K P · Black: k",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 1,
+        "dtm": 21
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
           "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/3P4/8/8/8/k6K_w_-_-_0_1",
@@ -188,25 +156,25 @@
           "method": "theoretical-reference"
         }
       ],
-      "choiceRationale": "Pawn on d5, black king on a1 outside the square, white king on h1 — pure illustration of the square rule.",
-      "alerts": []
+      "choiceRationale": "Pawn on d5, black king on a1 outside the square, white king on h1 — pure illustration of the square rule."
     },
     {
       "id": "TE-CANON-OPPOSITION",
       "themeId": "opposition",
-      "fen": "8/8/4k3/8/4K3/8/4P3/8 b - - 0 1",
-      "pieces": "White: K P · Black: k",
+      "initialFen": "8/8/4k3/8/4K3/8/4P3/8 b - - 0 1",
+      "playerColor": "white",
       "sideToMove": "black",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 3,
+      "pieces": "White: K P · Black: k",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 4,
+        "dtm": 36
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
           "url": "https://tablebase.lichess.ovh/standard?fen=8/8/4k3/8/4K3/8/4P3/8_b_-_-_0_1",
@@ -222,25 +190,25 @@
           "method": "theoretical-reference"
         }
       ],
-      "choiceRationale": "Kings face on the e-file with Black to move — White holds the opposition. Stockfish plays Black’s first move; the trainee then exploits opposition.",
-      "alerts": []
+      "choiceRationale": "Kings face on the e-file with Black to move — White holds the opposition. Stockfish plays Black’s first move; the trainee then exploits opposition."
     },
     {
       "id": "TE-CANON-KPK",
       "themeId": "kp-vs-k",
-      "fen": "8/8/8/4k3/8/3K4/4P3/8 w - - 0 1",
-      "pieces": "White: K P · Black: k",
+      "initialFen": "8/8/8/4k3/8/3K4/4P3/8 w - - 0 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 3,
+      "pieces": "White: K P · Black: k",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 9,
+        "dtm": 41
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
           "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/3K4/4P3/8_w_-_-_0_1",
@@ -256,25 +224,25 @@
           "method": "theoretical-reference"
         }
       ],
-      "choiceRationale": "White king on d3 supports the e2-pawn against black king on e5 — classic key-square technique.",
-      "alerts": []
+      "choiceRationale": "White king on d3 supports the e2-pawn against black king on e5 — classic key-square technique."
     },
     {
       "id": "TE-CANON-PAWN-RACE",
       "themeId": "pawn-race",
-      "fen": "8/k7/8/1p6/8/8/6P1/4K3 w - - 0 1",
-      "pieces": "White: K P · Black: k p",
+      "initialFen": "8/k7/8/1p6/8/8/6P1/4K3 w - - 0 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 4,
+      "pieces": "White: K P · Black: k p",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 1,
+        "dtm": 31
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
           "url": "https://tablebase.lichess.ovh/standard?fen=8/k7/8/1p6/8/8/6P1/4K3_w_-_-_0_1",
@@ -290,27 +258,25 @@
           "method": "theoretical-reference"
         }
       ],
-      "choiceRationale": "Split pawns on b5 and g2 — White queens first; calculation of promotion order is the lesson.",
-      "alerts": []
+      "choiceRationale": "Split pawns on b5 and g2 — White queens first; calculation of promotion order is the lesson."
     },
     {
       "id": "TE-CANON-PAWN-BREAKTHROUGH",
       "themeId": "pawn-breakthrough",
-      "fen": "7k/ppp5/8/PPP5/8/8/8/4K3 w - - 0 1",
-      "pieces": "White: K 3×P · Black: k 3×p",
+      "initialFen": "7k/ppp5/8/PPP5/8/8/8/4K3 w - - 0 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 8,
+      "pieces": "White: K 3×P · Black: k 3×p",
       "certification": {
         "type": "ENGINE",
         "engine": "stockfish",
         "depth": 30,
-        "result": "WIN"
+        "result": "WIN",
+        "concept": "Classic 3-vs-3 breakthrough: b6! creates an unstoppable passer"
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Chess Programming Wiki — Pawn Breakthrough",
           "url": "https://www.chessprogramming.org/Pawn_Breakthrough",
@@ -333,25 +299,25 @@
           "method": "tablebase-hint"
         }
       ],
-      "choiceRationale": "Textbook three-versus-three breakthrough on the queenside. Not a separate « three pawns » theme — the lesson is the sacrificial break b6.",
-      "alerts": []
+      "choiceRationale": "Textbook three-versus-three breakthrough on the queenside. Not a separate « three pawns » theme — the lesson is the sacrificial break b6."
     },
     {
       "id": "TE-CANON-LUCENA",
       "themeId": "lucena",
-      "fen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 4 1",
-      "pieces": "White: K R P · Black: k r",
+      "initialFen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 4 1",
+      "playerColor": "white",
       "sideToMove": "white",
-      "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 5,
+      "pieces": "White: K R P · Black: k r",
       "certification": {
         "type": "SYZYGY",
-        "result": "WIN"
+        "result": "WIN",
+        "category": "win",
+        "dtz": 15,
+        "dtm": 41
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Wikipedia — Lucena position",
           "url": "https://en.wikipedia.org/wiki/Lucena_position",
@@ -374,25 +340,25 @@
           "method": "syzygy-wdl"
         }
       ],
-      "choiceRationale": "Verified candidate FEN: Kb8, Pb7, Rc1 vs Kd8, Ra2. Non-rook pawn on 7th, attacking king on promotion square, defending king cut off, defending rook on the far side — classic bridge-building win.",
-      "alerts": []
+      "choiceRationale": "Verified candidate FEN: Kb8, Pb7, Rc1 vs Kd8, Ra2. Non-rook pawn on 7th, attacking king on promotion square, defending king cut off, defending rook on the far side — classic bridge-building win."
     },
     {
       "id": "TE-CANON-PHILIDOR",
       "themeId": "philidor",
-      "fen": "4k3/R7/1r6/4PK2/8/8/8/8 w - - 0 1",
-      "pieces": "White: K R P · Black: k r",
+      "initialFen": "4k3/R7/1r6/4PK2/8/8/8/8 w - - 0 1",
+      "playerColor": "black",
       "sideToMove": "white",
-      "trainedColor": "black",
       "objective": "DRAW",
       "pieceCount": 5,
+      "pieces": "White: K R P · Black: k r",
       "certification": {
         "type": "SYZYGY",
-        "result": "DRAW"
+        "result": "DRAW",
+        "category": "draw",
+        "dtz": 0,
+        "dtm": 0
       },
-      "bothKingsNotInCheck": true,
-      "theoreticalStructureOk": true,
-      "sources": [
+      "sourceReferences": [
         {
           "name": "Wikipedia — Philidor position",
           "url": "https://en.wikipedia.org/wiki/Philidor_position",
@@ -415,8 +381,7 @@
           "method": "syzygy-wdl"
         }
       ],
-      "choiceRationale": "Mission candidate FEN verified: Kf5, Pe5, Ra7 vs Ke8, Rb6. White to move; trainee plays Black. Stockfish moves first, then Black holds the third-rank defence.",
-      "alerts": []
+      "choiceRationale": "Mission candidate FEN verified: Kf5, Pe5, Ra7 vs Ke8, Rb6. White to move; trainee plays Black. Stockfish moves first, then Black holds the third-rank defence."
     }
   ]
 }
