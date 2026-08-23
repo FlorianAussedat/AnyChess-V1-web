@@ -1,5 +1,5 @@
 /**
- * TheoreticalEndgameStore persistence tests.
+ * TheoreticalEndgameStore persistence + v1→v2 migration tests.
  */
 import assert from 'node:assert/strict';
 import { describe, it, beforeEach } from 'node:test';
@@ -12,6 +12,8 @@ import {
   recordAttempt,
   getThemeComprehension,
   getAllThemeScores,
+  migrateTheoreticalStore,
+  loadTheoreticalStore,
 } from '../TheoreticalEndgameStore.ts';
 import type { TheoreticalAttemptResult } from '../../domain/types.ts';
 
@@ -20,7 +22,7 @@ function sampleResult(
 ): TheoreticalAttemptResult {
   return {
     outcome: 'success',
-    positionId: 'TE-001',
+    positionId: 'TE-CANON-QUEEN-MATE',
     themeId: 'queen-mate',
     objective: 'WIN',
     playerColor: 'white',
@@ -28,9 +30,9 @@ function sampleResult(
     targetUserMoves: 10,
     attemptScore: 10,
     firstTheoreticalLoss: null,
-    startFen: '8/8/8/8/8/5k2/8/6KQ w - - 0 1',
-    endFen: '8/8/8/8/8/5k2/8/6KQ w - - 0 1',
-    moveSans: ['Qf7'],
+    startFen: '8/8/8/4k3/8/8/8/4K2Q w - - 0 1',
+    endFen: '8/8/8/4k3/8/8/8/4K2Q w - - 0 1',
+    moveSans: ['Qc6'],
     finishedAt: new Date().toISOString(),
     offScore: false,
     ...overrides,
@@ -76,7 +78,7 @@ describe('TheoreticalEndgameStore', () => {
     const storage = new MemoryKeyValueStorage();
     configureTheoreticalStoreStorage(storage);
     clearTheoreticalStoreCache();
-    await storage.setItem('anychess.theoreticalEndgame.v1', '{not-json');
+    await storage.setItem('anychess.theoreticalEndgame.v2', '{not-json');
     assert.equal(await getCatalogView(), 'cards');
   });
 
@@ -84,5 +86,81 @@ describe('TheoreticalEndgameStore', () => {
     await recordAttempt(sampleResult());
     const scores = await getAllThemeScores();
     assert.equal(scores['queen-mate']?.score, 10);
+  });
+
+  it('migrates v1 keeping catalogView and clearing legacy attempts', () => {
+    const migrated = migrateTheoreticalStore({
+      version: 1,
+      catalogView: 'list',
+      themeAttempts: {
+        'queen-mate': [
+          {
+            positionId: 'TE-001',
+            themeId: 'queen-mate',
+            outcome: 'success',
+            userMoves: 8,
+            targetUserMoves: 10,
+            attemptScore: 10,
+            finishedAt: '2026-01-01',
+          },
+        ],
+        'three-pawns': [],
+      },
+      lastPositionByTheme: { 'queen-mate': 'TE-001' },
+      bestByPosition: { 'TE-001': { userMoves: 8, attemptScore: 10 } },
+    });
+    assert.equal(migrated.version, 2);
+    assert.equal(migrated.catalogView, 'list');
+    assert.deepEqual(migrated.themeAttempts, {});
+    assert.deepEqual(migrated.lastPositionByTheme, {});
+    assert.deepEqual(migrated.bestByPosition, {});
+    assert.equal(migrated.migratedFromV1, true);
+  });
+
+  it('migration is idempotent', () => {
+    const once = migrateTheoreticalStore({
+      version: 1,
+      catalogView: 'list',
+      themeAttempts: {},
+      lastPositionByTheme: {},
+      bestByPosition: {},
+    });
+    const twice = migrateTheoreticalStore(once);
+    assert.equal(twice.catalogView, 'list');
+    assert.equal(twice.version, 2);
+  });
+
+  it('loads v1 key and writes v2 without AsyncStorage.clear', async () => {
+    const storage = new MemoryKeyValueStorage();
+    await storage.setItem(
+      'anychess.theoreticalEndgame.v1',
+      JSON.stringify({
+        version: 1,
+        catalogView: 'list',
+        themeAttempts: {
+          lucena: [
+            {
+              positionId: 'TE-037',
+              themeId: 'lucena',
+              outcome: 'success',
+              userMoves: 10,
+              targetUserMoves: 10,
+              attemptScore: 10,
+              finishedAt: '2026-01-01',
+            },
+          ],
+        },
+        lastPositionByTheme: { lucena: 'TE-037' },
+        bestByPosition: {},
+      }),
+    );
+    configureTheoreticalStoreStorage(storage);
+    clearTheoreticalStoreCache();
+    const store = await loadTheoreticalStore();
+    assert.equal(store.catalogView, 'list');
+    assert.equal(Object.keys(store.themeAttempts).length, 0);
+    const v2 = await storage.getItem('anychess.theoreticalEndgame.v2');
+    assert.ok(v2);
+    assert.equal(await getCatalogView(), 'list');
   });
 });

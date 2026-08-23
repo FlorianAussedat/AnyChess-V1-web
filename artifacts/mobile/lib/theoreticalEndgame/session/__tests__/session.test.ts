@@ -32,12 +32,18 @@ function samplePosition(
   return {
     id: 'TEST-TE-1',
     themeId: 'queen-mate',
-    initialFen: '8/8/8/8/8/5k2/8/6KQ w - - 0 1',
+    initialFen: '8/8/8/4k3/8/8/8/4K2Q w - - 0 1',
     playerColor: 'white',
     objective: 'WIN',
     completion: { type: 'CHECKMATE' },
     targetUserMoves: 10,
     certification: { type: 'SYZYGY', result: 'WIN' },
+    diagramOrientation: 'white',
+    active: true,
+    explanation: {
+      fr: { principle: '', seek: '', method: '', avoid: '' },
+      en: { principle: '', seek: '', method: '', avoid: '' },
+    },
     tags: ['test'],
     ...overrides,
   };

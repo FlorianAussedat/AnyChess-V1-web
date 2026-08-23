@@ -9,7 +9,6 @@ export const THEORETICAL_THEMES: readonly TheoreticalTheme[] = [
   { id: 'kp-vs-k', titleKey: 'KpVsK', category: 'pawn', iconKey: 'defendsNulle' },
   { id: 'pawn-race', titleKey: 'PawnRace', category: 'pawn', iconKey: 'defendsNulle' },
   { id: 'pawn-breakthrough', titleKey: 'PawnBreakthrough', category: 'pawn', iconKey: 'defendsNulle' },
-  { id: 'three-pawns', titleKey: 'ThreePawns', category: 'pawn', iconKey: 'defendsNulle' },
   { id: 'lucena', titleKey: 'Lucena', category: 'rook', iconKey: 'construisOuverture' },
   { id: 'philidor', titleKey: 'Philidor', category: 'rook', iconKey: 'construisOuverture' },
 ] as const;

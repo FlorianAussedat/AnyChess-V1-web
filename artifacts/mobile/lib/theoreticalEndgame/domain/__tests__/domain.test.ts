@@ -17,6 +17,7 @@ import {
   pickPositionInTheme,
   pickRandomFromActiveThemes,
   listByTheme,
+  listPool,
 } from '../../selection/selectors.ts';
 import { THEORETICAL_ENDGAME_POOL } from '../../data/pool.generated.ts';
 import { THEME_IDS } from '../themes.ts';
@@ -75,20 +76,24 @@ describe('theoretical result', () => {
 });
 
 describe('pool integrity', () => {
-  it('has 40-50 positions', () => {
-    assert.ok(THEORETICAL_ENDGAME_POOL.length >= 40);
-    assert.ok(THEORETICAL_ENDGAME_POOL.length <= 50);
+  it('has exactly 10 active positions', () => {
+    assert.equal(listPool().length, 10);
+    assert.equal(THEORETICAL_ENDGAME_POOL.length, 10);
   });
 
-  it('covers all mandatory themes', () => {
+  it('covers all mandatory themes once', () => {
     for (const id of THEME_IDS) {
-      assert.ok(listByTheme(id).length >= 4, id);
+      assert.equal(listByTheme(id).length, 1, id);
     }
   });
 
-  it('has unique ids', () => {
+  it('has unique ids and FENs', () => {
     const ids = new Set(THEORETICAL_ENDGAME_POOL.map((p) => p.id));
     assert.equal(ids.size, THEORETICAL_ENDGAME_POOL.length);
+    const fens = new Set(
+      THEORETICAL_ENDGAME_POOL.map((p) => p.initialFen.split(' ').slice(0, 4).join(' ')),
+    );
+    assert.equal(fens.size, THEORETICAL_ENDGAME_POOL.length);
   });
 
   it('majority WIN objectives', () => {
@@ -105,7 +110,7 @@ describe('pool integrity', () => {
 
 describe('fen transforms', () => {
   it('flipColors preserves legality for safe positions', () => {
-    const fen = '8/8/8/8/8/5k2/8/6KQ w - - 0 1';
+    const fen = '8/8/8/4k3/8/8/8/4K2Q w - - 0 1';
     assert.ok(isTransformSafe(fen));
     const flipped = flipColors(fen);
     assert.doesNotThrow(() => new Chess(flipped));
@@ -113,7 +118,7 @@ describe('fen transforms', () => {
   });
 
   it('mirrorHorizontal keeps legal FEN', () => {
-    const fen = '8/8/8/8/8/5k2/8/6KQ w - - 0 1';
+    const fen = '8/8/8/4k3/8/8/8/4K2Q w - - 0 1';
     const mirrored = mirrorHorizontal(fen);
     assert.doesNotThrow(() => new Chess(mirrored));
   });
@@ -124,13 +129,11 @@ describe('fen transforms', () => {
 });
 
 describe('selection', () => {
-  it('avoids immediate repeat in theme', () => {
+  it('replays same position when theme has one entry', () => {
     const themeId = 'queen-mate';
     const first = pickPositionInTheme(themeId, null)!;
     const second = pickPositionInTheme(themeId, first.id)!;
-    if (listByTheme(themeId).length > 1) {
-      assert.notEqual(first.id, second.id);
-    }
+    assert.equal(first.id, second.id);
   });
 
   it('random picks from non-mastered themes', () => {
