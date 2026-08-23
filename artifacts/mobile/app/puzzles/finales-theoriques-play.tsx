@@ -1,11 +1,10 @@
 /**
- * Play / result — Finales théoriques
+ * Play / result — Finales théoriques (shared Classic UI + overlays).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,11 +17,24 @@ import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
+import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
+import { ChessKeyboardToggle } from '@/components/game/ChessKeyboardToggle';
+import { GameMicButton } from '@/components/game/GameMicButton';
 import { BoardToolbar } from '@/components/BoardToolbar';
 import { AppButton } from '@/components/ui/AppButton';
+import { PositionReferenceBadge } from '@/components/exercise/PositionReferenceBadge';
+import {
+  ExerciseResultOverlayHost,
+  type ResultOverlayKind,
+} from '@/components/review/ExerciseResultOverlayHost';
 import { useColors } from '@/hooks/useColors';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useChessInputMode } from '@/hooks/useChessInputMode';
+import {
+  useExerciseBoardTouch,
+  useExerciseSpeechInput,
+} from '@/hooks/useExerciseChessInput';
 import { DesignTokens } from '@/constants/designTokens';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
@@ -35,19 +47,20 @@ import {
   getPositionById,
   getTheme,
   recordAttempt,
-  getThemeComprehension,
-  pickPositionInTheme,
-  getLastPositionId,
   formatComprehensionScore,
-  openTheoreticalInReader,
+  pickPositionInTheme,
   type SessionSnapshot,
 } from '@/lib/theoreticalEndgame';
+import { canOfferTheoreticalFinishGame } from '@/lib/theoreticalEndgame/domain/officialResultMessages';
+import type {
+  FinishGamePayload,
+  ReviewLaunchPayload,
+} from '@/lib/review/ReviewSessionRegistry';
+import type { MessageKey } from '@/lib/i18n';
 
 function boardFromFen(fen: string): (BoardPiece | null)[][] {
   return new Chess(fen).board() as (BoardPiece | null)[][];
 }
-
-import type { MessageKey } from '@/lib/i18n';
 
 function themeTitleKey(titleKey: string): MessageKey {
   return `quiz.theoreticalTheme${titleKey}` as MessageKey;
@@ -63,17 +76,18 @@ export default function TheoreticalEndgamePlayScreen() {
   const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const { inputMode, toggleChessInputMode, keypadActive } = useChessInputMode();
 
   const sessionRef = useRef(new TheoreticalEndgameSession());
   const [snap, setSnap] = useState<SessionSnapshot>(() => sessionRef.current.snapshot());
-  const [selected, setSelected] = useState<string | null>(null);
-  const [legalDests, setLegalDests] = useState<string[]>([]);
+  const [draftMove, setDraftMove] = useState('');
   const [busy, setBusy] = useState(false);
   const [positionMissing, setPositionMissing] = useState(false);
   const [positionReady, setPositionReady] = useState(false);
   const [scoreDelta, setScoreDelta] = useState<{ old: number; new: number; count: number } | null>(
     null,
   );
+  const [overlay, setOverlay] = useState<ResultOverlayKind>(null);
   const startedRef = useRef(false);
   const recordedRef = useRef(false);
 
@@ -86,14 +100,18 @@ export default function TheoreticalEndgamePlayScreen() {
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
-    return fitBoardSizeToViewport(wide, windowHeight, 300);
+    return fitBoardSizeToViewport(wide, windowHeight, 360);
   }, [windowWidth, windowHeight]);
 
   useEffect(() => {
     return () => {
       sessionRef.current.setAnalyzer(null);
       const cur = sessionRef.current.snapshot();
-      if (cur.phase === 'playing' || cur.phase === 'thinking' || cur.phase === 'verifying') {
+      if (
+        cur.phase === 'playing' ||
+        cur.phase === 'thinking' ||
+        cur.phase === 'verifying'
+      ) {
         sessionRef.current.abandon();
       }
     };
@@ -111,12 +129,11 @@ export default function TheoreticalEndgamePlayScreen() {
     setPositionMissing(false);
     recordedRef.current = false;
     setScoreDelta(null);
+    setOverlay(null);
   }, [positionId]);
 
   const refresh = useCallback((next: SessionSnapshot) => {
     setSnap(next);
-    setSelected(null);
-    setLegalDests([]);
   }, []);
 
   useEffect(() => {
@@ -142,7 +159,9 @@ export default function TheoreticalEndgamePlayScreen() {
     if (!snap.result || recordedRef.current) return;
     if (snap.result.outcome !== 'success' && snap.result.outcome !== 'theoretical-loss') return;
     recordedRef.current = true;
-    void recordAttempt(snap.result).then((d) => setScoreDelta({ old: d.oldScore, new: d.newScore, count: d.count }));
+    void recordAttempt(snap.result).then((d) =>
+      setScoreDelta({ old: d.oldScore, new: d.newScore, count: d.count }),
+    );
   }, [snap.result]);
 
   const confirmExit = () => {
@@ -167,12 +186,18 @@ export default function TheoreticalEndgamePlayScreen() {
     );
   };
 
-  const playUserMove = async (from: string, to: string) => {
+  const playUserMove = async (from: string, to: string, promotion?: string) => {
     if (busy || !engineReady) return;
-    if (snap.phase !== 'playing' && snap.phase !== 'off-score') return;
+    if (
+      snap.phase !== 'playing' &&
+      snap.phase !== 'off-score' &&
+      snap.phase !== 'finish-game'
+    ) {
+      return;
+    }
     setBusy(true);
     try {
-      refresh(await sessionRef.current.attemptMove(from, to));
+      refresh(await sessionRef.current.attemptMove(from, to, promotion ?? 'q'));
     } finally {
       setBusy(false);
     }
@@ -180,7 +205,13 @@ export default function TheoreticalEndgamePlayScreen() {
 
   const submitSan = async (raw: string) => {
     if (busy || !engineReady) return;
-    if (snap.phase !== 'playing' && snap.phase !== 'off-score') return;
+    if (
+      snap.phase !== 'playing' &&
+      snap.phase !== 'off-score' &&
+      snap.phase !== 'finish-game'
+    ) {
+      return;
+    }
     setBusy(true);
     try {
       refresh(await sessionRef.current.answerSan(raw));
@@ -189,35 +220,30 @@ export default function TheoreticalEndgamePlayScreen() {
     }
   };
 
-  const onSquarePress = (square: string) => {
-    if (busy || !engineReady) return;
-    if (snap.phase !== 'playing' && snap.phase !== 'off-score') return;
-    if (selected === null) {
-      const dests = sessionRef.current.getLegalDestinations(square);
-      if (dests.length > 0) {
-        setSelected(square);
-        setLegalDests(dests);
-      }
-      return;
-    }
-    if (square === selected) {
-      setSelected(null);
-      setLegalDests([]);
-      return;
-    }
-    if (legalDests.includes(square)) {
-      void playUserMove(selected, square);
-      return;
-    }
-    const dests = sessionRef.current.getLegalDestinations(square);
-    if (dests.length > 0) {
-      setSelected(square);
-      setLegalDests(dests);
-    } else {
-      setSelected(null);
-      setLegalDests([]);
-    }
-  };
+  const thinking =
+    busy ||
+    snap.phase === 'thinking' ||
+    snap.phase === 'verifying' ||
+    engineSnap.status === 'thinking';
+
+  const canMove =
+    engineReady &&
+    !thinking &&
+    (snap.phase === 'playing' ||
+      snap.phase === 'off-score' ||
+      snap.phase === 'finish-game');
+
+  const { touchSelected, legalDests, onSquarePress } = useExerciseBoardTouch({
+    canAct: canMove,
+    getLegalDestinations: (from) => sessionRef.current.getLegalDestinations(from),
+    onMove: playUserMove,
+    onSan: submitSan,
+  });
+
+  const speech = useExerciseSpeechInput({
+    enabled: inputMode === 'classic' && canMove,
+    onSan: submitSan,
+  });
 
   const theme = snap.position ? getTheme(snap.position.themeId) : null;
   const themeTitle = theme ? t(themeTitleKey(theme.titleKey)) : '';
@@ -226,16 +252,57 @@ export default function TheoreticalEndgamePlayScreen() {
       ? t('quiz.theoreticalObjectiveWin')
       : t('quiz.theoreticalObjectiveDraw');
 
-  const thinking =
-    busy || snap.phase === 'thinking' || snap.phase === 'verifying' || engineSnap.status === 'thinking';
-  const canMove =
-    engineReady && !thinking && (snap.phase === 'playing' || snap.phase === 'off-score');
   const showResult = snap.phase === 'success' || snap.phase === 'theoretical-loss';
   const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
+
+  const gameOver = useMemo(() => {
+    try {
+      return new Chess(snap.fen).isGameOver();
+    } catch {
+      return true;
+    }
+  }, [snap.fen]);
+
+  const showFinishGame =
+    showResult &&
+    !snap.finishGameActive &&
+    canOfferTheoreticalFinishGame({
+      scoreLocked: snap.scoreLocked,
+      gameOver,
+      finishGameActive: snap.finishGameActive,
+      phase: snap.phase,
+    });
+
+  const analysisPayload: ReviewLaunchPayload | null = useMemo(() => {
+    if (!snap.result || !snap.position) return null;
+    return {
+      mode: 'theoretical',
+      startFen: snap.result.startFen,
+      orientation: snap.position.playerColor,
+      moveSans: snap.result.moveSans,
+      timeline: [],
+      positionId: snap.position.id,
+      themeId: snap.position.themeId,
+      objective: snap.position.objective,
+    };
+  }, [snap.result, snap.position]);
+
+  const finishPayload: FinishGamePayload | null = useMemo(() => {
+    if (!snap.result || !snap.position) return null;
+    return {
+      fen: snap.fen,
+      orientation: snap.position.playerColor,
+      moveSans: snap.moveSans,
+      lockedOutcome: snap.result.outcome,
+      positionId: snap.position.id,
+      mode: 'theoretical',
+    };
+  }, [snap.result, snap.position, snap.fen, snap.moveSans]);
 
   const handleRetry = async () => {
     recordedRef.current = false;
     setScoreDelta(null);
+    setOverlay(null);
     setBusy(true);
     try {
       refresh(await sessionRef.current.retry());
@@ -247,27 +314,17 @@ export default function TheoreticalEndgamePlayScreen() {
   const handleNext = async () => {
     const tid = (themeId ?? snap.position?.themeId) as import('@/lib/theoreticalEndgame').TheoreticalThemeId;
     if (!tid) return;
-    const last = await getLastPositionId(tid);
-    const next = pickPositionInTheme(tid, last);
-    if (!next) return;
+    const next = pickPositionInTheme(tid, snap.position?.id ?? null);
+    if (!next) {
+      router.replace('/puzzles/finales-theoriques' as Href);
+      return;
+    }
     recordedRef.current = false;
     setScoreDelta(null);
     startedRef.current = false;
     router.replace(
       `/puzzles/finales-theoriques-play?positionId=${encodeURIComponent(next.id)}&themeId=${encodeURIComponent(tid)}` as Href,
     );
-  };
-
-  const handleAnalyse = async () => {
-    if (!snap.result) return;
-    await openTheoreticalInReader({
-      result: snap.result,
-      routerPush: (href) => router.push(href as Href),
-    });
-  };
-
-  const handleContinueOffScore = () => {
-    refresh(sessionRef.current.continueOffScore());
   };
 
   if (positionMissing) {
@@ -308,139 +365,232 @@ export default function TheoreticalEndgamePlayScreen() {
   }
 
   return (
-    <ChessScreenScaffold
-      title={themeTitle}
-      subtitle={objectiveLabel}
-      onBack={confirmExit}
-      testID="theoretical-endgame-play"
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        {snap.offScore && (
-          <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
-            {t('quiz.theoreticalOffScore')}
-          </Text>
-        )}
+    <>
+      <ChessScreenScaffold
+        title={themeTitle}
+        subtitle={objectiveLabel}
+        onBack={confirmExit}
+        testID="theoretical-endgame-play"
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+        >
+          {snap.position && !showResult && (
+            <PositionReferenceBadge id={snap.position.id} />
+          )}
 
-        <Text style={{ color: colors.mutedForeground, fontSize: 13 }} testID="theoretical-move-count">
-          {t('quiz.theoreticalMovesPlayed', { count: snap.userMoves, target: snap.targetUserMoves })}
-        </Text>
-
-        <ChessBoardSection boardSize={boardSize} style={{ alignSelf: 'center' }}>
-          <BoardToolbar
-            label={
-              snap.playerColor === 'w'
-                ? t('puzzle.youPlayWhite')
-                : t('puzzle.youPlayBlack')
-            }
-            showCoordinates={showCoordinates}
-            onToggleCoordinates={() => void toggleCoordinates()}
-          />
-          <ChessBoard
-            board={board}
-            lastMove={snap.lastMove as LastMove | null}
-            isFlipped={snap.playerColor === 'b'}
-            selectedSquare={selected}
-            legalDots={legalDests}
-            onSquarePress={onSquarePress}
-            showCoordinates={showCoordinates}
-            sizeMode="wide"
-            size={boardSize}
-          />
-        </ChessBoardSection>
-
-        <EndgameEngineStatusBanner
-          snapshot={engineSnap}
-          onRetry={() => void retryEngine()}
-          onBack={confirmExit}
-        />
-
-        {thinking && engineReady && (
-          <View style={styles.busyRow}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={{ color: colors.mutedForeground }}>
-              {snap.phase === 'verifying'
-                ? t('quiz.theoreticalVerifying')
-                : t('quiz.defendsNulleReflecting')}
+          {snap.finishGameActive && (
+            <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
+              Finir la partie
             </Text>
-          </View>
-        )}
+          )}
 
-        {!!snap.lastFeedback && (
-          <Text
-            style={{
-              color:
-                snap.phase === 'theoretical-loss'
-                  ? '#c44'
-                  : snap.phase === 'success'
-                    ? '#398a55'
-                    : colors.foreground,
-              fontFamily: DesignTokens.typography.weightSemiBold,
-            }}
-          >
-            {snap.lastFeedback}
+          <Text style={{ color: colors.mutedForeground, fontSize: 13 }} testID="theoretical-move-count">
+            {t('quiz.theoreticalMovesPlayed', { count: snap.userMoves, target: snap.targetUserMoves })}
           </Text>
-        )}
 
-        {canMove && (
-          <ChessMoveInput
-            inputType="chess-move"
-            fen={snap.fen}
-            onSubmit={(raw) => void submitSan(raw)}
-            enabled
-            autoSubmit
-            testID="theoretical-move-input"
-          />
-        )}
-
-        {showResult && snap.result && (
-          <View style={styles.result} testID="theoretical-result">
-            {snap.result.firstTheoreticalLoss && (
-              <Text style={{ color: colors.foreground }}>
-                {snap.result.firstTheoreticalLoss.message}
-              </Text>
-            )}
-
-            {scoreDelta && (
-              <View style={styles.statsBox}>
-                <Text style={{ color: colors.mutedForeground }}>
-                  {t('quiz.theoreticalScoreOld', { score: formatComprehensionScore(scoreDelta.old) })}
-                </Text>
-                <Text style={{ color: colors.foreground }}>
-                  {t('quiz.theoreticalScoreNew', { score: formatComprehensionScore(scoreDelta.new) })}
-                </Text>
-                {scoreDelta.count < 10 && (
-                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-                    {t('quiz.theoreticalScoreAttempts', { count: scoreDelta.count })}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            <AppButton label={t('quiz.theoreticalAnalyse')} onPress={() => void handleAnalyse()} />
-            <AppButton label={t('quiz.theoreticalRetry')} onPress={() => void handleRetry()} variant="secondary" />
-            <AppButton label={t('quiz.theoreticalNext')} onPress={() => void handleNext()} variant="secondary" />
-    {(snap.phase === 'theoretical-loss') && !snap.offScore && (
-              <AppButton
-                label={t('quiz.theoreticalContinueOffScore')}
-                onPress={handleContinueOffScore}
-                variant="secondary"
+          <ChessBoardSection
+            boardSize={boardSize}
+            style={{ gap: 8, alignSelf: 'center' }}
+            toolbar={
+              <BoardToolbar
+                label={
+                  snap.playerColor === 'w'
+                    ? t('puzzle.youPlayWhite')
+                    : t('puzzle.youPlayBlack')
+                }
+                showCoordinates={showCoordinates}
+                onToggleCoordinates={() => void toggleCoordinates()}
               />
-            )}
-            <AppButton
-              label={t('quiz.theoreticalBackThemes')}
-              onPress={() => router.replace('/puzzles/finales-theoriques' as Href)}
-              variant="secondary"
+            }
+            testID="theoretical-board"
+          >
+            <ChessBoard
+              board={board}
+              lastMove={snap.lastMove as LastMove | null}
+              isFlipped={snap.playerColor === 'b'}
+              selectedSquare={touchSelected}
+              legalDots={legalDests}
+              onSquarePress={onSquarePress}
+              showCoordinates={showCoordinates}
+              sizeMode="wide"
+              size={boardSize}
             />
-          </View>
-        )}
-      </ScrollView>
-    </ChessScreenScaffold>
+          </ChessBoardSection>
+
+          <EndgameEngineStatusBanner
+            snapshot={engineSnap}
+            onRetry={() => void retryEngine()}
+            onBack={confirmExit}
+          />
+
+          {thinking && engineReady && (
+            <View style={styles.busyRow}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={{ color: colors.mutedForeground }}>
+                {snap.phase === 'verifying'
+                  ? t('quiz.theoreticalVerifying')
+                  : t('quiz.defendsNulleReflecting')}
+              </Text>
+            </View>
+          )}
+
+          {!!snap.lastFeedback && !showResult && (
+            <Text
+              style={{
+                color:
+                  snap.phase === 'theoretical-loss'
+                    ? '#c44'
+                    : snap.phase === 'success'
+                      ? '#398a55'
+                      : colors.foreground,
+                fontFamily: DesignTokens.typography.weightSemiBold,
+              }}
+              testID="theoretical-feedback"
+            >
+              {snap.lastFeedback}
+            </Text>
+          )}
+
+          {canMove && (
+            <View style={styles.inputBlock}>
+              {inputMode === 'classic' && (
+                <GameMicButton
+                  showRecognized={speech.showRecognized}
+                  isListening={speech.listening}
+                  micActive={speech.micActive}
+                  onToggle={() => speech.toggleListening()}
+                  testID="theoretical-mic"
+                />
+              )}
+              <ChessKeyboardToggle
+                variant="classic"
+                active={keypadActive}
+                onToggle={() => void toggleChessInputMode()}
+              />
+              {keypadActive ? (
+                <ChessMoveKeypad
+                  fen={snap.fen}
+                  value={draftMove}
+                  onChangeText={setDraftMove}
+                  onSubmit={(raw) => {
+                    setDraftMove('');
+                    void submitSan(raw);
+                  }}
+                  testID="theoretical-move-keypad"
+                />
+              ) : (
+                <ChessMoveInput
+                  inputType="chess-move"
+                  fen={snap.fen}
+                  onSubmit={(raw) => void submitSan(raw)}
+                  enabled
+                  autoSubmit
+                  testID="theoretical-move-input"
+                />
+              )}
+            </View>
+          )}
+
+          {showResult && snap.result && (
+            <View style={styles.result} testID="theoretical-result">
+              {snap.position && (
+                <PositionReferenceBadge id={snap.position.id} />
+              )}
+
+              <Text
+                style={{
+                  color: snap.phase === 'theoretical-loss' ? '#c44' : '#398a55',
+                  fontFamily: DesignTokens.typography.weightSemiBold,
+                  textAlign: 'center',
+                }}
+                testID="theoretical-official-result"
+              >
+                {snap.result.officialResultMessage ??
+                  snap.officialResultMessage ??
+                  snap.lastFeedback}
+              </Text>
+
+              {snap.result.firstTheoreticalLoss && snap.phase === 'theoretical-loss' && (
+                <Text style={{ color: colors.foreground }}>
+                  {snap.result.firstTheoreticalLoss.message}
+                </Text>
+              )}
+
+              {scoreDelta && (
+                <View style={styles.statsBox}>
+                  <Text style={{ color: colors.mutedForeground }}>
+                    {t('quiz.theoreticalScoreOld', { score: formatComprehensionScore(scoreDelta.old) })}
+                  </Text>
+                  <Text style={{ color: colors.foreground }}>
+                    {t('quiz.theoreticalScoreNew', { score: formatComprehensionScore(scoreDelta.new) })}
+                  </Text>
+                  {scoreDelta.count < 10 && (
+                    <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                      {t('quiz.theoreticalScoreAttempts', { count: scoreDelta.count })}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              <AppButton
+                label={t('quiz.theoreticalAnalyse')}
+                onPress={() => setOverlay('analysis')}
+                testID="theoretical-analyse"
+              />
+              <AppButton
+                label={t('quiz.theoreticalRetry')}
+                onPress={() => void handleRetry()}
+                variant="secondary"
+                testID="theoretical-retry"
+              />
+
+              {showFinishGame && (
+                <AppButton
+                  label="Finir la partie"
+                  onPress={() => setOverlay('finish-game')}
+                  variant="secondary"
+                  testID="theoretical-finish-game"
+                />
+              )}
+
+              <AppButton
+                label={t('quiz.theoreticalNext')}
+                onPress={() => void handleNext()}
+                testID="theoretical-next"
+              />
+
+              <AppButton
+                label={t('quiz.theoreticalBackThemes')}
+                onPress={() => router.replace('/puzzles/finales-theoriques' as Href)}
+                variant="secondary"
+                testID="theoretical-back-themes"
+              />
+            </View>
+          )}
+        </ScrollView>
+      </ChessScreenScaffold>
+
+      <ExerciseResultOverlayHost
+        overlay={overlay}
+        analysisPayload={analysisPayload}
+        finishPayload={finishPayload}
+        onCloseOverlay={() => setOverlay(null)}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { gap: DesignTokens.spacing.md, paddingBottom: DesignTokens.spacing.xl },
+  scroll: {
+    gap: DesignTokens.spacing.md,
+    paddingBottom: DesignTokens.spacing.xl,
+    alignItems: 'stretch',
+  },
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  inputBlock: { gap: DesignTokens.spacing.sm, alignItems: 'center' },
   result: { gap: DesignTokens.spacing.sm },
   statsBox: { gap: 2 },
   missingBox: { gap: DesignTokens.spacing.md, paddingVertical: DesignTokens.spacing.lg },

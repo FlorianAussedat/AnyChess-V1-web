@@ -107,7 +107,7 @@ describe('TheoreticalEndgameSession', () => {
     assert.equal(snap.result?.outcome, 'abandoned');
   });
 
-  it('continueOffScore keeps score locked', async () => {
+  it('enterFinishGame keeps score locked', async () => {
     const pos = samplePosition({
       initialFen: '8/8/8/8/8/5k2/8/6KQ w - - 0 1',
     });
@@ -127,9 +127,9 @@ describe('TheoreticalEndgameSession', () => {
     const g = new Chess(pos.initialFen);
     const m = g.moves({ verbose: true })[0]!;
     await session.attemptMove(m.from, m.to, m.promotion ?? 'q');
-    const off = session.continueOffScore();
-    assert.equal(off.offScore, true);
-    assert.equal(off.phase, 'off-score');
+    const off = session.enterFinishGameSync();
+    assert.equal(off.finishGameActive, true);
+    assert.equal(off.phase, 'finish-game');
     assert.equal(off.scoreLocked, true);
   });
 });

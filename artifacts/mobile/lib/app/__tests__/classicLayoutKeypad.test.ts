@@ -37,8 +37,8 @@ describe('Classic single input-mode toggle', () => {
 
   it('toggle switches classic ↔ keypad and preserves draft intent', () => {
     const classic = read('components/ClassicGameScreen.tsx');
-    assert.match(classic, /setInputMode/);
-    assert.match(classic, /mode === 'classic' \? 'keypad' : 'classic'/);
+    assert.match(classic, /setChessInputMode/);
+    assert.match(classic, /inputMode === 'classic' \? 'keypad' : 'classic'/);
   });
 });
 

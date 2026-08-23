@@ -41,7 +41,9 @@ export {
   listPool,
   getPositionById,
   pickNewPosition,
+  pickNewPositionAvoiding,
   pickTryAgainPosition,
+  pickTryAgainPositionAvoiding,
   isRuntimePoolEmpty,
 } from './selection/selectors.ts';
 export { ENDGAME_TRAINING_POOL } from './data/pool.generated.ts';

@@ -13,6 +13,7 @@ export {
 export type {
   AppLanguage,
   ChessNotation,
+  ChessInputMode,
   DictationPace,
   UserPreferences,
   UserPreferencesPatch,

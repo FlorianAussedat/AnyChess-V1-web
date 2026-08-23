@@ -59,5 +59,6 @@ export function usePreferences() {
     dictationPace: preferences.dictationPace,
     visualProblemDifficulty: preferences.visualProblemDifficulty,
     blindProblemDifficulty: preferences.blindProblemDifficulty,
+    chessInputMode: preferences.chessInputMode,
   };
 }

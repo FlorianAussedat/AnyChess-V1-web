@@ -30,7 +30,13 @@ import {
   type EvaluationPoint,
 } from '../domain/types.ts';
 import { chooseOpponentMove } from '../engine/PracticalPressurePolicy.ts';
+import { chooseStrictBestMove } from '../../engines/policies/StrictBestPolicy.ts';
 import { verifyLoss, LOSS_CONFIRM_THINK_MS } from '../engine/LossVerifier.ts';
+import { officialResultMessage } from '../domain/officialResultMessages.ts';
+import {
+  findDrawAlternatives,
+  type DrawAlternativesResult,
+} from '../domain/drawAlternatives.ts';
 
 export type SessionPhase =
   | 'idle'
@@ -42,6 +48,7 @@ export type SessionPhase =
   | 'lost'
   | 'abandoned'
   | 'off-score'
+  | 'finish-game'
   | 'engine-error';
 
 export type SessionSnapshot = {
@@ -63,6 +70,8 @@ export type SessionSnapshot = {
   timeline: EvaluationPoint[];
   moveSans: string[];
   canOfferActions: boolean;
+  finishGameActive: boolean;
+  officialResultMessage: string | null;
 };
 
 export type SessionOptions = {
@@ -84,6 +93,9 @@ export class EndgameTrainingSession {
   private mateIn: number | null = null;
   private result: AttemptResult | null = null;
   private officialDrawReason: AttemptResult['officialDrawReason'];
+  private finishGameMode = false;
+  private fenBeforeLastMove: string | null = null;
+  private pendingDrawAlternatives: DrawAlternativesResult | null = null;
 
   constructor(options: SessionOptions = {}) {
     this.analyzer = options.analyzer ?? null;
@@ -115,6 +127,9 @@ export class EndgameTrainingSession {
     this.mateIn = null;
     this.result = null;
     this.officialDrawReason = undefined;
+    this.finishGameMode = false;
+    this.fenBeforeLastMove = null;
+    this.pendingDrawAlternatives = null;
     return this.snapshot();
   }
 
@@ -132,16 +147,72 @@ export class EndgameTrainingSession {
     return this.snapshot();
   }
 
+  /** @deprecated use enterFinishGame */
   continueOffScore(): SessionSnapshot {
+    return this.enterFinishGameSync();
+  }
+
+  /** Enter « Finir la partie » — strict-best, no scoring, from exact FEN. */
+  enterFinishGameSync(): SessionSnapshot {
     if (!this.counter.scoreLocked) return this.snapshot();
     this.counter = enterOffScore(this.counter);
-    this.phase = 'off-score';
-    this.lastFeedback = 'Suite hors score';
+    this.finishGameMode = true;
+    this.phase = 'finish-game';
+    this.lastFeedback = null;
     return this.snapshot();
   }
 
+  async enterFinishGame(): Promise<SessionSnapshot> {
+    const snap = this.enterFinishGameSync();
+    if (!this.position) return snap;
+    const defender = defenderToSide(this.position.defender);
+    if (this.game.turn() !== defender && !this.game.isGameOver()) {
+      await this.playOpponent();
+    }
+    return this.snapshot();
+  }
+
+  /**
+   * Resume « Finir la partie » from the exact post-score FEN (not start position).
+   */
+  async startFinishGameFromState(input: {
+    position: EndgameTrainingPosition;
+    fen: string;
+    moveSans: string[];
+    movesResisted: number;
+    lockedOutcome: import('../domain/types.ts').AttemptOutcome;
+  }): Promise<SessionSnapshot> {
+    this.position = input.position;
+    this.startFen = input.position.fen;
+    this.game = new Chess(input.fen);
+    this.moveSans = [...input.moveSans];
+    this.timeline = [];
+    this.lastMove = null;
+    this.lastFeedback = null;
+    this.evalCp = 0;
+    this.mateIn = null;
+    this.officialDrawReason = undefined;
+    this.pendingDrawAlternatives = null;
+    this.counter = {
+      movesResisted: input.movesResisted,
+      outcome: input.lockedOutcome,
+      scoreLocked: true,
+      offScore: false,
+    };
+    this.result = this.buildResult();
+    this.finishGameMode = true;
+    this.phase = 'finish-game';
+    return this.enterFinishGame();
+  }
+
   getLegalDestinations(from: string): string[] {
-    if (this.phase !== 'playing' && this.phase !== 'off-score') return [];
+    if (
+      this.phase !== 'playing' &&
+      this.phase !== 'off-score' &&
+      this.phase !== 'finish-game'
+    ) {
+      return [];
+    }
     return this.game
       .moves({ square: from as Square, verbose: true })
       .map((m) => m.to);
@@ -153,13 +224,17 @@ export class EndgameTrainingSession {
     promotion: string = 'q',
   ): Promise<SessionSnapshot> {
     if (
-      (this.phase !== 'playing' && this.phase !== 'off-score') ||
+      (this.phase !== 'playing' &&
+        this.phase !== 'off-score' &&
+        this.phase !== 'finish-game') ||
       !this.position
     ) {
       return this.snapshot();
     }
     const defender = defenderToSide(this.position.defender);
     if (this.game.turn() !== defender) return this.snapshot();
+
+    this.fenBeforeLastMove = this.game.fen();
 
     let played: Move | null = null;
     try {
@@ -216,7 +291,10 @@ export class EndgameTrainingSession {
     this.mateIn = norm.mateIn;
 
     // Score / loss logic only when not already locked off-score from a prior win
-    if (!this.counter.scoreLocked || this.counter.outcome === 'in-progress') {
+    if (
+      !this.counter.scoreLocked ||
+      this.counter.outcome === 'in-progress'
+    ) {
       if (crossesLossThreshold(norm.scoreCp) || (norm.mateIn != null && norm.mateIn < 0)) {
         this.phase = 'verifying-loss';
         let confirmation: DefenseAnalysis | null = null;
@@ -251,8 +329,36 @@ export class EndgameTrainingSession {
           this.pushTimeline(played.san);
           this.counter = registerConfirmedLoss(this.counter);
           this.phase = 'lost';
-          this.result = this.buildResult();
-          this.lastFeedback = `Tu as résisté ${this.counter.movesResisted} coups`;
+          this.result = this.buildResult({
+            fenBeforeLoss: this.fenBeforeLastMove ?? undefined,
+            losingSan: played.san,
+            evalBeforeCp: this.timeline[this.timeline.length - 1]?.scoreCp,
+            evalAfterCp: verdict.confirmedScoreCp,
+          });
+          if (this.analyzer && this.fenBeforeLastMove) {
+            try {
+              this.pendingDrawAlternatives = await findDrawAlternatives({
+                fenBeforeLoss: this.fenBeforeLastMove,
+                losingSan: played.san,
+                evalBeforeCp:
+                  this.timeline[this.timeline.length - 1]?.scoreCp ?? 0,
+                evalAfterCp: verdict.confirmedScoreCp,
+                defender: this.position.defender,
+                analyzer: this.analyzer,
+              });
+              this.result = this.buildResult({
+                fenBeforeLoss: this.fenBeforeLastMove,
+                losingSan: played.san,
+                evalBeforeCp:
+                  this.timeline[this.timeline.length - 1]?.scoreCp ?? 0,
+                evalAfterCp: verdict.confirmedScoreCp,
+                drawAlternatives: this.pendingDrawAlternatives,
+              });
+            } catch {
+              /* alternatives optional */
+            }
+          }
+          this.lastFeedback = this.result.officialResultMessage ?? `Tu as résisté ${this.counter.movesResisted} coups`;
           return this.snapshot();
         }
         // Recovered — use confirmation eval
@@ -275,7 +381,9 @@ export class EndgameTrainingSession {
       if (this.counter.outcome === 'win-30-moves') {
         this.phase = 'won-30';
         this.result = this.buildResult();
-        this.lastFeedback = 'Finale défendue !\nTu as résisté 30 coups.';
+        this.lastFeedback =
+          this.result.officialResultMessage ??
+          'Finale défendue !\nTu as résisté 30 coups.';
         return this.snapshot();
       }
     } else {
@@ -336,38 +444,57 @@ export class EndgameTrainingSession {
     reg: NonNullable<ReturnType<typeof evaluateRegulatoryEnd>>,
     san: string,
   ): SessionSnapshot {
+    const player = this.position!.defender;
     if (reg.kind === 'checkmate') {
-      const defender = defenderToSide(this.position!.defender);
+      const defender = defenderToSide(player);
       if (reg.winner === defender) {
-        // Player somehow checkmated — treat as official success (draw objective allows win)
         this.pushTimelinePoint(san);
         if (!this.counter.scoreLocked) {
           this.counter = registerOfficialDraw(this.counter);
         }
-        this.phase = 'won-draw';
+        this.phase = this.finishGameMode ? 'finish-game' : 'won-draw';
         this.officialDrawReason = undefined;
-        this.result = this.buildResult();
-        this.lastFeedback = 'Mat ! Finale défendue.';
+        this.result = this.buildResult({ checkmateWinner: reg.winner });
+        this.lastFeedback =
+          this.result.officialResultMessage ?? 'Mat ! Finale défendue.';
       } else {
         this.pushTimelinePoint(san);
-        this.counter = registerConfirmedLoss(this.counter);
-        this.phase = 'lost';
-        this.result = this.buildResult();
-        this.lastFeedback = `Tu as résisté ${this.counter.movesResisted} coups`;
+        if (!this.finishGameMode) {
+          this.counter = registerConfirmedLoss(this.counter);
+          this.phase = 'lost';
+        } else {
+          this.phase = 'finish-game';
+        }
+        this.result = this.buildResult({ checkmateWinner: reg.winner });
+        this.lastFeedback =
+          this.result.officialResultMessage ??
+          `Tu as résisté ${this.counter.movesResisted} coups`;
       }
       return this.snapshot();
     }
 
     // Official draw
     this.pushTimelinePoint(san);
-    if (!this.counter.scoreLocked || this.counter.outcome === 'in-progress') {
-      this.counter = registerSafePlayerMove(this.counter);
-      this.counter = registerOfficialDraw(this.counter);
+    if (!this.finishGameMode) {
+      if (!this.counter.scoreLocked || this.counter.outcome === 'in-progress') {
+        this.counter = registerSafePlayerMove(this.counter);
+        this.counter = registerOfficialDraw(this.counter);
+      }
+      this.officialDrawReason = reg.reason;
+      this.phase = 'won-draw';
+      this.result = this.buildResult();
+      this.lastFeedback =
+        this.result.officialResultMessage ?? 'Nulle ! Finale défendue.';
+    } else {
+      this.officialDrawReason = reg.reason;
+      this.phase = 'finish-game';
+      this.lastFeedback =
+        officialResultMessage({
+          outcome: 'win-official-draw',
+          playerColor: player,
+          officialDrawReason: reg.reason,
+        }) ?? 'Nulle !';
     }
-    this.officialDrawReason = reg.reason;
-    this.phase = 'won-draw';
-    this.result = this.buildResult();
-    this.lastFeedback = 'Nulle ! Finale défendue.';
     return this.snapshot();
   }
 
@@ -402,18 +529,21 @@ export class EndgameTrainingSession {
     }
 
     this.phase = 'thinking';
+    const thinkMs = this.finishGameMode
+      ? 1000
+      : ENDGAME_TRAINING_CONFIG.opponentThinkMs;
     let analysis: DefenseAnalysis;
     try {
       if (this.analyzer.analyzePosition) {
         analysis = await this.analyzer.analyzePosition({
           fen: this.game.fen(),
-          movetimeMs: ENDGAME_TRAINING_CONFIG.opponentThinkMs,
-          multiPv: ENDGAME_TRAINING_CONFIG.multiPv,
+          movetimeMs: thinkMs,
+          multiPv: this.finishGameMode ? 1 : ENDGAME_TRAINING_CONFIG.multiPv,
         });
       } else {
         analysis = await this.analyzer.analyze(
           this.game.fen(),
-          ENDGAME_TRAINING_CONFIG.opponentThinkMs,
+          thinkMs,
         );
       }
     } catch {
@@ -422,7 +552,9 @@ export class EndgameTrainingSession {
       return;
     }
 
-    const pick = chooseOpponentMove(this.game.fen(), analysis);
+    const pick = this.finishGameMode
+      ? chooseStrictBestMove(analysis)
+      : chooseOpponentMove(this.game.fen(), analysis);
     if (!pick) {
       this.phase = this.counter.offScore ? 'off-score' : 'playing';
       return;
@@ -467,7 +599,8 @@ export class EndgameTrainingSession {
       /* keep previous */
     }
 
-    if (this.counter.offScore) this.phase = 'off-score';
+    if (this.finishGameMode) this.phase = 'finish-game';
+    else if (this.counter.offScore) this.phase = 'off-score';
     else if (this.counter.outcome === 'win-30-moves') this.phase = 'won-30';
     else if (this.counter.outcome === 'win-official-draw') this.phase = 'won-draw';
     else if (this.counter.outcome === 'loss') this.phase = 'lost';
@@ -477,7 +610,14 @@ export class EndgameTrainingSession {
     }
   }
 
-  private buildResult(): AttemptResult {
+  private buildResult(extra?: {
+    fenBeforeLoss?: string;
+    losingSan?: string;
+    evalBeforeCp?: number;
+    evalAfterCp?: number;
+    drawAlternatives?: DrawAlternativesResult | null;
+    checkmateWinner?: 'w' | 'b';
+  }): AttemptResult {
     const pos = this.position;
     const result = buildAttemptResult({
       state: this.counter,
@@ -497,8 +637,31 @@ export class EndgameTrainingSession {
           }
         : undefined,
     });
+
+    result.officialResultMessage = officialResultMessage({
+      outcome: result.outcome,
+      playerColor: pos?.defender ?? 'white',
+      officialDrawReason: result.officialDrawReason,
+      checkmateWinner: extra?.checkmateWinner,
+    });
+
+    if (extra?.fenBeforeLoss) result.fenBeforeLoss = extra.fenBeforeLoss;
+    if (extra?.losingSan) result.losingSan = extra.losingSan;
+    if (extra?.evalBeforeCp != null) result.evalBeforeLossCp = extra.evalBeforeCp;
+    if (extra?.evalAfterCp != null) result.evalAfterLossCp = extra.evalAfterCp;
+
+    if (extra?.drawAlternatives?.reliable) {
+      result.drawAlternatives = extra.drawAlternatives.alternatives.map((a) => ({
+        san: a.san,
+        scoreCp: a.scoreCp,
+      }));
+      result.drawAlternativesHasMore = extra.drawAlternatives.hasMoreAlternatives;
+      result.drawAlternativesReliable = true;
+    } else if (result.outcome === 'loss') {
+      result.drawAlternativesReliable = false;
+    }
+
     if (result.outcome === 'loss' && !result.firstMajorTurn) {
-      // attach progressive message via firstMajorTurn null — UI uses helper
       result.firstMajorTurn = null;
     }
     return result;
@@ -537,6 +700,8 @@ export class EndgameTrainingSession {
         this.phase === 'lost' ||
         this.phase === 'won-30' ||
         this.phase === 'won-draw',
+      finishGameActive: this.finishGameMode,
+      officialResultMessage: this.result?.officialResultMessage ?? null,
     };
   }
 

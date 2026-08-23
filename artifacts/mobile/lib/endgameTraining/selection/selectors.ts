@@ -52,3 +52,33 @@ export function pickTryAgainPosition(
   if (available.length === 0) return null;
   return available[Math.floor(rng() * available.length)]!;
 }
+
+/** Pick another pool position, avoiding immediate repeat when possible. */
+export function pickNewPositionAvoiding(
+  finishedIds: Set<string>,
+  avoidId: string | null,
+  recentFamilies: string[] = [],
+  recentSignatures: string[] = [],
+  rng: () => number = Math.random,
+): EndgameTrainingPosition | null {
+  const picked = pickNewPosition(finishedIds, recentFamilies, recentSignatures, rng);
+  if (!picked || !avoidId || picked.id !== avoidId) return picked;
+  const alt = pickNewPosition(finishedIds, recentFamilies, recentSignatures, rng);
+  return alt?.id === avoidId ? picked : alt;
+}
+
+export function pickTryAgainPositionAvoiding(
+  tryAgainIds: string[],
+  avoidId: string | null,
+  rng: () => number = Math.random,
+): EndgameTrainingPosition | null {
+  const available = tryAgainIds
+    .map((id) => getPositionById(id))
+    .filter((p): p is EndgameTrainingPosition => !!p);
+  const pool =
+    avoidId && available.length > 1
+      ? available.filter((p) => p.id !== avoidId)
+      : available;
+  if (pool.length === 0) return null;
+  return pool[Math.floor(rng() * pool.length)]!;
+}

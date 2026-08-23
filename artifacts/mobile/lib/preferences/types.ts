@@ -12,6 +12,8 @@ export const USER_PREFERENCES_DOCUMENT_VERSION = 1 as const;
 
 export type AppLanguage = 'fr' | 'en';
 export type ChessNotation = 'fr' | 'en';
+/** Shared Classic / endgame input UI mode. */
+export type ChessInputMode = 'classic' | 'keypad';
 
 export type { DictationPace };
 
@@ -38,6 +40,8 @@ export type UserPreferences = {
    * Independent from visualProblemDifficulty.
    */
   blindProblemDifficulty: string;
+  /** Classic (voice+board) vs chess keypad — shared across game modes. */
+  chessInputMode: ChessInputMode;
   updatedAt: string;
 };
 
@@ -50,6 +54,7 @@ export type UserPreferencesPatch = Partial<{
   dictationPace: DictationPace;
   visualProblemDifficulty: string;
   blindProblemDifficulty: string;
+  chessInputMode: ChessInputMode;
 }>;
 
 export const DEFAULT_APP_LANGUAGE: AppLanguage = 'fr';
