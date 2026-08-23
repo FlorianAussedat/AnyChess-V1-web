@@ -8,6 +8,7 @@ import { HubScreen } from '@/components/HubScreen';
 import { HubModeCard } from '@/components/HubModeCard';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 
 /**
  * Category hub — card selection only (same pattern as Vision / Mémorisation).
@@ -16,13 +17,14 @@ export function PuzzleHubPhase() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
+  const back = useSmartBack('/puzzles' as Href);
   const { selectSubmode } = usePuzzle();
 
   return (
     <HubScreen
       title={t('puzzle.hubTitle')}
       subtitle={t('puzzle.hubLead')}
-      onBack={() => router.back()}
+      onBack={back}
     >
       <HubModeCard
         title={t('puzzle.visualCardTitle')}

@@ -95,6 +95,7 @@ export type TheoreticalAttemptResult = {
   endFen: string;
   moveSans: string[];
   officialEndReason?: OfficialEndReason;
+  officialResultMessage?: string | null;
   finishedAt: string;
   offScore: boolean;
 };

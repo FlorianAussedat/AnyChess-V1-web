@@ -16,6 +16,9 @@ import {
   type PlayerTheoreticalResult,
 } from '../domain/theoreticalResult.ts';
 import { verifyTheoreticalLoss } from '../engine/TheoreticalResultVerifier.ts';
+import {
+  theoreticalOfficialResultMessage,
+} from '../domain/officialResultMessages.ts';
 
 export type SessionPhase =
   | 'idle'
@@ -26,6 +29,7 @@ export type SessionPhase =
   | 'theoretical-loss'
   | 'abandoned'
   | 'off-score'
+  | 'finish-game'
   | 'engine-error';
 
 export type SessionSnapshot = {
@@ -44,6 +48,8 @@ export type SessionSnapshot = {
   result: TheoreticalAttemptResult | null;
   moveSans: string[];
   canOfferActions: boolean;
+  finishGameActive: boolean;
+  officialResultMessage: string | null;
 };
 
 export class TheoreticalEndgameSession {
@@ -62,6 +68,9 @@ export class TheoreticalEndgameSession {
   private firstLoss: FirstTheoreticalLoss | null = null;
   private officialEndReason: TheoreticalAttemptResult['officialEndReason'];
   private fenBeforeLastPlayerMove: string | null = null;
+  private finishGameMode = false;
+  private lockedOutcome: TheoreticalAttemptResult['outcome'] | null = null;
+  private checkmateWinner: 'w' | 'b' | undefined;
 
   constructor(analyzer?: DefenseAnalyzer | null) {
     this.analyzer = analyzer ?? null;
@@ -86,6 +95,9 @@ export class TheoreticalEndgameSession {
     this.firstLoss = null;
     this.officialEndReason = undefined;
     this.fenBeforeLastPlayerMove = null;
+    this.finishGameMode = false;
+    this.lockedOutcome = null;
+    this.checkmateWinner = undefined;
 
     if (this.game.turn() !== playerToSide(position.playerColor)) {
       await this.playOpponent();
@@ -105,16 +117,61 @@ export class TheoreticalEndgameSession {
     return this.snapshot();
   }
 
+  /** @deprecated use enterFinishGame */
   continueOffScore(): SessionSnapshot {
+    return this.enterFinishGameSync();
+  }
+
+  enterFinishGameSync(): SessionSnapshot {
     if (!this.scoreLocked) return this.snapshot();
+    this.finishGameMode = true;
     this.offScore = true;
-    this.phase = 'off-score';
-    this.lastFeedback = 'Suite hors score';
+    this.phase = 'finish-game';
+    this.lastFeedback = null;
     return this.snapshot();
   }
 
+  async enterFinishGame(): Promise<SessionSnapshot> {
+    const snap = this.enterFinishGameSync();
+    if (!this.position) return snap;
+    const playerSide = playerToSide(this.position.playerColor);
+    if (this.game.turn() !== playerSide && !this.game.isGameOver()) {
+      await this.playOpponent();
+    }
+    return this.snapshot();
+  }
+
+  async startFinishGameFromState(input: {
+    position: TheoreticalEndgamePosition;
+    fen: string;
+    moveSans: string[];
+    lockedOutcome: TheoreticalAttemptResult['outcome'];
+  }): Promise<SessionSnapshot> {
+    this.position = input.position;
+    this.startFen = input.position.initialFen;
+    this.game = new Chess(input.fen);
+    this.moveSans = [...input.moveSans];
+    this.lastMove = null;
+    this.lastFeedback = null;
+    this.scoreLocked = true;
+    this.offScore = true;
+    this.lockedOutcome = input.lockedOutcome;
+    this.result = this.buildResult(
+      input.lockedOutcome === 'success' ? 'success' : 'theoretical-loss',
+    );
+    this.finishGameMode = true;
+    this.phase = 'finish-game';
+    return this.enterFinishGame();
+  }
+
   getLegalDestinations(from: string): string[] {
-    if (this.phase !== 'playing' && this.phase !== 'off-score') return [];
+    if (
+      this.phase !== 'playing' &&
+      this.phase !== 'off-score' &&
+      this.phase !== 'finish-game'
+    ) {
+      return [];
+    }
     return this.game
       .moves({ square: from as Square, verbose: true })
       .map((m) => m.to);
@@ -126,7 +183,9 @@ export class TheoreticalEndgameSession {
     promotion: string = 'q',
   ): Promise<SessionSnapshot> {
     if (
-      (this.phase !== 'playing' && this.phase !== 'off-score') ||
+      (this.phase !== 'playing' &&
+        this.phase !== 'off-score' &&
+        this.phase !== 'finish-game') ||
       !this.position
     ) {
       return this.snapshot();
@@ -156,14 +215,19 @@ export class TheoreticalEndgameSession {
     this.lastMove = { from: played.from, to: played.to };
     this.moveSans.push(played.san);
 
-    if (!this.offScore && !this.scoreLocked) {
+    if (!this.offScore && !this.scoreLocked && !this.finishGameMode) {
       this.userMoves += 1;
     }
 
     // Regulatory success check
     const reg = evaluateRegulatoryEnd(this.game);
-    if (reg && !this.scoreLocked) {
-      return this.handleRegulatory(reg, played.san, beforeFen);
+    if (reg) {
+      if (this.finishGameMode) {
+        return this.handleFinishGameRegulatory(reg);
+      }
+      if (!this.scoreLocked) {
+        return this.handleRegulatory(reg, played.san, beforeFen);
+      }
     }
 
     if (!this.analyzer) {
@@ -172,8 +236,8 @@ export class TheoreticalEndgameSession {
       return this.snapshot();
     }
 
-    // Theoretical loss check (only when scored)
-    if (!this.offScore && !this.scoreLocked) {
+    // Theoretical loss check (only when scored, not in finish-game)
+    if (!this.offScore && !this.scoreLocked && !this.finishGameMode) {
       const lost = await this.checkTheoreticalLoss(played.san, beforeFen);
       if (lost) return this.snapshot();
     }
@@ -199,6 +263,32 @@ export class TheoreticalEndgameSession {
     return this.attemptMove(move.from, move.to, move.promotion ?? 'q');
   }
 
+  private handleFinishGameRegulatory(
+    reg: NonNullable<ReturnType<typeof evaluateRegulatoryEnd>>,
+  ): SessionSnapshot {
+    const pos = this.position!;
+    if (reg.kind === 'checkmate') {
+      this.lastFeedback =
+        theoreticalOfficialResultMessage({
+          outcome: this.lockedOutcome ?? 'success',
+          playerColor: pos.playerColor,
+          objective: pos.objective,
+          checkmateWinner: reg.winner,
+        }) ?? 'Partie terminée.';
+    } else {
+      this.officialEndReason = reg.reason;
+      this.lastFeedback =
+        theoreticalOfficialResultMessage({
+          outcome: 'success',
+          playerColor: pos.playerColor,
+          objective: pos.objective,
+          officialEndReason: reg.reason,
+        }) ?? 'Nulle obtenue.';
+    }
+    this.phase = 'finish-game';
+    return this.snapshot();
+  }
+
   private handleRegulatory(
     reg: NonNullable<ReturnType<typeof evaluateRegulatoryEnd>>,
     san: string,
@@ -207,6 +297,7 @@ export class TheoreticalEndgameSession {
     const pos = this.position!;
     if (reg.kind === 'checkmate') {
       const winner = reg.winner;
+      this.checkmateWinner = winner;
       const playerWon = winner === playerToSide(pos.playerColor);
       if (playerWon && pos.objective === 'WIN') {
         this.finishSuccess('checkmate');
@@ -302,9 +393,10 @@ export class TheoreticalEndgameSession {
     this.phase = 'success';
     this.result = this.buildResult('success');
     this.lastFeedback =
-      this.position?.objective === 'WIN'
+      this.result.officialResultMessage ??
+      (this.position?.objective === 'WIN'
         ? 'Position gagnée !'
-        : 'Nulle obtenue !';
+        : 'Nulle obtenue !');
   }
 
   private finishTheoreticalLoss(
@@ -331,17 +423,20 @@ export class TheoreticalEndgameSession {
     if (!this.analyzer || !this.position) return;
     if (this.game.isGameOver()) {
       const reg = evaluateRegulatoryEnd(this.game);
-      if (reg) this.handleRegulatory(reg, '', this.fenBeforeLastPlayerMove);
+      if (reg) {
+        if (this.finishGameMode) this.handleFinishGameRegulatory(reg);
+        else this.handleRegulatory(reg, '', this.fenBeforeLastPlayerMove);
+      }
       return;
     }
 
     this.phase = 'thinking';
+    const thinkMs = this.finishGameMode
+      ? 1000
+      : THEORETICAL_ENDGAME_CONFIG.thinkTimeMs;
     let analysis: DefenseAnalysis;
     try {
-      analysis = await this.analyzer.analyze(
-        this.game.fen(),
-        THEORETICAL_ENDGAME_CONFIG.thinkTimeMs,
-      );
+      analysis = await this.analyzer.analyze(this.game.fen(), thinkMs);
     } catch {
       this.phase = 'engine-error';
       this.lastFeedback = 'Erreur moteur.';
@@ -369,11 +464,14 @@ export class TheoreticalEndgameSession {
 
     const reg = evaluateRegulatoryEnd(this.game);
     if (reg) {
-      this.handleRegulatory(reg, '', this.fenBeforeLastPlayerMove);
+      if (this.finishGameMode) this.handleFinishGameRegulatory(reg);
+      else this.handleRegulatory(reg, '', this.fenBeforeLastPlayerMove);
       return;
     }
 
-    if (this.offScore) {
+    if (this.finishGameMode) {
+      this.phase = 'finish-game';
+    } else if (this.offScore) {
       this.phase = 'off-score';
     } else if (!this.scoreLocked) {
       this.phase = 'playing';
@@ -394,6 +492,14 @@ export class TheoreticalEndgameSession {
           ? 0
           : 0;
 
+    const officialResultMessage = theoreticalOfficialResultMessage({
+      outcome,
+      playerColor: pos.playerColor,
+      objective: pos.objective,
+      officialEndReason: this.officialEndReason,
+      checkmateWinner: this.checkmateWinner,
+    });
+
     return {
       outcome,
       positionId: pos.id,
@@ -408,6 +514,7 @@ export class TheoreticalEndgameSession {
       endFen: this.game.fen(),
       moveSans: [...this.moveSans],
       officialEndReason: this.officialEndReason,
+      officialResultMessage,
       finishedAt: new Date().toISOString(),
       offScore: this.offScore,
     };
@@ -431,6 +538,10 @@ export class TheoreticalEndgameSession {
       moveSans: [...this.moveSans],
       canOfferActions:
         this.phase === 'success' || this.phase === 'theoretical-loss',
+      finishGameActive: this.finishGameMode,
+      officialResultMessage:
+        this.result?.officialResultMessage ??
+        (this.phase === 'theoretical-loss' ? null : this.lastFeedback),
     };
   }
 }

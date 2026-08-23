@@ -108,11 +108,18 @@ export type OfficialDrawReason =
   | 'fifty'
   | 'insufficient';
 
+export type DrawAlternativeSummary = {
+  san: string;
+  scoreCp: number;
+};
+
 export type AttemptResult = {
   outcome: AttemptOutcome;
   /** Safe player moves that counted (losing move excluded). */
   movesResisted: number;
   officialDrawReason?: OfficialDrawReason;
+  /** Precise regulatory announcement (session-computed). */
+  officialResultMessage?: string | null;
   firstMajorTurn?: FirstMajorTurn | null;
   timeline: EvaluationPoint[];
   /** SAN list of all plies played (player + opponent). */
@@ -123,6 +130,14 @@ export type AttemptResult = {
   /** Minimal position snapshot for history after pool changes. */
   positionSnapshot?: PositionSnapshot;
   finishedAt: string;
+  /** FEN immediately before the losing move (loss only). */
+  fenBeforeLoss?: string;
+  losingSan?: string;
+  evalBeforeLossCp?: number;
+  evalAfterLossCp?: number;
+  drawAlternatives?: DrawAlternativeSummary[];
+  drawAlternativesHasMore?: boolean;
+  drawAlternativesReliable?: boolean;
 };
 
 export type FirstMajorTurn = {

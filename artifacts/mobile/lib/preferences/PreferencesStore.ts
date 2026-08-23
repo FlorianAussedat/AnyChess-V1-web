@@ -58,6 +58,10 @@ function parseBoolFlag(raw: string | null | undefined): boolean | null {
   return null;
 }
 
+function isChessInputMode(value: unknown): value is import('./types.ts').ChessInputMode {
+  return value === 'classic' || value === 'keypad';
+}
+
 export function defaultUserPreferences(): UserPreferences {
   return {
     version: USER_PREFERENCES_DOCUMENT_VERSION,
@@ -69,6 +73,7 @@ export function defaultUserPreferences(): UserPreferences {
     dictationPace: DEFAULT_DICTATION_PACE,
     visualProblemDifficulty: DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
     blindProblemDifficulty: DEFAULT_BLIND_PROBLEM_DIFFICULTY,
+    chessInputMode: 'classic',
     updatedAt: nowIso(),
   };
 }
@@ -113,6 +118,9 @@ export function mergePreferencesDocument(
       o.blindProblemDifficulty,
       DEFAULT_BLIND_PROBLEM_DIFFICULTY,
     );
+  }
+  if (isChessInputMode(o.chessInputMode)) {
+    next.chessInputMode = o.chessInputMode;
   }
 
   if (typeof o.updatedAt === 'string' && o.updatedAt) {

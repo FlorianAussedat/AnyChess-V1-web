@@ -46,6 +46,7 @@ import {
   DEFAULT_STRENGTH_BAND_ID,
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
+import { useChessInputMode } from '@/hooks/useChessInputMode';
 import { fenFromSanHistory } from '@/lib/moveInput/keypadPromotion';
 
 /** Classic input UI: voice/board (classic) vs chess keypad. */
@@ -115,8 +116,8 @@ export function ClassicGameScreen() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportedText, setExportedText] = useState('');
   const [draftMove, setDraftMove] = useState('');
-  /** Single source of truth for Classic vs Keypad input UI. */
-  const [inputMode, setInputMode] = useState<ClassicInputMode>('classic');
+  /** Single source of truth for Classic vs Keypad input UI — persisted preference. */
+  const { inputMode, setChessInputMode, keypadActive } = useChessInputMode();
 
   // Clear in-progress compose when piece-letter system changes (FR C… ↔ EN N…).
   useEffect(() => {
@@ -187,7 +188,6 @@ export function ClassicGameScreen() {
     : t('game.configure');
 
   const moveRows = pairMoveHistory(history);
-  const keypadActive = inputMode === 'keypad';
 
   const commitTypedMove = useCallback(
     (raw: string, source: 'text' | 'voice' = 'text'): boolean => {
@@ -210,8 +210,8 @@ export function ClassicGameScreen() {
   );
 
   const toggleInputMode = useCallback(() => {
-    setInputMode((mode) => (mode === 'classic' ? 'keypad' : 'classic'));
-  }, []);
+    void setChessInputMode(inputMode === 'classic' ? 'keypad' : 'classic');
+  }, [inputMode, setChessInputMode]);
 
   return (
     <>
