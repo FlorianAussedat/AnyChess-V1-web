@@ -129,7 +129,7 @@ export function buildImportedGameFromPgnGame(
   }
 
   const main = walkMainLine(root);
-  if (main.length === 0) {
+  if (main.length === 0 && !(setup && fenHeader)) {
     return { game: null, error: 'No playable moves in game' };
   }
 
