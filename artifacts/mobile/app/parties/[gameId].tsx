@@ -52,6 +52,8 @@ import { PressureGauge } from '@/lib/endgameTraining/ui/PressureGauge';
 import { EvaluationCurve } from '@/lib/endgameTraining/ui/EvaluationCurve';
 import type { DictationPace } from '@/lib/preferences/dictationPace';
 import type { MessageKey } from '@/lib/i18n';
+import { UniversalChessWorkspace } from '@/components/workspace/UniversalChessWorkspace';
+import { getChessWorkspaceSession } from '@/lib/workspace/WorkspaceSessionRegistry';
 
 const PACE_LABEL: Record<DictationPace, MessageKey> = {
   slow: 'settings.paceSlow',
@@ -142,7 +144,7 @@ function evalAtUnifiedOverlay(
 }
 
 export default function GameReaderScreen() {
-  const { gameId } = useLocalSearchParams<{ gameId: string }>();
+  const { gameId, sessionId } = useLocalSearchParams<{ gameId: string; sessionId?: string }>();
   const router = useRouter();
   const colors = useColors();
   const { t } = useTranslation();
@@ -203,6 +205,21 @@ export default function GameReaderScreen() {
     );
   }
 
+  const workspaceSession = sessionId ? getChessWorkspaceSession(String(sessionId)) : null;
+  if (workspaceSession) {
+    return (
+      <WorkspaceReaderBody
+        title={workspaceSession.payload.title}
+        subtitle={workspaceSession.payload.subtitle}
+        payload={workspaceSession.payload}
+        contentTop={contentTop}
+        contentBottom={contentBottom}
+        windowWidth={windowWidth}
+        windowHeight={windowHeight}
+      />
+    );
+  }
+
   return (
     <GameReaderBody
       game={game}
@@ -219,6 +236,54 @@ export default function GameReaderScreen() {
       contentTop={contentTop}
       contentBottom={contentBottom}
     />
+  );
+}
+
+function WorkspaceReaderBody({
+  title,
+  subtitle,
+  payload,
+  contentTop,
+  contentBottom,
+  windowWidth,
+  windowHeight,
+}: {
+  title: string;
+  subtitle?: string;
+  payload: import('@/lib/workspace/types').ChessWorkspacePayload;
+  contentTop: number;
+  contentBottom: number;
+  windowWidth: number;
+  windowHeight: number;
+}) {
+  const router = useRouter();
+  const boardSize = useMemo(() => {
+    const wide = computeBoardSize(windowWidth, 'wide');
+    return fitBoardSizeToViewport(
+      wide,
+      windowHeight,
+      READER_RESERVED_CHROME + contentTop + contentBottom,
+    );
+  }, [contentBottom, contentTop, windowHeight, windowWidth]);
+  const [showBoard, setShowBoard] = useState(true);
+  const [showMoves, setShowMoves] = useState(true);
+
+  return (
+    <ChessScreenScaffold
+      title={title}
+      subtitle={subtitle}
+      onBack={() => router.back()}
+      testID="workspace-reader"
+    >
+      <UniversalChessWorkspace
+        payload={payload}
+        boardSize={boardSize}
+        showBoard={showBoard}
+        setShowBoard={setShowBoard}
+        showMoves={showMoves}
+        setShowMoves={setShowMoves}
+      />
+    </ChessScreenScaffold>
   );
 }
 
