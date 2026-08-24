@@ -109,24 +109,8 @@ export function UniversalChessWorkspace({
         ...(payload.moves?.map((m) => m.san) ?? []),
       ]);
     }
-    if (workspace.currentPly === 0) return null;
-    const move = workspace.mainMoves[workspace.currentPly - 1];
-    if (!move) return null;
-    try {
-      const chess = new Chess(move.fenBefore);
-      const m = chess.move(move.san);
-      if (!m) return null;
-      return { from: m.from, to: m.to };
-    } catch {
-      return null;
-    }
-  }, [
-    isFinishVsEngine,
-    payload.initialFen,
-    payload.moves,
-    workspace.currentPly,
-    workspace.mainMoves,
-  ]);
+    return workspace.lastMove;
+  }, [isFinishVsEngine, payload.initialFen, payload.moves, workspace.lastMove]);
 
   // Eval for display (finish-vs-engine uses reader eval on its fen)
   const gauge = workspace.evalState.evaluation;
@@ -150,26 +134,16 @@ export function UniversalChessWorkspace({
   const canAct =
     isFinishVsEngine
       ? workspace.finishState.phase === 'playing' &&
-        engineReady &&
         !engineActing &&
         sideFromFen(workspace.finishState.fen) !== payload.engineOpponent?.color
-      : isInteractive && engineReady;
+      : isInteractive;
 
   // Board touch (analysis / free-play: modify main workspace; finish-vs-engine: play finish move)
   const { touchSelected, legalDests, onSquarePress } = useExerciseBoardTouch({
     canAct,
     getLegalDestinations: (from) => {
       if (isFinishVsEngine) return workspace.finishLegalDests(from);
-      try {
-        return new Chess(displayFen)
-          .moves({
-            square: from as Parameters<Chess['moves']>[0]['square'],
-            verbose: true,
-          })
-          .map((m) => m.to);
-      } catch {
-        return [];
-      }
+      return workspace.legalDestinations(from);
     },
     onMove: (from, to, promo) => {
       if (isFinishVsEngine) {
@@ -181,6 +155,8 @@ export function UniversalChessWorkspace({
     onSan: (san) => {
       if (isFinishVsEngine) {
         workspace.playFinishSan(san);
+      } else {
+        workspace.playSan(san);
       }
     },
   });
@@ -310,7 +286,7 @@ export function UniversalChessWorkspace({
       {!isFinishVsEngine && (
         <View style={styles.navMeta}>
           <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-            {workspace.currentPly}/{workspace.mainMoves.length}
+            {workspace.currentPly}/{Math.max(workspace.pathMoves.length, workspace.mainMoves.length)}
           </Text>
           {workspace.evalState.bestSan && (
             <Text style={{ color: colors.primary, fontSize: 13 }}>
@@ -342,7 +318,7 @@ export function UniversalChessWorkspace({
         />
       )}
 
-      {/* Return to branch root */}
+      {/* Return to divergence + variant chips */}
       {!isFinishVsEngine && workspace.canReturnToBranch && (
         <Pressable
           onPress={workspace.returnToBranchRoot}
@@ -351,6 +327,44 @@ export function UniversalChessWorkspace({
         >
           <Text style={{ color: colors.foreground }}>Retour à la position</Text>
         </Pressable>
+      )}
+      {!isFinishVsEngine && workspace.variantChoices.length > 1 && (
+        <View style={styles.variantRow} testID="workspace-variant-choices">
+          {workspace.variantChoices.map((choice) => {
+            const isSelected = choice.nodeId === workspace.selectedChildId;
+            const label =
+              choice.label === 'mainline'
+                ? `Ligne principale : ${choice.san}`
+                : choice.label === 'variant1'
+                  ? `Variante 1 : ${choice.san}`
+                  : choice.label === 'variant2'
+                    ? `Variante 2 : ${choice.san}`
+                    : `Variante : ${choice.san}`;
+            return (
+              <Pressable
+                key={choice.nodeId}
+                onPress={() => workspace.selectVariant(choice.nodeId)}
+                testID={`workspace-variant-${choice.label}`}
+                style={[
+                  styles.variantChip,
+                  {
+                    borderColor: isSelected ? colors.primary : colors.border,
+                    backgroundColor: isSelected ? colors.primary : colors.card,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: isSelected ? '#fff' : colors.foreground,
+                    fontSize: 12,
+                  }}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       )}
 
       {/* Interactive input (analysis / free-play) */}
@@ -444,7 +458,7 @@ export function UniversalChessWorkspace({
       {/* Move list */}
       {showMoves && !isFinishVsEngine && (
         <GameReaderMoveList
-          sans={workspace.mainMoves.map((m) => m.san)}
+          sans={workspace.pathMoves.map((m) => m.san)}
           currentPly={workspace.currentPly}
           onSelectPly={workspace.jumpToPly}
           testID="workspace-moves"
@@ -501,5 +515,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
+  },
+  variantRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  variantChip: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
 });

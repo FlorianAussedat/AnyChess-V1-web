@@ -65,6 +65,24 @@ export type AnalysisMarker = {
   detail?: string;
 };
 
+/** Persistent node in the workspace variant tree. */
+export type WorkspaceNode = {
+  id: string;
+  parentId: string | null;
+  childrenIds: string[];
+  fen: string;
+  ply: number;
+  moveFromParent?: {
+    san: string;
+    uci?: string;
+    playedBy: 'white' | 'black';
+  };
+  evaluation?: EngineEvaluation;
+  markerIds?: string[];
+  isMainline: boolean;
+  mainlineIndex?: number;
+};
+
 export type WorkspaceResult = {
   type: 'win' | 'draw' | 'loss' | 'unfinished';
   reason?: string;
