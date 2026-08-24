@@ -1,11 +1,12 @@
 /**
- * Finish-game overlay — play to regulatory end from exact FEN (strict-best).
+ * Finish-game overlay — thin wrapper around UniversalChessWorkspace in finish-vs-engine mode.
+ * No game logic lives here: all play, engine, and result tracking is in useChessWorkspace.
  */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,304 +14,137 @@ import {
   View,
 } from 'react-native';
 import { Chess } from 'chess.js';
-import { ChessBoard } from '@/components/ChessBoard';
-import { ChessBoardSection } from '@/components/game/ChessBoardSection';
-import { ChessMoveInput } from '@/components/game/ChessMoveInput';
-import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
-import { ChessKeyboardToggle } from '@/components/game/ChessKeyboardToggle';
-import { GameMicButton } from '@/components/game/GameMicButton';
-import { BoardToolbar } from '@/components/BoardToolbar';
-import { AppButton } from '@/components/ui/AppButton';
+import { UniversalChessWorkspace } from '@/components/workspace/UniversalChessWorkspace';
 import { useColors } from '@/hooks/useColors';
-import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useChessInputMode } from '@/hooks/useChessInputMode';
-import {
-  useExerciseBoardTouch,
-  useExerciseSpeechInput,
-} from '@/hooks/useExerciseChessInput';
-import { EndgameTrainingSession, type SessionSnapshot as DefendSnapshot } from '@/lib/endgameTraining';
-import {
-  TheoreticalEndgameSession,
-  getPositionById,
-  type SessionSnapshot as TheoreticalSnapshot,
-} from '@/lib/theoreticalEndgame';
-import { useSharedStockfishRuntime } from '@/lib/engines/runtime';
-import { EndgameEngineStatusBanner } from '@/lib/engines/runtime';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
-import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import type { FinishGamePayload } from '@/lib/review/ReviewSessionRegistry';
+import type { ChessWorkspacePayload, WorkspaceMove } from '@/lib/workspace/types';
 import { DesignTokens } from '@/constants/designTokens';
 
-type Props = {
-  visible: boolean;
-  payload: FinishGamePayload;
-  onClose: () => void;
-};
+type Props = { visible: boolean; payload: FinishGamePayload; onClose: () => void };
 
-function boardFromFen(fen: string): (BoardPiece | null)[][] {
-  return new Chess(fen).board() as (BoardPiece | null)[][];
+/** Rebuild WorkspaceMove[] with per-ply FENs from start FEN + SAN list. */
+function buildWorkspaceMoves(
+  startFen: string,
+  moveSans: readonly string[],
+): WorkspaceMove[] {
+  const chess = new Chess(startFen);
+  const moves: WorkspaceMove[] = [];
+  for (let i = 0; i < moveSans.length; i++) {
+    const san = moveSans[i]!;
+    const fenBefore = chess.fen();
+    let played;
+    try {
+      played = chess.move(san);
+    } catch {
+      break;
+    }
+    if (!played) break;
+    moves.push({
+      ply: i + 1,
+      san: played.san,
+      fenBefore,
+      fenAfter: chess.fen(),
+      playedBy: fenBefore.split(' ')[1] === 'b' ? 'black' : 'white',
+    });
+  }
+  return moves;
 }
-
-type FinishSnapshot = DefendSnapshot | TheoreticalSnapshot;
 
 export function FinishGameOverlay({ visible, payload, onClose }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
-  const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
-  const { inputMode, toggleChessInputMode, keypadActive } = useChessInputMode();
   const { width, height } = useWindowDimensions();
-  const isTheoretical = payload.mode === 'theoretical';
-  const defendSessionRef = useRef(new EndgameTrainingSession({}));
-  const theoreticalSessionRef = useRef(new TheoreticalEndgameSession());
-  const [snap, setSnap] = useState<FinishSnapshot>(() =>
-    isTheoretical
-      ? theoreticalSessionRef.current.snapshot()
-      : defendSessionRef.current.snapshot(),
-  );
-  const [busy, setBusy] = useState(false);
-  const [draftMove, setDraftMove] = useState('');
-  const startedRef = useRef(false);
-
-  const { snapshot: engineSnap, engineReady, retry: retryEngine, runtime } =
-    useSharedStockfishRuntime();
+  const [showMoves, setShowMoves] = useState(false);
+  const [showBoard, setShowBoard] = useState(true);
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(width, 'wide');
     return fitBoardSizeToViewport(wide, height, 300);
   }, [width, height]);
 
-  const refresh = useCallback((next: FinishSnapshot) => setSnap(next), []);
+  // Engine color = the other side (user plays payload.orientation)
+  const userColor = payload.orientation;
+  const engineColorFen = payload.fen.split(' ')[1];
+  const startingSide: 'white' | 'black' =
+    engineColorFen === 'b' ? 'black' : 'white';
+  const engineColor: 'white' | 'black' = userColor === 'white' ? 'black' : 'white';
 
-  useEffect(() => {
-    if (!visible) {
-      startedRef.current = false;
-      return;
-    }
-    if (startedRef.current) return;
-    startedRef.current = true;
-    void (async () => {
-      setBusy(true);
-      try {
-        if (isTheoretical) {
-          const session = theoreticalSessionRef.current;
-          if (engineReady) session.setAnalyzer(runtime.getService());
-          const pos =
-            getPositionById(payload.positionId ?? '') ??
-            ({
-              id: payload.positionId ?? 'finish',
-              themeId: 'queen-mate' as const,
-              initialFen: payload.fen,
-              playerColor: payload.orientation,
-              objective: 'WIN' as const,
-              completion: { type: 'CHECKMATE' as const },
-              targetUserMoves: 10,
-              certification: {
-                type: 'ENGINE' as const,
-                engine: 'stockfish',
-                depth: 12,
-                result: 'WIN' as const,
-              },
-              diagramOrientation: payload.orientation,
-              active: true,
-              explanation: {
-                fr: { principle: '', seek: '', method: '', avoid: '' },
-                en: { principle: '', seek: '', method: '', avoid: '' },
-              },
-              tags: [],
-            });
-          refresh(
-            await session.startFinishGameFromState({
-              position: pos,
-              fen: payload.fen,
-              moveSans: payload.moveSans,
-              lockedOutcome:
-                payload.lockedOutcome === 'success' ? 'success' : 'theoretical-loss',
-            }),
-          );
-        } else {
-          const session = defendSessionRef.current;
-          if (engineReady) session.setAnalyzer(runtime.getService());
-          const pos = {
-            id: payload.positionId ?? 'finish',
-            fen: payload.fen,
-            defender: payload.orientation,
-            objective: 'DRAW' as const,
-            source: { provider: 'finish-game', license: 'internal' },
-            family: 'mixed',
-            materialSignature: '',
-            tags: [],
-            quality: { initialEvaluation: 0, validationKind: 'stockfish' as const },
-          };
-          refresh(
-            await session.startFinishGameFromState({
-              position: pos,
-              fen: payload.fen,
-              moveSans: payload.moveSans,
-              movesResisted: 0,
-              lockedOutcome: payload.lockedOutcome as import('@/lib/endgameTraining/domain/types').AttemptOutcome,
-            }),
-          );
-        }
-      } finally {
-        setBusy(false);
-      }
-    })();
-  }, [visible, payload, runtime, refresh, engineReady, isTheoretical]);
+  const workspacePayload: ChessWorkspacePayload = useMemo(
+    () => ({
+      schemaVersion: 1,
+      workspaceMode: 'finish-vs-engine',
+      source:
+        payload.mode === 'defend-draw'
+          ? 'defend-draw'
+          : payload.mode === 'theoretical'
+            ? 'theoretical-endgame'
+            : 'other',
+      title: 'Finir la partie',
+      subtitle:
+        userColor === 'white'
+          ? t('puzzle.youPlayWhite')
+          : t('puzzle.youPlayBlack'),
+      initialFen: payload.fen,
+      orientation: userColor,
+      playerColor: userColor,
+      moves: buildWorkspaceMoves(payload.fen, payload.moveSans),
+      engineOpponent: {
+        enabled: true,
+        color: engineColor,
+        policy: 'strict-best',
+      },
+      metadata: {
+        legacyLockedOutcome: payload.lockedOutcome,
+        legacyPositionId: payload.positionId,
+        legacyMode: payload.mode,
+        startingSide,
+      },
+    }),
+    [payload, userColor, engineColor, startingSide, t],
+  );
 
-  useEffect(() => {
-    if (!engineReady) return;
-    if (isTheoretical) {
-      theoreticalSessionRef.current.setAnalyzer(runtime.getService());
-    } else {
-      defendSessionRef.current.setAnalyzer(runtime.getService());
-    }
-  }, [engineReady, runtime, isTheoretical]);
-
-  const activeSession = isTheoretical
-    ? theoreticalSessionRef.current
-    : defendSessionRef.current;
-
-  const canMove =
-    engineReady &&
-    !busy &&
-    snap.phase === 'finish-game' &&
-    !new Chess(snap.fen).isGameOver();
-
-  const playMove = async (from: string, to: string, promotion?: string) => {
-    if (!canMove) return;
-    setBusy(true);
-    try {
-      refresh(await activeSession.attemptMove(from, to, promotion ?? 'q'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const { touchSelected, legalDests, onSquarePress } = useExerciseBoardTouch({
-    canAct: canMove,
-    getLegalDestinations: (from) => activeSession.getLegalDestinations(from),
-    onMove: playMove,
-    onSan: (san) => void activeSession.answerSan(san).then(refresh),
-  });
-
-  const speech = useExerciseSpeechInput({
-    enabled: visible && inputMode === 'classic' && canMove,
-    onSan: (san) => void activeSession.answerSan(san).then(refresh),
-  });
-
-  const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
-
-  const isFlipped = isTheoretical
-    ? (snap as TheoreticalSnapshot).playerColor === 'b'
-    : (snap as DefendSnapshot).defender === 'b';
-
-  const confirmClose = () => {
+  const confirmClose = useCallback(() => {
     Alert.alert(
       'Quitter Finir la partie ?',
-      'Le résultat de l’exercice ne sera pas modifié.',
+      "Le r\u00e9sultat de l\u2019exercice ne sera pas modifi\u00e9.",
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { text: 'Retour au résultat', onPress: onClose },
       ],
     );
-  };
+  }, [onClose, t]);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={confirmClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={confirmClose}
+      testID="finish-game-overlay-modal"
+    >
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={[styles.title, { color: colors.foreground }]}>
             Finir la partie
           </Text>
 
-          <ChessBoardSection
+          <UniversalChessWorkspace
+            payload={workspacePayload}
             boardSize={boardSize}
-            toolbar={
-              <BoardToolbar
-                label={
-                  !isFlipped
-                    ? t('puzzle.youPlayWhite')
-                    : t('puzzle.youPlayBlack')
-                }
-                showCoordinates={showCoordinates}
-                onToggleCoordinates={() => void toggleCoordinates()}
-              />
-            }
-          >
-            <ChessBoard
-              board={board}
-              lastMove={snap.lastMove as LastMove | null}
-              isFlipped={isFlipped}
-              selectedSquare={touchSelected}
-              legalDots={legalDests}
-              onSquarePress={onSquarePress}
-              showCoordinates={showCoordinates}
-              size={boardSize}
-              sizeMode="wide"
-            />
-          </ChessBoardSection>
-
-          <EndgameEngineStatusBanner
-            snapshot={engineSnap}
-            onRetry={() => void retryEngine()}
-            onBack={confirmClose}
+            showMoves={showMoves}
+            setShowMoves={setShowMoves}
+            showBoard={showBoard}
+            setShowBoard={setShowBoard}
           />
 
-          {busy && <ActivityIndicator color={colors.primary} />}
-
-          {!!snap.lastFeedback && (
-            <Text style={{ color: colors.foreground, textAlign: 'center' }}>
-              {snap.lastFeedback}
-            </Text>
-          )}
-
-          {canMove && (
-            <>
-              {inputMode === 'classic' && (
-                <GameMicButton
-                  showRecognized={speech.showRecognized}
-                  isListening={speech.listening}
-                  micActive
-                  onToggle={() => void speech.toggleListening()}
-                  testID="finish-game-mic"
-                />
-              )}
-              <ChessKeyboardToggle
-                variant="classic"
-                active={keypadActive}
-                onToggle={() => void toggleChessInputMode()}
-              />
-              {keypadActive ? (
-                <ChessMoveKeypad
-                  fen={snap.fen}
-                  value={draftMove}
-                  onChangeText={setDraftMove}
-                  onSubmit={(san) => {
-                    setDraftMove('');
-                    void activeSession.answerSan(san).then(refresh);
-                  }}
-                  testID="finish-game-keypad"
-                />
-              ) : (
-                <ChessMoveInput
-                  inputType="chess-move"
-                  fen={snap.fen}
-                  onSubmit={(raw) => void activeSession.answerSan(raw).then(refresh)}
-                  enabled
-                  autoSubmit
-                  testID="finish-game-move-input"
-                />
-              )}
-            </>
-          )}
-
-          <AppButton
-            label="Retour au résultat"
+          <Pressable
             onPress={confirmClose}
-            variant="secondary"
+            style={[styles.closeBtn, { borderColor: colors.border }]}
             testID="finish-game-back-result"
-          />
+          >
+            <Text style={{ color: colors.foreground }}>Retour au résultat</Text>
+          </Pressable>
         </ScrollView>
       </View>
     </Modal>
@@ -328,5 +162,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     fontSize: 18,
     textAlign: 'center',
+  },
+  closeBtn: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.sm,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
   },
 });

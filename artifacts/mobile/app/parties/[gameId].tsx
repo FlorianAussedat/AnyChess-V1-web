@@ -1,28 +1,22 @@
 /**
- * Lecteur de parties — board / audio playback for one imported game.
+ * Lecteur de parties — renders UniversalChessWorkspace for imported games
+ * or direct workspace sessions (e.g. from analysis overlay route).
  */
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
-import { ChessBoardSection } from '@/components/game/ChessBoardSection';
-import { ChessBoard } from '@/components/ChessBoard';
-import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
-import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
-import { GamePlaybackControls } from '@/components/gameLibrary/GamePlaybackControls';
-import { GameReaderMoveList } from '@/components/gameLibrary/GameReaderMoveList';
+import { UniversalChessWorkspace } from '@/components/workspace/UniversalChessWorkspace';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
-import { useGamePlayback, DICTATION_PACES } from '@/hooks/useGamePlayback';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
@@ -34,147 +28,218 @@ import {
   gameLibraryStore,
   gamePlayersTitle,
   gameSubtitle,
-  stripClkTags,
   type ImportedChessGame,
 } from '@/lib/gameLibrary';
 import {
   getEndgameAnalysisOverlay,
-  type EndgameAnalysisPayload,
 } from '@/lib/endgameTraining';
 import {
   getTheoreticalAnalysisOverlay,
-  type TheoreticalAnalysisPayload,
 } from '@/lib/theoreticalEndgame';
-import { buildTheoreticalTimeline } from '@/lib/theoreticalEndgame/review/buildTheoreticalTimeline';
-import { StockfishAnalysisService, DEFEND_DRAW_ENGINE_CONFIG } from '@/lib/defendDraw';
-import type { EvaluationPoint, FirstMajorTurn } from '@/lib/endgameTraining/domain/types';
-import { PressureGauge } from '@/lib/endgameTraining/ui/PressureGauge';
-import { EvaluationCurve } from '@/lib/endgameTraining/ui/EvaluationCurve';
-import type { DictationPace } from '@/lib/preferences/dictationPace';
-import type { MessageKey } from '@/lib/i18n';
+import type { ChessWorkspacePayload, WorkspaceMove, AnalysisMarker } from '@/lib/workspace/types';
+import { initialOrientationFromFen } from '@/lib/workspace/boardOrientation';
+import {
+  getChessWorkspaceSession,
+} from '@/lib/workspace/WorkspaceSessionRegistry';
+import { Chess } from 'chess.js';
 
-const PACE_LABEL: Record<DictationPace, MessageKey> = {
-  slow: 'settings.paceSlow',
-  quiteSlow: 'settings.paceQuiteSlow',
-  medium: 'settings.paceMedium',
-  quiteFast: 'settings.paceQuiteFast',
-  fast: 'settings.paceFast',
-};
-
+/** Chrome reserved outside the board (header, controls, move list, etc.) */
 const READER_RESERVED_CHROME = 360;
 
-/** Recover Orientation from headers / raw PGN when overlay is absent. */
-function orientationFromGame(game: ImportedChessGame): 'white' | 'black' | null {
-  const headerExtra = game.headers as ImportedChessGame['headers'] & {
-    orientation?: string;
-    Orientation?: string;
-  };
-  const fromHeader = headerExtra.orientation ?? headerExtra.Orientation;
-  if (typeof fromHeader === 'string') {
-    const v = fromHeader.trim().toLowerCase();
-    if (v === 'black' || v === 'b') return 'black';
-    if (v === 'white' || v === 'w') return 'white';
-  }
-  const raw = game.source.rawPgn;
-  if (!raw) return null;
-  const match = /\[Orientation\s+"?(white|black)"?\]/i.exec(raw);
-  if (!match?.[1]) return null;
-  return match[1].toLowerCase() === 'black' ? 'black' : 'white';
-}
+/** Derive workspace payload from an imported game + optional overlay metadata. */
+function payloadFromGame(
+  game: ImportedChessGame,
+  t: (key: import('@/lib/i18n').MessageKey) => string,
+): ChessWorkspacePayload {
+  const moves: WorkspaceMove[] = game.moves.map((move, index) => ({
+    ply: move.ply,
+    san: move.san,
+    fenBefore: index === 0 ? game.initialFen : game.moves[index - 1]!.fenAfter,
+    fenAfter: move.fenAfter,
+    playedBy:
+      (index + (game.initialFen.split(' ')[1] === 'b' ? 1 : 0)) % 2 === 0
+        ? 'white'
+        : 'black',
+    comment: move.comment,
+  }));
 
-type UnifiedReaderOverlay = {
-  startFen: string;
-  orientation: 'white' | 'black';
-  moveSans: string[];
-  timeline: EvaluationPoint[];
-  firstMajorTurn: FirstMajorTurn | null;
-};
+  const resultRaw = game.headers.result ?? '*';
+  let resultType: ChessWorkspacePayload['result'] = undefined;
+  if (resultRaw === '1-0')
+    resultType = { type: 'win', reason: 'checkmate', raw: resultRaw };
+  else if (resultRaw === '0-1')
+    resultType = { type: 'loss', reason: 'checkmate', raw: resultRaw };
+  else if (resultRaw === '1/2-1/2')
+    resultType = { type: 'draw', raw: resultRaw };
+  else resultType = { type: 'unfinished', raw: resultRaw };
 
-function endgameToUnified(overlay: EndgameAnalysisPayload): UnifiedReaderOverlay {
   return {
-    startFen: overlay.startFen,
-    orientation: overlay.orientation,
-    moveSans: overlay.moveSans,
-    timeline: overlay.timeline,
-    firstMajorTurn: overlay.firstMajorTurn ?? null,
+    schemaVersion: 1,
+    workspaceMode: 'reader',
+    source: 'manual-pgn',
+    title: gamePlayersTitle(game.headers) || t('parties.reader'),
+    subtitle: gameSubtitle(game) || undefined,
+    initialFen: game.initialFen,
+    pgn: game.source.rawPgn,
+    moves,
+    orientation: initialOrientationFromFen(game.initialFen),
+    result: resultType,
+    metadata: {
+      gameId: game.id,
+      hasVariations: game.hasVariations,
+    },
   };
 }
 
-function theoreticalToUnified(
-  overlay: TheoreticalAnalysisPayload,
-  timeline: EvaluationPoint[],
-): UnifiedReaderOverlay {
-  return {
-    startFen: overlay.startFen,
-    orientation: overlay.orientation,
-    moveSans: overlay.moveSans,
-    timeline: timeline.length > 0 ? timeline : overlay.timeline,
-    firstMajorTurn: overlay.firstMajorTurn,
-  };
-}
-
-function evalAtUnifiedOverlay(
-  overlay: UnifiedReaderOverlay,
-  ply: number,
-): { scoreCp: number; mateIn: number | null } {
-  const timeline = overlay.timeline;
-  if (timeline.length === 0) {
-    return { scoreCp: 0, mateIn: null };
+/** Enrich with endgame overlay (markers + evaluations). */
+function applyEndgameOverlay(
+  base: ChessWorkspacePayload,
+  overlay: ReturnType<typeof getEndgameAnalysisOverlay>,
+): ChessWorkspacePayload {
+  if (!overlay) return base;
+  const markers: AnalysisMarker[] = [];
+  if (overlay.firstMajorTurn) {
+    markers.push({
+      id: 'endgame-objective-lost',
+      ply: overlay.firstMajorTurn.playerMoveNumber,
+      type: 'objective-lost',
+      label: overlay.firstMajorTurn.message,
+    });
   }
-
-  const stm = overlay.startFen.split(' ')[1] === 'b' ? 'black' : 'white';
+  // Build evaluations from timeline
+  const startStm = overlay.startFen.split(' ')[1] === 'b' ? 'black' : 'white';
   const player = overlay.orientation;
-  const played = overlay.moveSans.slice(0, Math.max(0, ply));
-  let mover: 'white' | 'black' = stm;
-  let playerMoves = 0;
-  for (let i = 0; i < played.length; i += 1) {
-    if (mover === player) playerMoves += 1;
+  const evaluations: ChessWorkspacePayload['evaluations'] = [];
+  let playerMoveNum = 0;
+  let mover: 'white' | 'black' = startStm;
+  for (let i = 0; i < overlay.moveSans.length; i++) {
+    if (mover === player) {
+      playerMoveNum += 1;
+      const point = overlay.timeline.find((p) => p.playerMoveNumber === playerMoveNum);
+      if (point) {
+        const evalEntry: NonNullable<ChessWorkspacePayload['evaluations']>[number] = {
+          ply: i + 1,
+          evaluation:
+            point.mateIn != null
+              ? { type: 'mate', value: point.mateIn, perspective: 'white' }
+              : { type: 'cp', value: point.scoreCp, perspective: 'white' },
+        };
+        evaluations.push(evalEntry);
+      }
+    }
     mover = mover === 'white' ? 'black' : 'white';
   }
+  return {
+    ...base,
+    workspaceMode: 'analysis',
+    source: 'defend-draw',
+    orientation: overlay.orientation,
+    playerColor: overlay.orientation,
+    markers,
+    evaluations,
+  };
+}
 
-  let best = timeline[0]!;
-  for (const point of timeline) {
-    if (point.playerMoveNumber <= playerMoves) {
-      best = point;
-    }
+/** Enrich with theoretical overlay. */
+function applyTheoreticalOverlay(
+  base: ChessWorkspacePayload,
+  overlay: ReturnType<typeof getTheoreticalAnalysisOverlay>,
+): ChessWorkspacePayload {
+  if (!overlay) return base;
+  const markers: AnalysisMarker[] = [];
+  if (overlay.firstTheoreticalLoss) {
+    markers.push({
+      id: 'theoretical-objective-lost',
+      ply: overlay.firstTheoreticalLoss.playerMoveNumber,
+      type: 'objective-lost',
+      label: overlay.firstTheoreticalLoss.message,
+    });
   }
-  return { scoreCp: best.scoreCp, mateIn: best.mateIn };
+  return {
+    ...base,
+    workspaceMode: 'analysis',
+    source: 'theoretical-endgame',
+    orientation: overlay.orientation,
+    playerColor: overlay.orientation,
+    markers,
+  };
 }
 
 export default function GameReaderScreen() {
-  const { gameId } = useLocalSearchParams<{ gameId: string }>();
+  const { gameId, sessionId } = useLocalSearchParams<{
+    gameId?: string;
+    sessionId?: string;
+  }>();
   const router = useRouter();
   const colors = useColors();
   const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
-  const { dictationPace, voiceEnabled } = usePreferences();
-  useCancelSpeechOnLeave();
+  useCancelSpeechOnLeave('/parties');
 
   const [game, setGame] = useState<ImportedChessGame | null>(null);
   const [loading, setLoading] = useState(true);
-  const [boardVisible, setBoardVisible] = useState(true);
-  const [movesVisible, setMovesVisible] = useState(true);
 
   useEffect(() => {
+    // If we have a direct workspace session, no need to load a game
+    if (sessionId) {
+      setLoading(false);
+      return;
+    }
+    if (!gameId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
-    (async () => {
-      if (!gameId) {
-        setLoading(false);
-        return;
-      }
-      const g = await gameLibraryStore.getGame(String(gameId));
+    void gameLibraryStore.getGame(String(gameId)).then((g) => {
       if (!cancelled) {
         setGame(g);
         setLoading(false);
       }
-    })();
+    });
     return () => {
       cancelled = true;
     };
-  }, [gameId]);
+  }, [gameId, sessionId]);
 
+  const boardSize = useMemo(() => {
+    const wide = computeBoardSize(windowWidth, 'wide');
+    return fitBoardSizeToViewport(
+      wide,
+      windowHeight,
+      READER_RESERVED_CHROME + contentTop + contentBottom,
+    );
+  }, [windowWidth, windowHeight, contentTop, contentBottom]);
+
+  // ── Direct workspace session (no game library needed) ──────────────────────
+  if (!loading && sessionId) {
+    const session = getChessWorkspaceSession(String(sessionId));
+    if (!session) {
+      return (
+        <ChessScreenScaffold
+          title={t('parties.reader')}
+          onBack={() => router.back()}
+          testID="game-reader-missing-session"
+        >
+          <Text style={{ color: colors.foreground }}>Session introuvable.</Text>
+          <Pressable onPress={() => router.replace('/parties' as Href)}>
+            <Text style={{ color: colors.primary }}>{t('parties.backToLibrary')}</Text>
+          </Pressable>
+        </ChessScreenScaffold>
+      );
+    }
+    return (
+      <ReaderBody
+        payload={session.payload}
+        title={session.payload.title}
+        subtitle={session.payload.subtitle}
+        boardSize={boardSize}
+        onBack={() => router.back()}
+      />
+    );
+  }
+
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <ChessScreenScaffold
@@ -203,397 +268,66 @@ export default function GameReaderScreen() {
     );
   }
 
+  // ── Game from library ──────────────────────────────────────────────────────
+  const endgameOverlay = getEndgameAnalysisOverlay(game.id);
+  const theoreticalOverlay = getTheoreticalAnalysisOverlay(game.id);
+  let payload = payloadFromGame(game, t);
+  if (endgameOverlay) payload = applyEndgameOverlay(payload, endgameOverlay);
+  else if (theoreticalOverlay) payload = applyTheoreticalOverlay(payload, theoreticalOverlay);
+
   return (
-    <GameReaderBody
-      game={game}
-      boardVisible={boardVisible}
-      setBoardVisible={setBoardVisible}
-      movesVisible={movesVisible}
-      setMovesVisible={setMovesVisible}
-      showCoordinates={showCoordinates}
-      toggleCoordinates={toggleCoordinates}
-      dictationPace={dictationPace}
-      voiceEnabled={voiceEnabled}
-      windowWidth={windowWidth}
-      windowHeight={windowHeight}
-      contentTop={contentTop}
-      contentBottom={contentBottom}
+    <ReaderBody
+      payload={payload}
+      title={payload.title}
+      subtitle={payload.subtitle}
+      boardSize={boardSize}
+      onBack={() => router.back()}
+      endOfGameExtra={
+        <Pressable
+          onPress={() => router.replace('/parties' as Href)}
+          style={{ marginTop: DesignTokens.spacing.sm }}
+        >
+          <Text style={{ color: colors.primary }}>{t('parties.backToLibrary')}</Text>
+        </Pressable>
+      }
     />
   );
 }
 
-function GameReaderBody({
-  game,
-  boardVisible,
-  setBoardVisible,
-  movesVisible,
-  setMovesVisible,
-  showCoordinates,
-  toggleCoordinates,
-  dictationPace,
-  voiceEnabled,
-  windowWidth,
-  windowHeight,
-  contentTop,
-  contentBottom,
+function ReaderBody({
+  payload,
+  title,
+  subtitle,
+  boardSize,
+  onBack,
+  endOfGameExtra,
 }: {
-  game: ImportedChessGame;
-  boardVisible: boolean;
-  setBoardVisible: (v: boolean) => void;
-  movesVisible: boolean;
-  setMovesVisible: (v: boolean) => void;
-  showCoordinates: boolean;
-  toggleCoordinates: () => void;
-  dictationPace: DictationPace;
-  voiceEnabled: boolean;
-  windowWidth: number;
-  windowHeight: number;
-  contentTop: number;
-  contentBottom: number;
+  payload: ChessWorkspacePayload;
+  title: string;
+  subtitle?: string;
+  boardSize: number;
+  onBack: () => void;
+  endOfGameExtra?: React.ReactNode;
 }) {
-  const colors = useColors();
-  const { t } = useTranslation();
-  const router = useRouter();
-  const playback = useGamePlayback({
-    game,
-    initialPace: dictationPace,
-    voiceEnabled,
-  });
-
-  // Keep overlay in memory across re-entry (do not clear on unmount).
-  const endgameOverlay = useMemo(
-    () => getEndgameAnalysisOverlay(game.id),
-    [game.id],
-  );
-  const theoreticalOverlay = useMemo(
-    () => getTheoreticalAnalysisOverlay(game.id),
-    [game.id],
-  );
-  const [theoryTimeline, setTheoryTimeline] = useState<EvaluationPoint[]>([]);
-  const [theoryTimelineLoading, setTheoryTimelineLoading] = useState(false);
-
-  useEffect(() => {
-    if (!theoreticalOverlay) {
-      setTheoryTimeline([]);
-      return;
-    }
-    if (theoreticalOverlay.timeline.length > 0) {
-      setTheoryTimeline(theoreticalOverlay.timeline);
-      return;
-    }
-
-    const service = new StockfishAnalysisService({
-      moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
-      analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
-      bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
-    });
-    let cancelled = false;
-    void (async () => {
-      setTheoryTimelineLoading(true);
-      try {
-        await service.init();
-        const built = await buildTheoreticalTimeline({
-          startFen: theoreticalOverlay.startFen,
-          moveSans: theoreticalOverlay.moveSans,
-          playerColor: theoreticalOverlay.orientation,
-          analyzer: service,
-          thinkTimeMs: 300,
-        });
-        if (!cancelled) setTheoryTimeline(built);
-      } catch {
-        if (!cancelled) setTheoryTimeline([]);
-      } finally {
-        if (!cancelled) setTheoryTimelineLoading(false);
-        service.destroy();
-      }
-    })();
-    return () => {
-      cancelled = true;
-      service.destroy();
-    };
-  }, [theoreticalOverlay]);
-
-  const overlay: UnifiedReaderOverlay | null = endgameOverlay
-    ? endgameToUnified(endgameOverlay)
-    : theoreticalOverlay
-      ? theoreticalToUnified(theoreticalOverlay, theoryTimeline)
-      : null;
-
-  const boardOrientation =
-    endgameOverlay?.orientation ??
-    theoreticalOverlay?.orientation ??
-    orientationFromGame(game) ??
-    'white';
-  const isFlipped = boardOrientation === 'black';
-
-  const gaugeEval = useMemo(() => {
-    if (!overlay) return null;
-    return evalAtUnifiedOverlay(overlay, playback.ply);
-  }, [overlay, playback.ply]);
-
-  const boardSize = useMemo(() => {
-    const wide = computeBoardSize(windowWidth, 'wide');
-    const reserved =
-      READER_RESERVED_CHROME +
-      contentTop +
-      contentBottom +
-      (boardVisible ? 0 : -120) +
-      (movesVisible ? 0 : -80) +
-      (overlay ? 80 : 0);
-    return fitBoardSizeToViewport(wide, windowHeight, Math.max(220, reserved));
-  }, [
-    windowWidth,
-    windowHeight,
-    contentTop,
-    contentBottom,
-    boardVisible,
-    movesVisible,
-    overlay,
-  ]);
-
-  const title = gamePlayersTitle(game.headers);
-  const subtitle = gameSubtitle(game);
-  const result = game.headers.result ?? '*';
+  const [showBoard, setShowBoard] = useState(true);
+  const [showMoves, setShowMoves] = useState(true);
 
   return (
     <ChessScreenScaffold
       title={title}
-      subtitle={subtitle || t('parties.reader')}
-      onBack={() => router.back()}
+      subtitle={subtitle}
+      onBack={onBack}
       testID="game-reader"
     >
-      {(playback.clocks.white || playback.clocks.black) && boardVisible ? (
-        <View style={styles.clocks} testID="game-reader-clocks">
-          <Text style={[styles.clockLine, { color: colors.mutedForeground }]}>
-            {game.headers.white ?? t('common.white')}
-            {playback.clocks.white ? ` · ${playback.clocks.white}` : ''}
-          </Text>
-          <Text style={[styles.clockLine, { color: colors.mutedForeground }]}>
-            {game.headers.black ?? t('common.black')}
-            {playback.clocks.black ? ` · ${playback.clocks.black}` : ''}
-          </Text>
-        </View>
-      ) : null}
-
-      <View style={styles.toggles}>
-        <BoardVisibilityToggle
-          visible={boardVisible}
-          onToggle={() => setBoardVisible(!boardVisible)}
-        />
-        <BoardCoordinatesToggle
-          visible={showCoordinates}
-          onToggle={toggleCoordinates}
-        />
-        <Pressable
-          testID="game-reader-toggle-moves"
-          onPress={() => setMovesVisible(!movesVisible)}
-          style={[styles.movesToggle, { borderColor: colors.border }]}
-        >
-          <Text style={{ color: colors.foreground, fontSize: 12 }}>
-            {movesVisible ? t('parties.hideMoves') : t('parties.showMoves')}
-          </Text>
-        </Pressable>
-      </View>
-
-      {overlay && gaugeEval ? (
-        <PressureGauge
-          scoreCp={gaugeEval.scoreCp}
-          mateIn={gaugeEval.mateIn}
-          visible
-          testID="game-reader-pressure-gauge"
-        />
-      ) : theoryTimelineLoading ? (
-        <View style={styles.timelineLoading}>
-          <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-            {t('parties.loading')}
-          </Text>
-        </View>
-      ) : null}
-
-      {boardVisible ? (
-        <ChessBoardSection boardSize={boardSize}>
-          <ChessBoard
-            board={playback.board}
-            lastMove={playback.lastMove}
-            isFlipped={isFlipped}
-            showCoordinates={showCoordinates}
-            sizeMode="wide"
-            size={boardSize}
-          />
-        </ChessBoardSection>
-      ) : null}
-
-      <Text
-        style={[styles.progress, { color: colors.mutedForeground }]}
-        testID="game-reader-progress"
-      >
-        {t('parties.progress', {
-          label: playback.label,
-          ply: playback.ply,
-          total: playback.snapshot.totalPlies,
-        })}
-      </Text>
-
-      {overlay ? (
-        <EvaluationCurve
-          timeline={overlay.timeline}
-          firstMajorTurn={overlay.firstMajorTurn}
-          width={Math.min(boardSize, Math.max(240, windowWidth - 48))}
-          testID="game-reader-eval-curve"
-        />
-      ) : null}
-
-      <GamePlaybackControls
-        isPlaying={playback.isPlaying}
-        onStart={playback.goStart}
-        onPrev={playback.goPrev}
-        onTogglePlay={playback.togglePlay}
-        onNext={playback.goNext}
-        onEnd={playback.goEnd}
-        onRepeat={() => void playback.repeatLast()}
-        labels={{
-          start: t('parties.start'),
-          prev: t('parties.prev'),
-          play: t('parties.play'),
-          pause: t('parties.pause'),
-          next: t('parties.next'),
-          end: t('parties.end'),
-          repeat: t('parties.repeat'),
-        }}
+      <UniversalChessWorkspace
+        payload={payload}
+        boardSize={boardSize}
+        showBoard={showBoard}
+        setShowBoard={setShowBoard}
+        showMoves={showMoves}
+        setShowMoves={setShowMoves}
       />
-
-      <View style={styles.intervalBlock}>
-        <Text style={[styles.intervalLabel, { color: colors.mutedForeground }]}>
-          {t('parties.interval')}
-        </Text>
-        <View style={styles.intervalRow}>
-          {DICTATION_PACES.map((pace) => {
-            const active = playback.pace === pace;
-            return (
-              <Pressable
-                key={pace}
-                testID={`game-reader-pace-${pace}`}
-                onPress={() => playback.setPace(pace)}
-                style={[
-                  styles.paceChip,
-                  {
-                    borderColor: active ? colors.primary : colors.border,
-                    backgroundColor: active
-                      ? 'rgba(57, 138, 85, 0.2)'
-                      : colors.card,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: active ? colors.primary : colors.foreground,
-                    fontSize: 11,
-                    fontFamily: DesignTokens.typography.weightSemiBold,
-                  }}
-                >
-                  {t(PACE_LABEL[pace])}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      {playback.ended ? (
-        <View style={styles.endBlock} testID="game-reader-ended">
-          <Text style={[styles.endText, { color: colors.foreground }]}>
-            {t('parties.endOfGame', { result })}
-          </Text>
-          <Pressable
-            onPress={playback.goStart}
-            style={[styles.secondaryBtn, { borderColor: colors.border }]}
-          >
-            <Text style={{ color: colors.foreground }}>{t('common.restart')}</Text>
-          </Pressable>
-          <Pressable onPress={() => router.replace('/parties' as Href)}>
-            <Text style={{ color: colors.primary }}>{t('parties.backToLibrary')}</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {(() => {
-        if (playback.ply < 1) return null;
-        const prose = stripClkTags(game.moves[playback.ply - 1]?.comment);
-        if (!prose) return null;
-        return (
-          <Text
-            style={[styles.comment, { color: colors.mutedForeground }]}
-            testID="game-reader-comment"
-          >
-            {prose}
-          </Text>
-        );
-      })()}
-
-      {movesVisible ? (
-        <GameReaderMoveList
-          sans={game.moves.map((m) => m.san)}
-          currentPly={playback.ply}
-          onSelectPly={playback.jumpTo}
-        />
-      ) : null}
+      {endOfGameExtra}
     </ChessScreenScaffold>
   );
 }
-
-const styles = StyleSheet.create({
-  clocks: { gap: 2, width: '100%' },
-  clockLine: { fontSize: 13 },
-  toggles: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
-    width: '100%',
-  },
-  timelineLoading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  movesToggle: {
-    borderWidth: 1,
-    borderRadius: DesignTokens.radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  progress: {
-    fontSize: 14,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    textAlign: 'center',
-  },
-  intervalBlock: { width: '100%', gap: 6 },
-  intervalLabel: { fontSize: 12 },
-  intervalRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  paceChip: {
-    borderWidth: 1,
-    borderRadius: DesignTokens.radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  endBlock: { alignItems: 'center', gap: 10, width: '100%' },
-  endText: {
-    fontSize: 16,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    textAlign: 'center',
-  },
-  comment: {
-    fontSize: 13,
-    fontStyle: 'italic',
-    lineHeight: 18,
-    width: '100%',
-    textAlign: 'center',
-  },
-  secondaryBtn: {
-    borderWidth: 1,
-    borderRadius: DesignTokens.radius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-});

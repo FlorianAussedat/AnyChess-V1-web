@@ -106,11 +106,20 @@ describe('vision UX opt-ins', () => {
     const mental = readFileSync(join(vizDir, 'mental.tsx'), 'utf8');
     const nommer = readFileSync(join(vizDir, 'nommer.tsx'), 'utf8');
     const jouer = readFileSync(join(vizDir, 'jouer.tsx'), 'utf8');
+    // All three screens must carry the side-to-move testID.
     assert.match(mental, /mental-side-to-move/);
     assert.match(nommer, /nommer-side-to-move/);
     assert.match(jouer, /jouer-side-to-move/);
+    // mental.tsx inlines the side-to-move label directly with colors.primary.
     assert.match(mental, /colors\.primary/);
-    assert.match(nommer, /colors\.primary/);
-    assert.match(jouer, /colors\.primary/);
+    // nommer.tsx and jouer.tsx delegate to TimedVisionSideToMove, which carries
+    // the primary accent inside the shared component — verify the delegation instead.
+    const chromeFile = readFileSync(
+      join(here, '../../../components/visualisation/TimedVisionChrome.tsx'),
+      'utf8',
+    );
+    assert.match(nommer, /TimedVisionSideToMove/);
+    assert.match(jouer, /TimedVisionSideToMove/);
+    assert.match(chromeFile, /colors\.primary/);
   });
 });

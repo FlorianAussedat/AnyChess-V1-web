@@ -4,6 +4,7 @@
  */
 import { gameLibraryStore } from '../../gameLibrary/GameLibraryStore.ts';
 import type { AttemptResult, EvaluationPoint, FirstMajorTurn } from '../domain/types.ts';
+import type { AnalysisMarker } from '../../workspace/types.ts';
 
 export type EndgameAnalysisPayload = {
   positionId: string;
@@ -44,11 +45,8 @@ function buildPgn(input: {
     `[Orientation "${input.defender}"]`,
   ];
   const moves: string[] = [];
-  let ply = 0;
   let moveNum = 1;
-  // Detect who moves first from FEN
-  const stm = input.startFen.split(' ')[1] === 'b' ? 'b' : 'w';
-  let whiteToMove = stm === 'w';
+  let whiteToMove = input.startFen.split(' ')[1] !== 'b';
   for (const san of input.moveSans) {
     if (whiteToMove) {
       moves.push(`${moveNum}. ${san}`);
@@ -58,9 +56,45 @@ function buildPgn(input: {
       whiteToMove = true;
       moveNum += 1;
     }
-    ply += 1;
   }
   return `${headers.join('\n')}\n\n${moves.join(' ')} ${input.result}\n`;
+}
+
+export function buildEndgameMarkers(payload: EndgameAnalysisPayload): AnalysisMarker[] {
+  if (!payload.firstMajorTurn) return [];
+  return [
+    {
+      id: 'endgame-objective-lost',
+      ply: payload.firstMajorTurn.playerMoveNumber,
+      type: 'objective-lost',
+      label: payload.firstMajorTurn.message,
+    },
+  ];
+}
+
+export function buildEndgameEvaluations(
+  payload: EndgameAnalysisPayload,
+): Array<{ ply: number; scoreCp: number; mateIn: number | null }> {
+  const startStm = payload.startFen.split(' ')[1] === 'b' ? 'black' : 'white';
+  const player = payload.orientation;
+  const evaluations: Array<{ ply: number; scoreCp: number; mateIn: number | null }> = [];
+  let playerMoveNum = 0;
+  let mover: 'white' | 'black' = startStm;
+  for (let i = 0; i < payload.moveSans.length; i++) {
+    if (mover === player) {
+      playerMoveNum += 1;
+      const point = payload.timeline.find((p) => p.playerMoveNumber === playerMoveNum);
+      if (point) {
+        evaluations.push({
+          ply: i + 1,
+          scoreCp: point.scoreCp,
+          mateIn: point.mateIn,
+        });
+      }
+    }
+    mover = mover === 'white' ? 'black' : 'white';
+  }
+  return evaluations;
 }
 
 export async function openEndgameInReader(input: {
