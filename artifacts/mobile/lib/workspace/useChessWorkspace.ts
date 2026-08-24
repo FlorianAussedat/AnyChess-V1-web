@@ -37,6 +37,11 @@ import {
   createFinishGameController,
   type FinishGameController,
 } from './finishGameController.ts';
+import {
+  analysisCacheKey,
+  createAnalysisQueue,
+  planAnalysisTasks,
+} from './analysisQueue.ts';
 
 export { sideFromFen };
 
@@ -90,7 +95,7 @@ export function useChessWorkspace(input: {
   engineReady: boolean;
   debounceMs?: number;
 }) {
-  const { payload, engine, engineReady, debounceMs = 160 } = input;
+  const { payload, engine, engineReady } = input;
   const isFinishVsEngine = payload.workspaceMode === 'finish-vs-engine';
 
   const [tree, setTree] = useState<VariantTree>(() => createTreeFromPayload(payload));
@@ -108,6 +113,10 @@ export function useChessWorkspace(input: {
   const finishControllerRef = useRef<FinishGameController | null>(null);
   const requestIdRef = useRef(0);
   const cacheRef = useRef(new Map<string, EvalCacheEntry>());
+  const analysisQueueRef = useRef(createAnalysisQueue({ maxCache: 64 }));
+  const pumpingRef = useRef(false);
+  const treeRef = useRef<VariantTree>(null as unknown as VariantTree);
+  const currentNodeIdRef = useRef('');
 
   useEffect(() => {
     setTree(createTreeFromPayload(payload));
@@ -173,6 +182,8 @@ export function useChessWorkspace(input: {
   const currentMove = pathMoves[pathMoves.length - 1] ?? null;
   const variantChoices: VariantChoice[] = useMemo(() => childChoices(tree), [tree]);
   const lastMove = lastMoveOnPath(tree);
+  treeRef.current = tree;
+  currentNodeIdRef.current = tree.currentNodeId;
 
   const currentEvaluation =
     node.evaluation ??
@@ -264,68 +275,112 @@ export function useChessWorkspace(input: {
   }, [currentEvaluation, currentFen]);
 
   useEffect(() => {
+    const queue = analysisQueueRef.current;
+    return () => {
+      queue.close();
+    };
+  }, []);
+
+  useEffect(() => {
     if (isFinishVsEngine) return;
     if (!engine || !engineReady) return;
-    const cached = cacheRef.current.get(currentFen);
-    if (cached) {
-      setEvalState({
-        evaluation: cached.evaluation,
-        bestSan: cached.bestSan,
-        thinking: false,
+    const queue = analysisQueueRef.current;
+    const latestTree = treeRef.current;
+    const plan = planAnalysisTasks(latestTree);
+    let displayedCached = false;
+    for (const item of plan) {
+      const status = queue.enqueue({
+        nodeId: item.nodeId,
+        fen: item.fen,
+        priority: item.priority,
+        params: { movetimeMs: 800, depth: 12 },
       });
-      setTree((prev) => setNodeEvaluation(prev, prev.currentNodeId, cached.evaluation));
-      return;
-    }
-    const requestId = ++requestIdRef.current;
-    const nodeId = tree.currentNodeId;
-    const fen = currentFen;
-    setEvalState((prev) => ({
-      evaluation: currentEvaluation ?? prev.evaluation,
-      bestSan: prev.bestSan,
-      thinking: true,
-    }));
-    const timer = setTimeout(() => {
-      void (async () => {
-        try {
-          const analysis = await engine.analyze(fen, 800);
-          if (requestId !== requestIdRef.current) return;
-          let bestSan: string | null = null;
-          if (analysis.bestMove) {
-            const chess = new Chess(fen);
-            const legal = chess.moves({ verbose: true }).find(
-              (m) =>
-                m.from === analysis.bestMove!.from &&
-                m.to === analysis.bestMove!.to,
-            );
-            bestSan = legal?.san ?? null;
-          }
-          const evaluation = toWhitePerspectiveEvaluation(
-            analysis.scoreCp,
-            analysis.mateIn,
-          );
-          cacheRef.current.set(fen, { evaluation, bestSan });
-          setTree((prev) => setNodeEvaluation(prev, nodeId, evaluation));
+      if (status === 'cached' && item.priority === 1) {
+        const cached = queue.getCachedResult(analysisCacheKey(item.nodeId, item.fen));
+        if (cached) {
+          displayedCached = true;
+          cacheRef.current.set(item.fen, {
+            evaluation: cached.evaluation,
+            bestSan: cached.bestSan,
+          });
           setEvalState({
-            evaluation: preferEvaluation(currentEvaluation, evaluation),
-            bestSan,
+            evaluation: cached.evaluation,
+            bestSan: cached.bestSan,
             thinking: false,
           });
-        } catch {
-          if (requestId === requestIdRef.current) {
-            setEvalState((prev) => ({ ...prev, thinking: false }));
+          setTree((prev) => setNodeEvaluation(prev, item.nodeId, cached.evaluation));
+        }
+      }
+    }
+    queue.promote(latestTree.currentNodeId, 1);
+    if (!displayedCached) {
+      setEvalState((prev) => ({
+        evaluation: currentEvaluation ?? prev.evaluation,
+        bestSan: prev.bestSan,
+        thinking: true,
+      }));
+    }
+
+    const pump = async () => {
+      if (pumpingRef.current) return;
+      pumpingRef.current = true;
+      try {
+        while (true) {
+          const task = queue.next();
+          if (!task) return;
+          try {
+            const analysis = await engine.analyze(task.fen, task.params.movetimeMs);
+            let bestSan: string | null = null;
+            if (analysis.bestMove) {
+              const chess = new Chess(task.fen);
+              const legal = chess.moves({ verbose: true }).find(
+                (m) =>
+                  m.from === analysis.bestMove!.from &&
+                  m.to === analysis.bestMove!.to,
+              );
+              bestSan = legal?.san ?? null;
+            }
+            const evaluation = toWhitePerspectiveEvaluation(
+              analysis.scoreCp,
+              analysis.mateIn,
+            );
+            const depth = analysis.depth ?? task.params.depth ?? 0;
+            const accepted = queue.complete(task.token, task.nodeId, task.fen, {
+              evaluation: { ...evaluation, depth },
+              bestSan,
+              depth,
+            });
+            if (!accepted) continue;
+            cacheRef.current.set(task.fen, { evaluation, bestSan });
+            setTree((prev) => setNodeEvaluation(prev, task.nodeId, { ...evaluation, depth }));
+            if (task.nodeId === currentNodeIdRef.current) {
+              setEvalState({
+                evaluation: preferEvaluation(null, { ...evaluation, depth }),
+                bestSan,
+                thinking: false,
+              });
+            }
+          } catch {
+            queue.fail(task.token, task.nodeId);
+            if (task.nodeId === currentNodeIdRef.current) {
+              setEvalState((prev) => ({ ...prev, thinking: false }));
+            }
           }
         }
-      })();
-    }, debounceMs);
-    return () => clearTimeout(timer);
+      } finally {
+        pumpingRef.current = false;
+      }
+    };
+    void pump();
   }, [
     currentFen,
     currentEvaluation,
-    debounceMs,
     engine,
     engineReady,
     isFinishVsEngine,
     tree.currentNodeId,
+    tree.mainlineNodeIds.join('|'),
+    tree.activePathNodeIds.join('|'),
   ]);
 
   return {
