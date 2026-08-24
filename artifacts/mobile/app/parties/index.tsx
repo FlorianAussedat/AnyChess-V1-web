@@ -9,10 +9,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useColors } from '@/hooks/useColors';
@@ -25,6 +27,21 @@ import {
   gameSubtitle,
   type ImportedChessGame,
 } from '@/lib/gameLibrary';
+import {
+  createChessWorkspaceSession,
+} from '@/lib/workspace/WorkspaceSessionRegistry';
+import type { ChessWorkspacePayload } from '@/lib/workspace/types';
+
+const STANDARD_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+function validateFen(fen: string): { ok: boolean; error?: string } {
+  try {
+    new Chess(fen);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'FEN invalide.' };
+  }
+}
 
 export default function PartiesLibraryScreen() {
   const colors = useColors();
@@ -35,6 +52,9 @@ export default function PartiesLibraryScreen() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [fenInput, setFenInput] = useState('');
+  const [fenError, setFenError] = useState<string | null>(null);
+  const [fenExpanded, setFenExpanded] = useState(false);
 
   const reload = useCallback(async () => {
     const list = await gameLibraryStore.listGames();
@@ -141,6 +161,88 @@ export default function PartiesLibraryScreen() {
             <Text style={styles.importText}>{t('parties.importPgn')}</Text>
           </>
         )}
+      </Pressable>
+
+      {/* FEN import */}
+      <Pressable
+        testID="parties-fen-toggle"
+        onPress={() => setFenExpanded((v) => !v)}
+        style={[styles.importBtn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+      >
+        <Ionicons name="grid-outline" size={20} color={colors.foreground} />
+        <Text style={[styles.importText, { color: colors.foreground }]}>
+          Importer une FEN
+        </Text>
+      </Pressable>
+      {fenExpanded && (
+        <View style={[styles.fenBox, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <TextInput
+            value={fenInput}
+            onChangeText={(v) => { setFenInput(v); setFenError(null); }}
+            placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.fenInput, { color: colors.foreground, borderColor: colors.border }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            testID="parties-fen-input"
+          />
+          {fenError ? (
+            <Text style={{ color: '#c44', fontSize: 12 }}>{fenError}</Text>
+          ) : null}
+          <Pressable
+            testID="parties-fen-submit"
+            onPress={() => {
+              const fen = fenInput.trim() || STANDARD_START_FEN;
+              const check = validateFen(fen);
+              if (!check.ok) { setFenError(check.error ?? 'FEN invalide.'); return; }
+              const sideToMove = fen.split(' ')[1] === 'b' ? 'black' : 'white';
+              const payload: ChessWorkspacePayload = {
+                schemaVersion: 1,
+                workspaceMode: 'free-play',
+                source: 'manual-fen',
+                title: `FEN — Trait aux ${sideToMove === 'white' ? 'Blancs' : 'Noirs'}`,
+                subtitle: fen,
+                initialFen: fen,
+                moves: [],
+                orientation: sideToMove,
+                playerColor: sideToMove,
+              };
+              const sessionId = createChessWorkspaceSession(payload, 'page');
+              setFenInput('');
+              setFenExpanded(false);
+              router.push(`/parties/workspace?sessionId=${sessionId}` as Href);
+            }}
+            style={[styles.importBtn, { backgroundColor: colors.primary }]}
+          >
+            <Text style={[styles.importText, { color: '#fff' }]}>Ouvrir</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Position initiale */}
+      <Pressable
+        testID="parties-initial-position"
+        onPress={() => {
+          const payload: ChessWorkspacePayload = {
+            schemaVersion: 1,
+            workspaceMode: 'free-play',
+            source: 'initial-position',
+            title: 'Position initiale',
+            subtitle: 'Exploration libre',
+            initialFen: STANDARD_START_FEN,
+            moves: [],
+            orientation: 'white',
+            playerColor: 'white',
+          };
+          const sessionId = createChessWorkspaceSession(payload, 'page');
+          router.push(`/parties/workspace?sessionId=${sessionId}` as Href);
+        }}
+        style={[styles.importBtn, { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}
+      >
+        <Ionicons name="game-controller-outline" size={20} color={colors.foreground} />
+        <Text style={[styles.importText, { color: colors.foreground }]}>
+          Position initiale
+        </Text>
       </Pressable>
 
       {status ? (
@@ -259,5 +361,19 @@ const styles = StyleSheet.create({
     width: 48,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fenBox: {
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.md,
+    padding: 12,
+  },
+  fenInput: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
   },
 });

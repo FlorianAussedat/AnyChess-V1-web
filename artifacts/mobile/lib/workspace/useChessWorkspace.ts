@@ -1,12 +1,26 @@
+/**
+ * Core hook for the universal chess workspace.
+ * Handles navigation, variant tree, analysis cache, and Stockfish integration.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Chess, type Move } from 'chess.js';
 import type { DefenseAnalyzer } from '../defendDraw/defenseTypes.ts';
-import type { ChessWorkspacePayload, EngineEvaluation, WorkspaceMove } from './types.ts';
+import type {
+  ChessWorkspacePayload,
+  EngineEvaluation,
+  WorkspaceMove,
+} from './types.ts';
 
 export type WorkspaceEvalState = {
   evaluation: EngineEvaluation | null;
   bestSan: string | null;
   thinking: boolean;
+};
+
+export type WorkspaceFinishState = {
+  phase: 'idle' | 'playing' | 'game-over';
+  fen: string;
+  result: string | null;
 };
 
 type WorkspaceState = {
@@ -21,11 +35,11 @@ type EvalCacheEntry = {
   bestSan: string | null;
 };
 
-function sideFromFen(fen: string): 'white' | 'black' {
+export function sideFromFen(fen: string): 'white' | 'black' {
   return fen.split(' ')[1] === 'b' ? 'black' : 'white';
 }
 
-function buildFen(
+export function buildFenFromMoves(
   initialFen: string,
   mainMoves: readonly WorkspaceMove[],
   currentPly: number,
@@ -51,11 +65,23 @@ function preferEvaluation(
   return incomingDepth >= currentDepth ? incoming : current;
 }
 
-function toWhitePerspectiveEvaluation(scoreCp: number, mateIn: number | null): EngineEvaluation {
+function toWhitePerspectiveEvaluation(
+  scoreCp: number,
+  mateIn: number | null,
+): EngineEvaluation {
   if (typeof mateIn === 'number' && Number.isFinite(mateIn)) {
     return { type: 'mate', value: mateIn, perspective: 'white' };
   }
   return { type: 'cp', value: scoreCp, perspective: 'white' };
+}
+
+function officialResultFromChess(chess: Chess): string | null {
+  if (chess.isCheckmate()) return chess.turn() === 'w' ? '0-1' : '1-0';
+  if (chess.isStalemate()) return '1/2-1/2';
+  if (chess.isInsufficientMaterial()) return '1/2-1/2';
+  if (chess.isThreefoldRepetition()) return '1/2-1/2';
+  if (chess.isDraw()) return '1/2-1/2';
+  return null;
 }
 
 export function useChessWorkspace(input: {
@@ -65,8 +91,13 @@ export function useChessWorkspace(input: {
   debounceMs?: number;
 }) {
   const { payload, engine, engineReady, debounceMs = 160 } = input;
+  const isFinishVsEngine = payload.workspaceMode === 'finish-vs-engine';
+  const engineColor = payload.engineOpponent?.color ?? null;
   const mainMoves = payload.moves ?? [];
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Reader / analysis state
+  // ──────────────────────────────────────────────────────────────────────────
   const [state, setState] = useState<WorkspaceState>({
     currentPly: 0,
     variantSans: [],
@@ -79,9 +110,25 @@ export function useChessWorkspace(input: {
     thinking: false,
   });
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Finish-vs-engine game state (separate from reader state)
+  // ──────────────────────────────────────────────────────────────────────────
+  const [finishState, setFinishState] = useState<WorkspaceFinishState>(() => ({
+    phase: isFinishVsEngine ? 'playing' : 'idle',
+    fen: payload.initialFen,
+    result: null,
+  }));
+  // Replay history of sans played in finish-game so we can reconstruct lastMove
+  const finishSansRef = useRef<string[]>([]);
+  // Strictly prevent double engine move
+  const engineMoveLockedRef = useRef(false);
+  // Request id to discard stale engine responses
+  const finishRequestIdRef = useRef(0);
+
   const requestIdRef = useRef(0);
   const cacheRef = useRef(new Map<string, EvalCacheEntry>());
 
+  // Reset reader state when payload changes
   useEffect(() => {
     setState({
       currentPly: 0,
@@ -91,25 +138,46 @@ export function useChessWorkspace(input: {
     });
   }, [payload.initialFen, payload.title]);
 
+  // Reset finish state when payload changes
+  useEffect(() => {
+    if (!isFinishVsEngine) return;
+    finishSansRef.current = [...(payload.moves?.map((m) => m.san) ?? [])];
+    const startFen = payload.moves?.at(-1)?.fenAfter ?? payload.initialFen;
+    engineMoveLockedRef.current = false;
+    finishRequestIdRef.current = 0;
+    setFinishState({ phase: 'playing', fen: startFen, result: null });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payload.initialFen, payload.title, isFinishVsEngine]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Derived reader data
+  // ──────────────────────────────────────────────────────────────────────────
   const currentFen = useMemo(
-    () => buildFen(payload.initialFen, mainMoves, state.currentPly, state.variantSans),
+    () =>
+      buildFenFromMoves(
+        payload.initialFen,
+        mainMoves,
+        state.currentPly,
+        state.variantSans,
+      ),
     [payload.initialFen, mainMoves, state.currentPly, state.variantSans],
   );
 
-  const currentMove = state.currentPly > 0 ? mainMoves[state.currentPly - 1] ?? null : null;
+  const currentMove =
+    state.currentPly > 0 ? (mainMoves[state.currentPly - 1] ?? null) : null;
   const sideToMove = sideFromFen(currentFen);
 
-  const moveSans = useMemo(
-    () => [...mainMoves.map((move) => move.san), ...state.variantSans],
-    [mainMoves, state.variantSans],
-  );
-
   const currentEvaluation = useMemo(() => {
-    const fromPayload = payload.evaluations?.find((entry) => entry.ply === state.currentPly)?.evaluation ?? null;
+    const fromPayload =
+      payload.evaluations?.find((e) => e.ply === state.currentPly)
+        ?.evaluation ?? null;
     const cached = cacheRef.current.get(currentFen)?.evaluation ?? null;
     return cached ? preferEvaluation(fromPayload, cached) : fromPayload;
   }, [payload.evaluations, state.currentPly, currentFen]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Reader navigation
+  // ──────────────────────────────────────────────────────────────────────────
   const jumpToPly = useCallback(
     (nextPly: number) => {
       setState({
@@ -124,15 +192,28 @@ export function useChessWorkspace(input: {
 
   const step = useCallback(
     (delta: number) => {
-      jumpToPly(state.currentPly + delta);
+      setState((prev) => ({
+        currentPly: Math.max(
+          0,
+          Math.min(mainMoves.length, prev.currentPly + delta),
+        ),
+        variantSans: [],
+        branchRootPly: null,
+        branchRootFen: null,
+      }));
     },
-    [jumpToPly, state.currentPly],
+    [mainMoves.length],
   );
 
   const playMove = useCallback(
     (from: string, to: string, promotion = 'q') => {
       setState((prev) => {
-        const baseFen = buildFen(payload.initialFen, mainMoves, prev.currentPly, prev.variantSans);
+        const baseFen = buildFenFromMoves(
+          payload.initialFen,
+          mainMoves,
+          prev.currentPly,
+          prev.variantSans,
+        );
         const chess = new Chess(baseFen);
         let played: Move | null = null;
         try {
@@ -145,9 +226,13 @@ export function useChessWorkspace(input: {
           return prev;
         }
         if (!played) return prev;
-        const expected = prev.variantSans.length === 0 ? mainMoves[prev.currentPly]?.san ?? null : null;
+        const expected =
+          prev.variantSans.length === 0
+            ? (mainMoves[prev.currentPly]?.san ?? null)
+            : null;
         const isNewVariant =
-          prev.variantSans.length === 0 && (expected == null || expected !== played.san);
+          prev.variantSans.length === 0 &&
+          (expected == null || expected !== played.san);
         return {
           currentPly: prev.currentPly,
           variantSans: [...prev.variantSans, played.san],
@@ -168,6 +253,145 @@ export function useChessWorkspace(input: {
     }));
   }, []);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Finish-vs-engine: player move
+  // ──────────────────────────────────────────────────────────────────────────
+  const playFinishMove = useCallback(
+    (from: string, to: string, promotion = 'q') => {
+      if (!isFinishVsEngine) return;
+      setFinishState((prev) => {
+        if (prev.phase !== 'playing') return prev;
+        if (sideFromFen(prev.fen) === engineColor) return prev;
+        const chess = new Chess(prev.fen);
+        let played: Move | null = null;
+        try {
+          played = chess.move({
+            from,
+            to,
+            promotion: promotion as 'q' | 'r' | 'b' | 'n',
+          }) as Move;
+        } catch {
+          return prev;
+        }
+        if (!played) return prev;
+        finishSansRef.current.push(played.san);
+        const newFen = chess.fen();
+        const officialResult = officialResultFromChess(chess);
+        return {
+          phase: officialResult ? 'game-over' : 'playing',
+          fen: newFen,
+          result: officialResult,
+        };
+      });
+    },
+    [isFinishVsEngine, engineColor],
+  );
+
+  const playFinishSan = useCallback(
+    (san: string) => {
+      if (!isFinishVsEngine) return;
+      setFinishState((prev) => {
+        if (prev.phase !== 'playing') return prev;
+        if (sideFromFen(prev.fen) === engineColor) return prev;
+        const chess = new Chess(prev.fen);
+        let played: Move | null = null;
+        try {
+          played = chess.move(san);
+        } catch {
+          return prev;
+        }
+        if (!played) return prev;
+        finishSansRef.current.push(played.san);
+        const newFen = chess.fen();
+        const officialResult = officialResultFromChess(chess);
+        return {
+          phase: officialResult ? 'game-over' : 'playing',
+          fen: newFen,
+          result: officialResult,
+        };
+      });
+    },
+    [isFinishVsEngine, engineColor],
+  );
+
+  const finishLegalDests = useCallback(
+    (from: string): string[] => {
+      if (!isFinishVsEngine) return [];
+      if (sideFromFen(finishState.fen) === engineColor) return [];
+      try {
+        return new Chess(finishState.fen)
+          .moves({ square: from as Parameters<Chess['moves']>[0]['square'], verbose: true })
+          .map((m) => m.to);
+      } catch {
+        return [];
+      }
+    },
+    [isFinishVsEngine, finishState.fen, engineColor],
+  );
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Finish-vs-engine: engine move trigger
+  // ──────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isFinishVsEngine) return;
+    if (finishState.phase !== 'playing') return;
+    if (!engine || !engineReady) return;
+    if (sideFromFen(finishState.fen) !== engineColor) return;
+    if (engineMoveLockedRef.current) return;
+
+    engineMoveLockedRef.current = true;
+    const requestId = ++finishRequestIdRef.current;
+    const fenAtRequest = finishState.fen;
+
+    void (async () => {
+      try {
+        const analysis = await engine.analyze(fenAtRequest, 1500);
+        if (requestId !== finishRequestIdRef.current) return;
+        if (!analysis.bestMove) return;
+
+        setFinishState((prev) => {
+          if (prev.phase !== 'playing') return prev;
+          if (prev.fen !== fenAtRequest) return prev;
+          const chess = new Chess(prev.fen);
+          let played: Move | null = null;
+          try {
+            played = chess.move({
+              from: analysis.bestMove!.from,
+              to: analysis.bestMove!.to,
+              promotion: 'q',
+            }) as Move;
+          } catch {
+            return prev;
+          }
+          if (!played) return prev;
+          finishSansRef.current.push(played.san);
+          const newFen = chess.fen();
+          const officialResult = officialResultFromChess(chess);
+          engineMoveLockedRef.current = false;
+          return {
+            phase: officialResult ? 'game-over' : 'playing',
+            fen: newFen,
+            result: officialResult,
+          };
+        });
+      } catch {
+        if (requestId === finishRequestIdRef.current) {
+          engineMoveLockedRef.current = false;
+        }
+      }
+    })();
+  }, [
+    isFinishVsEngine,
+    finishState.phase,
+    finishState.fen,
+    engine,
+    engineReady,
+    engineColor,
+  ]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Analysis cache update from payload evaluations
+  // ──────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     setEvalState((prev) => ({
       evaluation: currentEvaluation ?? prev.evaluation,
@@ -176,7 +400,11 @@ export function useChessWorkspace(input: {
     }));
   }, [currentEvaluation, currentFen]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Progressive Stockfish analysis (reader/analysis/free-play modes)
+  // ──────────────────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (isFinishVsEngine) return;
     if (!engine || !engineReady) return;
     const cached = cacheRef.current.get(currentFen);
     if (cached) {
@@ -202,11 +430,16 @@ export function useChessWorkspace(input: {
           if (analysis.bestMove) {
             const chess = new Chess(currentFen);
             const legal = chess.moves({ verbose: true }).find(
-              (move) => move.from === analysis.bestMove!.from && move.to === analysis.bestMove!.to,
+              (m) =>
+                m.from === analysis.bestMove!.from &&
+                m.to === analysis.bestMove!.to,
             );
             bestSan = legal?.san ?? null;
           }
-          const evaluation = toWhitePerspectiveEvaluation(analysis.scoreCp, analysis.mateIn);
+          const evaluation = toWhitePerspectiveEvaluation(
+            analysis.scoreCp,
+            analysis.mateIn,
+          );
           cacheRef.current.set(currentFen, { evaluation, bestSan });
           setEvalState({
             evaluation: preferEvaluation(currentEvaluation, evaluation),
@@ -221,19 +454,24 @@ export function useChessWorkspace(input: {
       })();
     }, debounceMs);
     return () => clearTimeout(timer);
-  }, [currentFen, currentEvaluation, debounceMs, engine, engineReady]);
+  }, [currentFen, currentEvaluation, debounceMs, engine, engineReady, isFinishVsEngine]);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Public API
+  // ──────────────────────────────────────────────────────────────────────────
   return {
+    // Reader
     currentFen,
     currentPly: state.currentPly,
     currentMove,
     evalState,
     mainMoves,
-    moveSans,
     sideToMove,
     canReturnToBranch: state.branchRootPly != null,
     atStart: state.currentPly === 0 && state.variantSans.length === 0,
-    atEnd: state.currentPly >= mainMoves.length && state.variantSans.length === 0,
+    atEnd:
+      state.currentPly >= mainMoves.length &&
+      state.variantSans.length === 0,
     variantSans: state.variantSans,
     jumpToPly,
     goStart: () => jumpToPly(0),
@@ -242,5 +480,10 @@ export function useChessWorkspace(input: {
     goNext: () => step(1),
     playMove,
     returnToBranchRoot,
+    // Finish-vs-engine
+    finishState,
+    finishLegalDests,
+    playFinishMove,
+    playFinishSan,
   };
 }
