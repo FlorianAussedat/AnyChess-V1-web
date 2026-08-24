@@ -105,6 +105,10 @@ export function useChessWorkspace(input: {
     thinking: false,
   });
 
+  const [displayOrientation, setDisplayOrientation] = useState<'white' | 'black'>(
+    payload.orientation,
+  );
+
   const [finishState, setFinishState] = useState<WorkspaceFinishState>(() => ({
     phase: isFinishVsEngine ? 'playing' : 'idle',
     fen: payload.initialFen,
@@ -120,7 +124,8 @@ export function useChessWorkspace(input: {
 
   useEffect(() => {
     setTree(createTreeFromPayload(payload));
-  }, [payload.initialFen, payload.title, payload.workspaceMode]);
+    setDisplayOrientation(payload.orientation);
+  }, [payload.initialFen, payload.title, payload.workspaceMode, payload.orientation]);
 
   useEffect(() => {
     finishControllerRef.current?.close();
@@ -209,6 +214,10 @@ export function useChessWorkspace(input: {
 
   const returnToBranchRoot = useCallback(() => {
     setTree((prev) => returnToDivergence(prev));
+  }, []);
+
+  const flipBoard = useCallback(() => {
+    setDisplayOrientation((prev) => (prev === 'white' ? 'black' : 'white'));
   }, []);
 
   const playFinishMove = useCallback(
@@ -393,6 +402,8 @@ export function useChessWorkspace(input: {
     pathMoves,
     sideToMove,
     lastMove,
+    displayOrientation,
+    flipBoard,
     variantChoices,
     selectedChildId: tree.preferredChildByParentId[tree.currentNodeId] ?? null,
     canReturnToBranch: tree.divergenceNodeId != null,

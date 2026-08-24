@@ -212,6 +212,15 @@ export function UniversalChessWorkspace({
             </Text>
           </Pressable>
         ) : null}
+        <Pressable
+          onPress={workspace.flipBoard}
+          style={[styles.toggleBtn, { borderColor: colors.border }]}
+          testID="workspace-flip-board"
+        >
+          <Text style={{ color: colors.foreground, fontSize: 12 }}>
+            Retourner l{"'"}échiquier
+          </Text>
+        </Pressable>
       </View>
 
       {/* Eval gauge */}
@@ -271,7 +280,7 @@ export function UniversalChessWorkspace({
           <ChessBoard
             board={board}
             lastMove={lastMove}
-            isFlipped={payload.orientation === 'black'}
+            isFlipped={workspace.displayOrientation === 'black'}
             selectedSquare={isInteractive ? touchSelected : undefined}
             legalDots={isInteractive ? legalDests : undefined}
             onSquarePress={isInteractive ? onSquarePress : undefined}

@@ -37,6 +37,7 @@ import {
   getTheoreticalAnalysisOverlay,
 } from '@/lib/theoreticalEndgame';
 import type { ChessWorkspacePayload, WorkspaceMove, AnalysisMarker } from '@/lib/workspace/types';
+import { initialOrientationFromFen } from '@/lib/workspace/boardOrientation';
 import {
   getChessWorkspaceSession,
 } from '@/lib/workspace/WorkspaceSessionRegistry';
@@ -81,7 +82,7 @@ function payloadFromGame(
     initialFen: game.initialFen,
     pgn: game.source.rawPgn,
     moves,
-    orientation: 'white',
+    orientation: initialOrientationFromFen(game.initialFen),
     result: resultType,
     metadata: {
       gameId: game.id,
