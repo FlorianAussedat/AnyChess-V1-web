@@ -39,6 +39,9 @@ type Props = {
   showNotation?: boolean;
   showToolbar?: boolean;
   toolbar?: ToolbarHandlers;
+  /** Replaces voice toolbar when provided (AnyLyseur). */
+  toolbarSlot?: React.ReactNode;
+  arrows?: { from: string; to: string; color?: string }[];
   notationMaxHeight?: number;
   desktopSplit?: boolean;
   testID?: string;
@@ -60,6 +63,8 @@ export function SharedGameReaderView({
   showNotation = true,
   showToolbar = false,
   toolbar,
+  toolbarSlot,
+  arrows,
   notationMaxHeight = 220,
   desktopSplit,
   testID = 'shared-game-reader',
@@ -92,24 +97,28 @@ export function SharedGameReaderView({
         />
       ) : null}
       {topSlot}
-      {showToolbar && toolbar ? (
-        <ReaderBoardToolbar
-          flipped={reader.boardFlipped}
-          onFlip={reader.flipBoard}
-          flipLabel={t('parties.flipBoard')}
-          voiceActive={toolbar.voiceActive}
-          onToggleVoice={toolbar.onToggleVoice}
-          voiceLabel={
-            toolbar.voiceActive ? t('parties.pause') : t('parties.play')
-          }
-          onRepeat={toolbar.onRepeat}
-          repeatLabel={t('parties.repeat')}
-          micActive={toolbar.micActive}
-          onToggleMic={toolbar.onToggleMic}
-          micLabel={t('parties.voiceCommands')}
-          micDisabled={toolbar.micDisabled}
-        />
-      ) : null}
+      {toolbarSlot
+        ? toolbarSlot
+        : showToolbar && toolbar
+          ? (
+            <ReaderBoardToolbar
+              flipped={reader.boardFlipped}
+              onFlip={reader.flipBoard}
+              flipLabel={t('parties.flipBoard')}
+              voiceActive={toolbar.voiceActive}
+              onToggleVoice={toolbar.onToggleVoice}
+              voiceLabel={
+                toolbar.voiceActive ? t('parties.pause') : t('parties.play')
+              }
+              onRepeat={toolbar.onRepeat}
+              repeatLabel={t('parties.repeat')}
+              micActive={toolbar.micActive}
+              onToggleMic={toolbar.onToggleMic}
+              micLabel={t('parties.voiceCommands')}
+              micDisabled={toolbar.micDisabled}
+            />
+          )
+          : null}
       {showBoard ? (
         <ChessBoardSection boardSize={boardSize}>
           <ChessBoard
@@ -119,6 +128,7 @@ export function SharedGameReaderView({
             showCoordinates={showCoordinates}
             sizeMode="wide"
             size={boardSize}
+            arrows={arrows}
           />
         </ChessBoardSection>
       ) : null}

@@ -42,12 +42,15 @@ export {
   type AnalysisControllerOptions,
 } from './AnalysisController.ts';
 
+export * from './engine/index.ts';
+
 export {
-  createChessEngine,
-  createStockfishChessEngine,
-  StockfishChessEngine,
-  type ChessEngine,
-  type AnalyzePositionRequest,
-  type ChessEngineLifecycleStatus,
-  type StockfishChessEngineOptions,
-} from './engine/index.ts';
+  collectMainLineNodes,
+  collectActiveLineNodes,
+  type MainLineNodeRef,
+} from './mainLineNodes.ts';
+
+export {
+  useAnyLyseurAnalysis,
+  type UseAnyLyseurAnalysisOptions,
+} from './useAnyLyseurAnalysis.ts';

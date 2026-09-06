@@ -109,7 +109,17 @@ export class AnalysisController {
     if (this.profileId === profileId) return;
     this.profileId = profileId;
     this.cache.clear();
+    this.clearGameResults();
     this.emit();
+  }
+
+  private clearGameResults(): void {
+    this.gameGen += 1;
+    this.gameRunning = false;
+    this.pendingGameNodes = [];
+    this.gameNodes = {};
+    this.gameDone = 0;
+    this.gameTotal = 0;
   }
 
   getCachedPosition(fen: string): PositionAnalysis | undefined {
@@ -263,8 +273,13 @@ export class AnalysisController {
     fen: string,
     profileId?: AnalysisProfileId,
   ): Promise<PositionAnalysis | null> {
-    if (profileId) this.setProfile(profileId);
-    this.cache.clear();
+    if (profileId) {
+      this.setProfile(profileId);
+    } else {
+      this.cache.clear();
+      this.clearGameResults();
+      this.emit();
+    }
     return this.analyzeCurrentPosition(fen);
   }
 
