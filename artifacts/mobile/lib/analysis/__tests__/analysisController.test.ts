@@ -219,3 +219,85 @@ describe('exportEnrichedPgn', () => {
     assert.match(out, /Best: e4/);
   });
 });
+
+describe('AnalysisController priority and branches', () => {
+  it('prioritizes current position over full-game batch', async () => {
+    const AFTER_E4_E5 =
+      'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2';
+    const engine = new MockEngine((fen) =>
+      analysis(fen === AFTER_E4_E5 ? 55 : 10, null, ['g1f3', 'd2d4', 'b1c3']),
+    );
+    engine.delayMs = 30;
+    const ctrl = new AnalysisController({ engine });
+    await ctrl.init();
+
+    ctrl.startGameAnalysis([
+      { nodeId: 'n1', fen: START },
+      { nodeId: 'n2', fen: AFTER_E4 },
+      { nodeId: 'n3', fen: AFTER_E4_E5 },
+    ]);
+    const positionPromise = ctrl.analyzeCurrentPosition(AFTER_E4_E5);
+    const result = await positionPromise;
+    assert.ok(result);
+    assert.equal(result!.fen, AFTER_E4_E5);
+    assert.equal(result!.evaluation, 55);
+    assert.ok(engine.calls.includes(AFTER_E4_E5));
+    // Current position request should appear before remaining batch FENs finish.
+    const idxPriority = engine.calls.indexOf(AFTER_E4_E5);
+    assert.ok(idxPriority >= 0);
+
+    await new Promise((r) => setTimeout(r, 120));
+    const state = ctrl.getState();
+    assert.ok(state.gameNodes.n1 || state.gameNodes.n2 || state.gameNodes.n3);
+    await ctrl.dispose();
+  });
+
+  it('analyzes PGN branch nodes on demand without requiring main line', async () => {
+    const BRANCH =
+      'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
+    const engine = new MockEngine(() =>
+      analysis(12, null, ['d2d4', 'f1c4', 'b1c3']),
+    );
+    const ctrl = new AnalysisController({ engine });
+    await ctrl.init();
+
+    // On-demand branch: only the active variation nodes.
+    ctrl.startGameAnalysis([
+      { nodeId: 'branch-a', fen: AFTER_E4 },
+      { nodeId: 'branch-b', fen: BRANCH },
+    ]);
+    await new Promise((r) => setTimeout(r, 40));
+    const state = ctrl.getState();
+    assert.ok(state.gameNodes['branch-a']);
+    assert.ok(state.gameNodes['branch-b']);
+    assert.equal(state.gameNodes['branch-b']!.fen, BRANCH);
+    assert.equal(engine.calls.includes(START), false);
+    await ctrl.dispose();
+  });
+});
+
+describe('UCI info MultiPV (engine layer)', () => {
+  it('parses multipv cp mate and bestmove without a worker', async () => {
+    const { parseInfoScoreSnapshot, parseBestMove } = await import(
+      '../../engines/stockfish/uci.ts'
+    );
+    const l1 = parseInfoScoreSnapshot(
+      'info depth 14 multipv 1 score cp 42 pv e2e4 e7e5 g1f3',
+    );
+    const l2 = parseInfoScoreSnapshot(
+      'info depth 14 multipv 2 score cp 31 pv d2d4 d7d5',
+    );
+    const l3 = parseInfoScoreSnapshot(
+      'info depth 14 multipv 3 score mate 3 pv a1a8 h7h8',
+    );
+    assert.equal(l1?.multipv, 1);
+    assert.equal(l1?.scoreCp, 42);
+    assert.deepEqual(l1?.pv.slice(0, 2), ['e2e4', 'e7e5']);
+    assert.equal(l2?.multipv, 2);
+    assert.equal(l3?.mateIn, 3);
+    assert.equal(l3?.multipv, 3);
+    const bm = parseBestMove('bestmove e2e4 ponder e7e5');
+    assert.equal(bm?.from, 'e2');
+    assert.equal(bm?.to, 'e4');
+  });
+});
