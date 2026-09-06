@@ -43,4 +43,9 @@ export {
   gameLibraryStore,
 } from './GameLibraryStore.ts';
 
-export { gamePlayersTitle, gameSubtitle } from './display.ts';
+export {
+  gamePlayersTitle,
+  gameSubtitle,
+  gameHasUsableName,
+  gameLibraryTitle,
+} from './display.ts';

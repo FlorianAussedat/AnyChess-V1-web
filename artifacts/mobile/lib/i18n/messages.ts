@@ -137,7 +137,14 @@ export type MessageKey =
   | 'parties.importNone'
   | 'parties.importFailed'
   | 'parties.deleteTitle'
+  | 'parties.deleteConfirmMessage'
   | 'parties.deleteConfirm'
+  | 'parties.voiceCommands'
+  | 'parties.nameRequired'
+  | 'parties.importCancelled'
+  | 'parties.importAction'
+  | 'parties.gameNamePlaceholder'
+  | 'parties.gameName'
   | 'parties.reader'
   | 'parties.play'
   | 'parties.pause'
@@ -866,6 +873,13 @@ const fr: Dict = {
   'parties.importFailed': 'Échec de l’import PGN',
   'parties.deleteTitle': 'Supprimer la partie ?',
   'parties.deleteConfirm': 'Supprimer',
+  'parties.voiceCommands': 'Commandes vocales',
+  'parties.nameRequired': 'Le nom ne peut pas être vide.',
+  'parties.importCancelled': 'Import annulé',
+  'parties.importAction': 'Importer',
+  'parties.gameNamePlaceholder': 'Ex. Morphy – Duke of Brunswick',
+  'parties.gameName': 'Nom de la partie',
+  'parties.deleteConfirmMessage': 'Supprimer cette partie ?',
   'parties.reader': 'Lecteur de Parties',
   'parties.play': 'Lecture',
   'parties.pause': 'Pause',
@@ -1651,6 +1665,13 @@ const en: Dict = {
   'parties.importFailed': 'PGN import failed',
   'parties.deleteTitle': 'Delete this game?',
   'parties.deleteConfirm': 'Delete',
+  'parties.voiceCommands': 'Voice commands',
+  'parties.nameRequired': 'Name cannot be empty.',
+  'parties.importCancelled': 'Import cancelled',
+  'parties.importAction': 'Import',
+  'parties.gameNamePlaceholder': 'e.g. Morphy – Duke of Brunswick',
+  'parties.gameName': 'Game name',
+  'parties.deleteConfirmMessage': 'Delete this game?',
   'parties.reader': 'Game Reader',
   'parties.play': 'Play',
   'parties.pause': 'Pause',

@@ -32,6 +32,8 @@ export type ImportedGameMove = {
 
 export type ImportedChessGame = {
   id: string;
+  /** User-provided title when PGN metadata has no usable name. */
+  displayName?: string;
   /** Content fingerprint for duplicate detection (not filename). */
   fingerprint: string;
   headers: ImportedGameHeaders;

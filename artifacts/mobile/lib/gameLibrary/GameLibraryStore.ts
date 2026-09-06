@@ -32,6 +32,10 @@ export function validateGameLibrarySnapshot(raw: unknown): GameLibrarySnapshot |
     if (typeof game.hasVariations !== 'boolean') {
       game.hasVariations = false;
     }
+    if (typeof (game as { displayName?: unknown }).displayName === 'string') {
+      const dn = (game as { displayName: string }).displayName.trim();
+      game.displayName = dn.length > 0 ? dn : undefined;
+    }
     games.push(game);
   }
   return { version: 1, games };
@@ -83,6 +87,7 @@ export class GameLibraryStore {
   async importPgnText(
     pgnText: string,
     fileName?: string,
+    options?: { displayNames?: Record<number, string> },
   ): Promise<ImportPgnResult & { snapshot: GameLibrarySnapshot }> {
     const snap = await this.getSnapshot();
     const existing = new Set(snap.games.map((g) => g.fingerprint));
@@ -94,12 +99,37 @@ export class GameLibraryStore {
     if (result.imported.length === 0) {
       return { ...result, snapshot: snap };
     }
+    const names = options?.displayNames;
+    if (names) {
+      result.imported = result.imported.map((game, index) => {
+        const name = names[index]?.trim();
+        return name ? { ...game, displayName: name } : game;
+      });
+    }
     const next: GameLibrarySnapshot = {
       version: 1,
       games: [...result.imported, ...snap.games],
     };
     await this.persist(next);
     return { ...result, snapshot: next };
+  }
+
+  
+  /** Persist already-built imported games (after naming prompts). */
+  async addGames(
+    games: ImportedChessGame[],
+  ): Promise<GameLibrarySnapshot> {
+    if (games.length === 0) {
+      return this.getSnapshot();
+    }
+    const snap = await this.getSnapshot();
+    const existing = new Set(snap.games.map((g) => g.fingerprint));
+    const fresh = games.filter((g) => !existing.has(g.fingerprint));
+    const next: GameLibrarySnapshot = {
+      version: 1,
+      games: [...fresh, ...snap.games],
+    };
+    return this.persist(next);
   }
 
   async deleteGame(id: string): Promise<GameLibrarySnapshot> {
