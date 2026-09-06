@@ -1,6 +1,6 @@
 /**
- * Robust PGN → ReaderGame. Main line is legalized with chess.js.
- * Comments / NAGs / variation flags are preserved; side lines stay in rawPgn.
+ * Robust PGN → ReaderGame with a navigable variation tree.
+ * Main line and side lines are legalized once with chess.js.
  */
 import { Chess } from 'chess.js';
 import {
@@ -16,6 +16,7 @@ import type {
   ReaderGame,
   ReaderHeaders,
   ReaderMove,
+  ReaderNode,
 } from './types.ts';
 
 export const STANDARD_START_FEN =
@@ -52,16 +53,6 @@ function mapHeaders(raw: Record<string, string>): ReaderHeaders {
   };
 }
 
-function walkMainLine(root: PgnMoveNode | null): PgnMoveNode[] {
-  const out: PgnMoveNode[] = [];
-  let node = root;
-  while (node) {
-    out.push(node);
-    node = node.next;
-  }
-  return out;
-}
-
 function treeHasVariations(root: PgnMoveNode | null): boolean {
   let node = root;
   while (node) {
@@ -90,7 +81,7 @@ function sideFromFen(fen: string): ReaderColor {
   return fen.split(' ')[1] === 'b' ? 'black' : 'white';
 }
 
-function fingerprint(
+function fingerprintOf(
   headers: ReaderHeaders,
   initialFen: string,
   sans: readonly string[],
@@ -106,6 +97,116 @@ function fingerprint(
   ].join('|');
 }
 
+function nodeToMove(node: ReaderNode, ply: number): ReaderMove {
+  return {
+    ply,
+    moveNumber: node.moveNumber,
+    color: node.color,
+    san: node.san,
+    fenBefore: node.fenBefore,
+    fenAfter: node.fenAfter,
+    from: node.from,
+    to: node.to,
+    promotion: node.promotion,
+    comment: node.comment,
+    nags: node.nags,
+    hasVariations: node.childIds.length > 1 || undefined,
+    nodeId: node.id,
+  };
+}
+
+/**
+ * Convert a PGN node and its sibling variations (alternatives to this move)
+ * into ReaderNodes under the same parent / fenBefore.
+ */
+function convertSiblings(
+  pgnNode: PgnMoveNode | null,
+  parentId: string | null,
+  fenBefore: string,
+  depth: number,
+  nodesById: Record<string, ReaderNode>,
+  idSeq: { n: number },
+): { ids: string[]; error?: string } {
+  if (!pgnNode) return { ids: [] };
+
+  const siblings: PgnMoveNode[] = [pgnNode, ...pgnNode.variations];
+  const ids: string[] = [];
+
+  for (let variationIndex = 0; variationIndex < siblings.length; variationIndex += 1) {
+    const step = siblings[variationIndex]!;
+    const chess = new Chess(fenBefore);
+    const color = sideFromFen(fenBefore);
+    let played;
+    try {
+      played = chess.move(step.san);
+    } catch {
+      return { ids: [], error: `Coup illégal « ${step.san} ».` };
+    }
+    if (!played) {
+      return { ids: [], error: `Coup illégal « ${step.san} ».` };
+    }
+
+    idSeq.n += 1;
+    const id = `n${idSeq.n}`;
+    const fenAfter = chess.fen();
+    const comment = step.comment;
+    void extractClkFromComment(comment);
+
+    const nodeDepth = variationIndex === 0 ? depth : depth + 1;
+    const childResult = convertSiblings(
+      step.next,
+      id,
+      fenAfter,
+      nodeDepth,
+      nodesById,
+      idSeq,
+    );
+    if (childResult.error) {
+      return { ids: [], error: childResult.error };
+    }
+
+    const fullMove = Number(fenBefore.split(' ')[5] ?? '1');
+    const node: ReaderNode = {
+      id,
+      san: played.san,
+      fenBefore,
+      fenAfter,
+      from: played.from,
+      to: played.to,
+      promotion: played.promotion,
+      moveNumber: fullMove,
+      color,
+      comment,
+      nags: step.nags.length > 0 ? [...step.nags] : undefined,
+      parentId,
+      childIds: childResult.ids,
+      variationIndex,
+      depth: nodeDepth,
+    };
+    nodesById[id] = node;
+    ids.push(id);
+  }
+
+  return { ids };
+}
+
+function mainLineMoves(
+  nodesById: Record<string, ReaderNode>,
+  rootIds: string[],
+): ReaderMove[] {
+  const moves: ReaderMove[] = [];
+  let id: string | null = rootIds[0] ?? null;
+  let ply = 0;
+  while (id) {
+    const node: ReaderNode | undefined = nodesById[id];
+    if (!node) break;
+    ply += 1;
+    moves.push(nodeToMove(node, ply));
+    id = node.childIds[0] ?? null;
+  }
+  return moves;
+}
+
 export type BuildReaderGameOptions = {
   id?: string;
   /** Allow FEN-only / empty movetext (Analyseur). */
@@ -116,8 +217,7 @@ export type BuildReaderGameOptions = {
 };
 
 /**
- * Build a ReaderGame from one parsed PGN tree.
- * Empty movetext is allowed when `allowEmptyMoves` (Analyseur / FEN-only).
+ * Build a ReaderGame from one parsed PGN tree (full variation tree).
  */
 export function buildReaderGameFromPgnTree(
   rawHeaders: Record<string, string>,
@@ -130,9 +230,8 @@ export function buildReaderGameFromPgnTree(
   const initialFen =
     setup && fenHeader ? fenHeader : fenHeader ?? STANDARD_START_FEN;
 
-  let chess: Chess;
   try {
-    chess = new Chess(initialFen);
+    new Chess(initialFen);
   } catch {
     return {
       ok: false,
@@ -141,8 +240,7 @@ export function buildReaderGameFromPgnTree(
     };
   }
 
-  const main = walkMainLine(root);
-  if (main.length === 0 && !options.allowEmptyMoves) {
+  if (!root && !options.allowEmptyMoves) {
     return {
       ok: false,
       error: 'Impossible de lire cette partie.',
@@ -150,53 +248,33 @@ export function buildReaderGameFromPgnTree(
     };
   }
 
-  const moves: ReaderMove[] = [];
-  for (let i = 0; i < main.length; i += 1) {
-    const step = main[i]!;
-    const fenBefore = chess.fen();
-    const color = sideFromFen(fenBefore);
-    let played;
-    try {
-      played = chess.move(step.san);
-    } catch {
-      return {
-        ok: false,
-        error: 'Impossible de lire cette partie.',
-        detail: `Coup illégal « ${step.san} » (ply ${i + 1}).`,
-      };
-    }
-    if (!played) {
-      return {
-        ok: false,
-        error: 'Impossible de lire cette partie.',
-        detail: `Coup illégal « ${step.san} » (ply ${i + 1}).`,
-      };
-    }
-    const ply = i + 1;
-    const comment = step.comment;
-    moves.push({
-      ply,
-      moveNumber: Math.ceil(ply / 2),
-      color,
-      san: played.san,
-      fenBefore,
-      fenAfter: chess.fen(),
-      from: played.from,
-      to: played.to,
-      promotion: played.promotion,
-      comment,
-      nags: step.nags.length > 0 ? [...step.nags] : undefined,
-      hasVariations: step.variations.length > 0,
-    });
-    // Keep clk extraction wired for Lecteur overlays without a second parse.
-    void extractClkFromComment(comment);
+  const nodesById: Record<string, ReaderNode> = {};
+  const idSeq = { n: 0 };
+  const converted = convertSiblings(root, null, initialFen, 0, nodesById, idSeq);
+  if (converted.error) {
+    return {
+      ok: false,
+      error: 'Impossible de lire cette partie.',
+      detail: converted.error,
+    };
+  }
+
+  const rootIds = converted.ids;
+  const moves = mainLineMoves(nodesById, rootIds);
+
+  if (moves.length === 0 && !options.allowEmptyMoves) {
+    return {
+      ok: false,
+      error: 'Impossible de lire cette partie.',
+      detail: 'Aucun coup jouable.',
+    };
   }
 
   const importedAt = options.importedAt ?? Date.now();
   const rawPgn = options.rawPgn;
   const game: ReaderGame = {
     id: options.id ?? createId(),
-    fingerprint: fingerprint(
+    fingerprint: fingerprintOf(
       headers,
       initialFen,
       moves.map((m) => m.san),
@@ -204,6 +282,8 @@ export function buildReaderGameFromPgnTree(
     headers,
     initialFen,
     moves,
+    nodesById,
+    rootIds,
     result: headers.result,
     hasVariations: treeHasVariations(root),
     rawPgn,
@@ -304,6 +384,24 @@ export function readerGameFromImported(input: {
   rawPgn?: string;
   source?: ReaderGame['source'];
 }): ReaderGame {
+  const rawPgn = input.rawPgn ?? input.source?.rawPgn;
+  if (rawPgn && rawPgn.trim().length > 0) {
+    const parsed = parseReaderPgn(rawPgn, {
+      id: input.id,
+      fileName: input.source?.fileName,
+      importedAt: input.source?.importedAt,
+      allowEmptyMoves: true,
+    });
+    if (parsed.ok) {
+      return {
+        ...parsed.game,
+        id: input.id,
+        fingerprint: input.fingerprint ?? parsed.game.fingerprint,
+        source: input.source ?? parsed.game.source,
+      };
+    }
+  }
+
   let chess: Chess;
   try {
     chess = new Chess(input.initialFen);
@@ -311,8 +409,13 @@ export function readerGameFromImported(input: {
     chess = new Chess(STANDARD_START_FEN);
   }
 
+  const nodesById: Record<string, ReaderNode> = {};
   const moves: ReaderMove[] = [];
-  for (const m of input.moves) {
+  let parentId: string | null = null;
+  let rootIds: string[] = [];
+
+  for (let i = 0; i < input.moves.length; i += 1) {
+    const m = input.moves[i]!;
     const fenBefore = chess.fen();
     const color = sideFromFen(fenBefore);
     let played;
@@ -321,46 +424,62 @@ export function readerGameFromImported(input: {
     } catch {
       played = null;
     }
-    if (!played) {
-      moves.push({
-        ply: m.ply,
-        moveNumber: Math.ceil(m.ply / 2),
-        color,
-        san: m.san,
-        fenBefore,
-        fenAfter: m.fenAfter,
-        comment: m.comment,
-        nags: m.nags,
-      });
+    const id = `n${i + 1}`;
+    let fenAfter = m.fenAfter;
+    let from: string | undefined;
+    let to: string | undefined;
+    let promotion: string | undefined;
+    let san = m.san;
+
+    if (played) {
+      fenAfter = chess.fen();
+      from = played.from;
+      to = played.to;
+      promotion = played.promotion;
+      san = played.san;
+    } else {
       try {
         chess.load(m.fenAfter);
       } catch {
         /* keep going */
       }
-      continue;
     }
-    moves.push({
-      ply: m.ply,
+
+    const node: ReaderNode = {
+      id,
+      san,
+      fenBefore,
+      fenAfter,
+      from,
+      to,
+      promotion,
       moveNumber: Math.ceil(m.ply / 2),
       color,
-      san: played.san,
-      fenBefore,
-      fenAfter: chess.fen(),
-      from: played.from,
-      to: played.to,
-      promotion: played.promotion,
       comment: m.comment,
       nags: m.nags,
-    });
+      parentId,
+      childIds: [],
+      variationIndex: 0,
+      depth: 0,
+    };
+    nodesById[id] = node;
+    if (parentId && nodesById[parentId]) {
+      nodesById[parentId]!.childIds = [id];
+    } else {
+      rootIds = [id];
+    }
+    parentId = id;
+    moves.push(nodeToMove(node, m.ply));
   }
 
-  const rawPgn = input.rawPgn ?? input.source?.rawPgn;
   return {
     id: input.id,
     fingerprint: input.fingerprint,
     headers: input.headers,
     initialFen: input.initialFen,
     moves,
+    nodesById,
+    rootIds,
     result: input.headers.result,
     hasVariations: Boolean(input.hasVariations),
     rawPgn,
@@ -382,6 +501,8 @@ export function emptyReaderGame(fen = STANDARD_START_FEN): ReaderGame {
     headers: {},
     initialFen: fen,
     moves: [],
+    nodesById: {},
+    rootIds: [],
     hasVariations: false,
   };
 }

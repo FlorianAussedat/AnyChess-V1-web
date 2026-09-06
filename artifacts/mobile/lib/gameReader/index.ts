@@ -1,6 +1,7 @@
 export type {
   ReaderColor,
   ReaderMove,
+  ReaderNode,
   ReaderHeaders,
   ReaderGame,
   GameReaderState,
@@ -31,6 +32,9 @@ export {
   goToPly,
   flipBoard,
   setBoardFlipped,
+  goToNode,
+  buildActiveLine,
+  followMainFrom,
 } from './gameReaderState.ts';
 
 export {
@@ -38,3 +42,21 @@ export {
   type UseGameReaderOptions,
   type GameReaderApi,
 } from './useGameReader.ts';
+
+export {
+  parseReaderVoiceCommand,
+  type ReaderVoiceCommand,
+} from './parseReaderVoiceCommand.ts';
+
+export {
+  createReaderPlayback,
+  type ReaderPlaybackController,
+  type ReaderPlaybackDeps,
+} from './readerPlayback.ts';
+
+export {
+  saveSharedReaderPosition,
+  loadSharedReaderPosition,
+  clearSharedReaderPosition,
+  type SharedReaderPosition,
+} from './sharedReaderPosition.ts';

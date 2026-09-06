@@ -8,6 +8,7 @@ import {
   flipBoard as flipBoardState,
   goToEnd as goToEndState,
   goToNext as goToNextState,
+  goToNode as goToNodeState,
   goToPly as goToPlyState,
   goToPrevious as goToPreviousState,
   goToStart as goToStartState,
@@ -23,9 +24,11 @@ import type {
 export type UseGameReaderOptions = {
   game: ReaderGame | null;
   initialPly?: number;
+  /** Restore a specific tree node (preferred over ply when variations exist). */
+  initialNodeId?: string | null;
   initialFlipped?: boolean;
   /** Fired whenever the displayed FEN changes (Analyseur / Stockfish later). */
-  onFenChange?: (fen: string, ply: number) => void;
+  onFenChange?: (fen: string, ply: number, nodeId: string | null) => void;
 };
 
 export type GameReaderApi = GameReaderState & {
@@ -36,6 +39,7 @@ export type GameReaderApi = GameReaderState & {
   goToNext: () => void;
   goToEnd: () => void;
   goToPly: (ply: number) => void;
+  goToNode: (nodeId: string | null) => void;
   flipBoard: () => void;
   setBoardFlipped: (flipped: boolean) => void;
 };
@@ -45,10 +49,20 @@ const EMPTY_HEADERS: ReaderHeaders = {};
 export function useGameReader(
   options: UseGameReaderOptions,
 ): GameReaderApi | null {
-  const { game, initialPly = 0, initialFlipped = false, onFenChange } = options;
-  const [state, setState] = useState<GameReaderState | null>(() =>
-    game ? createGameReaderState(game, initialPly, initialFlipped) : null,
-  );
+  const {
+    game,
+    initialPly = 0,
+    initialNodeId = null,
+    initialFlipped = false,
+    onFenChange,
+  } = options;
+  const [state, setState] = useState<GameReaderState | null>(() => {
+    if (!game) return null;
+    if (initialNodeId) {
+      return createGameReaderState(game, initialNodeId, initialFlipped);
+    }
+    return createGameReaderState(game, initialPly, initialFlipped);
+  });
   const onFenChangeRef = useRef(onFenChange);
   onFenChangeRef.current = onFenChange;
   const gameId = game?.id;
@@ -58,13 +72,21 @@ export function useGameReader(
       setState(null);
       return;
     }
-    setState(createGameReaderState(game, initialPly, initialFlipped));
-  }, [gameId, game, initialPly, initialFlipped]);
+    if (initialNodeId) {
+      setState(createGameReaderState(game, initialNodeId, initialFlipped));
+    } else {
+      setState(createGameReaderState(game, initialPly, initialFlipped));
+    }
+  }, [gameId, game, initialPly, initialNodeId, initialFlipped]);
 
   useEffect(() => {
     if (!state) return;
-    onFenChangeRef.current?.(state.currentFen, state.currentPly);
-  }, [state?.currentFen, state?.currentPly]);
+    onFenChangeRef.current?.(
+      state.currentFen,
+      state.currentPly,
+      state.currentNodeId,
+    );
+  }, [state?.currentFen, state?.currentPly, state?.currentNodeId]);
 
   const goToStart = useCallback(() => {
     setState((prev) => (prev ? goToStartState(prev) : prev));
@@ -80,6 +102,9 @@ export function useGameReader(
   }, []);
   const goToPly = useCallback((ply: number) => {
     setState((prev) => (prev ? goToPlyState(prev, ply) : prev));
+  }, []);
+  const goToNode = useCallback((nodeId: string | null) => {
+    setState((prev) => (prev ? goToNodeState(prev, nodeId) : prev));
   }, []);
   const flipBoard = useCallback(() => {
     setState((prev) => (prev ? flipBoardState(prev) : prev));
@@ -99,6 +124,7 @@ export function useGameReader(
       goToNext,
       goToEnd,
       goToPly,
+      goToNode,
       flipBoard,
       setBoardFlipped,
     };
@@ -110,6 +136,7 @@ export function useGameReader(
     goToNext,
     goToEnd,
     goToPly,
+    goToNode,
     flipBoard,
     setBoardFlipped,
   ]);
