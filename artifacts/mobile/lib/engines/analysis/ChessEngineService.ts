@@ -417,6 +417,7 @@ export class ChessEngineService {
               wdl: snap.wdl,
               depth: snap.depth,
               bestMove: resolveLegalBestMove(pending.fen, null, snap.pvMove),
+              pv: snap.pv ?? (snap.pvMove ? [snap.pvMove] : []),
             }));
           pending.resolve(snapshotToAnalysis(pv1, bestMove, lines));
         }

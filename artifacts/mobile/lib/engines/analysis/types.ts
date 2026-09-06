@@ -40,6 +40,8 @@ export type EngineAnalysisLine = {
   wdl: EngineWdl | null;
   depth: number;
   bestMove: EngineBestMove | null;
+  /** Full principal variation in UCI (empty when unavailable). */
+  pv: string[];
 };
 
 export type EngineAnalysis = {
