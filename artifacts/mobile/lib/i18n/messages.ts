@@ -170,6 +170,34 @@ export type MessageKey =
   | 'parties.analyzerSubtitle'
   | 'parties.analyzer'
   | 'parties.flipBoard'
+  | 'parties.anyliseurTabGame'
+  | 'parties.anyliseurTabAnalysis'
+  | 'parties.anyliseurProfileFast'
+  | 'parties.anyliseurProfileNormal'
+  | 'parties.anyliseurProfileDeep'
+  | 'parties.anyliseurExport'
+  | 'parties.anyliseurExportDone'
+  | 'parties.anyliseurExportFail'
+  | 'parties.anyliseurOpenReader'
+  | 'parties.anyliseurArrowsOn'
+  | 'parties.anyliseurArrowsOff'
+  | 'parties.anyliseurUnavailable'
+  | 'parties.anyliseurRetry'
+  | 'parties.anyliseurInitializing'
+  | 'parties.anyliseurAnalyzing'
+  | 'parties.anyliseurReady'
+  | 'parties.anyliseurProgress'
+  | 'parties.anyliseurPlayed'
+  | 'parties.anyliseurBest'
+  | 'parties.anyliseurBefore'
+  | 'parties.anyliseurAfter'
+  | 'parties.anyliseurBestMoves'
+  | 'parties.anyliseurWaiting'
+  | 'parties.anyliseurMore'
+  | 'parties.anyliseurLess'
+  | 'parties.anyliseurCurve'
+  | 'parties.anyliseurAnalyzed'
+  | 'parties.anyliseurReanalyze'
   // Game shared
   | 'game.movesPlayed'
   | 'game.exportPgn'
@@ -897,14 +925,42 @@ const fr: Dict = {
   'parties.notFound': 'Partie introuvable',
   'parties.loading': 'Chargement…',
   'parties.flipBoard': 'Retourner l’échiquier',
-  'parties.analyzer': 'Analyseur',
-  'parties.analyzerSubtitle': 'Lire un PGN et préparer l’analyse',
-  'parties.analyzerEmpty': 'Colle un PGN pour commencer l’analyse.',
+  'parties.anyliseurTabGame': 'Partie',
+  'parties.anyliseurTabAnalysis': 'Analyse',
+  'parties.anyliseurProfileFast': 'Rapide',
+  'parties.anyliseurProfileNormal': 'Normal',
+  'parties.anyliseurProfileDeep': 'Approfondie',
+  'parties.anyliseurExport': 'Export',
+  'parties.anyliseurExportDone': 'PGN enrichi copié.',
+  'parties.anyliseurExportFail': 'Impossible de copier le PGN.',
+  'parties.anyliseurOpenReader': 'Lecteur',
+  'parties.anyliseurArrowsOn': 'Flèche on',
+  'parties.anyliseurArrowsOff': 'Flèche off',
+  'parties.anyliseurUnavailable': "Le moteur d'analyse n'est pas disponible.",
+  'parties.anyliseurRetry': 'Réessayer',
+  'parties.anyliseurInitializing': 'Initialisation du moteur…',
+  'parties.anyliseurAnalyzing': 'Analyse en cours…',
+  'parties.anyliseurReady': 'Moteur prêt',
+  'parties.anyliseurProgress': 'Analyse {{done}} / {{total}}',
+  'parties.anyliseurPlayed': 'Joué',
+  'parties.anyliseurBest': 'Meilleur',
+  'parties.anyliseurBefore': 'Avant',
+  'parties.anyliseurAfter': 'Après',
+  'parties.anyliseurBestMoves': 'Meilleurs coups',
+  'parties.anyliseurWaiting': 'En attente de lignes…',
+  'parties.anyliseurMore': 'Plus de détails',
+  'parties.anyliseurLess': 'Moins',
+  'parties.anyliseurCurve': "Courbe d'évaluation",
+  'parties.anyliseurAnalyzed': 'Analysée',
+  'parties.anyliseurReanalyze': 'Ré-analyser',
+  'parties.analyzer': 'AnyLyseur',
+  'parties.analyzerSubtitle': 'Analyse de partie et de position',
+  'parties.analyzerEmpty': 'Colle un PGN pour démarrer AnyLyseur.',
   'parties.analyzerPaste': 'Colle un PGN ici…',
   'parties.analyzerLoad': 'Charger',
   'parties.parseError': 'Impossible de lire cette partie.',
   'parties.parseErrorHint': 'Vérifie le PGN (coups, en-têtes) puis réessaie.',
-  'parties.openAnalyzer': 'Ouvrir l’Analyseur',
+  'parties.openAnalyzer': 'Ouvrir AnyLyseur',
   'game.movesPlayed': 'Coups joués',
   'game.exportPgn': 'Exporter en PGN',
   'game.export': 'Exporter',
@@ -1689,14 +1745,42 @@ const en: Dict = {
   'parties.notFound': 'Game not found',
   'parties.loading': 'Loading…',
   'parties.flipBoard': 'Flip board',
-  'parties.analyzer': 'Analyzer',
-  'parties.analyzerSubtitle': 'Load a PGN and prepare analysis',
-  'parties.analyzerEmpty': 'Paste a PGN to start analyzing.',
+  'parties.anyliseurTabGame': 'Game',
+  'parties.anyliseurTabAnalysis': 'Analysis',
+  'parties.anyliseurProfileFast': 'Fast',
+  'parties.anyliseurProfileNormal': 'Normal',
+  'parties.anyliseurProfileDeep': 'Deep',
+  'parties.anyliseurExport': 'Export',
+  'parties.anyliseurExportDone': 'Enriched PGN copied.',
+  'parties.anyliseurExportFail': 'Could not copy PGN.',
+  'parties.anyliseurOpenReader': 'Reader',
+  'parties.anyliseurArrowsOn': 'Arrow on',
+  'parties.anyliseurArrowsOff': 'Arrow off',
+  'parties.anyliseurUnavailable': 'The analysis engine is unavailable.',
+  'parties.anyliseurRetry': 'Retry',
+  'parties.anyliseurInitializing': 'Starting engine…',
+  'parties.anyliseurAnalyzing': 'Analyzing…',
+  'parties.anyliseurReady': 'Engine ready',
+  'parties.anyliseurProgress': 'Analysis {{done}} / {{total}}',
+  'parties.anyliseurPlayed': 'Played',
+  'parties.anyliseurBest': 'Best',
+  'parties.anyliseurBefore': 'Before',
+  'parties.anyliseurAfter': 'After',
+  'parties.anyliseurBestMoves': 'Best moves',
+  'parties.anyliseurWaiting': 'Waiting for lines…',
+  'parties.anyliseurMore': 'More details',
+  'parties.anyliseurLess': 'Less',
+  'parties.anyliseurCurve': 'Evaluation curve',
+  'parties.anyliseurAnalyzed': 'Analyzed',
+  'parties.anyliseurReanalyze': 'Re-analyze',
+  'parties.analyzer': 'AnyLyseur',
+  'parties.analyzerSubtitle': 'Game and position analysis',
+  'parties.analyzerEmpty': 'Paste a PGN to start AnyLyseur.',
   'parties.analyzerPaste': 'Paste a PGN here…',
   'parties.analyzerLoad': 'Load',
   'parties.parseError': 'Unable to read this game.',
   'parties.parseErrorHint': 'Check the PGN (moves, headers) and try again.',
-  'parties.openAnalyzer': 'Open Analyzer',
+  'parties.openAnalyzer': 'Open AnyLyseur',
   'game.movesPlayed': 'Moves played',
   'game.exportPgn': 'Export PGN',
   'game.export': 'Export',

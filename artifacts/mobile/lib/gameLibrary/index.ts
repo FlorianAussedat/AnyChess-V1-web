@@ -2,6 +2,7 @@ export type {
   ImportedGameHeaders,
   ImportedGameMove,
   ImportedChessGame,
+  GameAnalysisMeta,
   GameLibrarySnapshot,
   ImportPgnResult,
 } from './types.ts';

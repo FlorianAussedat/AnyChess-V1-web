@@ -303,6 +303,14 @@ export default function PartiesLibraryScreen() {
                 <Text style={[styles.meta, { color: colors.mutedForeground }]}>
                   {t('parties.moveCount', { count: game.moves.length })}
                 </Text>
+                {game.analysis?.hasBeenAnalyzed ? (
+                  <Text
+                    style={[styles.meta, { color: colors.primary }]}
+                    testID={`parties-analyzed-${game.id}`}
+                  >
+                    {t('parties.anyliseurAnalyzed')}
+                  </Text>
+                ) : null}
               </Pressable>
               <Pressable
                 testID={`parties-delete-${game.id}`}

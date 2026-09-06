@@ -208,6 +208,27 @@ describe('gameLibrary persistence', () => {
       games: [],
     });
   });
+
+  it('persists AnyLyseur analysis metadata via markAnalyzed', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const store = new GameLibraryStore(storage);
+    const result = await store.importPgnText(SAMPLE_PGN, 'sample.pgn');
+    const game = result.imported[0]!;
+    assert.equal(game.analysis?.hasBeenAnalyzed, undefined);
+
+    const updated = await store.markAnalyzed(game.id, {
+      profileId: 'normal',
+      analyzedAt: 42,
+    });
+    assert.equal(updated?.analysis?.hasBeenAnalyzed, true);
+    assert.equal(updated?.analysis?.profileId, 'normal');
+    assert.equal(updated?.analysis?.analyzedAt, 42);
+
+    const again = new GameLibraryStore(storage);
+    const loaded = await again.getGame(game.id);
+    assert.equal(loaded?.analysis?.hasBeenAnalyzed, true);
+    assert.equal(loaded?.analysis?.profileId, 'normal');
+  });
 });
 
 function createMockSpeech(): PlaybackSpeechPort & {

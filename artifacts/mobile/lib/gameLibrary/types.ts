@@ -30,6 +30,14 @@ export type ImportedGameMove = {
   nags?: string[];
 };
 
+/** Minimal persisted analysis badge — not the full Stockfish cache. */
+export type GameAnalysisMeta = {
+  hasBeenAnalyzed: boolean;
+  analyzedAt: number;
+  /** Analysis profile id used last (`fast` | `normal` | `deep`). */
+  profileId: string;
+};
+
 export type ImportedChessGame = {
   id: string;
   /** User-provided title when PGN metadata has no usable name. */
@@ -51,6 +59,10 @@ export type ImportedChessGame = {
     /** Original game text (headers + movetext) for future variation support. */
     rawPgn?: string;
   };
+  /**
+   * Honest library badge only. Full engine lines stay in-session memory.
+   */
+  analysis?: GameAnalysisMeta;
 };
 
 export type GameLibrarySnapshot = {
