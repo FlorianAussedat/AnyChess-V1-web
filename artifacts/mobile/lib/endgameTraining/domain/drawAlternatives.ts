@@ -83,6 +83,7 @@ export async function findDrawAlternatives(input: {
       wdl: analysis.wdl,
       depth: analysis.depth,
       bestMove: analysis.bestMove,
+      pv: analysis.bestMove.uci ? [analysis.bestMove.uci] : [],
     });
   }
 
