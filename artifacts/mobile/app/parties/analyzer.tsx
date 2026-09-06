@@ -1,5 +1,6 @@
 /**
- * Analyseur — même cœur Lecteur (`useGameReader`), sans Stockfish.
+ * Analyseur — même cœur Lecteur (useGameReader), sans Stockfish.
+ * Restaure gameId + nodeId (+ flip) depuis le Lecteur.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -21,8 +22,10 @@ import { DesignTokens } from '@/constants/designTokens';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import { gameLibraryStore } from '@/lib/gameLibrary';
 import {
+  loadSharedReaderPosition,
   parseReaderPgn,
   readerGameFromImported,
+  saveSharedReaderPosition,
   useGameReader,
   type ReaderGame,
 } from '@/lib/gameReader';
@@ -38,8 +41,17 @@ const SAMPLE_PGN = `[Event "Sample"]
 
 export default function GameAnalyzerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ gameId?: string }>();
+  const params = useLocalSearchParams<{
+    gameId?: string;
+    nodeId?: string;
+    flipped?: string;
+  }>();
   const gameId = typeof params.gameId === 'string' ? params.gameId : '';
+  const paramNodeId =
+    typeof params.nodeId === 'string' && params.nodeId.length > 0
+      ? params.nodeId
+      : null;
+  const paramFlipped = params.flipped === '1';
   const colors = useColors();
   const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
@@ -77,12 +89,15 @@ export default function GameAnalyzerScreen() {
     };
   }, [gameId]);
 
-  const onFenChange = useCallback((fen: string, ply: number) => {
-    setFenProbe(`${ply}: ${fen}`);
+  const onFenChange = useCallback((fen: string, ply: number, nodeId: string | null) => {
+    setFenProbe(`${ply}${nodeId ? ` · ${nodeId}` : ''}: ${fen}`);
   }, []);
 
+  const shared = gameId ? loadSharedReaderPosition(gameId) : null;
   const reader = useGameReader({
     game,
+    initialNodeId: paramNodeId ?? shared?.nodeId ?? null,
+    initialFlipped: paramFlipped || Boolean(shared?.boardFlipped),
     onFenChange,
   });
 
@@ -110,7 +125,18 @@ export default function GameAnalyzerScreen() {
     <ChessScreenScaffold
       title={t('parties.analyzer')}
       subtitle={t('parties.analyzerSubtitle')}
-      onBack={() => router.back()}
+      onBack={() => {
+        if (game && reader) {
+          saveSharedReaderPosition({
+            gameId: game.id,
+            nodeId: reader.currentNodeId,
+            fen: reader.currentFen,
+            boardFlipped: reader.boardFlipped,
+            activeLineNodeIds: reader.activeLineNodeIds,
+          });
+        }
+        router.back();
+      }}
       testID="game-analyzer"
     >
       <TextInput
@@ -163,6 +189,15 @@ export default function GameAnalyzerScreen() {
             showCoordinates={showCoordinates}
             showPlayers
             showNotation
+            showToolbar
+            toolbar={{
+              voiceActive: false,
+              onToggleVoice: () => {},
+              onRepeat: () => {},
+              micActive: false,
+              onToggleMic: () => {},
+              micDisabled: true,
+            }}
           />
           {fenProbe ? (
             <Text
