@@ -14,13 +14,13 @@ type Props = {
   onPrev: () => void;
   onNext: () => void;
   onEnd: () => void;
-  onFlip: () => void;
+  onFlip?: () => void;
   labels: {
     start: string;
     prev: string;
     next: string;
     end: string;
-    flip: string;
+    flip?: string;
   };
   testID?: string;
 };
@@ -103,12 +103,14 @@ export function GameReaderNavControls({
         disabled={!canGoForward}
         testID="game-reader-nav-end"
       />
-      <NavBtn
-        icon="swap-vertical"
-        label={labels.flip}
-        onPress={onFlip}
-        testID="game-reader-nav-flip"
-      />
+      {onFlip && labels.flip ? (
+        <NavBtn
+          icon="swap-vertical"
+          label={labels.flip}
+          onPress={onFlip}
+          testID="game-reader-nav-flip"
+        />
+      ) : null}
     </View>
   );
 }

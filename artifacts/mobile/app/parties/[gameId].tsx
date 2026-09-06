@@ -1,7 +1,8 @@
 /**
- * Lecteur de parties — board / notation / ply synchronisés via useGameReader.
+ * Lecteur de parties — board / notation / node via useGameReader.
+ * Variantes, TTS synchronisé, commandes vocales, handoff Analyseur (nodeId).
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,7 +11,12 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import {
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+  type Href,
+} from 'expo-router';
 import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
@@ -19,6 +25,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useColors } from '@/hooks/useColors';
+import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
@@ -29,17 +36,16 @@ import {
   type ImportedChessGame,
 } from '@/lib/gameLibrary';
 import {
-  getEndgameAnalysisOverlay,
-  type EndgameAnalysisPayload,
-} from '@/lib/endgameTraining';
-import {
-  getTheoreticalAnalysisOverlay,
-  type TheoreticalAnalysisPayload,
-} from '@/lib/theoreticalEndgame';
-import type { EvaluationPoint, FirstMajorTurn } from '@/lib/endgameTraining/domain/types';
-import { PressureGauge } from '@/lib/endgameTraining/ui/PressureGauge';
-import { EvaluationCurve } from '@/lib/endgameTraining/ui/EvaluationCurve';
-import { readerGameFromImported, useGameReader } from '@/lib/gameReader';
+  createReaderPlayback,
+  loadSharedReaderPosition,
+  parseReaderVoiceCommand,
+  readerGameFromImported,
+  saveSharedReaderPosition,
+  useGameReader,
+  type GameReaderApi,
+} from '@/lib/gameReader';
+import { speechService } from '@/services/SpeechService';
+import { useSpeechInput } from '@/services/SpeechRecognitionService';
 
 const READER_RESERVED_CHROME = 300;
 
@@ -61,58 +67,6 @@ function orientationFromGame(game: ImportedChessGame): 'white' | 'black' | null 
   return match[1].toLowerCase() === 'black' ? 'black' : 'white';
 }
 
-type UnifiedOverlay = {
-  startFen: string;
-  orientation: 'white' | 'black';
-  moveSans: string[];
-  timeline: EvaluationPoint[];
-  firstMajorTurn: FirstMajorTurn | null;
-};
-
-function fromEndgame(overlay: EndgameAnalysisPayload): UnifiedOverlay {
-  return {
-    startFen: overlay.startFen,
-    orientation: overlay.orientation,
-    moveSans: overlay.moveSans,
-    timeline: overlay.timeline,
-    firstMajorTurn: overlay.firstMajorTurn ?? null,
-  };
-}
-
-function fromTheoretical(overlay: TheoreticalAnalysisPayload): UnifiedOverlay {
-  return {
-    startFen: overlay.startFen,
-    orientation: overlay.orientation,
-    moveSans: overlay.moveSans,
-    timeline: overlay.timeline,
-    firstMajorTurn: overlay.firstMajorTurn,
-  };
-}
-
-function evalAtOverlay(
-  overlay: UnifiedOverlay,
-  ply: number,
-): { scoreCp: number; mateIn: number | null } {
-  const timeline = overlay.timeline;
-  if (timeline.length === 0) return { scoreCp: 0, mateIn: null };
-
-  const stm = overlay.startFen.split(' ')[1] === 'b' ? 'black' : 'white';
-  const player = overlay.orientation;
-  const played = overlay.moveSans.slice(0, Math.max(0, ply));
-  let mover: 'white' | 'black' = stm;
-  let playerMoves = 0;
-  for (let i = 0; i < played.length; i += 1) {
-    if (mover === player) playerMoves += 1;
-    mover = mover === 'white' ? 'black' : 'white';
-  }
-
-  let best = timeline[0]!;
-  for (const point of timeline) {
-    if (point.playerMoveNumber <= playerMoves) best = point;
-  }
-  return { scoreCp: best.scoreCp, mateIn: best.mateIn };
-}
-
 export default function GameReaderScreen() {
   const { gameId } = useLocalSearchParams<{ gameId: string }>();
   const router = useRouter();
@@ -123,10 +77,30 @@ export default function GameReaderScreen() {
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   useCancelSpeechOnLeave();
 
+  const { dictationPace, voiceEnabled } = usePreferences();
+  const [voiceActive, setVoiceActive] = useState(false);
+  const syncFromVoiceRef = useRef(false);
+  const readerRef = useRef<GameReaderApi | null>(null);
+  const playbackRef = useRef(
+    createReaderPlayback({
+      pace: dictationPace,
+      speakAndWait: (text) => speechService.speakAndWait(text),
+      cancelSpeech: (reason) => speechService.cancel(reason),
+    }),
+  );
+
   const [game, setGame] = useState<ImportedChessGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [boardVisible, setBoardVisible] = useState(true);
   const [movesVisible, setMovesVisible] = useState(true);
+  const [restoreNodeId, setRestoreNodeId] = useState<string | null>(null);
+  const [restoreFlipped, setRestoreFlipped] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    return () => {
+      playbackRef.current.cancel('unmount-reader');
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,26 +125,17 @@ export default function GameReaderScreen() {
     setMovesVisible(true);
   }, [gameId]);
 
-  const endgameOverlay = useMemo(
-    () => (game ? getEndgameAnalysisOverlay(game.id) : null),
-    [game],
-  );
-  const theoreticalOverlay = useMemo(
-    () => (game ? getTheoreticalAnalysisOverlay(game.id) : null),
-    [game],
+  useFocusEffect(
+    useCallback(() => {
+      if (!gameId) return;
+      const shared = loadSharedReaderPosition(String(gameId));
+      if (!shared) return;
+      setRestoreNodeId(shared.nodeId);
+      setRestoreFlipped(shared.boardFlipped);
+    }, [gameId]),
   );
 
-  const overlay: UnifiedOverlay | null = endgameOverlay
-    ? fromEndgame(endgameOverlay)
-    : theoreticalOverlay
-      ? fromTheoretical(theoreticalOverlay)
-      : null;
-
-  const boardOrientation =
-    endgameOverlay?.orientation ??
-    theoreticalOverlay?.orientation ??
-    (game ? orientationFromGame(game) : null) ??
-    'white';
+  const boardOrientation = (game ? orientationFromGame(game) : null) ?? 'white';
 
   const readerGame = useMemo(() => {
     if (!game) return null;
@@ -188,13 +153,109 @@ export default function GameReaderScreen() {
 
   const reader = useGameReader({
     game: readerGame,
-    initialFlipped: boardOrientation === 'black',
+    initialNodeId: restoreNodeId,
+    initialFlipped:
+      restoreFlipped != null ? restoreFlipped : boardOrientation === 'black',
+  });
+  readerRef.current = reader;
+
+  const stopVoice = useCallback((reason: string) => {
+    playbackRef.current.cancel(reason);
+    setVoiceActive(false);
+  }, []);
+
+  const startVoiceFromCurrent = useCallback(
+    (api: GameReaderApi) => {
+      if (!voiceEnabled) return;
+      setVoiceActive(true);
+      const handle = playbackRef.current.playFrom(
+        api.game,
+        api.currentNodeId,
+        (nodeId) => {
+          syncFromVoiceRef.current = true;
+          api.goToNode(nodeId);
+          syncFromVoiceRef.current = false;
+        },
+      );
+      void handle.done.finally(() => setVoiceActive(false));
+    },
+    [voiceEnabled],
+  );
+
+  const applyVoiceCommand = useCallback(
+    (text: string, api: GameReaderApi) => {
+      const cmd = parseReaderVoiceCommand(text);
+      if (!cmd) return;
+      switch (cmd.type) {
+        case 'pause':
+          stopVoice('voice-pause');
+          break;
+        case 'continue':
+          startVoiceFromCurrent(api);
+          break;
+        case 'restart':
+          stopVoice('voice-restart');
+          syncFromVoiceRef.current = true;
+          api.goToStart();
+          syncFromVoiceRef.current = false;
+          startVoiceFromCurrent(api);
+          break;
+        case 'nextMove':
+          stopVoice('voice-next');
+          api.goToNext();
+          break;
+        case 'previousMove':
+          stopVoice('voice-prev');
+          api.goToPrevious();
+          break;
+        case 'repeatMoves':
+          playbackRef.current.cancel('voice-repeat-moves');
+          playbackRef.current.repeatMovesAudio(
+            api.game,
+            api.currentNodeId,
+            cmd.count,
+            cmd.repetitions,
+          );
+          break;
+        case 'repeatAll':
+          // Active line complete (variation-aware), audio only.
+          playbackRef.current.cancel('voice-repeat-all');
+          playbackRef.current.repeatAllAudio(api.game, api.currentNodeId);
+          break;
+        default:
+          break;
+      }
+    },
+    [startVoiceFromCurrent, stopVoice],
+  );
+
+  const { micActive, toggleMic } = useSpeechInput({
+    isSpeaking: voiceActive || speechService.isSpeaking,
+    onTranscript: (text) => {
+      const api = readerRef.current;
+      if (!api) return;
+      applyVoiceCommand(text, api);
+    },
   });
 
-  const gaugeEval = useMemo(() => {
-    if (!overlay || !reader) return null;
-    return evalAtOverlay(overlay, reader.currentPly);
-  }, [overlay, reader]);
+  const readerForView = useMemo(() => {
+    if (!reader) return null;
+    const wrap =
+      <A extends unknown[]>(fn: (...args: A) => void) =>
+      (...args: A) => {
+        if (!syncFromVoiceRef.current) stopVoice('manual-nav');
+        fn(...args);
+      };
+    return {
+      ...reader,
+      goToStart: wrap(reader.goToStart),
+      goToPrevious: wrap(reader.goToPrevious),
+      goToNext: wrap(reader.goToNext),
+      goToEnd: wrap(reader.goToEnd),
+      goToPly: wrap(reader.goToPly),
+      goToNode: wrap(reader.goToNode),
+    };
+  }, [reader, stopVoice]);
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
@@ -203,8 +264,7 @@ export default function GameReaderScreen() {
       contentTop +
       contentBottom +
       (boardVisible ? 0 : -120) +
-      (movesVisible ? 0 : -80) +
-      (overlay ? 80 : 0);
+      (movesVisible ? 0 : -80);
     return fitBoardSizeToViewport(wide, windowHeight, Math.max(220, reserved));
   }, [
     windowWidth,
@@ -213,7 +273,6 @@ export default function GameReaderScreen() {
     contentBottom,
     boardVisible,
     movesVisible,
-    overlay,
   ]);
 
   if (loading) {
@@ -244,7 +303,7 @@ export default function GameReaderScreen() {
     );
   }
 
-  if (!reader) {
+  if (!reader || !readerForView) {
     return (
       <ChessScreenScaffold
         title={t('parties.reader')}
@@ -254,9 +313,6 @@ export default function GameReaderScreen() {
       >
         <Text style={{ color: colors.foreground, textAlign: 'center' }}>
           {t('parties.parseError')}
-        </Text>
-        <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>
-          {t('parties.parseErrorHint')}
         </Text>
         <Pressable onPress={() => router.replace('/parties' as Href)}>
           <Text style={{ color: colors.primary }}>{t('parties.backToLibrary')}</Text>
@@ -273,19 +329,34 @@ export default function GameReaderScreen() {
     <ChessScreenScaffold
       title={title}
       subtitle={subtitle || t('parties.reader')}
-      onBack={() => router.back()}
+      onBack={() => {
+        stopVoice('leave-reader');
+        router.back();
+      }}
       testID="game-reader"
       trailing={
         <Pressable
           testID="parties-open-analyzer-from-reader"
           accessibilityRole="button"
           accessibilityLabel={t('parties.openAnalyzer')}
-          onPress={() =>
+          onPress={() => {
+            stopVoice('open-analyzer');
+            saveSharedReaderPosition({
+              gameId: game.id,
+              nodeId: reader.currentNodeId,
+              fen: reader.currentFen,
+              boardFlipped: reader.boardFlipped,
+              activeLineNodeIds: reader.activeLineNodeIds,
+            });
             router.push({
               pathname: '/parties/analyzer',
-              params: { gameId: game.id },
-            })
-          }
+              params: {
+                gameId: game.id,
+                nodeId: reader.currentNodeId ?? '',
+                flipped: reader.boardFlipped ? '1' : '0',
+              },
+            });
+          }}
           style={[
             styles.headerChip,
             { borderColor: colors.border, backgroundColor: colors.card },
@@ -304,7 +375,7 @@ export default function GameReaderScreen() {
         />
         <BoardCoordinatesToggle
           visible={showCoordinates}
-          onToggle={toggleCoordinates}
+          onToggle={() => void toggleCoordinates()}
         />
         <Pressable
           testID="game-reader-toggle-moves"
@@ -318,30 +389,34 @@ export default function GameReaderScreen() {
       </View>
 
       <SharedGameReaderView
-        reader={reader}
+        reader={readerForView}
         boardSize={boardSize}
         showCoordinates={showCoordinates}
         showBoard={boardVisible}
         showNotation={movesVisible}
-        topSlot={
-          overlay && gaugeEval ? (
-            <View style={styles.analysisTools}>
-              <PressureGauge
-                scoreCp={gaugeEval.scoreCp}
-                mateIn={gaugeEval.mateIn}
-                visible
-                perspective={overlay.orientation}
-                testID="game-reader-pressure-gauge"
-              />
-              <EvaluationCurve
-                timeline={overlay.timeline}
-                firstMajorTurn={overlay.firstMajorTurn}
-                width={Math.min(boardSize, Math.max(240, windowWidth - 48))}
-                testID="game-reader-eval-curve"
-              />
-            </View>
-          ) : null
-        }
+        showToolbar
+        toolbar={{
+          voiceActive,
+          onToggleVoice: () => {
+            if (voiceActive) {
+              stopVoice('pause');
+              return;
+            }
+            startVoiceFromCurrent(reader);
+          },
+          onRepeat: () => {
+            playbackRef.current.cancel('repeat');
+            playbackRef.current.repeatMovesAudio(
+              reader.game,
+              reader.currentNodeId,
+              1,
+              1,
+            );
+          },
+          micActive,
+          onToggleMic: toggleMic,
+          micDisabled: false,
+        }}
         bottomSlot={
           reader.currentPly >= reader.totalPly && reader.totalPly > 0 ? (
             <View style={styles.endBlock} testID="game-reader-ended">
@@ -388,11 +463,6 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 8,
-  },
-  analysisTools: {
-    gap: 10,
-    alignItems: 'center',
-    width: '100%',
   },
   endBlock: { alignItems: 'center', gap: 10, width: '100%' },
   endText: {

@@ -15,7 +15,17 @@ import type { GameReaderApi } from '@/lib/gameReader';
 import { GameReaderNavControls } from './GameReaderNavControls';
 import { GameReaderNotationList } from './GameReaderNotationList';
 import { GameReaderPlayersBar } from './GameReaderPlayersBar';
+import { ReaderBoardToolbar } from './ReaderBoardToolbar';
 import { useReaderKeyboard } from './useReaderKeyboard';
+
+type ToolbarHandlers = {
+  voiceActive: boolean;
+  onToggleVoice: () => void;
+  onRepeat: () => void;
+  micActive: boolean;
+  onToggleMic: () => void;
+  micDisabled?: boolean;
+};
 
 type Props = {
   reader: GameReaderApi;
@@ -27,6 +37,8 @@ type Props = {
   showPlayers?: boolean;
   showBoard?: boolean;
   showNotation?: boolean;
+  showToolbar?: boolean;
+  toolbar?: ToolbarHandlers;
   notationMaxHeight?: number;
   desktopSplit?: boolean;
   testID?: string;
@@ -46,6 +58,8 @@ export function SharedGameReaderView({
   showPlayers = true,
   showBoard = true,
   showNotation = true,
+  showToolbar = false,
+  toolbar,
   notationMaxHeight = 220,
   desktopSplit,
   testID = 'shared-game-reader',
@@ -78,6 +92,24 @@ export function SharedGameReaderView({
         />
       ) : null}
       {topSlot}
+      {showToolbar && toolbar ? (
+        <ReaderBoardToolbar
+          flipped={reader.boardFlipped}
+          onFlip={reader.flipBoard}
+          flipLabel={t('parties.flipBoard')}
+          voiceActive={toolbar.voiceActive}
+          onToggleVoice={toolbar.onToggleVoice}
+          voiceLabel={
+            toolbar.voiceActive ? t('parties.pause') : t('parties.play')
+          }
+          onRepeat={toolbar.onRepeat}
+          repeatLabel={t('parties.repeat')}
+          micActive={toolbar.micActive}
+          onToggleMic={toolbar.onToggleMic}
+          micLabel={t('parties.voiceCommands')}
+          micDisabled={toolbar.micDisabled}
+        />
+      ) : null}
       {showBoard ? (
         <ChessBoardSection boardSize={boardSize}>
           <ChessBoard
@@ -107,13 +139,11 @@ export function SharedGameReaderView({
         onPrev={reader.goToPrevious}
         onNext={reader.goToNext}
         onEnd={reader.goToEnd}
-        onFlip={reader.flipBoard}
         labels={{
           start: t('parties.start'),
           prev: t('parties.prev'),
           next: t('parties.next'),
           end: t('parties.end'),
-          flip: t('parties.flipBoard'),
         }}
       />
       {middleSlot}
@@ -131,9 +161,10 @@ export function SharedGameReaderView({
   const notationColumn = showNotation ? (
     <View style={[styles.notationCol, split && styles.notationColDesktop]}>
       <GameReaderNotationList
-        sans={reader.moves.map((m) => m.san)}
-        currentPly={reader.currentPly}
-        onSelectPly={reader.goToPly}
+        game={reader.game}
+        currentNodeId={reader.currentNodeId}
+        activeLineNodeIds={reader.activeLineNodeIds}
+        onSelectNode={reader.goToNode}
         maxHeight={split ? Math.max(280, boardSize) : notationMaxHeight}
       />
       {bottomSlot}
