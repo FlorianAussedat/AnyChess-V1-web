@@ -143,6 +143,30 @@ export default function PartiesLibraryScreen() {
         )}
       </Pressable>
 
+      <Pressable
+        testID="parties-open-analyzer"
+        onPress={() => router.push('/parties/analyzer' as Href)}
+        style={({ pressed }) => [
+          styles.importBtn,
+          {
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
+      >
+        <Text
+          style={{
+            color: colors.foreground,
+            fontSize: 15,
+            fontFamily: DesignTokens.typography.weightSemiBold,
+          }}
+        >
+          {t('parties.openAnalyzer')}
+        </Text>
+      </Pressable>
+
       {status ? (
         <Text style={[styles.status, { color: colors.mutedForeground }]}>{status}</Text>
       ) : null}

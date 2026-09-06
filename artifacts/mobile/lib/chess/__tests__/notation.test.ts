@@ -16,8 +16,13 @@ describe('formatSanForDisplay', () => {
 
   it('maps English piece letters to French for display', () => {
     assert.equal(formatSanForDisplay('Nf3', 'fr'), 'Cf3');
+    assert.equal(formatSanForDisplay('Bb5', 'fr'), 'Fb5');
     assert.equal(formatSanForDisplay('Bxe5', 'fr'), 'Fxe5');
+    assert.equal(formatSanForDisplay('Rxe5', 'fr'), 'Txe5');
+    assert.equal(formatSanForDisplay('Qh5', 'fr'), 'Dh5');
+    assert.equal(formatSanForDisplay('Kf2', 'fr'), 'Rf2');
     assert.equal(formatSanForDisplay('O-O', 'fr'), 'O-O');
+    assert.equal(formatSanForDisplay('O-O-O', 'fr'), 'O-O-O');
     assert.equal(formatSanForDisplay('e8=Q', 'fr'), 'e8=D');
     assert.equal(formatSanForDisplay('Rae1', 'fr'), 'Tae1');
     assert.equal(formatSanForDisplay('Kd2', 'fr'), 'Rd2');
