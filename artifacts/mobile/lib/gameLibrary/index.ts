@@ -36,11 +36,11 @@ export {
 } from './GamePlaybackScheduler.ts';
 
 export {
-  GameLibraryStore,
-  gameLibraryStore,
+  GAME_LIBRARY_STORAGE_KEY,
   emptyGameLibrarySnapshot,
   validateGameLibrarySnapshot,
-  GAME_LIBRARY_STORAGE_KEY,
+  GameLibraryStore,
+  gameLibraryStore,
 } from './GameLibraryStore.ts';
 
 export { gamePlayersTitle, gameSubtitle } from './display.ts';

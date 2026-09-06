@@ -1,40 +1,40 @@
 export type {
-  GameReaderState,
-  ParsePgnErr,
-  ParsePgnOk,
-  ParsePgnResult,
   ReaderColor,
-  ReaderGame,
-  ReaderHeaders,
   ReaderMove,
+  ReaderHeaders,
+  ReaderGame,
+  GameReaderState,
+  ParsePgnOk,
+  ParsePgnErr,
+  ParsePgnResult,
 } from './types.ts';
 
 export {
+  STANDARD_START_FEN,
   buildReaderGameFromPgnTree,
-  emptyReaderGame,
   parseReaderPgn,
   readerGameFromImported,
-  STANDARD_START_FEN,
+  emptyReaderGame,
   type BuildReaderGameOptions,
 } from './parseReaderPgn.ts';
 
 export {
   clampReaderPly,
-  createGameReaderState,
   fenAtReaderPly,
-  flipBoard,
+  moveAtReaderPly,
+  lastMoveSquaresAtPly,
+  createGameReaderState,
+  goToStart,
   goToEnd,
+  goToPrevious,
   goToNext,
   goToPly,
-  goToPrevious,
-  goToStart,
-  lastMoveSquaresAtPly,
-  moveAtReaderPly,
+  flipBoard,
   setBoardFlipped,
 } from './gameReaderState.ts';
 
 export {
   useGameReader,
-  type GameReaderApi,
   type UseGameReaderOptions,
+  type GameReaderApi,
 } from './useGameReader.ts';

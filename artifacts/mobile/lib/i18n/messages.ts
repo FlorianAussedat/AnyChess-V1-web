@@ -154,6 +154,15 @@ export type MessageKey =
   | 'parties.backToLibrary'
   | 'parties.notFound'
   | 'parties.loading'
+  | 'parties.openAnalyzer'
+  | 'parties.parseError'
+  | 'parties.parseErrorHint'
+  | 'parties.analyzerLoad'
+  | 'parties.analyzerPaste'
+  | 'parties.analyzerEmpty'
+  | 'parties.analyzerSubtitle'
+  | 'parties.analyzer'
+  | 'parties.flipBoard'
   // Game shared
   | 'game.movesPlayed'
   | 'game.exportPgn'
@@ -873,6 +882,15 @@ const fr: Dict = {
   'parties.backToLibrary': 'Retour à la bibliothèque',
   'parties.notFound': 'Partie introuvable',
   'parties.loading': 'Chargement…',
+  'parties.flipBoard': 'Retourner l’échiquier',
+  'parties.analyzer': 'Analyseur',
+  'parties.analyzerSubtitle': 'Lire un PGN et préparer l’analyse',
+  'parties.analyzerEmpty': 'Colle un PGN pour commencer l’analyse.',
+  'parties.analyzerPaste': 'Colle un PGN ici…',
+  'parties.analyzerLoad': 'Charger',
+  'parties.parseError': 'Impossible de lire cette partie.',
+  'parties.parseErrorHint': 'Vérifie le PGN (coups, en-têtes) puis réessaie.',
+  'parties.openAnalyzer': 'Ouvrir l’Analyseur',
   'game.movesPlayed': 'Coups joués',
   'game.exportPgn': 'Exporter en PGN',
   'game.export': 'Exporter',
@@ -1649,6 +1667,15 @@ const en: Dict = {
   'parties.backToLibrary': 'Back to library',
   'parties.notFound': 'Game not found',
   'parties.loading': 'Loading…',
+  'parties.flipBoard': 'Flip board',
+  'parties.analyzer': 'Analyzer',
+  'parties.analyzerSubtitle': 'Load a PGN and prepare analysis',
+  'parties.analyzerEmpty': 'Paste a PGN to start analyzing.',
+  'parties.analyzerPaste': 'Paste a PGN here…',
+  'parties.analyzerLoad': 'Load',
+  'parties.parseError': 'Unable to read this game.',
+  'parties.parseErrorHint': 'Check the PGN (moves, headers) and try again.',
+  'parties.openAnalyzer': 'Open Analyzer',
   'game.movesPlayed': 'Moves played',
   'game.exportPgn': 'Export PGN',
   'game.export': 'Export',
