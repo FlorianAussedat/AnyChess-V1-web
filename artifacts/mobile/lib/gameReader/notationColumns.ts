@@ -1,6 +1,7 @@
 /**
- * Pure helpers for compact column notation (move# | white | black + variations).
- * Kept free of React so unit tests can cover pairing / variation placement.
+ * Pure helpers for compact column notation with recursive nested variations.
+ * Main line: move# | white | black.
+ * Side lines: full-width blocks under the fork, recursively nested.
  */
 import type { ReaderGame, ReaderNode } from './types.ts';
 
@@ -16,12 +17,19 @@ export type NotationVariationMove = {
   prefix: string;
 };
 
+/**
+ * A variation block may contain nested child variation blocks after any move
+ * that itself has side continuations — depth is arbitrary.
+ */
 export type NotationVariationBlock = {
   key: string;
   depth: number;
-  /** Main-line node whose side continuation this variation replaces. */
+  /** Main-line (or parent-line) node whose side continuation this replaces. */
   afterNodeId: string;
+  /** Primary continuation of this variation (childIds[0] walk). */
   moves: NotationVariationMove[];
+  /** Nested variations forked from moves in this block. */
+  nested: NotationVariationBlock[];
 };
 
 export type NotationColumnRow = {
@@ -38,13 +46,20 @@ function movePrefix(node: ReaderNode): string {
   return `${node.moveNumber}...`;
 }
 
-function collectVariationMoves(
+/**
+ * Walk one variation starting at `startId`, collecting its main continuation
+ * and recursively capturing nested side lines as `nested` blocks.
+ */
+export function collectVariationBlock(
   game: ReaderGame,
   startId: string,
   depth: number,
-): NotationVariationMove[] {
+  afterNodeId: string,
+): NotationVariationBlock | null {
   const moves: NotationVariationMove[] = [];
+  const nested: NotationVariationBlock[] = [];
   let id: string | null = startId;
+
   while (id) {
     const node: ReaderNode | undefined = game.nodesById[id];
     if (!node) break;
@@ -53,17 +68,29 @@ function collectVariationMoves(
       san: node.san,
       prefix: movePrefix(node),
     });
-    const children: string[] = node.childIds;
-    if (children.length === 0) break;
-    // Nested side lines are flattened into the same compact line for density;
-    // callers can still indent by depth on the block.
-    for (let i = 1; i < children.length; i += 1) {
-      const nested = collectVariationMoves(game, children[i]!, depth + 1);
-      for (const m of nested) moves.push(m);
+
+    // Nested side lines fork AFTER this move (alternatives to childIds[0]).
+    for (let i = 1; i < node.childIds.length; i += 1) {
+      const childVar = collectVariationBlock(
+        game,
+        node.childIds[i]!,
+        depth + 1,
+        node.id,
+      );
+      if (childVar) nested.push(childVar);
     }
-    id = children[0]!;
+
+    id = node.childIds[0] ?? null;
   }
-  return moves;
+
+  if (moves.length === 0) return null;
+  return {
+    key: `${afterNodeId}-var-${startId}`,
+    depth,
+    afterNodeId,
+    moves,
+    nested,
+  };
 }
 
 function sideVariationsAfter(
@@ -73,48 +100,36 @@ function sideVariationsAfter(
 ): NotationVariationBlock[] {
   const out: NotationVariationBlock[] = [];
   for (let i = 1; i < node.childIds.length; i += 1) {
-    const varId = node.childIds[i]!;
-    const moves = collectVariationMoves(game, varId, depth);
-    if (moves.length === 0) continue;
-    out.push({
-      key: `${node.id}-var-${varId}`,
+    const block = collectVariationBlock(
+      game,
+      node.childIds[i]!,
       depth,
-      afterNodeId: node.id,
-      moves,
-    });
+      node.id,
+    );
+    if (block) out.push(block);
   }
   return out;
 }
 
 /**
- * Build main-line column rows (two plies per row) with side variations
+ * Build main-line column rows (two plies per row) with recursive side variations
  * attached under the ply where they fork.
  */
 export function buildNotationColumnRows(game: ReaderGame): NotationColumnRow[] {
   const rows: NotationColumnRow[] = [];
 
-  // Main root only; extra roots become variation blocks under an empty row 0.
   const mainRoot = game.rootIds[0];
   if (!mainRoot) {
     for (let i = 0; i < game.rootIds.length; i += 1) {
       const rootId = game.rootIds[i]!;
-      const moves = collectVariationMoves(game, rootId, 1);
-      if (moves.length === 0) continue;
+      const block = collectVariationBlock(game, rootId, 1, rootId);
+      if (!block) continue;
       rows.push({
         key: `alt-root-${rootId}`,
-        moveNumber: moves[0]
-          ? (game.nodesById[moves[0].nodeId]?.moveNumber ?? 1)
-          : 1,
+        moveNumber: game.nodesById[rootId]?.moveNumber ?? 1,
         white: null,
         black: null,
-        variations: [
-          {
-            key: `root-var-${rootId}`,
-            depth: 1,
-            afterNodeId: rootId,
-            moves,
-          },
-        ],
+        variations: [block],
       });
     }
     return rows;
@@ -151,7 +166,6 @@ export function buildNotationColumnRows(game: ReaderGame): NotationColumnRow[] {
       pendingMoveNumber = node.moveNumber;
       pendingVariations = vars;
     } else if (!pendingWhite) {
-      // Black starts the line (e.g. FEN mid-game) — show empty white cell.
       pendingMoveNumber = node.moveNumber;
       rows.push({
         key: `ply-${node.moveNumber}-${node.id}`,
@@ -177,43 +191,35 @@ export function buildNotationColumnRows(game: ReaderGame): NotationColumnRow[] {
 
   if (pendingWhite) flushRow();
 
-  // Alternate roots (sibling lines from start)
   for (let i = 1; i < game.rootIds.length; i += 1) {
     const rootId = game.rootIds[i]!;
-    const moves = collectVariationMoves(game, rootId, 1);
-    if (moves.length === 0) continue;
+    const block = collectVariationBlock(game, rootId, 1, rootId);
+    if (!block) continue;
     if (rows.length === 0) {
       rows.push({
         key: `alt-root-${rootId}`,
         moveNumber: 1,
         white: null,
         black: null,
-        variations: [
-          {
-            key: `root-var-${rootId}`,
-            depth: 1,
-            afterNodeId: rootId,
-            moves,
-          },
-        ],
+        variations: [block],
       });
     } else {
       rows[0] = {
         ...rows[0]!,
-        variations: [
-          ...rows[0]!.variations,
-          {
-            key: `root-var-${rootId}`,
-            depth: 1,
-            afterNodeId: rootId,
-            moves,
-          },
-        ],
+        variations: [...rows[0]!.variations, block],
       };
     }
   }
 
   return rows;
+}
+
+function variationContainsNode(
+  block: NotationVariationBlock,
+  nodeId: string,
+): boolean {
+  if (block.moves.some((m) => m.nodeId === nodeId)) return true;
+  return block.nested.some((n) => variationContainsNode(n, nodeId));
 }
 
 /** Flat index of nodeId → approximate scroll row for auto-scroll. */
@@ -228,10 +234,19 @@ export function notationScrollIndexForNode(
     }
     index += 1;
     for (const v of row.variations) {
-      const hit = v.moves.findIndex((m) => m.nodeId === nodeId);
-      if (hit >= 0) return index;
+      if (variationContainsNode(v, nodeId)) return index;
       index += 1;
     }
   }
   return -1;
+}
+
+/** Whether a variation block (or nested descendant) contains the active node. */
+export function variationBlockIsActive(
+  block: NotationVariationBlock,
+  activeLineNodeIds: string[],
+): boolean {
+  const set = new Set(activeLineNodeIds);
+  if (block.moves.some((m) => set.has(m.nodeId))) return true;
+  return block.nested.some((n) => variationBlockIsActive(n, activeLineNodeIds));
 }

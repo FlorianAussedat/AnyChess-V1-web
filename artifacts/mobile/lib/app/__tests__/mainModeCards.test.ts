@@ -49,7 +49,7 @@ describe('main mode cards catalog', () => {
     assert.equal(byId.puzzles?.title, 'Entraînement tactique');
     assert.equal(byId.visualisation?.title, 'Vision de l’échiquier');
     assert.equal(byId['quiz-ouverture']?.title, 'Culture générale');
-    assert.equal(byId.parties?.title, 'Lecteur de Parties');
+    assert.equal(byId.parties?.title, 'Parties');
     assert.equal(byId.parties?.requiredMascotAsset, 'mascot-player-knight-dj.png');
   });
 });

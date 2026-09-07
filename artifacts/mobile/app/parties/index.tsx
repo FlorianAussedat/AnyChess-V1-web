@@ -244,7 +244,7 @@ export default function PartiesLibraryScreen() {
       </Pressable>
 
       <Pressable
-        testID="parties-open-analyzer"
+        testID="parties-open-workspace"
         onPress={() => router.push('/parties/analyzer' as Href)}
         style={({ pressed }) => [
           styles.importBtn,
@@ -263,7 +263,7 @@ export default function PartiesLibraryScreen() {
             fontFamily: DesignTokens.typography.weightSemiBold,
           }}
         >
-          {t('parties.openAnalyzer')}
+          {t('parties.openWorkspace')}
         </Text>
       </Pressable>
 
@@ -286,7 +286,12 @@ export default function PartiesLibraryScreen() {
             >
               <Pressable
                 testID={`parties-game-${game.id}`}
-                onPress={() => router.push(`/parties/${game.id}` as Href)}
+                onPress={() =>
+                  router.push({
+                    pathname: '/parties/analyzer',
+                    params: { gameId: game.id },
+                  })
+                }
                 style={styles.cardMain}
               >
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>

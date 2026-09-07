@@ -25,9 +25,12 @@ export type AnyLyseurToolbarProps = {
   onProfileChange: (id: AnalysisProfileId) => void;
   onImport: () => void;
   onExport: () => void;
-  onOpenReader: () => void;
+  /** @deprecated Unified workspace — no separate Lecteur handoff. */
+  onOpenReader?: () => void;
   canReturnToOrigin: boolean;
   onReturnToOrigin: () => void;
+  /** When false, hide engine-only controls (arrows / profile). */
+  showEngineControls?: boolean;
   testID?: string;
 };
 
@@ -86,9 +89,9 @@ export function AnyLyseurToolbar({
   onProfileChange,
   onImport,
   onExport,
-  onOpenReader,
   canReturnToOrigin,
   onReturnToOrigin,
+  showEngineControls = true,
   testID = 'anyliseur-toolbar',
 }: AnyLyseurToolbarProps) {
   const colors = useColors();
@@ -110,26 +113,30 @@ export function AnyLyseurToolbar({
         onPress={onFlip}
         testID="anyliseur-flip"
       />
-      <ToolBtn
-        icon="arrow-forward"
-        label={
-          arrowsEnabled
-            ? t('parties.anyliseurArrowsOn')
-            : t('parties.anyliseurArrowsOff')
-        }
-        hint={t('parties.anyliseurA11yArrowsHint')}
-        onPress={onToggleArrows}
-        active={arrowsEnabled}
-        testID="anyliseur-arrows-toggle"
-      />
-      <ToolBtn
-        icon="options"
-        label={t('parties.anyliseurA11yProfile')}
-        hint={t('parties.anyliseurA11yProfileHint')}
-        onPress={() => setProfileOpen(true)}
-        active={profileOpen}
-        testID="anyliseur-profile"
-      />
+      {showEngineControls ? (
+        <ToolBtn
+          icon="arrow-forward"
+          label={
+            arrowsEnabled
+              ? t('parties.anyliseurArrowsOn')
+              : t('parties.anyliseurArrowsOff')
+          }
+          hint={t('parties.anyliseurA11yArrowsHint')}
+          onPress={onToggleArrows}
+          active={arrowsEnabled}
+          testID="anyliseur-arrows-toggle"
+        />
+      ) : null}
+      {showEngineControls ? (
+        <ToolBtn
+          icon="options"
+          label={t('parties.anyliseurA11yProfile')}
+          hint={t('parties.anyliseurA11yProfileHint')}
+          onPress={() => setProfileOpen(true)}
+          active={profileOpen}
+          testID="anyliseur-profile"
+        />
+      ) : null}
       <ToolBtn
         icon="document-attach-outline"
         label={t('parties.anyliseurA11yImport')}
@@ -143,13 +150,6 @@ export function AnyLyseurToolbar({
         hint={t('parties.anyliseurA11yExportHint')}
         onPress={onExport}
         testID="anyliseur-export"
-      />
-      <ToolBtn
-        icon="book-outline"
-        label={t('parties.anyliseurOpenReader')}
-        hint={t('parties.anyliseurA11yOpenReaderHint')}
-        onPress={onOpenReader}
-        testID="anyliseur-open-reader"
       />
       {canReturnToOrigin ? (
         <ToolBtn

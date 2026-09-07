@@ -106,6 +106,6 @@ export async function openTheoreticalInReader(input: {
     timeline: [],
   };
   overlayByGameId.set(game.id, payload);
-  input.routerPush(`/parties/${game.id}`);
+  input.routerPush(`/parties/analyzer?gameId=${encodeURIComponent(game.id)}`);
   return game.id;
 }

@@ -98,6 +98,6 @@ export async function openEndgameInReader(input: {
     outcome: input.result.outcome,
   };
   overlayByGameId.set(game.id, payload);
-  input.routerPush(`/parties/${game.id}`);
+  input.routerPush(`/parties/analyzer?gameId=${encodeURIComponent(game.id)}`);
   return game.id;
 }

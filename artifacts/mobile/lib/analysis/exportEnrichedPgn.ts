@@ -62,6 +62,8 @@ function writeNode(
     includeBest: boolean;
     forceNumber: boolean;
   },
+  /** Sibling alternatives to THIS move (written after SAN, before children). */
+  siblingVariationIds: string[] = [],
 ): string {
   const node = game.nodesById[nodeId];
   if (!node) return '';
@@ -95,23 +97,21 @@ function writeNode(
   );
   if (comment) bits.push(`{ ${comment} }`);
 
-  // Side variations (childIds[1+]) are alternatives to childIds[0].
-  const children = node.childIds;
-  if (children.length > 1) {
-    for (let i = 1; i < children.length; i += 1) {
-      const varText = writeLine(game, children[i]!, {
-        ...opts,
-        forceNumber: true,
-      });
-      if (varText.trim()) bits.push(`( ${varText.trim()} )`);
-    }
+  // PGN convention: variations come AFTER the move they replace, before
+  // deeper continuation — e.g. `3. Bb5 a6 (3... Nf6) 4. Ba4`.
+  for (const sibId of siblingVariationIds) {
+    const varText = writeLine(game, sibId, {
+      ...opts,
+      forceNumber: true,
+    });
+    if (varText.trim()) bits.push(`( ${varText.trim()} )`);
   }
 
+  const children = node.childIds;
   if (children[0]) {
-    const cont = writeNode(game, children[0], {
-      ...opts,
-      forceNumber: false,
-    });
+    const mainId = children[0]!;
+    const sideIds = children.slice(1);
+    const cont = writeNode(game, mainId, { ...opts, forceNumber: false }, sideIds);
     if (cont) bits.push(cont);
   }
 
@@ -128,7 +128,7 @@ function writeLine(
     forceNumber: boolean;
   },
 ): string {
-  return writeNode(game, startId, opts);
+  return writeNode(game, startId, opts, []);
 }
 
 function headersBlock(game: ReaderGame): string {

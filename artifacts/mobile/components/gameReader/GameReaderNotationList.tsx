@@ -207,100 +207,115 @@ function VariationBlockView({
     long && !expanded ? block.moves.slice(0, VAR_PREVIEW) : block.moves;
   const activeInVar =
     currentNodeId != null &&
-    block.moves.some((m) => m.nodeId === currentNodeId);
+    (block.moves.some((m) => m.nodeId === currentNodeId) ||
+      block.nested.some((n) =>
+        n.moves.some((m) => activeSet.has(m.nodeId) || m.nodeId === currentNodeId),
+      ) ||
+      activeSet.has(block.moves[0]?.nodeId ?? ''));
 
   return (
     <View
       style={[
-        styles.varBlock,
+        styles.varOuter,
         {
-          marginLeft: 8 + block.depth * 8,
+          marginLeft: Math.min(4 + block.depth * 6, 28),
           borderLeftColor: activeInVar ? colors.primary : colors.border,
         },
       ]}
       testID={`game-reader-var-${block.key}`}
     >
-      <View style={styles.varMoves}>
-        <Text
-          style={[
-            styles.varParen,
-            { color: activeInVar ? colors.primary : colors.mutedForeground },
-          ]}
-        >
-          (
-        </Text>
-        {visible.map((m, i) => {
-          const selected = currentNodeId === m.nodeId;
-          const onLine = activeSet.has(m.nodeId);
-          return (
-            <Pressable
-              key={m.nodeId}
-              testID={`game-reader-node-${m.nodeId}`}
-              accessibilityRole="button"
-              onPress={() => onSelectNode(m.nodeId)}
-              style={[
-                styles.varMove,
-                selected ? { backgroundColor: colors.primary } : null,
-              ]}
-            >
-              <Text
-                style={{
-                  color: selected
-                    ? colors.primaryForeground
-                    : activeInVar
-                      ? colors.primary
-                      : onLine
-                        ? colors.foreground
-                        : colors.mutedForeground,
-                  fontFamily: DesignTokens.typography.weightRegular,
-                  fontStyle: 'italic',
-                  fontSize: 13,
-                }}
-              >
-                {i > 0 ? ' ' : ''}
-                {m.prefix}
-                {formatSan(m.san)}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {long && !expanded ? (
+      <View style={styles.varBlock}>
+        <View style={styles.varMoves}>
           <Text
-            style={{
-              color: activeInVar ? colors.primary : colors.mutedForeground,
-              fontSize: 13,
-            }}
+            style={[
+              styles.varParen,
+              { color: activeInVar ? colors.primary : colors.mutedForeground },
+            ]}
           >
-            {' '}
-            …
+            (
           </Text>
+          {visible.map((m, i) => {
+            const selected = currentNodeId === m.nodeId;
+            const onLine = activeSet.has(m.nodeId);
+            return (
+              <Pressable
+                key={m.nodeId}
+                testID={`game-reader-node-${m.nodeId}`}
+                accessibilityRole="button"
+                onPress={() => onSelectNode(m.nodeId)}
+                style={[
+                  styles.varMove,
+                  selected ? { backgroundColor: colors.primary } : null,
+                ]}
+              >
+                <Text
+                  style={{
+                    color: selected
+                      ? colors.primaryForeground
+                      : activeInVar || onLine
+                        ? colors.primary
+                        : colors.mutedForeground,
+                    fontFamily: DesignTokens.typography.weightRegular,
+                    fontStyle: 'italic',
+                    fontSize: 13,
+                  }}
+                >
+                  {i > 0 ? ' ' : ''}
+                  {m.prefix}
+                  {formatSan(m.san)}
+                </Text>
+              </Pressable>
+            );
+          })}
+          {long && !expanded ? (
+            <Text
+              style={{
+                color: activeInVar ? colors.primary : colors.mutedForeground,
+                fontSize: 13,
+              }}
+            >
+              {' '}
+              …
+            </Text>
+          ) : null}
+          <Text
+            style={[
+              styles.varParen,
+              { color: activeInVar ? colors.primary : colors.mutedForeground },
+            ]}
+          >
+            )
+          </Text>
+        </View>
+        {long ? (
+          <Pressable
+            onPress={() => setExpanded((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              expanded
+                ? t('parties.anyliseurLess')
+                : t('parties.anyliseurMore')
+            }
+            hitSlop={6}
+            style={styles.varToggle}
+          >
+            <Text style={{ color: colors.primary, fontSize: 11 }}>
+              {expanded ? '−' : '+'}
+            </Text>
+          </Pressable>
         ) : null}
-        <Text
-          style={[
-            styles.varParen,
-            { color: activeInVar ? colors.primary : colors.mutedForeground },
-          ]}
-        >
-          )
-        </Text>
       </View>
-      {long ? (
-        <Pressable
-          onPress={() => setExpanded((v) => !v)}
-          accessibilityRole="button"
-          accessibilityLabel={
-            expanded
-              ? t('parties.anyliseurLess')
-              : t('parties.anyliseurMore')
-          }
-          hitSlop={6}
-          style={styles.varToggle}
-        >
-          <Text style={{ color: colors.primary, fontSize: 11 }}>
-            {expanded ? '−' : '+'}
-          </Text>
-        </Pressable>
-      ) : null}
+      {/* Nested sub-variations — recursive, unbounded depth */}
+      {block.nested.map((child) => (
+        <VariationBlockView
+          key={child.key}
+          block={child}
+          currentNodeId={currentNodeId}
+          activeSet={activeSet}
+          formatSan={formatSan}
+          onSelectNode={onSelectNode}
+        />
+      ))}
     </View>
   );
 }
@@ -455,12 +470,16 @@ const styles = StyleSheet.create({
   san: {
     fontSize: 14,
   },
+  varOuter: {
+    borderLeftWidth: 2,
+    paddingLeft: 6,
+    paddingVertical: 2,
+    gap: 2,
+    width: '100%',
+  },
   varBlock: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderLeftWidth: 2,
-    paddingLeft: 8,
-    paddingVertical: 2,
     gap: 4,
   },
   varMoves: {

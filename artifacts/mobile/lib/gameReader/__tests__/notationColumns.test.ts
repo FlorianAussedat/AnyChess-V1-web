@@ -46,15 +46,23 @@ describe('buildNotationColumnRows', () => {
     assert.ok(sans.includes('c5'));
   });
 
-  it('scroll index finds main and variation nodes', () => {
-    const result = parseReaderPgn(WITH_VARIATION);
+  it('keeps nested sub-variations as recursive blocks', () => {
+    const pgn = `[White "W"]
+[Black "B"]
+
+1. e4 e5 (1... c5 2. Nf3 d6 (2... Nc6 3. Bb5)) 2. Nf3 *`;
+    const result = parseReaderPgn(pgn);
     assert.equal(result.ok, true);
     if (!result.ok) return;
     const rows = buildNotationColumnRows(result.game);
-    const whiteId = rows[0]!.white!.nodeId;
-    assert.equal(notationScrollIndexForNode(rows, whiteId), 0);
-    const varId = rows[0]!.variations[0]?.moves[0]?.nodeId;
-    assert.ok(varId);
-    assert.ok(notationScrollIndexForNode(rows, varId!) >= 0);
+    const first = rows[0]!;
+    assert.ok(first.variations.length >= 1);
+    const top = first.variations[0]!;
+    assert.ok(top.moves.some((m) => m.san === 'c5'));
+    assert.ok(
+      top.nested.length >= 1,
+      'expected nested variation under 2.Nf3 alternatives',
+    );
+    assert.ok(top.nested.some((n) => n.moves.some((m) => m.san === 'Nc6')));
   });
 });

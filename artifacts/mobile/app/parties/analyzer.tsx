@@ -1,7 +1,7 @@
 /**
- * AnyLyseur — analyseur de parties / positions.
- * Même cœur Lecteur (useGameReader) + Stockfish via AnalysisController.
- * Conserve gameId / nodeId / FEN / variation / flip avec le Lecteur.
+ * Unified game workspace — Partie + Analyse tabs on one ReaderGame state.
+ * Old Lecteur route `/parties/[gameId]` redirects here.
+ * Stockfish observes the same FEN; tab switches never reload PGN.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -66,12 +66,13 @@ const RESERVED_CHROME = 340;
 
 type TabId = 'game' | 'analysis';
 
-export default function GameAnalyzerScreen() {
+export default function GameWorkspaceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     gameId?: string;
     nodeId?: string;
     flipped?: string;
+    tab?: string;
   }>();
   const gameId = typeof params.gameId === 'string' ? params.gameId : '';
   const paramNodeId =
@@ -79,6 +80,8 @@ export default function GameAnalyzerScreen() {
       ? params.nodeId
       : null;
   const paramFlipped = params.flipped === '1';
+  const initialTab: TabId =
+    params.tab === 'analysis' ? 'analysis' : 'game';
 
   const colors = useColors();
   const { t } = useTranslation();
@@ -90,7 +93,7 @@ export default function GameAnalyzerScreen() {
   const [pgnDraft, setPgnDraft] = useState('');
   const [game, setGame] = useState<ReaderGame | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabId>('game');
+  const [tab, setTab] = useState<TabId>(initialTab);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [includeEvals, setIncludeEvals] = useState(true);
@@ -198,7 +201,10 @@ export default function GameAnalyzerScreen() {
     );
   }, [windowWidth, windowHeight, contentTop, contentBottom]);
 
+  const showEngineUi = tab === 'analysis';
+
   const displayPosition =
+    showEngineUi &&
     analysis?.position &&
     reader?.currentFen &&
     analysis.position.fen === reader.currentFen &&
@@ -226,12 +232,12 @@ export default function GameAnalyzerScreen() {
   }, [game, analysis]);
 
   const arrows = useMemo(() => {
+    if (!showEngineUi) return [];
     if (!analysis?.arrowsEnabled || !displayPosition) return [];
     if (displayPosition.terminalOutcome) return [];
     const best =
       displayPosition.bestMove ?? displayPosition.lines[0]?.bestMove;
     if (!best || best.length < 4) return [];
-    // Validate legality on the displayed FEN (never draw stale/illegal arrows).
     try {
       const chess = new Chess(displayPosition.fen);
       const from = best.slice(0, 2);
@@ -250,7 +256,12 @@ export default function GameAnalyzerScreen() {
     } catch {
       return [];
     }
-  }, [analysis?.arrowsEnabled, displayPosition, colors.primary]);
+  }, [
+    showEngineUi,
+    analysis?.arrowsEnabled,
+    displayPosition,
+    colors.primary,
+  ]);
 
   const persistPosition = useCallback(() => {
     if (!game || !reader) return;
@@ -272,29 +283,12 @@ export default function GameAnalyzerScreen() {
     });
   }, [game, reader, analysis]);
 
-  const openReader = useCallback(() => {
-    persistPosition();
-    if (gameId) {
-      router.replace({
-        pathname: '/parties/[gameId]',
-        params: {
-          gameId,
-          nodeId: reader?.currentNodeId ?? '',
-          flipped: reader?.boardFlipped ? '1' : '0',
-        },
-      });
-      return;
-    }
-    router.back();
-  }, [persistPosition, gameId, reader, router]);
-
   const onLoad = () => {
     const draft = pgnDraft.trim();
     if (!draft) {
       setError(t('parties.analyzerEmpty'));
       return;
     }
-    // Bare FEN → empty game at that position.
     const fenLike = draft.split(/\s+/).length >= 4 && !draft.includes('[');
     if (fenLike) {
       try {
@@ -315,7 +309,6 @@ export default function GameAnalyzerScreen() {
         t('parties.anyliseurImportInvalid') +
           (result.detail ? ` ${result.detail}` : ''),
       );
-      // Keep current game on invalid import.
       return;
     }
     setError(null);
@@ -455,7 +448,7 @@ export default function GameAnalyzerScreen() {
       onProfileChange={onProfileChange}
       onImport={onImport}
       onExport={() => setExportMenuOpen(true)}
-      onOpenReader={openReader}
+      showEngineControls={showEngineUi}
       canReturnToOrigin={canReturnToOrigin}
       onReturnToOrigin={() => reader.returnToExplorationOrigin()}
     />
@@ -566,13 +559,13 @@ export default function GameAnalyzerScreen() {
 
   return (
     <ChessScreenScaffold
-      title={t('parties.analyzer')}
-      subtitle={t('parties.analyzerSubtitle')}
+      title={t('parties.workspace')}
+      subtitle={t('parties.workspaceSubtitle')}
       onBack={() => {
         persistPosition();
         router.back();
       }}
-      testID="game-analyzer"
+      testID="game-workspace"
     >
       {!game || showPaste ? (
         <View style={styles.importPanel} testID="anyliseur-import-panel">
@@ -710,20 +703,21 @@ export default function GameAnalyzerScreen() {
             </Pressable>
           </View>
 
-          {tab === 'game' ? (
-            <SharedGameReaderView
-              reader={reader}
-              boardSize={boardSize}
-              showCoordinates={showCoordinates}
-              showPlayers
-              showNotation
-              showToolbar={false}
-              toolbarSlot={toolbar}
-              arrows={arrows}
-              onSquarePress={onSquarePress}
-              selectedSquare={touchSelected}
-              legalDots={legalDests}
-              topSlot={
+          {/* Single board instance — tab switch never remounts reader state */}
+          <SharedGameReaderView
+            reader={reader}
+            boardSize={boardSize}
+            showCoordinates={showCoordinates}
+            showPlayers
+            showNotation={tab === 'game'}
+            showToolbar={false}
+            toolbarSlot={toolbar}
+            arrows={arrows}
+            onSquarePress={onSquarePress}
+            selectedSquare={touchSelected}
+            legalDots={legalDests}
+            topSlot={
+              showEngineUi ? (
                 <EvalBalanceBar
                   value={evalValue}
                   depth={displayPosition?.depth}
@@ -731,48 +725,23 @@ export default function GameAnalyzerScreen() {
                     analysis?.engineStatus === 'analyzing' && !displayPosition
                   }
                 />
-              }
-              bottomSlot={
-                analysis?.gameProgress.running ? (
-                  <Text
-                    style={{ color: colors.mutedForeground, fontSize: 12 }}
-                    testID="anyliseur-progress"
-                  >
-                    {t('parties.anyliseurProgress', {
-                      done: String(analysis.gameProgress.done),
-                      total: String(analysis.gameProgress.total),
-                    })}
-                  </Text>
-                ) : null
-              }
-            />
-          ) : (
-            <View style={{ gap: 8 }}>
-              <SharedGameReaderView
-                reader={reader}
-                boardSize={boardSize}
-                showCoordinates={showCoordinates}
-                showPlayers
-                showNotation={false}
-                showToolbar={false}
-                toolbarSlot={toolbar}
-                arrows={arrows}
-                onSquarePress={onSquarePress}
-                selectedSquare={touchSelected}
-                legalDots={legalDests}
-                topSlot={
-                  <EvalBalanceBar
-                    value={evalValue}
-                    depth={displayPosition?.depth}
-                    loading={
-                      analysis?.engineStatus === 'analyzing' && !displayPosition
-                    }
-                  />
-                }
-              />
-              {analysisPanel}
-            </View>
-          )}
+              ) : null
+            }
+            bottomSlot={
+              showEngineUi && analysis?.gameProgress.running ? (
+                <Text
+                  style={{ color: colors.mutedForeground, fontSize: 12 }}
+                  testID="anyliseur-progress"
+                >
+                  {t('parties.anyliseurProgress', {
+                    done: String(analysis.gameProgress.done),
+                    total: String(analysis.gameProgress.total),
+                  })}
+                </Text>
+              ) : null
+            }
+          />
+          {showEngineUi ? analysisPanel : null}
         </View>
       ) : null}
 

@@ -61,3 +61,14 @@ export type {
 export { pickPgnFile } from './pickPgnFile';
 export type { PickedPgnFile } from './pickPgnFile';
 export { folderNameFromPgnFilename } from './folderNameFromPgnFilename';
+export {
+  getAllTrainingLinesFromPgn,
+  getValidRepertoireSansAtFen,
+} from './trainingLines';
+export type {
+  TrainingLinesResult,
+  TrainingLinesError,
+  GameTreeLine,
+  GameTreeStats,
+} from './trainingLines';
+

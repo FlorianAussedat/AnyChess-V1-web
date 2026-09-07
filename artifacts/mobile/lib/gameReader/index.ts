@@ -84,9 +84,11 @@ export {
 
 export {
   buildNotationColumnRows,
+  collectVariationBlock,
   notationScrollIndexForNode,
   type NotationColumnRow,
   type NotationMoveCell,
   type NotationVariationBlock,
   type NotationVariationMove,
 } from './notationColumns.ts';
+

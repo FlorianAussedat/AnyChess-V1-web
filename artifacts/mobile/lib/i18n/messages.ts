@@ -162,6 +162,9 @@ export type MessageKey =
   | 'parties.notFound'
   | 'parties.loading'
   | 'parties.openAnalyzer'
+  | 'parties.openWorkspace'
+  | 'parties.workspace'
+  | 'parties.workspaceSubtitle'
   | 'parties.parseError'
   | 'parties.parseErrorHint'
   | 'parties.analyzerLoad'
@@ -910,10 +913,10 @@ const fr: Dict = {
   'modes.quiz-ouverture.title': 'Culture générale',
   'modes.quiz-ouverture.description':
     'Teste tes connaissances sur les ouvertures et la culture échiquéenne.',
-  'modes.parties.title': 'Lecteur de Parties',
+  'modes.parties.title': 'Parties',
   'modes.parties.description':
-    'Importe des PGN et rejoue-les à vue ou à l’écoute, coup après coup.',
-  'parties.title': 'Lecteur de Parties',
+    'Importe un PGN, rejoue la partie et analyse avec Stockfish dans le même workspace.',
+  'parties.title': 'Parties',
   'parties.subtitle': 'Bibliothèque',
   'parties.importPgn': 'Importer un PGN',
   'parties.empty': 'Aucune partie importée. Importe un fichier PGN pour commencer.',
@@ -1012,6 +1015,9 @@ const fr: Dict = {
   'parties.parseError': 'Impossible de lire cette partie.',
   'parties.parseErrorHint': 'Vérifie le PGN (coups, en-têtes) puis réessaie.',
   'parties.openAnalyzer': 'Ouvrir AnyLyseur',
+  'parties.openWorkspace': 'Nouvelle partie / analyse',
+  'parties.workspace': 'Workspace partie',
+  'parties.workspaceSubtitle': 'Partie et analyse — un seul état',
   'game.movesPlayed': 'Coups joués',
   'game.exportPgn': 'Exporter en PGN',
   'game.export': 'Exporter',
@@ -1756,10 +1762,10 @@ const en: Dict = {
   'modes.quiz-ouverture.title': 'General knowledge',
   'modes.quiz-ouverture.description':
     'Test your knowledge of openings and chess culture.',
-  'modes.parties.title': 'Game Reader',
+  'modes.parties.title': 'Games',
   'modes.parties.description':
-    'Import PGN files and replay them visually or by listening, move by move.',
-  'parties.title': 'Game Reader',
+    'Import a PGN, replay the game, and analyze with Stockfish in one workspace.',
+  'parties.title': 'Games',
   'parties.subtitle': 'Library',
   'parties.importPgn': 'Import a PGN',
   'parties.empty': 'No imported games yet. Import a PGN file to get started.',
@@ -1858,6 +1864,9 @@ const en: Dict = {
   'parties.parseError': 'Unable to read this game.',
   'parties.parseErrorHint': 'Check the PGN (moves, headers) and try again.',
   'parties.openAnalyzer': 'Open AnyLyseur',
+  'parties.openWorkspace': 'New game / analysis',
+  'parties.workspace': 'Game workspace',
+  'parties.workspaceSubtitle': 'Game and analysis — one shared state',
   'game.movesPlayed': 'Moves played',
   'game.exportPgn': 'Export PGN',
   'game.export': 'Export',
