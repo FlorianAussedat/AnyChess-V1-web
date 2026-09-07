@@ -131,6 +131,7 @@ export function stateFromActiveLine(
   activeLineNodeIds: string[],
   ply: number,
   boardFlipped = false,
+  explorationOriginNodeId: string | null = null,
 ): GameReaderState {
   const line =
     activeLineNodeIds.length > 0
@@ -147,6 +148,14 @@ export function stateFromActiveLine(
     currentPly <= 0
       ? game.initialFen
       : (game.nodesById[line[currentPly - 1]!]?.fenAfter ?? game.initialFen);
+  const origin =
+    explorationOriginNodeId == null
+      ? null
+      : explorationOriginNodeId === ''
+        ? ''
+        : game.nodesById[explorationOriginNodeId]
+          ? explorationOriginNodeId
+          : null;
 
   return {
     game,
@@ -168,6 +177,7 @@ export function stateFromActiveLine(
     boardFlipped,
     currentNodeId,
     activeLineNodeIds: line,
+    explorationOriginNodeId: origin,
   };
 }
 
@@ -180,6 +190,7 @@ export function createGameReaderState(
   game: ReaderGame,
   plyOrNode: number | string | null = 0,
   boardFlipped = false,
+  explorationOriginNodeId: string | null = null,
 ): GameReaderState {
   if (typeof plyOrNode === 'string') {
     const currentNodeId = game.nodesById[plyOrNode] ? plyOrNode : null;
@@ -192,12 +203,23 @@ export function createGameReaderState(
       activeLineNodeIds,
       Math.max(0, currentPly),
       boardFlipped,
+      explorationOriginNodeId,
     );
   }
 
   const activeLineNodeIds = buildActiveLine(game, null);
   const currentPly = clampReaderPly(game, plyOrNode ?? 0, activeLineNodeIds.length);
-  return stateFromActiveLine(game, activeLineNodeIds, currentPly, boardFlipped);
+  return stateFromActiveLine(
+    game,
+    activeLineNodeIds,
+    currentPly,
+    boardFlipped,
+    explorationOriginNodeId,
+  );
+}
+
+function preserveOrigin(state: GameReaderState): string | null {
+  return state.explorationOriginNodeId ?? null;
 }
 
 export function goToStart(state: GameReaderState): GameReaderState {
@@ -206,6 +228,7 @@ export function goToStart(state: GameReaderState): GameReaderState {
     state.activeLineNodeIds,
     0,
     state.boardFlipped,
+    preserveOrigin(state),
   );
 }
 
@@ -219,6 +242,7 @@ export function goToEnd(state: GameReaderState): GameReaderState {
     line,
     line.length,
     state.boardFlipped,
+    preserveOrigin(state),
   );
 }
 
@@ -228,6 +252,7 @@ export function goToPrevious(state: GameReaderState): GameReaderState {
     state.activeLineNodeIds,
     Math.max(0, state.currentPly - 1),
     state.boardFlipped,
+    preserveOrigin(state),
   );
 }
 
@@ -237,6 +262,7 @@ export function goToNext(state: GameReaderState): GameReaderState {
     state.activeLineNodeIds,
     Math.min(state.activeLineNodeIds.length, state.currentPly + 1),
     state.boardFlipped,
+    preserveOrigin(state),
   );
 }
 
@@ -246,6 +272,7 @@ export function goToPly(state: GameReaderState, ply: number): GameReaderState {
     state.activeLineNodeIds,
     ply,
     state.boardFlipped,
+    preserveOrigin(state),
   );
 }
 
@@ -255,9 +282,19 @@ export function goToNode(
   nodeId: string | null,
 ): GameReaderState {
   if (!nodeId) {
-    return createGameReaderState(state.game, 0, state.boardFlipped);
+    return createGameReaderState(
+      state.game,
+      0,
+      state.boardFlipped,
+      preserveOrigin(state),
+    );
   }
-  return createGameReaderState(state.game, nodeId, state.boardFlipped);
+  return createGameReaderState(
+    state.game,
+    nodeId,
+    state.boardFlipped,
+    preserveOrigin(state),
+  );
 }
 
 export function flipBoard(state: GameReaderState): GameReaderState {
@@ -282,12 +319,20 @@ export function replaceReaderGame(
   state: GameReaderState,
   game: ReaderGame,
 ): GameReaderState {
+  const origin =
+    state.explorationOriginNodeId == null
+      ? null
+      : state.explorationOriginNodeId === ''
+        ? ''
+        : game.nodesById[state.explorationOriginNodeId]
+          ? state.explorationOriginNodeId
+          : null;
   const nodeId =
     state.currentNodeId && game.nodesById[state.currentNodeId]
       ? state.currentNodeId
       : null;
   if (nodeId) {
-    return createGameReaderState(game, nodeId, state.boardFlipped);
+    return createGameReaderState(game, nodeId, state.boardFlipped, origin);
   }
   const kept = state.activeLineNodeIds.filter((id) => game.nodesById[id]);
   if (kept.length > 0) {
@@ -296,7 +341,8 @@ export function replaceReaderGame(
       buildActiveLine(game, kept[kept.length - 1]!),
       Math.min(state.currentPly, kept.length),
       state.boardFlipped,
+      origin,
     );
   }
-  return createGameReaderState(game, 0, state.boardFlipped);
+  return createGameReaderState(game, 0, state.boardFlipped, origin);
 }

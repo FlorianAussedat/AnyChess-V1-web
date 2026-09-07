@@ -60,5 +60,24 @@ export {
   saveSharedReaderPosition,
   loadSharedReaderPosition,
   clearSharedReaderPosition,
+  saveSharedGameSession,
+  loadSharedGameSession,
+  clearSharedGameSession,
+  scheduleSaveSharedGameSession,
+  flushSharedGameSession,
+  peekSharedGameSession,
+  validateSharedGameSession,
+  SHARED_GAME_SESSION_VERSION,
+  SHARED_GAME_SESSION_STORAGE_KEY,
+  SHARED_GAME_SESSION_DEBOUNCE_MS,
   type SharedReaderPosition,
+  type SharedGameSession,
+  type SharedGameSessionInput,
+  type SharedAnalysisCacheSummary,
 } from './sharedReaderPosition.ts';
+
+export {
+  playMoveOnReader,
+  returnToExplorationOrigin,
+  EXPLORATION_ORIGIN_START,
+} from './explorationMoves.ts';

@@ -99,6 +99,15 @@ export type GameReaderState = {
   currentNodeId: string | null;
   /** Full active branch from first move to end of that line. */
   activeLineNodeIds: string[];
+  /**
+   * Return point before the first manual exploration move.
+   * - `null` — no exploration origin (not exploring).
+   * - `''` — origin is the game start (see EXPLORATION_ORIGIN_START).
+   * - node id — origin node.
+   * Set by `playMoveOnReader` on the first digression; cleared/reset only when
+   * starting a *new* exploration after `returnToExplorationOrigin` (not on return).
+   */
+  explorationOriginNodeId: string | null;
 };
 
 export type ParsePgnOk = { ok: true; game: ReaderGame };

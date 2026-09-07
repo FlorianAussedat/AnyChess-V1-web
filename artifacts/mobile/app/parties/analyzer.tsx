@@ -43,10 +43,11 @@ import {
 } from '@/lib/game/boardSize';
 import { gameLibraryStore } from '@/lib/gameLibrary';
 import {
-  loadSharedReaderPosition,
+  flushSharedGameSession,
+  loadSharedGameSession,
   parseReaderPgn,
   readerGameFromImported,
-  saveSharedReaderPosition,
+  saveSharedGameSession,
   useGameReader,
   type ReaderGame,
 } from '@/lib/gameReader';
@@ -88,38 +89,74 @@ export default function GameAnalyzerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>('game');
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [restoreNodeId, setRestoreNodeId] = useState<string | null>(
+    paramNodeId,
+  );
+  const [restoreFlipped, setRestoreFlipped] = useState(paramFlipped);
+  const [restoreOrigin, setRestoreOrigin] = useState<string | null>(null);
+  const [sessionReady, setSessionReady] = useState(!gameId);
 
   useEffect(() => {
-    if (!gameId) return;
+    return () => {
+      void flushSharedGameSession();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!gameId) {
+      setSessionReady(true);
+      return;
+    }
     let cancelled = false;
     void (async () => {
-      const imported = await gameLibraryStore.getGame(gameId);
-      if (cancelled || !imported) return;
-      setPgnDraft(imported.source.rawPgn?.trim() || SAMPLE_PGN);
-      setError(null);
-      setGame(
-        readerGameFromImported({
-          id: imported.id,
-          fingerprint: imported.fingerprint,
-          headers: imported.headers,
-          initialFen: imported.initialFen,
-          moves: imported.moves,
-          hasVariations: imported.hasVariations,
-          rawPgn: imported.source.rawPgn,
-          source: imported.source,
-        }),
-      );
+      const [imported, session] = await Promise.all([
+        gameLibraryStore.getGame(gameId),
+        loadSharedGameSession(gameId),
+      ]);
+      if (cancelled) return;
+      if (session && session.gameId === gameId) {
+        setPgnDraft(
+          session.game.rawPgn?.trim() ||
+            session.game.source?.rawPgn?.trim() ||
+            SAMPLE_PGN,
+        );
+        setError(null);
+        setGame(session.game);
+        setRestoreNodeId(paramNodeId ?? session.currentNodeId);
+        setRestoreFlipped(paramFlipped || session.boardFlipped);
+        setRestoreOrigin(session.explorationOriginNodeId);
+      } else if (imported) {
+        setPgnDraft(imported.source.rawPgn?.trim() || SAMPLE_PGN);
+        setError(null);
+        setGame(
+          readerGameFromImported({
+            id: imported.id,
+            fingerprint: imported.fingerprint,
+            headers: imported.headers,
+            initialFen: imported.initialFen,
+            moves: imported.moves,
+            hasVariations: imported.hasVariations,
+            rawPgn: imported.source.rawPgn,
+            source: imported.source,
+          }),
+        );
+        if (paramNodeId) setRestoreNodeId(paramNodeId);
+        if (paramFlipped) setRestoreFlipped(true);
+      }
+      setSessionReady(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, [gameId]);
+  }, [gameId, paramNodeId, paramFlipped]);
 
-  const shared = gameId ? loadSharedReaderPosition(gameId) : null;
   const reader = useGameReader({
-    game,
-    initialNodeId: paramNodeId ?? shared?.nodeId ?? null,
-    initialFlipped: paramFlipped || Boolean(shared?.boardFlipped),
+    game: sessionReady ? game : null,
+    initialNodeId: restoreNodeId,
+    initialFlipped: restoreFlipped,
+    initialExplorationOriginNodeId: restoreOrigin,
+    autosaveSession: Boolean(game),
+    analysisProfileId: undefined,
   });
 
   const {
@@ -130,7 +167,7 @@ export default function GameAnalyzerScreen() {
     retryEngine,
     classificationInputs,
   } = useAnyLyseurAnalysis({
-    game,
+    game: reader?.game ?? game,
     currentFen: reader?.currentFen ?? null,
     currentNodeId: reader?.currentNodeId ?? null,
     activeLineNodeIds: reader?.activeLineNodeIds ?? [],
@@ -192,14 +229,23 @@ export default function GameAnalyzerScreen() {
 
   const persistPosition = useCallback(() => {
     if (!game || !reader) return;
-    saveSharedReaderPosition({
-      gameId: game.id,
-      nodeId: reader.currentNodeId,
-      fen: reader.currentFen,
-      boardFlipped: reader.boardFlipped,
+    void saveSharedGameSession({
+      gameId: reader.game.id,
+      game: reader.game,
+      currentNodeId: reader.currentNodeId,
       activeLineNodeIds: reader.activeLineNodeIds,
+      boardFlipped: reader.boardFlipped,
+      explorationOriginNodeId: reader.explorationOriginNodeId,
+      analysisProfileId: analysis?.profileId,
+      analysisCacheSummary: analysis
+        ? {
+            analyzedNodeCount: Object.keys(analysis.gameNodes).length,
+            lastFen: reader.currentFen,
+            profileId: analysis.profileId,
+          }
+        : undefined,
     });
-  }, [game, reader]);
+  }, [game, reader, analysis]);
 
   const openReader = useCallback(() => {
     persistPosition();

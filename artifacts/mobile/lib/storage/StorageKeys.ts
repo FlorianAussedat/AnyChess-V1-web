@@ -168,6 +168,17 @@ export const StorageKeys = {
     shape: 'GameLibrarySnapshot { version: 1, games: ImportedChessGame[] (main-line + rawPgn) }',
     documentVersion: 1,
   },
+  /**
+   * Shared Lecteur ↔ AnyLyseur session (selection, exploration tree, profile).
+   * Never wipe with AsyncStorage.clear() — remove this key only via clearSharedGameSession.
+   */
+  gameSession: {
+    key: 'anychess.gameSession.v1',
+    feature: 'parties/lecteur-anyliseur',
+    shape:
+      'SharedGameSession { version: 1, gameId, game, currentNodeId, activeLineNodeIds, boardFlipped, explorationOriginNodeId, analysisProfileId?, analysisCacheSummary? }',
+    documentVersion: 1,
+  },
   endgameFavorites: {
     key: 'anychess.endgames.favorites.v1',
     feature: 'endgame-training',

@@ -37,12 +37,14 @@ import {
 } from '@/lib/gameLibrary';
 import {
   createReaderPlayback,
-  loadSharedReaderPosition,
+  flushSharedGameSession,
+  loadSharedGameSession,
   parseReaderVoiceCommand,
   readerGameFromImported,
-  saveSharedReaderPosition,
+  saveSharedGameSession,
   useGameReader,
   type GameReaderApi,
+  type ReaderGame,
 } from '@/lib/gameReader';
 import { speechService } from '@/services/SpeechService';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
@@ -95,10 +97,13 @@ export default function GameReaderScreen() {
   const [movesVisible, setMovesVisible] = useState(true);
   const [restoreNodeId, setRestoreNodeId] = useState<string | null>(null);
   const [restoreFlipped, setRestoreFlipped] = useState<boolean | null>(null);
+  const [restoreOrigin, setRestoreOrigin] = useState<string | null>(null);
+  const [sessionGame, setSessionGame] = useState<ReaderGame | null>(null);
 
   useEffect(() => {
     return () => {
       playbackRef.current.cancel('unmount-reader');
+      void flushSharedGameSession();
     };
   }, []);
 
@@ -109,11 +114,21 @@ export default function GameReaderScreen() {
         setLoading(false);
         return;
       }
-      const loaded = await gameLibraryStore.getGame(String(gameId));
-      if (!cancelled) {
-        setGame(loaded);
-        setLoading(false);
+      const [loaded, session] = await Promise.all([
+        gameLibraryStore.getGame(String(gameId)),
+        loadSharedGameSession(String(gameId)),
+      ]);
+      if (cancelled) return;
+      setGame(loaded);
+      if (session && session.gameId === String(gameId)) {
+        setSessionGame(session.game);
+        setRestoreNodeId(session.currentNodeId);
+        setRestoreFlipped(session.boardFlipped);
+        setRestoreOrigin(session.explorationOriginNodeId);
+      } else {
+        setSessionGame(null);
       }
+      setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -128,16 +143,21 @@ export default function GameReaderScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!gameId) return;
-      const shared = loadSharedReaderPosition(String(gameId));
-      if (!shared) return;
-      setRestoreNodeId(shared.nodeId);
-      setRestoreFlipped(shared.boardFlipped);
+      void (async () => {
+        const session = await loadSharedGameSession(String(gameId));
+        if (!session) return;
+        setSessionGame(session.game);
+        setRestoreNodeId(session.currentNodeId);
+        setRestoreFlipped(session.boardFlipped);
+        setRestoreOrigin(session.explorationOriginNodeId);
+      })();
     }, [gameId]),
   );
 
   const boardOrientation = (game ? orientationFromGame(game) : null) ?? 'white';
 
   const readerGame = useMemo(() => {
+    if (sessionGame && sessionGame.id === String(gameId)) return sessionGame;
     if (!game) return null;
     return readerGameFromImported({
       id: game.id,
@@ -149,13 +169,15 @@ export default function GameReaderScreen() {
       rawPgn: game.source.rawPgn,
       source: game.source,
     });
-  }, [game]);
+  }, [game, sessionGame, gameId]);
 
   const reader = useGameReader({
     game: readerGame,
     initialNodeId: restoreNodeId,
     initialFlipped:
       restoreFlipped != null ? restoreFlipped : boardOrientation === 'black',
+    initialExplorationOriginNodeId: restoreOrigin,
+    autosaveSession: true,
   });
   readerRef.current = reader;
 
@@ -341,21 +363,24 @@ export default function GameReaderScreen() {
           accessibilityLabel={t('parties.openAnalyzer')}
           onPress={() => {
             stopVoice('open-analyzer');
-            saveSharedReaderPosition({
-              gameId: game.id,
-              nodeId: reader.currentNodeId,
-              fen: reader.currentFen,
-              boardFlipped: reader.boardFlipped,
-              activeLineNodeIds: reader.activeLineNodeIds,
-            });
-            router.push({
-              pathname: '/parties/analyzer',
-              params: {
+            void (async () => {
+              await saveSharedGameSession({
                 gameId: game.id,
-                nodeId: reader.currentNodeId ?? '',
-                flipped: reader.boardFlipped ? '1' : '0',
-              },
-            });
+                game: reader.game,
+                currentNodeId: reader.currentNodeId,
+                activeLineNodeIds: reader.activeLineNodeIds,
+                boardFlipped: reader.boardFlipped,
+                explorationOriginNodeId: reader.explorationOriginNodeId,
+              });
+              router.push({
+                pathname: '/parties/analyzer',
+                params: {
+                  gameId: game.id,
+                  nodeId: reader.currentNodeId ?? '',
+                  flipped: reader.boardFlipped ? '1' : '0',
+                },
+              });
+            })();
           }}
           style={[
             styles.headerChip,
