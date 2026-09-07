@@ -56,6 +56,11 @@ export type EngineAnalysis = {
   depth: number;
   /** MultiPV candidate lines when requested (rank 1 first). Empty if unavailable. */
   lines?: EngineAnalysisLine[];
+  /**
+   * True when the search was stopped / superseded before a usable result.
+   * Callers must not treat this as a complete analysis (no fake 0.00 eval).
+   */
+  cancelled?: boolean;
 };
 
 export type AnalyzePositionOptions = {

@@ -1,14 +1,19 @@
 /**
  * White-centric eval labels for AnyLyseur.
- * Examples: "+0.00", "+0.85", "-1.42", "M3", "-M2"
+ * Examples: "+0.00", "+0.85", "-1.42", "M3", "-M2", "#", "-#"
  */
 
 export type WhiteEval = {
   cp: number | null;
   mate: number | null;
+  terminalOutcome?: 'white' | 'black' | 'draw';
 };
 
 export function formatAnyLyseurEval(value: WhiteEval): string {
+  if (value.terminalOutcome === 'draw') return '+0.00';
+  if (value.terminalOutcome === 'white') return '#';
+  if (value.terminalOutcome === 'black') return '-#';
+
   if (value.mate != null && value.mate !== 0) {
     return value.mate > 0 ? `M${value.mate}` : `-M${Math.abs(value.mate)}`;
   }
@@ -21,6 +26,9 @@ export function formatAnyLyseurEval(value: WhiteEval): string {
 }
 
 export function clampEvalForCurve(value: WhiteEval, maxPawns = 8): number {
+  if (value.terminalOutcome === 'draw') return 0;
+  if (value.terminalOutcome === 'white') return maxPawns;
+  if (value.terminalOutcome === 'black') return -maxPawns;
   if (value.mate != null && value.mate !== 0) {
     return value.mate > 0 ? maxPawns : -maxPawns;
   }

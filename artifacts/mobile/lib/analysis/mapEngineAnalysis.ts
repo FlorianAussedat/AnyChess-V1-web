@@ -1,12 +1,32 @@
 import type { EngineAnalysis } from '@/lib/engines/analysis';
 import type { AnalysisProfileId, EngineLine, PositionAnalysis } from './types.ts';
-import { toWhiteScore } from './scoreWhite.ts';
+import {
+  terminalWhiteScoreFromFen,
+  toWhiteScore,
+} from './scoreWhite.ts';
 
 export function mapEngineAnalysisToPosition(
   fen: string,
   raw: EngineAnalysis,
   profileId: AnalysisProfileId,
-): PositionAnalysis {
+): PositionAnalysis | null {
+  if (raw.cancelled) return null;
+
+  const terminal = terminalWhiteScoreFromFen(fen);
+  if (terminal) {
+    return {
+      fen,
+      depth: raw.depth || 0,
+      lines: [],
+      analyzedAt: Date.now(),
+      profileId,
+      evaluation: terminal.evaluation,
+      mate: terminal.mate,
+      bestMove: undefined,
+      terminalOutcome: terminal.terminalOutcome,
+    };
+  }
+
   const linesSrc =
     raw.lines && raw.lines.length > 0
       ? raw.lines
@@ -58,5 +78,6 @@ export function mapEngineAnalysisToPosition(
     evaluation: headline.evaluation,
     mate: headline.mate,
     bestMove: lines[0]?.bestMove ?? raw.bestMove?.uci,
+    terminalOutcome: headline.terminalOutcome,
   };
 }

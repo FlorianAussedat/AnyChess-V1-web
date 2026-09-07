@@ -12,4 +12,8 @@ export {
   ChessEngineService,
   createMockChessEngineService,
 } from './ChessEngineService';
+export {
+  AnalysisCancelledError,
+  isAnalysisCancelled,
+} from './AnalysisCancelledError';
 export { createChessEngineService } from './createChessEngineService';

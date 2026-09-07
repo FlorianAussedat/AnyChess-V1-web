@@ -27,6 +27,8 @@ export {
   createGameReaderState,
   goToStart,
   goToEnd,
+  stateFromActiveLine,
+  replaceReaderGame,
   goToPrevious,
   goToNext,
   goToPly,

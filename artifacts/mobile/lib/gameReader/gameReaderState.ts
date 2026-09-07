@@ -1,6 +1,7 @@
 /**
  * Pure navigation helpers for the shared game reader.
  * Navigation follows the active variation line (not only the flat main line).
+ * Previous/next/start/end preserve the chosen branch; only goToNode switches.
  */
 import type {
   GameReaderState,
@@ -122,42 +123,30 @@ function moveOnLine(
 }
 
 /**
- * Create reader state.
- * - If `nodeId` is provided, active line passes through that node; ply is derived.
- * - Else ply indexes the main line (rootIds[0] path).
+ * Build reader state on a *fixed* active line (preserves side variations).
+ * Prefer this for prev/next/start/end so ancestors don't snap back to main.
  */
-export function createGameReaderState(
+export function stateFromActiveLine(
   game: ReaderGame,
-  plyOrNode: number | string | null = 0,
+  activeLineNodeIds: string[],
+  ply: number,
   boardFlipped = false,
 ): GameReaderState {
-  let activeLineNodeIds: string[];
-  let currentPly: number;
-  let currentNodeId: string | null;
-
-  if (typeof plyOrNode === 'string') {
-    currentNodeId = game.nodesById[plyOrNode] ? plyOrNode : null;
-    activeLineNodeIds = buildActiveLine(game, currentNodeId);
-    currentPly = currentNodeId
-      ? activeLineNodeIds.indexOf(currentNodeId) + 1
-      : 0;
-    if (currentPly < 0) currentPly = 0;
-  } else {
-    activeLineNodeIds = buildActiveLine(game, null);
-    currentPly = clampReaderPly(game, plyOrNode ?? 0, activeLineNodeIds.length);
-    currentNodeId =
-      currentPly > 0 ? (activeLineNodeIds[currentPly - 1] ?? null) : null;
-  }
-
-  const totalPly = activeLineNodeIds.length;
-  const currentMove = moveOnLine(game, activeLineNodeIds, currentPly);
-  const previousMove = moveOnLine(game, activeLineNodeIds, currentPly - 1);
-  const nextMove = moveOnLine(game, activeLineNodeIds, currentPly + 1);
+  const line =
+    activeLineNodeIds.length > 0
+      ? activeLineNodeIds
+      : buildActiveLine(game, null);
+  const totalPly = line.length;
+  const currentPly = clampReaderPly(game, ply, totalPly);
+  const currentNodeId =
+    currentPly > 0 ? (line[currentPly - 1] ?? null) : null;
+  const currentMove = moveOnLine(game, line, currentPly);
+  const previousMove = moveOnLine(game, line, currentPly - 1);
+  const nextMove = moveOnLine(game, line, currentPly + 1);
   const currentFen =
     currentPly <= 0
       ? game.initialFen
-      : (game.nodesById[activeLineNodeIds[currentPly - 1]!]?.fenAfter ??
-        game.initialFen);
+      : (game.nodesById[line[currentPly - 1]!]?.fenAfter ?? game.initialFen);
 
   return {
     game,
@@ -178,41 +167,46 @@ export function createGameReaderState(
     canGoForward: currentPly < totalPly,
     boardFlipped,
     currentNodeId,
-    activeLineNodeIds,
+    activeLineNodeIds: line,
   };
 }
 
-export function goToStart(state: GameReaderState): GameReaderState {
-  const branchRoot = state.activeLineNodeIds[0] ?? null;
-  if (!branchRoot) {
-    return createGameReaderState(state.game, 0, state.boardFlipped);
+/**
+ * Create reader state.
+ * - If `nodeId` is provided, active line passes through that node; ply is derived.
+ * - Else ply indexes the main line (rootIds[0] path).
+ */
+export function createGameReaderState(
+  game: ReaderGame,
+  plyOrNode: number | string | null = 0,
+  boardFlipped = false,
+): GameReaderState {
+  if (typeof plyOrNode === 'string') {
+    const currentNodeId = game.nodesById[plyOrNode] ? plyOrNode : null;
+    const activeLineNodeIds = buildActiveLine(game, currentNodeId);
+    const currentPly = currentNodeId
+      ? activeLineNodeIds.indexOf(currentNodeId) + 1
+      : 0;
+    return stateFromActiveLine(
+      game,
+      activeLineNodeIds,
+      Math.max(0, currentPly),
+      boardFlipped,
+    );
   }
-  const active = buildActiveLine(state.game, branchRoot);
-  const base = createGameReaderState(state.game, 0, state.boardFlipped);
-  const first = state.game.nodesById[active[0]!];
-  return {
-    ...base,
-    activeLineNodeIds: active,
-    totalPly: active.length,
-    canGoForward: active.length > 0,
-    nextMove: first
-      ? {
-          ply: 1,
-          moveNumber: first.moveNumber,
-          color: first.color,
-          san: first.san,
-          fenBefore: first.fenBefore,
-          fenAfter: first.fenAfter,
-          from: first.from,
-          to: first.to,
-          promotion: first.promotion,
-          comment: first.comment,
-          nags: first.nags,
-          hasVariations: first.childIds.length > 1 || undefined,
-          nodeId: first.id,
-        }
-      : null,
-  };
+
+  const activeLineNodeIds = buildActiveLine(game, null);
+  const currentPly = clampReaderPly(game, plyOrNode ?? 0, activeLineNodeIds.length);
+  return stateFromActiveLine(game, activeLineNodeIds, currentPly, boardFlipped);
+}
+
+export function goToStart(state: GameReaderState): GameReaderState {
+  return stateFromActiveLine(
+    state.game,
+    state.activeLineNodeIds,
+    0,
+    state.boardFlipped,
+  );
 }
 
 export function goToEnd(state: GameReaderState): GameReaderState {
@@ -220,57 +214,39 @@ export function goToEnd(state: GameReaderState): GameReaderState {
     state.activeLineNodeIds.length > 0
       ? state.activeLineNodeIds
       : buildActiveLine(state.game, null);
-  const lastId = line[line.length - 1] ?? null;
-  if (lastId) {
-    return createGameReaderState(state.game, lastId, state.boardFlipped);
-  }
-  return createGameReaderState(state.game, 0, state.boardFlipped);
+  return stateFromActiveLine(
+    state.game,
+    line,
+    line.length,
+    state.boardFlipped,
+  );
 }
 
 export function goToPrevious(state: GameReaderState): GameReaderState {
-  const line = state.activeLineNodeIds;
-  const nextPly = Math.max(0, state.currentPly - 1);
-  if (nextPly === 0) {
-    // Stay on same branch context by remembering branch root via line[0].
-    const branchRoot = line[0] ?? null;
-    const rebuilt = createGameReaderState(state.game, 0, state.boardFlipped);
-    if (branchRoot) {
-      return {
-        ...rebuilt,
-        activeLineNodeIds: buildActiveLine(state.game, branchRoot),
-        totalPly: buildActiveLine(state.game, branchRoot).length,
-        canGoForward: buildActiveLine(state.game, branchRoot).length > 0,
-      };
-    }
-    return rebuilt;
-  }
-  const nodeId = line[nextPly - 1]!;
-  return createGameReaderState(state.game, nodeId, state.boardFlipped);
+  return stateFromActiveLine(
+    state.game,
+    state.activeLineNodeIds,
+    Math.max(0, state.currentPly - 1),
+    state.boardFlipped,
+  );
 }
 
 export function goToNext(state: GameReaderState): GameReaderState {
-  const line = state.activeLineNodeIds;
-  if (state.currentPly >= line.length) return state;
-  const nodeId = line[state.currentPly]!;
-  return createGameReaderState(state.game, nodeId, state.boardFlipped);
+  return stateFromActiveLine(
+    state.game,
+    state.activeLineNodeIds,
+    Math.min(state.activeLineNodeIds.length, state.currentPly + 1),
+    state.boardFlipped,
+  );
 }
 
 export function goToPly(state: GameReaderState, ply: number): GameReaderState {
-  const line = state.activeLineNodeIds;
-  const safe = clampReaderPly(state.game, ply, line.length);
-  if (safe === 0) {
-    const branchRoot = line[0] ?? null;
-    const rebuilt = createGameReaderState(state.game, 0, state.boardFlipped);
-    if (!branchRoot) return rebuilt;
-    const active = buildActiveLine(state.game, branchRoot);
-    return {
-      ...rebuilt,
-      activeLineNodeIds: active,
-      totalPly: active.length,
-      canGoForward: active.length > 0,
-    };
-  }
-  return createGameReaderState(state.game, line[safe - 1]!, state.boardFlipped);
+  return stateFromActiveLine(
+    state.game,
+    state.activeLineNodeIds,
+    ply,
+    state.boardFlipped,
+  );
 }
 
 /** Jump to a specific tree node (selects that branch as active). */
@@ -299,4 +275,28 @@ export function setBoardFlipped(
     ...state,
     boardFlipped: flipped,
   };
+}
+
+/** Replace the game tree while preserving node/line when possible. */
+export function replaceReaderGame(
+  state: GameReaderState,
+  game: ReaderGame,
+): GameReaderState {
+  const nodeId =
+    state.currentNodeId && game.nodesById[state.currentNodeId]
+      ? state.currentNodeId
+      : null;
+  if (nodeId) {
+    return createGameReaderState(game, nodeId, state.boardFlipped);
+  }
+  const kept = state.activeLineNodeIds.filter((id) => game.nodesById[id]);
+  if (kept.length > 0) {
+    return stateFromActiveLine(
+      game,
+      buildActiveLine(game, kept[kept.length - 1]!),
+      Math.min(state.currentPly, kept.length),
+      state.boardFlipped,
+    );
+  }
+  return createGameReaderState(game, 0, state.boardFlipped);
 }

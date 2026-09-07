@@ -42,6 +42,7 @@ export type PositionAnalysis = {
   evaluation: number | null;
   mate: number | null;
   bestMove?: string;
+  terminalOutcome?: 'white' | 'black' | 'draw';
 };
 
 export type GameNodeAnalysis = {
@@ -53,6 +54,7 @@ export type GameNodeAnalysis = {
   depth: number;
   analyzedAt: number;
   profileId: AnalysisProfileId;
+  terminalOutcome?: 'white' | 'black' | 'draw';
 };
 
 /** Reserved for a future classification layer — not shown in V1. */
@@ -82,4 +84,10 @@ export type AnalysisSessionState = {
   gameNodes: Record<string, GameNodeAnalysis>;
   gameProgress: GameAnalysisProgress;
   arrowsEnabled: boolean;
+  /** Current game session — isolates node ids across games. */
+  sessionId: string | null;
+  /** True only when every main-line node has analysis for the current profile. */
+  mainLineComplete: boolean;
+  /** FEN the UI currently wants — used to reject stale display. */
+  desiredFen: string | null;
 };
