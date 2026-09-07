@@ -655,6 +655,8 @@ export default function GameWorkspaceScreen() {
           <View style={styles.tabs} testID="anyliseur-tabs">
             <Pressable
               testID="anyliseur-tab-game"
+              accessibilityRole="button"
+              accessibilityState={{ selected: tab === 'game' }}
               onPress={() => setTab('game')}
               style={[
                 styles.tab,
@@ -662,6 +664,8 @@ export default function GameWorkspaceScreen() {
                   backgroundColor:
                     tab === 'game' ? colors.primary : colors.card,
                   borderColor: colors.border,
+                  // @ts-expect-error web cursor
+                  cursor: 'pointer',
                 },
               ]}
             >
@@ -679,6 +683,8 @@ export default function GameWorkspaceScreen() {
             </Pressable>
             <Pressable
               testID="anyliseur-tab-analysis"
+              accessibilityRole="button"
+              accessibilityState={{ selected: tab === 'analysis' }}
               onPress={() => setTab('analysis')}
               style={[
                 styles.tab,
@@ -686,6 +692,8 @@ export default function GameWorkspaceScreen() {
                   backgroundColor:
                     tab === 'analysis' ? colors.primary : colors.card,
                   borderColor: colors.border,
+                  // @ts-expect-error web cursor
+                  cursor: 'pointer',
                 },
               ]}
             >
