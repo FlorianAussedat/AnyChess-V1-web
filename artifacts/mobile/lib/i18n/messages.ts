@@ -198,6 +198,20 @@ export type MessageKey =
   | 'parties.anyliseurCurve'
   | 'parties.anyliseurAnalyzed'
   | 'parties.anyliseurReanalyze'
+  | 'parties.anyliseurA11yFlip'
+  | 'parties.anyliseurA11yFlipHint'
+  | 'parties.anyliseurA11yArrowsHint'
+  | 'parties.anyliseurA11yProfile'
+  | 'parties.anyliseurA11yProfileHint'
+  | 'parties.anyliseurA11yImport'
+  | 'parties.anyliseurA11yImportHint'
+  | 'parties.anyliseurA11yExportHint'
+  | 'parties.anyliseurA11yOpenReaderHint'
+  | 'parties.anyliseurA11yReturn'
+  | 'parties.anyliseurA11yReturnHint'
+  | 'parties.anyliseurProfileTitle'
+  | 'parties.anyliseurProfileHint'
+  | 'parties.anyliseurProfileClose'
   // Game shared
   | 'game.movesPlayed'
   | 'game.exportPgn'
@@ -953,6 +967,21 @@ const fr: Dict = {
   'parties.anyliseurCurve': "Courbe d'évaluation",
   'parties.anyliseurAnalyzed': 'Analysée',
   'parties.anyliseurReanalyze': 'Ré-analyser',
+  'parties.anyliseurA11yFlip': 'Retourner l’échiquier',
+  'parties.anyliseurA11yFlipHint': 'Inverse la vue des camps blanc et noir',
+  'parties.anyliseurA11yArrowsHint': 'Affiche ou masque la flèche du meilleur coup',
+  'parties.anyliseurA11yProfile': 'Profil d’analyse',
+  'parties.anyliseurA11yProfileHint': 'Choisir le temps de calcul du moteur',
+  'parties.anyliseurA11yImport': 'Importer un PGN',
+  'parties.anyliseurA11yImportHint': 'Charger une nouvelle partie depuis un PGN',
+  'parties.anyliseurA11yExportHint': 'Copier le PGN enrichi dans le presse-papiers',
+  'parties.anyliseurA11yOpenReaderHint': 'Ouvrir la même position dans le Lecteur',
+  'parties.anyliseurA11yReturn': 'Revenir à l’origine d’exploration',
+  'parties.anyliseurA11yReturnHint': 'Retourne au point avant les coups d’exploration',
+  'parties.anyliseurProfileTitle': 'Profil d’analyse',
+  'parties.anyliseurProfileHint':
+    'Ces modes règlent le temps de recherche du moteur, pas la difficulté.',
+  'parties.anyliseurProfileClose': 'Fermer le profil d’analyse',
   'parties.analyzer': 'AnyLyseur',
   'parties.analyzerSubtitle': 'Analyse de partie et de position',
   'parties.analyzerEmpty': 'Colle un PGN pour démarrer AnyLyseur.',
@@ -1773,6 +1802,21 @@ const en: Dict = {
   'parties.anyliseurCurve': 'Evaluation curve',
   'parties.anyliseurAnalyzed': 'Analyzed',
   'parties.anyliseurReanalyze': 'Re-analyze',
+  'parties.anyliseurA11yFlip': 'Flip board',
+  'parties.anyliseurA11yFlipHint': 'Swap white and black board orientation',
+  'parties.anyliseurA11yArrowsHint': 'Show or hide the best-move arrow',
+  'parties.anyliseurA11yProfile': 'Analysis profile',
+  'parties.anyliseurA11yProfileHint': 'Choose engine search time',
+  'parties.anyliseurA11yImport': 'Import PGN',
+  'parties.anyliseurA11yImportHint': 'Load a new game from PGN',
+  'parties.anyliseurA11yExportHint': 'Copy enriched PGN to the clipboard',
+  'parties.anyliseurA11yOpenReaderHint': 'Open the same position in the Reader',
+  'parties.anyliseurA11yReturn': 'Return to exploration origin',
+  'parties.anyliseurA11yReturnHint': 'Go back to the position before exploration moves',
+  'parties.anyliseurProfileTitle': 'Analysis profile',
+  'parties.anyliseurProfileHint':
+    'These modes set engine search time, not difficulty.',
+  'parties.anyliseurProfileClose': 'Close analysis profile',
   'parties.analyzer': 'AnyLyseur',
   'parties.analyzerSubtitle': 'Game and position analysis',
   'parties.analyzerEmpty': 'Paste a PGN to start AnyLyseur.',

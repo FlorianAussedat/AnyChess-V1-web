@@ -81,3 +81,12 @@ export {
   returnToExplorationOrigin,
   EXPLORATION_ORIGIN_START,
 } from './explorationMoves.ts';
+
+export {
+  buildNotationColumnRows,
+  notationScrollIndexForNode,
+  type NotationColumnRow,
+  type NotationMoveCell,
+  type NotationVariationBlock,
+  type NotationVariationMove,
+} from './notationColumns.ts';

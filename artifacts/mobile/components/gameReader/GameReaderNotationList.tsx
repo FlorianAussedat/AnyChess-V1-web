@@ -1,14 +1,21 @@
 /**
  * Clickable move notation with variation branches for Lecteur / Analyseur.
- * Main line stays primary; side lines are indented and parenthesized.
+ * Main line: columns (move# | white | black). Variations full-width underneath.
  */
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { ReaderGame, ReaderNode } from '@/lib/gameReader';
+import {
+  buildNotationColumnRows,
+  notationScrollIndexForNode,
+  type NotationColumnRow,
+  type NotationVariationBlock,
+} from '@/lib/gameReader/notationColumns';
 
 export type NotationEntry = {
   key: string;
@@ -16,7 +23,6 @@ export type NotationEntry = {
   san: string;
   displaySan: string;
   depth: number;
-  /** Prefix like "2..." when starting a black variation. */
   prefix?: string;
   isVariationStart?: boolean;
   isVariationEnd?: boolean;
@@ -31,7 +37,9 @@ type Props = {
   testID?: string;
 };
 
-const ROW_H = 28;
+const ROW_H = 30;
+const VAR_COLLAPSE_AT = 8;
+const VAR_PREVIEW = 4;
 
 function movePrefix(node: ReaderNode): string {
   if (node.color === 'white') return `${node.moveNumber}.`;
@@ -39,8 +47,7 @@ function movePrefix(node: ReaderNode): string {
 }
 
 /**
- * Flatten the tree for display: main child first, then each side variation
- * as an indented parenthetical line.
+ * Flatten the tree for display (legacy / tests). Prefer buildNotationColumnRows.
  */
 export function flattenNotationTree(game: ReaderGame): NotationEntry[] {
   const out: NotationEntry[] = [];
@@ -62,14 +69,10 @@ export function flattenNotationTree(game: ReaderGame): NotationEntry[] {
     const childIds = node.childIds;
     if (childIds.length === 0) return;
 
-    // Main continuation
     walk(childIds[0]!, depth);
 
-    // Side variations after this move's main child fork: rendered as siblings
-    // of the main child (alternatives at the same parent).
     for (let i = 1; i < childIds.length; i += 1) {
       const varId = childIds[i]!;
-      // Emit a parenthetical block for this whole side line.
       const startIndex = out.length;
       walkVariationLine(varId, depth + 1);
       if (out.length > startIndex) {
@@ -99,10 +102,8 @@ export function flattenNotationTree(game: ReaderGame): NotationEntry[] {
         prefix: movePrefix(node),
         isVariationStart: false,
       });
-      // Inside a variation, still show nested side lines.
       const children: string[] = node.childIds;
       if (children.length === 0) break;
-      // Nested variations of the next move
       const main: string = children[0]!;
       for (let i = 1; i < children.length; i += 1) {
         const nestedStart = out.length;
@@ -133,6 +134,177 @@ export function flattenNotationTree(game: ReaderGame): NotationEntry[] {
   return out;
 }
 
+function MoveCell({
+  nodeId,
+  displaySan,
+  selected,
+  onActiveLine,
+  onPress,
+  testID,
+}: {
+  nodeId: string;
+  displaySan: string;
+  selected: boolean;
+  onActiveLine: boolean;
+  onPress: () => void;
+  testID: string;
+}) {
+  const colors = useColors();
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[
+        styles.cell,
+        selected
+          ? {
+              backgroundColor: colors.primary,
+            }
+          : null,
+      ]}
+    >
+      <Text
+        style={[
+          styles.san,
+          {
+            color: selected
+              ? colors.primaryForeground
+              : onActiveLine
+                ? colors.foreground
+                : colors.mutedForeground,
+            fontFamily: selected
+              ? DesignTokens.typography.weightBold
+              : DesignTokens.typography.weightSemiBold,
+          },
+        ]}
+        numberOfLines={1}
+      >
+        {displaySan}
+      </Text>
+    </Pressable>
+  );
+}
+
+function VariationBlockView({
+  block,
+  currentNodeId,
+  activeSet,
+  formatSan,
+  onSelectNode,
+}: {
+  block: NotationVariationBlock;
+  currentNodeId: string | null;
+  activeSet: Set<string>;
+  formatSan: (san: string) => string;
+  onSelectNode: (nodeId: string) => void;
+}) {
+  const colors = useColors();
+  const { t } = useTranslation();
+  const long = block.moves.length > VAR_COLLAPSE_AT;
+  const [expanded, setExpanded] = useState(false);
+  const visible =
+    long && !expanded ? block.moves.slice(0, VAR_PREVIEW) : block.moves;
+  const activeInVar =
+    currentNodeId != null &&
+    block.moves.some((m) => m.nodeId === currentNodeId);
+
+  return (
+    <View
+      style={[
+        styles.varBlock,
+        {
+          marginLeft: 8 + block.depth * 8,
+          borderLeftColor: activeInVar ? colors.primary : colors.border,
+        },
+      ]}
+      testID={`game-reader-var-${block.key}`}
+    >
+      <View style={styles.varMoves}>
+        <Text
+          style={[
+            styles.varParen,
+            { color: activeInVar ? colors.primary : colors.mutedForeground },
+          ]}
+        >
+          (
+        </Text>
+        {visible.map((m, i) => {
+          const selected = currentNodeId === m.nodeId;
+          const onLine = activeSet.has(m.nodeId);
+          return (
+            <Pressable
+              key={m.nodeId}
+              testID={`game-reader-node-${m.nodeId}`}
+              accessibilityRole="button"
+              onPress={() => onSelectNode(m.nodeId)}
+              style={[
+                styles.varMove,
+                selected ? { backgroundColor: colors.primary } : null,
+              ]}
+            >
+              <Text
+                style={{
+                  color: selected
+                    ? colors.primaryForeground
+                    : activeInVar
+                      ? colors.primary
+                      : onLine
+                        ? colors.foreground
+                        : colors.mutedForeground,
+                  fontFamily: DesignTokens.typography.weightRegular,
+                  fontStyle: 'italic',
+                  fontSize: 13,
+                }}
+              >
+                {i > 0 ? ' ' : ''}
+                {m.prefix}
+                {formatSan(m.san)}
+              </Text>
+            </Pressable>
+          );
+        })}
+        {long && !expanded ? (
+          <Text
+            style={{
+              color: activeInVar ? colors.primary : colors.mutedForeground,
+              fontSize: 13,
+            }}
+          >
+            {' '}
+            …
+          </Text>
+        ) : null}
+        <Text
+          style={[
+            styles.varParen,
+            { color: activeInVar ? colors.primary : colors.mutedForeground },
+          ]}
+        >
+          )
+        </Text>
+      </View>
+      {long ? (
+        <Pressable
+          onPress={() => setExpanded((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={
+            expanded
+              ? t('parties.anyliseurLess')
+              : t('parties.anyliseurMore')
+          }
+          hitSlop={6}
+          style={styles.varToggle}
+        >
+          <Text style={{ color: colors.primary, fontSize: 11 }}>
+            {expanded ? '−' : '+'}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 export function GameReaderNotationList({
   game,
   currentNodeId,
@@ -146,13 +318,9 @@ export function GameReaderNotationList({
   const scrollRef = useRef<ScrollView>(null);
   const lastAutoNode = useRef<string | null>(null);
 
-  const entries = useMemo(() => {
-    const flat = flattenNotationTree(game);
-    return flat.map((e) => ({
-      ...e,
-      displaySan: formatSanForDisplay(e.san, chessNotation),
-    }));
-  }, [game, chessNotation]);
+  const rows = useMemo(() => buildNotationColumnRows(game), [game]);
+
+  const formatSan = (san: string) => formatSanForDisplay(san, chessNotation);
 
   const activeSet = useMemo(
     () => new Set(activeLineNodeIds),
@@ -160,16 +328,17 @@ export function GameReaderNotationList({
   );
 
   useEffect(() => {
-    if (!currentNodeId || entries.length === 0) return;
+    if (!currentNodeId || rows.length === 0) return;
+    // Only scroll when the cursor node changes — not on analysis / FEN ticks.
     if (lastAutoNode.current === currentNodeId) return;
     lastAutoNode.current = currentNodeId;
-    const index = entries.findIndex((e) => e.nodeId === currentNodeId);
+    const index = notationScrollIndexForNode(rows, currentNodeId);
     if (index < 0) return;
     const y = Math.max(0, index * ROW_H - Math.floor(maxHeight / 3));
     scrollRef.current?.scrollTo({ y, animated: true });
-  }, [currentNodeId, entries, maxHeight]);
+  }, [currentNodeId, rows, maxHeight]);
 
-  if (entries.length === 0) return null;
+  if (rows.length === 0) return null;
 
   return (
     <ScrollView
@@ -179,91 +348,140 @@ export function GameReaderNotationList({
       testID={testID}
       nestedScrollEnabled
     >
-      {entries.map((entry) => {
-        const active = currentNodeId === entry.nodeId;
-        const onActiveLine = activeSet.has(entry.nodeId);
-        const indent = entry.depth * 12;
-        const open = entry.isVariationStart ? '(' : '';
-        const close = entry.isVariationEnd ? ')' : '';
-        return (
-          <Pressable
-            key={entry.key}
-            testID={`game-reader-node-${entry.nodeId}`}
-            accessibilityRole="button"
-            onPress={() => onSelectNode(entry.nodeId)}
-            style={[
-              styles.row,
-              {
-                minHeight: ROW_H,
-                paddingLeft: 4 + indent,
-                backgroundColor: active
-                  ? 'rgba(57, 138, 85, 0.28)'
-                  : 'transparent',
-              },
-            ]}
-          >
-            {entry.prefix ? (
-              <Text
-                style={[
-                  styles.prefix,
-                  {
-                    color: colors.mutedForeground,
-                    fontStyle: entry.depth > 0 ? 'italic' : 'normal',
-                  },
-                ]}
-              >
-                {open}
-                {entry.prefix}
-              </Text>
-            ) : open ? (
-              <Text style={[styles.prefix, { color: colors.mutedForeground }]}>
-                {open}
-              </Text>
-            ) : null}
-            <Text
-              style={[
-                styles.san,
-                {
-                  color: active
-                    ? colors.primary
-                    : onActiveLine
-                      ? colors.foreground
-                      : colors.mutedForeground,
-                  fontStyle: entry.depth > 0 ? 'italic' : 'normal',
-                  fontFamily:
-                    entry.depth > 0
-                      ? DesignTokens.typography.weightRegular
-                      : DesignTokens.typography.weightSemiBold,
-                },
-              ]}
-            >
-              {entry.displaySan}
-              {close}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {rows.map((row) => (
+        <NotationRow
+          key={row.key}
+          row={row}
+          currentNodeId={currentNodeId}
+          activeSet={activeSet}
+          formatSan={formatSan}
+          onSelectNode={onSelectNode}
+          numberColor={colors.mutedForeground}
+        />
+      ))}
     </ScrollView>
+  );
+}
+
+function NotationRow({
+  row,
+  currentNodeId,
+  activeSet,
+  formatSan,
+  onSelectNode,
+  numberColor,
+}: {
+  row: NotationColumnRow;
+  currentNodeId: string | null;
+  activeSet: Set<string>;
+  formatSan: (san: string) => string;
+  onSelectNode: (nodeId: string) => void;
+  numberColor: string;
+}) {
+  return (
+    <View style={styles.plyBlock}>
+      {(row.white || row.black) && (
+        <View style={[styles.mainRow, { minHeight: ROW_H }]}>
+          <Text style={[styles.moveNum, { color: numberColor }]}>
+            {row.moveNumber}.
+          </Text>
+          <View style={styles.cellSlot}>
+            {row.white ? (
+              <MoveCell
+                nodeId={row.white.nodeId}
+                displaySan={formatSan(row.white.san)}
+                selected={currentNodeId === row.white.nodeId}
+                onActiveLine={activeSet.has(row.white.nodeId)}
+                onPress={() => onSelectNode(row.white!.nodeId)}
+                testID={`game-reader-node-${row.white.nodeId}`}
+              />
+            ) : (
+              <Text style={[styles.san, { color: numberColor }]}>—</Text>
+            )}
+          </View>
+          <View style={styles.cellSlot}>
+            {row.black ? (
+              <MoveCell
+                nodeId={row.black.nodeId}
+                displaySan={formatSan(row.black.san)}
+                selected={currentNodeId === row.black.nodeId}
+                onActiveLine={activeSet.has(row.black.nodeId)}
+                onPress={() => onSelectNode(row.black!.nodeId)}
+                testID={`game-reader-node-${row.black.nodeId}`}
+              />
+            ) : null}
+          </View>
+        </View>
+      )}
+      {row.variations.map((block) => (
+        <VariationBlockView
+          key={block.key}
+          block={block}
+          currentNodeId={currentNodeId}
+          activeSet={activeSet}
+          formatSan={formatSan}
+          onSelectNode={onSelectNode}
+        />
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { width: '100%' },
-  content: { gap: 1, paddingVertical: 2 },
-  row: {
+  content: { gap: 2, paddingVertical: 2 },
+  plyBlock: { width: '100%', gap: 2 },
+  mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    borderRadius: DesignTokens.radius.sm,
-    paddingVertical: 3,
-    paddingRight: 8,
+    paddingHorizontal: 2,
   },
-  prefix: {
+  moveNum: {
+    width: 28,
     fontSize: 13,
     fontFamily: DesignTokens.typography.weightSemiBold,
-    minWidth: 28,
+    textAlign: 'right',
+  },
+  cellSlot: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cell: {
+    borderRadius: DesignTokens.radius.sm,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
   },
   san: {
-    fontSize: 15,
+    fontSize: 14,
+  },
+  varBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderLeftWidth: 2,
+    paddingLeft: 8,
+    paddingVertical: 2,
+    gap: 4,
+  },
+  varMoves: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  varParen: {
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  varMove: {
+    borderRadius: DesignTokens.radius.sm,
+    paddingHorizontal: 2,
+    paddingVertical: 1,
+  },
+  varToggle: {
+    minWidth: 24,
+    minHeight: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

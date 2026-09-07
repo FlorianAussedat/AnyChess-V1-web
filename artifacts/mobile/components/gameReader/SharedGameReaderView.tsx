@@ -42,6 +42,10 @@ type Props = {
   /** Replaces voice toolbar when provided (AnyLyseur). */
   toolbarSlot?: React.ReactNode;
   arrows?: { from: string; to: string; color?: string }[];
+  /** Optional board exploration (AnyLyseur). */
+  onSquarePress?: (square: string) => void;
+  selectedSquare?: string | null;
+  legalDots?: string[];
   notationMaxHeight?: number;
   desktopSplit?: boolean;
   testID?: string;
@@ -65,6 +69,9 @@ export function SharedGameReaderView({
   toolbar,
   toolbarSlot,
   arrows,
+  onSquarePress,
+  selectedSquare = null,
+  legalDots = [],
   notationMaxHeight = 220,
   desktopSplit,
   testID = 'shared-game-reader',
@@ -129,6 +136,9 @@ export function SharedGameReaderView({
             sizeMode="wide"
             size={boardSize}
             arrows={arrows}
+            onSquarePress={onSquarePress}
+            selectedSquare={selectedSquare}
+            legalDots={legalDots}
           />
         </ChessBoardSection>
       ) : null}

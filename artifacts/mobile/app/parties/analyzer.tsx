@@ -12,8 +12,10 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Chess } from 'chess.js';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import {
+  AnyLyseurToolbar,
   EngineLinesPanel,
   EvalBalanceBar,
   EvalCurve,
@@ -25,6 +27,7 @@ import { DesignTokens } from '@/constants/designTokens';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useColors } from '@/hooks/useColors';
+import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
@@ -294,94 +297,86 @@ export default function GameAnalyzerScreen() {
     );
   };
 
-  const profileChip = (id: AnalysisProfileId, label: string) => {
-    const active = analysis?.profileId === id;
-    return (
-      <Pressable
-        key={id}
-        testID={`anyliseur-profile-${id}`}
-        onPress={() => {
-          setProfile(id);
-          void reanalyze(id);
-        }}
-        style={[
-          styles.chip,
-          {
-            borderColor: colors.border,
-            backgroundColor: active ? colors.primary : colors.card,
-          },
-        ]}
-      >
-        <Text
-          style={{
-            color: active ? colors.primaryForeground : colors.foreground,
-            fontFamily: DesignTokens.typography.weightSemiBold,
-            fontSize: 12,
-          }}
-        >
-          {label}
-        </Text>
-      </Pressable>
-    );
-  };
+  const onImport = useCallback(() => {
+    if (gameId) {
+      router.push('/parties' as Href);
+      return;
+    }
+    onLoad();
+  }, [gameId, router, pgnDraft]);
 
-  const toolbar = (
-    <View style={styles.toolbar} testID="anyliseur-toolbar">
-      <Pressable
-        testID="anyliseur-flip"
-        onPress={() => reader?.flipBoard()}
-        style={[
-          styles.chip,
-          { borderColor: colors.border, backgroundColor: colors.card },
-        ]}
-      >
-        <Text style={[styles.chipLabel, { color: colors.foreground }]}>
-          {t('parties.flipBoard')}
-        </Text>
-      </Pressable>
-      <Pressable
-        testID="anyliseur-arrows-toggle"
-        onPress={() => setArrowsEnabled(!(analysis?.arrowsEnabled ?? true))}
-        style={[
-          styles.chip,
-          { borderColor: colors.border, backgroundColor: colors.card },
-        ]}
-      >
-        <Text style={[styles.chipLabel, { color: colors.foreground }]}>
-          {analysis?.arrowsEnabled
-            ? t('parties.anyliseurArrowsOn')
-            : t('parties.anyliseurArrowsOff')}
-        </Text>
-      </Pressable>
-      {profileChip('fast', t('parties.anyliseurProfileFast'))}
-      {profileChip('normal', t('parties.anyliseurProfileNormal'))}
-      {profileChip('deep', t('parties.anyliseurProfileDeep'))}
-      <Pressable
-        testID="anyliseur-export"
-        onPress={() => void onExport()}
-        style={[
-          styles.chip,
-          { borderColor: colors.border, backgroundColor: colors.card },
-        ]}
-      >
-        <Text style={[styles.chipLabel, { color: colors.foreground }]}>
-          {t('parties.anyliseurExport')}
-        </Text>
-      </Pressable>
-      <Pressable
-        testID="anyliseur-open-reader"
-        onPress={openReader}
-        style={[
-          styles.chip,
-          { borderColor: colors.border, backgroundColor: colors.card },
-        ]}
-      >
-        <Text style={[styles.chipLabel, { color: colors.foreground }]}>
-          {t('parties.anyliseurOpenReader')}
-        </Text>
-      </Pressable>
-    </View>
+  const onProfileChange = useCallback(
+    (id: AnalysisProfileId) => {
+      setProfile(id);
+      void reanalyze(id);
+    },
+    [setProfile, reanalyze],
   );
+
+  const getLegalDestinations = useCallback(
+    (square: string) => {
+      if (!reader) return [];
+      try {
+        const chess = new Chess(reader.currentFen);
+        return chess
+          .moves({ square: square as never, verbose: true })
+          .map((m) => m.to);
+      } catch {
+        return [];
+      }
+    },
+    [reader?.currentFen],
+  );
+
+  const movePieceBySquare = useCallback(
+    (from: string, to: string) => {
+      if (!reader) return false;
+      try {
+        const chess = new Chess(reader.currentFen);
+        const matches = chess
+          .moves({ square: from as never, verbose: true })
+          .filter((m) => m.to === to);
+        if (matches.length === 0) return false;
+        const promo = matches.find((m) => m.promotion)?.promotion;
+        reader.playMove(from, to, promo);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [reader],
+  );
+
+  const { touchSelected, legalDests, onSquarePress } = useBoardTouchSelection({
+    canAct: Boolean(reader),
+    getLegalDestinations,
+    movePieceBySquare,
+  });
+
+  const canReturnToOrigin = Boolean(
+    reader &&
+      reader.explorationOriginNodeId != null &&
+      (reader.explorationOriginNodeId === ''
+        ? reader.currentNodeId != null
+        : reader.currentNodeId !== reader.explorationOriginNodeId),
+  );
+
+  const toolbar = reader ? (
+    <AnyLyseurToolbar
+      onFlip={() => reader.flipBoard()}
+      arrowsEnabled={analysis?.arrowsEnabled ?? true}
+      onToggleArrows={() =>
+        setArrowsEnabled(!(analysis?.arrowsEnabled ?? true))
+      }
+      profileId={analysis?.profileId ?? 'normal'}
+      onProfileChange={onProfileChange}
+      onImport={onImport}
+      onExport={() => void onExport()}
+      onOpenReader={openReader}
+      canReturnToOrigin={canReturnToOrigin}
+      onReturnToOrigin={() => reader.returnToExplorationOrigin()}
+    />
+  ) : null;
 
   const currentNode =
     reader?.currentNodeId && game
@@ -605,6 +600,9 @@ export default function GameAnalyzerScreen() {
               showToolbar={false}
               toolbarSlot={toolbar}
               arrows={arrows}
+              onSquarePress={onSquarePress}
+              selectedSquare={touchSelected}
+              legalDots={legalDests}
               topSlot={
                 <EvalBalanceBar
                   value={evalValue}
@@ -684,13 +682,6 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.radius.md,
     borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolbar: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
     justifyContent: 'center',
   },
   chip: {
