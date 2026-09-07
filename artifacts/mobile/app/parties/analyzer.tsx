@@ -15,6 +15,7 @@ import {
 import { Chess } from 'chess.js';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import {
+  AnyLyseurExportMenu,
   AnyLyseurToolbar,
   EngineLinesPanel,
   EvalBalanceBar,
@@ -41,11 +42,17 @@ import {
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { copyToClipboard } from '@/lib/clipboard';
 import {
+  anyChessPgnFilename,
+  downloadPgnFile,
+} from '@/lib/pgn/PgnExporter';
+import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
+import {
   computeBoardSize,
   fitBoardSizeToViewport,
 } from '@/lib/game/boardSize';
 import { gameLibraryStore } from '@/lib/gameLibrary';
 import {
+  emptyReaderGame,
   flushSharedGameSession,
   loadSharedGameSession,
   parseReaderPgn,
@@ -56,13 +63,6 @@ import {
 } from '@/lib/gameReader';
 
 const RESERVED_CHROME = 340;
-
-const SAMPLE_PGN = `[Event "Sample"]
-[White "White"]
-[Black "Black"]
-[Result "*"]
-
-1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 {Ruy Lopez} 4. Ba4 Nf6 *`;
 
 type TabId = 'game' | 'analysis';
 
@@ -87,11 +87,14 @@ export default function GameAnalyzerScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates } = useBoardCoordinates();
 
-  const [pgnDraft, setPgnDraft] = useState(SAMPLE_PGN);
+  const [pgnDraft, setPgnDraft] = useState('');
   const [game, setGame] = useState<ReaderGame | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>('game');
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [includeEvals, setIncludeEvals] = useState(true);
+  const [showPaste, setShowPaste] = useState(!gameId);
   const [restoreNodeId, setRestoreNodeId] = useState<string | null>(
     paramNodeId,
   );
@@ -121,15 +124,16 @@ export default function GameAnalyzerScreen() {
         setPgnDraft(
           session.game.rawPgn?.trim() ||
             session.game.source?.rawPgn?.trim() ||
-            SAMPLE_PGN,
+            '',
         );
         setError(null);
         setGame(session.game);
+        setShowPaste(false);
         setRestoreNodeId(paramNodeId ?? session.currentNodeId);
         setRestoreFlipped(paramFlipped || session.boardFlipped);
         setRestoreOrigin(session.explorationOriginNodeId);
       } else if (imported) {
-        setPgnDraft(imported.source.rawPgn?.trim() || SAMPLE_PGN);
+        setPgnDraft(imported.source.rawPgn?.trim() || '');
         setError(null);
         setGame(
           readerGameFromImported({
@@ -143,6 +147,7 @@ export default function GameAnalyzerScreen() {
             source: imported.source,
           }),
         );
+        setShowPaste(false);
         if (paramNodeId) setRestoreNodeId(paramNodeId);
         if (paramFlipped) setRestoreFlipped(true);
       }
@@ -177,20 +182,12 @@ export default function GameAnalyzerScreen() {
   });
 
   useEffect(() => {
-    if (!gameId || !analysis) return;
-    const { done, total, running } = analysis.gameProgress;
-    if (running || total <= 0 || done < total) return;
+    if (!gameId || !analysis?.mainLineComplete) return;
     void gameLibraryStore.markAnalyzed(gameId, {
       profileId: analysis.profileId,
       analyzedAt: Date.now(),
     });
-  }, [
-    gameId,
-    analysis?.gameProgress.done,
-    analysis?.gameProgress.total,
-    analysis?.gameProgress.running,
-    analysis?.profileId,
-  ]);
+  }, [gameId, analysis?.mainLineComplete, analysis?.profileId]);
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
@@ -201,8 +198,20 @@ export default function GameAnalyzerScreen() {
     );
   }, [windowWidth, windowHeight, contentTop, contentBottom]);
 
-  const evalValue = analysis?.position
-    ? { cp: analysis.position.evaluation, mate: analysis.position.mate }
+  const displayPosition =
+    analysis?.position &&
+    reader?.currentFen &&
+    analysis.position.fen === reader.currentFen &&
+    analysis.position.profileId === analysis.profileId
+      ? analysis.position
+      : null;
+
+  const evalValue = displayPosition
+    ? {
+        cp: displayPosition.evaluation,
+        mate: displayPosition.mate,
+        terminalOutcome: displayPosition.terminalOutcome,
+      }
     : null;
 
   const curvePoints = useMemo((): EvalCurvePoint[] => {
@@ -217,18 +226,31 @@ export default function GameAnalyzerScreen() {
   }, [game, analysis]);
 
   const arrows = useMemo(() => {
-    if (!analysis?.arrowsEnabled) return [];
+    if (!analysis?.arrowsEnabled || !displayPosition) return [];
+    if (displayPosition.terminalOutcome) return [];
     const best =
-      analysis.position?.bestMove ?? analysis.position?.lines[0]?.bestMove;
+      displayPosition.bestMove ?? displayPosition.lines[0]?.bestMove;
     if (!best || best.length < 4) return [];
-    return [
-      {
-        from: best.slice(0, 2),
-        to: best.slice(2, 4),
-        color: colors.primary,
-      },
-    ];
-  }, [analysis?.arrowsEnabled, analysis?.position, colors.primary]);
+    // Validate legality on the displayed FEN (never draw stale/illegal arrows).
+    try {
+      const chess = new Chess(displayPosition.fen);
+      const from = best.slice(0, 2);
+      const to = best.slice(2, 4);
+      const promo = best.length > 4 ? best[4] : undefined;
+      const ok = chess
+        .moves({ verbose: true })
+        .some(
+          (m) =>
+            m.from === from &&
+            m.to === to &&
+            (!promo || m.promotion === promo),
+        );
+      if (!ok) return [];
+      return [{ from, to, color: colors.primary }];
+    } catch {
+      return [];
+    }
+  }, [analysis?.arrowsEnabled, displayPosition, colors.primary]);
 
   const persistPosition = useCallback(() => {
     if (!game || !reader) return;
@@ -267,43 +289,104 @@ export default function GameAnalyzerScreen() {
   }, [persistPosition, gameId, reader, router]);
 
   const onLoad = () => {
-    const result = parseReaderPgn(pgnDraft, { allowEmptyMoves: true });
+    const draft = pgnDraft.trim();
+    if (!draft) {
+      setError(t('parties.analyzerEmpty'));
+      return;
+    }
+    // Bare FEN → empty game at that position.
+    const fenLike = draft.split(/\s+/).length >= 4 && !draft.includes('[');
+    if (fenLike) {
+      try {
+        new Chess(draft);
+        const empty = emptyReaderGame(draft);
+        setError(null);
+        setGame(empty);
+        setShowPaste(false);
+        setExportStatus(t('parties.anyliseurFenLoaded'));
+        return;
+      } catch {
+        /* fall through to PGN */
+      }
+    }
+    const result = parseReaderPgn(draft, { allowEmptyMoves: true });
     if (!result.ok) {
-      setGame(null);
       setError(
-        result.detail ? `${result.error} ${result.detail}` : result.error,
+        t('parties.anyliseurImportInvalid') +
+          (result.detail ? ` ${result.detail}` : ''),
       );
+      // Keep current game on invalid import.
       return;
     }
     setError(null);
     setGame(result.game);
+    setShowPaste(false);
   };
 
-  const onExport = async () => {
-    if (!game || !analysis) return;
-    const main = collectMainLineNodes(game);
-    const rawPgn = game.rawPgn ?? game.source?.rawPgn ?? pgnDraft;
-    const fenBeforeByNodeId: Record<string, string> = {};
-    for (const n of main) fenBeforeByNodeId[n.nodeId] = n.fenBefore;
-    const enriched = exportEnrichedPgn({
-      rawPgn,
-      nodes: analysis.gameNodes,
-      mainLineNodeIds: main.map((n) => n.nodeId),
-      fenBeforeByNodeId,
+  const buildExportPgn = useCallback(() => {
+    const g = reader?.game ?? game;
+    if (!g) return '';
+    return exportEnrichedPgn({
+      game: g,
+      nodes: analysis?.gameNodes ?? {},
+      includeEvals,
+      includeBest: includeEvals,
     });
-    const ok = await copyToClipboard(enriched);
+  }, [reader?.game, game, analysis?.gameNodes, includeEvals]);
+
+  const onCopyPgn = async () => {
+    const pgn = buildExportPgn();
+    if (!pgn) return;
+    const ok = await copyToClipboard(pgn);
     setExportStatus(
       ok ? t('parties.anyliseurExportDone') : t('parties.anyliseurExportFail'),
     );
+    setExportMenuOpen(false);
   };
 
-  const onImport = useCallback(() => {
+  const onDownloadPgn = () => {
+    const pgn = buildExportPgn();
+    if (!pgn) return;
+    downloadPgnFile(anyChessPgnFilename(), pgn);
+    setExportStatus(t('parties.anyliseurExportDone'));
+    setExportMenuOpen(false);
+  };
+
+  const onCopyFen = async () => {
+    const fen = reader?.currentFen;
+    if (!fen) return;
+    const ok = await copyToClipboard(fen);
+    setExportStatus(
+      ok ? t('parties.anyliseurExportDone') : t('parties.anyliseurExportFail'),
+    );
+    setExportMenuOpen(false);
+  };
+
+  const onDownloadFen = () => {
+    const fen = reader?.currentFen;
+    if (!fen) return;
+    downloadPgnFile('position.fen', fen);
+    setExportStatus(t('parties.anyliseurExportDone'));
+    setExportMenuOpen(false);
+  };
+
+  const onImport = useCallback(async () => {
     if (gameId) {
       router.push('/parties' as Href);
       return;
     }
-    onLoad();
-  }, [gameId, router, pgnDraft]);
+    try {
+      const picked = await pickPgnFile();
+      if (picked?.text) {
+        setPgnDraft(picked.text);
+        setShowPaste(true);
+        return;
+      }
+    } catch {
+      /* fall through — paste still available */
+    }
+    setShowPaste(true);
+  }, [gameId, router]);
 
   const onProfileChange = useCallback(
     (id: AnalysisProfileId) => {
@@ -371,7 +454,7 @@ export default function GameAnalyzerScreen() {
       profileId={analysis?.profileId ?? 'normal'}
       onProfileChange={onProfileChange}
       onImport={onImport}
-      onExport={() => void onExport()}
+      onExport={() => setExportMenuOpen(true)}
       onOpenReader={openReader}
       canReturnToOrigin={canReturnToOrigin}
       onReturnToOrigin={() => reader.returnToExplorationOrigin()}
@@ -465,7 +548,7 @@ export default function GameAnalyzerScreen() {
 
       <EngineLinesPanel
         fen={reader?.currentFen ?? game?.initialFen ?? ''}
-        lines={analysis?.position?.lines ?? []}
+        lines={displayPosition?.lines ?? []}
         notation={chessNotation}
       />
       <EvalCurve
@@ -491,8 +574,41 @@ export default function GameAnalyzerScreen() {
       }}
       testID="game-analyzer"
     >
-      {!gameId ? (
-        <>
+      {!game || showPaste ? (
+        <View style={styles.importPanel} testID="anyliseur-import-panel">
+          <Pressable
+            testID="anyliseur-import-file"
+            onPress={() => void onImport()}
+            style={({ pressed }) => [
+              styles.loadBtn,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            <Text style={styles.loadText}>{t('parties.anyliseurImportFile')}</Text>
+          </Pressable>
+          <Pressable
+            testID="anyliseur-import-library"
+            onPress={() => router.push('/parties' as Href)}
+            style={({ pressed }) => [
+              styles.chip,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                opacity: pressed ? 0.85 : 1,
+                alignItems: 'center',
+                paddingVertical: 12,
+              },
+            ]}
+          >
+            <Text style={[styles.chipLabel, { color: colors.foreground }]}>
+              {t('parties.anyliseurImportLibrary')}
+            </Text>
+          </Pressable>
+          <Text
+            style={[styles.empty, { color: colors.mutedForeground }]}
+          >
+            {t('parties.anyliseurImportPaste')}
+          </Text>
           <TextInput
             testID="game-analyzer-pgn-input"
             value={pgnDraft}
@@ -521,7 +637,18 @@ export default function GameAnalyzerScreen() {
           >
             <Text style={styles.loadText}>{t('parties.analyzerLoad')}</Text>
           </Pressable>
-        </>
+          {game ? (
+            <Pressable
+              testID="anyliseur-import-cancel"
+              onPress={() => setShowPaste(false)}
+              style={{ alignItems: 'center', paddingVertical: 8 }}
+            >
+              <Text style={{ color: colors.mutedForeground }}>
+                {t('common.cancel')}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
 
       {error ? (
@@ -530,14 +657,7 @@ export default function GameAnalyzerScreen() {
         </Text>
       ) : null}
 
-      {!game ? (
-        <Text
-          style={[styles.empty, { color: colors.mutedForeground }]}
-          testID="game-analyzer-empty"
-        >
-          {t('parties.analyzerEmpty')}
-        </Text>
-      ) : reader ? (
+      {game && !showPaste && reader ? (
         <View style={styles.readerWrap}>
           <View style={styles.tabs} testID="anyliseur-tabs">
             <Pressable
@@ -606,8 +726,10 @@ export default function GameAnalyzerScreen() {
               topSlot={
                 <EvalBalanceBar
                   value={evalValue}
-                  depth={analysis?.position?.depth}
-                  loading={analysis?.engineStatus === 'analyzing'}
+                  depth={displayPosition?.depth}
+                  loading={
+                    analysis?.engineStatus === 'analyzing' && !displayPosition
+                  }
                 />
               }
               bottomSlot={
@@ -625,10 +747,45 @@ export default function GameAnalyzerScreen() {
               }
             />
           ) : (
-            analysisPanel
+            <View style={{ gap: 8 }}>
+              <SharedGameReaderView
+                reader={reader}
+                boardSize={boardSize}
+                showCoordinates={showCoordinates}
+                showPlayers
+                showNotation={false}
+                showToolbar={false}
+                toolbarSlot={toolbar}
+                arrows={arrows}
+                onSquarePress={onSquarePress}
+                selectedSquare={touchSelected}
+                legalDots={legalDests}
+                topSlot={
+                  <EvalBalanceBar
+                    value={evalValue}
+                    depth={displayPosition?.depth}
+                    loading={
+                      analysis?.engineStatus === 'analyzing' && !displayPosition
+                    }
+                  />
+                }
+              />
+              {analysisPanel}
+            </View>
           )}
         </View>
       ) : null}
+
+      <AnyLyseurExportMenu
+        visible={exportMenuOpen}
+        onClose={() => setExportMenuOpen(false)}
+        includeEvals={includeEvals}
+        onIncludeEvalsChange={setIncludeEvals}
+        onCopyPgn={() => void onCopyPgn()}
+        onDownloadPgn={onDownloadPgn}
+        onCopyFen={() => void onCopyFen()}
+        onDownloadFen={onDownloadFen}
+      />
     </ChessScreenScaffold>
   );
 }
@@ -668,6 +825,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  importPanel: {
+    gap: 10,
+    width: '100%',
+    marginBottom: 8,
   },
   readerWrap: { width: '100%', gap: 8, alignItems: 'center' },
   tabs: {

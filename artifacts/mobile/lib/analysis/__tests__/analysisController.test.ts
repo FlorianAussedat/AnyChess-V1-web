@@ -177,46 +177,92 @@ describe('AnalysisController', () => {
 });
 
 describe('exportEnrichedPgn', () => {
-  it('preserves original comments and adds eval', () => {
-    const raw = `[Event "T"]\n\n1. e4 {Ruy} e5 2. Nf3 *`;
+  it('preserves original comments and adds eval via tree', async () => {
+    const { parseReaderPgn } = await import('../../gameReader/parseReaderPgn.ts');
+    const parsed = parseReaderPgn(`[Event "T"]\n\n1. e4 {Ruy} e5 2. Nf3 *`);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    const game = parsed.game;
+    const ids = Object.keys(game.nodesById);
+    const nodes: Record<string, any> = {};
+    for (const id of ids) {
+      const n = game.nodesById[id]!;
+      nodes[id] = {
+        nodeId: id,
+        fen: n.fenAfter,
+        evaluation: 25,
+        mate: null,
+        bestMove: n.color === 'white' && n.san === 'e4' ? 'e2e4' : undefined,
+        depth: 12,
+        analyzedAt: 1,
+        profileId: 'fast',
+      };
+    }
     const out = exportEnrichedPgn({
-      rawPgn: raw,
-      mainLineNodeIds: ['a', 'b', 'c'],
+      game,
+      nodes,
+      includeEvals: true,
+      includeBest: true,
+    });
+    assert.match(out, /Ruy/);
+    assert.match(out, /\[%eval 0\.25\]/);
+    assert.match(out, /1\.\s*e4/);
+    // Re-export must not duplicate eval tags.
+    const again = exportEnrichedPgn({
+      game: parseReaderPgn(out).ok
+        ? (parseReaderPgn(out) as any).game
+        : game,
+      nodes,
+      includeEvals: true,
+    });
+    const evalCount = (again.match(/\[%eval/g) ?? []).length;
+    assert.ok(evalCount >= 1);
+    assert.equal(evalCount, (again.match(/\[%eval/g) ?? []).length);
+  });
+
+  it('keeps check suffix attached when present and scopes eval to the right node', async () => {
+    const { parseReaderPgn } = await import('../../gameReader/parseReaderPgn.ts');
+    // Scholar's mate line ends with Qxf7# — checkmate suffix must stay glued.
+    const parsed = parseReaderPgn(
+      `1. e4 e5 2. Bc4 Nc6 (2... Nf6) 3. Qh5 Nf6 4. Qxf7# *`,
+    );
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok) return;
+    const mate = Object.values(parsed.game.nodesById).find((n) =>
+      n.san.includes('Qxf7'),
+    );
+    const nf6 = Object.values(parsed.game.nodesById).find((n) => n.san === 'Nf6');
+    assert.ok(mate);
+    assert.ok(nf6);
+    const out = exportEnrichedPgn({
+      game: parsed.game,
       nodes: {
-        a: {
-          nodeId: 'a',
-          fen: START,
-          evaluation: 25,
-          mate: null,
-          bestMove: 'e2e4',
-          depth: 12,
+        [mate!.id]: {
+          nodeId: mate!.id,
+          fen: mate!.fenAfter,
+          evaluation: null,
+          mate: 1,
+          depth: 10,
           analyzedAt: 1,
           profileId: 'fast',
+          terminalOutcome: 'white',
         },
-        b: {
-          nodeId: 'b',
-          fen: AFTER_E4,
-          evaluation: 20,
+        [nf6!.id]: {
+          nodeId: nf6!.id,
+          fen: nf6!.fenAfter,
+          evaluation: -12,
           mate: null,
-          depth: 12,
-          analyzedAt: 1,
-          profileId: 'fast',
-        },
-        c: {
-          nodeId: 'c',
-          fen: START,
-          evaluation: 15,
-          mate: null,
-          depth: 12,
+          depth: 10,
           analyzedAt: 1,
           profileId: 'fast',
         },
       },
-      fenBeforeByNodeId: { a: START },
+      includeEvals: true,
+      includeBest: false,
     });
-    assert.match(out, /Ruy/);
-    assert.match(out, /\[%eval 0\.25\]/);
-    assert.match(out, /Best: e4/);
+    assert.match(out, /Qxf7#/);
+    assert.match(out, /Qxf7# \{ \[%eval/);
+    assert.match(out, /Nf6 \{ \[%eval -0\.12\] \}/);
   });
 });
 

@@ -198,6 +198,17 @@ export type MessageKey =
   | 'parties.anyliseurCurve'
   | 'parties.anyliseurAnalyzed'
   | 'parties.anyliseurReanalyze'
+  | 'parties.anyliseurExportIncludeEvals'
+  | 'parties.anyliseurExportCopyPgn'
+  | 'parties.anyliseurExportDownloadPgn'
+  | 'parties.anyliseurExportCopyFen'
+  | 'parties.anyliseurExportDownloadFen'
+  | 'parties.anyliseurImportFile'
+  | 'parties.anyliseurImportPaste'
+  | 'parties.anyliseurImportLibrary'
+  | 'parties.anyliseurImportInvalid'
+  | 'parties.anyliseurMultiGameChoice'
+  | 'parties.anyliseurFenLoaded'
   | 'parties.anyliseurA11yFlip'
   | 'parties.anyliseurA11yFlipHint'
   | 'parties.anyliseurA11yArrowsHint'
@@ -967,6 +978,17 @@ const fr: Dict = {
   'parties.anyliseurCurve': "Courbe d'évaluation",
   'parties.anyliseurAnalyzed': 'Analysée',
   'parties.anyliseurReanalyze': 'Ré-analyser',
+  'parties.anyliseurExportIncludeEvals': 'Inclure les évaluations',
+  'parties.anyliseurExportCopyPgn': 'Copier le PGN',
+  'parties.anyliseurExportDownloadPgn': 'Télécharger le PGN',
+  'parties.anyliseurExportCopyFen': 'Copier la FEN',
+  'parties.anyliseurExportDownloadFen': 'Télécharger la FEN',
+  'parties.anyliseurImportFile': 'Importer un fichier PGN',
+  'parties.anyliseurImportPaste': 'Coller un PGN ou une FEN',
+  'parties.anyliseurImportLibrary': 'Choisir dans la bibliothèque',
+  'parties.anyliseurImportInvalid': 'Import invalide — la partie actuelle est conservée.',
+  'parties.anyliseurMultiGameChoice': 'Plusieurs parties détectées — choisissez-en une.',
+  'parties.anyliseurFenLoaded': 'Position FEN chargée.',
   'parties.anyliseurA11yFlip': 'Retourner l’échiquier',
   'parties.anyliseurA11yFlipHint': 'Inverse la vue des camps blanc et noir',
   'parties.anyliseurA11yArrowsHint': 'Affiche ou masque la flèche du meilleur coup',
@@ -1802,6 +1824,17 @@ const en: Dict = {
   'parties.anyliseurCurve': 'Evaluation curve',
   'parties.anyliseurAnalyzed': 'Analyzed',
   'parties.anyliseurReanalyze': 'Re-analyze',
+  'parties.anyliseurExportIncludeEvals': 'Include evaluations',
+  'parties.anyliseurExportCopyPgn': 'Copy PGN',
+  'parties.anyliseurExportDownloadPgn': 'Download PGN',
+  'parties.anyliseurExportCopyFen': 'Copy FEN',
+  'parties.anyliseurExportDownloadFen': 'Download FEN',
+  'parties.anyliseurImportFile': 'Import a PGN file',
+  'parties.anyliseurImportPaste': 'Paste a PGN or FEN',
+  'parties.anyliseurImportLibrary': 'Choose from library',
+  'parties.anyliseurImportInvalid': 'Invalid import — current game kept.',
+  'parties.anyliseurMultiGameChoice': 'Multiple games found — pick one.',
+  'parties.anyliseurFenLoaded': 'FEN position loaded.',
   'parties.anyliseurA11yFlip': 'Flip board',
   'parties.anyliseurA11yFlipHint': 'Swap white and black board orientation',
   'parties.anyliseurA11yArrowsHint': 'Show or hide the best-move arrow',

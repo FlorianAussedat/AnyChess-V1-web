@@ -35,7 +35,8 @@ export {
 export { uciPvToSan, uciToSan } from './uciToSan.ts';
 export { AnalysisCache, makeAnalysisCacheKey } from './analysisCache.ts';
 export { mapEngineAnalysisToPosition } from './mapEngineAnalysis.ts';
-export { exportEnrichedPgn } from './exportEnrichedPgn.ts';
+export { exportEnrichedPgn, serializeReaderGamePgn } from './exportEnrichedPgn.ts';
+export type { SerializeReaderPgnOptions } from './exportEnrichedPgn.ts';
 export {
   AnalysisController,
   type AnalyzeNodeSpec,

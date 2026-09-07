@@ -5,3 +5,4 @@ export {
   AnyLyseurToolbar,
   type AnyLyseurToolbarProps,
 } from './AnyLyseurToolbar';
+export { AnyLyseurExportMenu } from './AnyLyseurExportMenu';

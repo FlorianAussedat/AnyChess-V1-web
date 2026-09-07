@@ -1,61 +1,226 @@
 /**
- * Enrich PGN with [%eval …] without destroying original comments/variations.
+ * Serialize a ReaderGame tree to PGN and optionally enrich with evals.
+ * Tree-based — never regex-match SAN across variations.
  */
 import type { GameNodeAnalysis } from './types.ts';
 import { uciToSan } from './uciToSan.ts';
+import type { ReaderGame, ReaderNode } from '@/lib/gameReader';
 
-function evalTag(node: GameNodeAnalysis): string {
+function escapeHeader(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function evalComment(node: GameNodeAnalysis): string {
+  // Standard-ish [%eval …] — mates as #N / #-N
   if (node.mate != null && node.mate !== 0) {
     return `[%eval #${node.mate}]`;
   }
+  if (node.terminalOutcome === 'white') return '[%eval #1]';
+  if (node.terminalOutcome === 'black') return '[%eval #-1]';
+  if (node.terminalOutcome === 'draw') return '[%eval 0.00]';
   const pawns = ((node.evaluation ?? 0) / 100).toFixed(2);
   return `[%eval ${pawns}]`;
 }
 
-function annotationFor(
-  node: GameNodeAnalysis,
-  fenBefore: string | undefined,
-): string {
-  const parts = [evalTag(node)];
-  if (node.bestMove && fenBefore) {
-    const san = uciToSan(fenBefore, node.bestMove);
+function stripGeneratedAnnotations(comment: string): string {
+  return comment
+    .replace(/\[%eval\s+[^\]]+\]/g, '')
+    .replace(/\bBest:\s+\S+/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function commentForNode(
+  game: ReaderGame,
+  node: ReaderNode,
+  analysisAfter: GameNodeAnalysis | undefined,
+  analysisBefore: GameNodeAnalysis | undefined,
+  includeEvals: boolean,
+  includeBest: boolean,
+): string | null {
+  const original = stripGeneratedAnnotations(node.comment ?? '');
+  const parts: string[] = [];
+  if (original) parts.push(original);
+  if (includeEvals && analysisAfter) {
+    parts.push(evalComment(analysisAfter));
+  }
+  if (includeBest && analysisBefore?.bestMove) {
+    // Best is from the position BEFORE this move (parent / start analysis).
+    const san = uciToSan(node.fenBefore, analysisBefore.bestMove);
     if (san) parts.push(`Best: ${san}`);
   }
+  if (parts.length === 0) return null;
   return parts.join(' ');
 }
 
+function writeNode(
+  game: ReaderGame,
+  nodeId: string,
+  opts: {
+    nodes: Record<string, GameNodeAnalysis>;
+    includeEvals: boolean;
+    includeBest: boolean;
+    forceNumber: boolean;
+  },
+): string {
+  const node = game.nodesById[nodeId];
+  if (!node) return '';
+  const analysisAfter = opts.nodes[nodeId];
+  const analysisBefore = node.parentId
+    ? opts.nodes[node.parentId]
+    : opts.nodes[`${game.id}::start`];
+  const bits: string[] = [];
+
+  if (node.color === 'white' || opts.forceNumber) {
+    bits.push(
+      node.color === 'white'
+        ? `${node.moveNumber}.`
+        : `${node.moveNumber}...`,
+    );
+  }
+  // Keep +/# attached to SAN — never split.
+  bits.push(node.san);
+
+  for (const nag of node.nags ?? []) {
+    bits.push(`$${nag}`);
+  }
+
+  const comment = commentForNode(
+    game,
+    node,
+    analysisAfter,
+    analysisBefore,
+    opts.includeEvals,
+    opts.includeBest,
+  );
+  if (comment) bits.push(`{ ${comment} }`);
+
+  // Side variations (childIds[1+]) are alternatives to childIds[0].
+  const children = node.childIds;
+  if (children.length > 1) {
+    for (let i = 1; i < children.length; i += 1) {
+      const varText = writeLine(game, children[i]!, {
+        ...opts,
+        forceNumber: true,
+      });
+      if (varText.trim()) bits.push(`( ${varText.trim()} )`);
+    }
+  }
+
+  if (children[0]) {
+    const cont = writeNode(game, children[0], {
+      ...opts,
+      forceNumber: false,
+    });
+    if (cont) bits.push(cont);
+  }
+
+  return bits.join(' ');
+}
+
+function writeLine(
+  game: ReaderGame,
+  startId: string,
+  opts: {
+    nodes: Record<string, GameNodeAnalysis>;
+    includeEvals: boolean;
+    includeBest: boolean;
+    forceNumber: boolean;
+  },
+): string {
+  return writeNode(game, startId, opts);
+}
+
+function headersBlock(game: ReaderGame): string {
+  const h = game.headers;
+  const tags: Array<[string, string]> = [];
+  const push = (key: string, value: string | undefined) => {
+    if (value != null && value !== '') tags.push([key, value]);
+  };
+  push('Event', h.event ?? 'AnyChess');
+  push('Site', h.site ?? 'AnyChess');
+  push('Date', h.date ?? '????.??.??');
+  push('White', h.white ?? 'White');
+  push('Black', h.black ?? 'Black');
+  push('Result', h.result ?? game.result ?? '*');
+  push('Opening', h.opening);
+  push('ECO', h.eco);
+  const nonStandardStart =
+    game.initialFen &&
+    !game.initialFen.startsWith(
+      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR',
+    );
+  if (nonStandardStart) {
+    push('SetUp', '1');
+    push('FEN', game.initialFen);
+  }
+
+  return tags.map(([k, v]) => `[${k} "${escapeHeader(v)}"]`).join('\n');
+}
+
+export type SerializeReaderPgnOptions = {
+  includeEvals?: boolean;
+  includeBest?: boolean;
+  /** Analysis keyed by nodeId (must match this game's tree). */
+  nodes?: Record<string, GameNodeAnalysis>;
+};
+
+/** Full PGN from the reader tree (main line + nested variations). */
+export function serializeReaderGamePgn(
+  game: ReaderGame,
+  options: SerializeReaderPgnOptions = {},
+): string {
+  const includeEvals = Boolean(options.includeEvals);
+  const includeBest = Boolean(options.includeBest);
+  const nodes = options.nodes ?? {};
+  const parts: string[] = [];
+  for (let i = 0; i < game.rootIds.length; i += 1) {
+    const rootId = game.rootIds[i]!;
+    if (i === 0) {
+      parts.push(
+        writeLine(game, rootId, {
+          nodes,
+          includeEvals,
+          includeBest,
+          forceNumber: true,
+        }),
+      );
+    } else {
+      const varText = writeLine(game, rootId, {
+        nodes,
+        includeEvals,
+        includeBest,
+        forceNumber: true,
+      });
+      parts.push(`( ${varText.trim()} )`);
+    }
+  }
+  const result = game.headers.result ?? game.result ?? '*';
+  const movetext = `${parts.join(' ').replace(/\s+/g, ' ').trim()} ${result}`;
+  return `${headersBlock(game)}\n\n${movetext}\n`;
+}
+
+/**
+ * Enrich export — tree serialization with optional evals.
+ * Preserves comments/variations; strips prior generated [%eval]/Best to avoid dupes.
+ */
 export function exportEnrichedPgn(options: {
-  rawPgn: string;
-  nodes: Record<string, GameNodeAnalysis>;
-  mainLineNodeIds: string[];
+  game: ReaderGame;
+  nodes?: Record<string, GameNodeAnalysis>;
+  includeEvals?: boolean;
+  includeBest?: boolean;
+  /** @deprecated Prefer `game`. Kept for older call sites. */
+  rawPgn?: string;
+  mainLineNodeIds?: string[];
   fenBeforeByNodeId?: Record<string, string>;
 }): string {
-  const { rawPgn, nodes, mainLineNodeIds, fenBeforeByNodeId } = options;
-  if (mainLineNodeIds.length === 0) return rawPgn;
-
-  const headerEnd = rawPgn.indexOf('\n\n');
-  const headers = headerEnd >= 0 ? rawPgn.slice(0, headerEnd + 2) : '';
-  let movetext = headerEnd >= 0 ? rawPgn.slice(headerEnd + 2) : rawPgn;
-
-  let nodeIndex = 0;
-  movetext = movetext.replace(
-    /(\b(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?|O-O-O|O-O)\b)(\s*\{[^}]*\})?/g,
-    (full, san: string, existingComment?: string) => {
-      if (nodeIndex >= mainLineNodeIds.length) return full;
-      const nodeId = mainLineNodeIds[nodeIndex]!;
-      nodeIndex += 1;
-      const analysis = nodes[nodeId];
-      if (!analysis) return full;
-      const anno = annotationFor(analysis, fenBeforeByNodeId?.[nodeId]);
-      if (existingComment) {
-        const inner = existingComment.trim().slice(1, -1).trim();
-        if (/\[%eval\b/.test(inner)) return full;
-        const merged = inner.length > 0 ? `${inner} ${anno}` : anno;
-        return `${san} { ${merged} }`;
-      }
-      return `${san} { ${anno} }`;
-    },
-  );
-
-  return headers + movetext;
+  if (options.game) {
+    return serializeReaderGamePgn(options.game, {
+      includeEvals: options.includeEvals ?? true,
+      includeBest: options.includeBest ?? true,
+      nodes: options.nodes ?? {},
+    });
+  }
+  // Legacy fallback: return raw unchanged when no game tree.
+  return options.rawPgn ?? '';
 }
