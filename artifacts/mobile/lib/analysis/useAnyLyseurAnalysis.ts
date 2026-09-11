@@ -9,6 +9,7 @@ import {
   collectActiveLineNodes,
   collectMainLineNodes,
 } from './mainLineNodes.ts';
+import { orderNodesForBackgroundAnalysis } from './orderBackgroundAnalysis.ts';
 import type { AnalysisProfileId, AnalysisSessionState } from './types.ts';
 
 export type UseAnyLyseurAnalysisOptions = {
@@ -63,14 +64,26 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
   useEffect(() => {
     if (!active || !game || !controllerRef.current) return;
     const main = collectMainLineNodes(game);
-    controllerRef.current.startGameAnalysis(
-      [
-        { nodeId: `${game.id}::start`, fen: game.initialFen },
-        ...main.map((n) => ({ nodeId: n.nodeId, fen: n.fen })),
-      ],
-      { sessionId: game.id, asMainLine: true },
-    );
-  }, [game?.id, active]);
+    const mainSpecs = [
+      { nodeId: `${game.id}::start`, fen: game.initialFen },
+      ...main.map((n) => ({ nodeId: n.nodeId, fen: n.fen })),
+    ];
+    const activeNodes = collectActiveLineNodes(game, activeLineNodeIds);
+    const activeSpecs = activeNodes.map((n) => ({
+      nodeId: n.nodeId,
+      fen: n.fen,
+    }));
+    const ordered = orderNodesForBackgroundAnalysis({
+      mainLine: mainSpecs,
+      activeLine: activeSpecs,
+      currentFen,
+    });
+    controllerRef.current.startGameAnalysis(ordered, {
+      sessionId: game.id,
+      asMainLine: true,
+      progressNodeIds: mainSpecs.map((n) => n.nodeId),
+    });
+  }, [game?.id, active, currentFen, activeLineKey]);
 
   useEffect(() => {
     if (!active || !analyzeActiveBranch || !game || !controllerRef.current)

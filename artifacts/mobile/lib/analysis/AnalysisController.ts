@@ -255,7 +255,12 @@ export class AnalysisController {
    */
   startGameAnalysis(
     nodes: AnalyzeNodeSpec[],
-    options?: { sessionId?: string; asMainLine?: boolean },
+    options?: {
+      sessionId?: string;
+      asMainLine?: boolean;
+      /** Node ids that count toward main-line completion badge (defaults to `nodes`). */
+      progressNodeIds?: string[];
+    },
   ): void {
     if (this.disposed) return;
     const sessionId = options?.sessionId ?? this.sessionId ?? 'default';
@@ -267,8 +272,9 @@ export class AnalysisController {
     }
 
     if (asMainLine) {
-      this.mainLineNodeIds = nodes.map((n) => n.nodeId);
-      this.gameTotal = nodes.length;
+      this.mainLineNodeIds =
+        options?.progressNodeIds ?? nodes.map((n) => n.nodeId);
+      this.gameTotal = this.mainLineNodeIds.length;
       this.recomputeMainLineProgress();
     }
 
