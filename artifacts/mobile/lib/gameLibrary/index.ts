@@ -3,7 +3,9 @@ export type {
   ImportedGameMove,
   ImportedChessGame,
   GameAnalysisMeta,
+  GameLibraryFolder,
   GameLibrarySnapshot,
+  GameLibrarySnapshotV1,
   ImportPgnResult,
 } from './types.ts';
 
@@ -50,3 +52,15 @@ export {
   gameHasUsableName,
   gameLibraryTitle,
 } from './display.ts';
+
+export {
+  displayNameFromFilename,
+  MAX_PGN_IMPORT_BATCH,
+} from './displayNameFromFilename.ts';
+
+export {
+  migrateGameLibrarySnapshot,
+  listChildFolders,
+  countFolderContents,
+  collectDescendantFolderIds,
+} from './folders.ts';

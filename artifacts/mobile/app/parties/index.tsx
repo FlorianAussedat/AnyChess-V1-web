@@ -1,7 +1,7 @@
 /**
- * Game Library — import and open PGN games for Lecteur de parties.
+ * Game Library — folders + multi-PGN import for the unified workspace.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,30 +14,38 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
-import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
 import {
+  countFolderContents,
+  displayNameFromFilename,
   gameLibraryStore,
-  gameHasUsableName,
   gameLibraryTitle,
   gameSubtitle,
-  importPgnGames,
+  MAX_PGN_IMPORT_BATCH,
+  type GameLibraryFolder,
   type ImportedChessGame,
 } from '@/lib/gameLibrary';
+import {
+  pickPgnFiles,
+  type PickedPgnCandidate,
+} from '@/lib/gameLibrary/pickPgnFiles';
+import type { PickedPgnFile } from '@/lib/repertoire/pickPgnFile';
 
-type NamePromptState = {
-  games: ImportedChessGame[];
-  index: number;
+type RenameOffer = {
+  gameId: string;
+  fileName: string;
+  currentName: string;
+};
+
+type RenameEdit = {
+  gameId: string;
   draft: string;
-  skippedDuplicates: number;
-  skippedInvalid: number;
-  errors: string[];
 };
 
 export default function PartiesLibraryScreen() {
@@ -45,28 +53,107 @@ export default function PartiesLibraryScreen() {
   const { t } = useTranslation();
   const insets = useAppSafeInsets();
   const router = useRouter();
+
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [folderStack, setFolderStack] = useState<GameLibraryFolder[]>([]);
+  const [folders, setFolders] = useState<GameLibraryFolder[]>([]);
   const [games, setGames] = useState<ImportedChessGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const [namePrompt, setNamePrompt] = useState<NamePromptState | null>(null);
+  const [renameOffer, setRenameOffer] = useState<RenameOffer | null>(null);
+  const [renameEdit, setRenameEdit] = useState<RenameEdit | null>(null);
+  const [pendingOffers, setPendingOffers] = useState<RenameOffer[]>([]);
+  const [multiSelect, setMultiSelect] = useState<{
+    candidates: PickedPgnCandidate[];
+    selected: Set<string>;
+    resolveSelected: (ids: string[]) => Promise<PickedPgnFile[]>;
+  } | null>(null);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderDraft, setNewFolderDraft] = useState('');
 
   const reload = useCallback(async () => {
-    const list = await gameLibraryStore.listGames();
-    setGames(list);
+    const [folderList, gameList] = await Promise.all([
+      gameLibraryStore.listFolders(folderId),
+      gameLibraryStore.listGames(folderId),
+    ]);
+    setFolders(folderList);
+    setGames(gameList);
     setLoading(false);
-  }, []);
+  }, [folderId]);
 
   useEffect(() => {
+    setLoading(true);
     void reload();
   }, [reload]);
 
-  const finishImportStatus = (
-    importedCount: number,
-    skippedDuplicates: number,
-    skippedInvalid: number,
-    errors: string[],
-  ) => {
+  const title = useMemo(() => {
+    if (folderStack.length === 0) return t('parties.title');
+    return folderStack[folderStack.length - 1]!.name;
+  }, [folderStack, t]);
+
+  const queueRenameOffers = (offers: RenameOffer[]) => {
+    if (offers.length === 0) return;
+    const [first, ...rest] = offers;
+    setPendingOffers(rest);
+    setRenameOffer(first!);
+  };
+
+  const advanceRenameOffers = () => {
+    setPendingOffers((prev) => {
+      if (prev.length === 0) {
+        setRenameOffer(null);
+        return prev;
+      }
+      const [next, ...rest] = prev;
+      setRenameOffer(next!);
+      return rest;
+    });
+  };
+
+  const importFiles = async (files: PickedPgnFile[]) => {
+    let importedCount = 0;
+    let skippedDuplicates = 0;
+    let skippedInvalid = 0;
+    const errors: string[] = [];
+    const offers: RenameOffer[] = [];
+
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i]!;
+      setImportProgress(
+        t('parties.importProgress', {
+          done: String(i + 1),
+          total: String(files.length),
+        }),
+      );
+      try {
+        const result = await gameLibraryStore.importPgnText(file.text, file.filename, {
+          folderId,
+          useFileNameAsDisplayName: true,
+        });
+        importedCount += result.imported.length;
+        skippedDuplicates += result.skippedDuplicates;
+        skippedInvalid += result.skippedInvalid;
+        errors.push(...result.errors);
+        for (const game of result.imported) {
+          const currentName =
+            game.displayName?.trim() ||
+            displayNameFromFilename(file.filename) ||
+            gameLibraryTitle(game);
+          offers.push({
+            gameId: game.id,
+            fileName: file.filename,
+            currentName,
+          });
+        }
+      } catch (e) {
+        skippedInvalid += 1;
+        errors.push(e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    await reload();
     const parts: string[] = [];
     if (importedCount > 0) {
       parts.push(t('parties.importOk', { count: importedCount }));
@@ -77,55 +164,26 @@ export default function PartiesLibraryScreen() {
     if (skippedInvalid > 0) {
       parts.push(t('parties.importSkipped', { count: skippedInvalid }));
     }
-    if (importedCount === 0 && errors[0]) {
-      setStatus(errors[0]);
-    } else {
-      setStatus(parts.join(' · ') || t('parties.importNone'));
-    }
+    setStatus(parts.join(' · ') || errors[0] || t('parties.importNone'));
+    setImportProgress(null);
+    queueRenameOffers(offers);
   };
 
   const onImport = async () => {
     setImporting(true);
     setStatus(null);
     try {
-      const picked = await pickPgnFile();
-      if (!picked) {
-        setImporting(false);
-        return;
-      }
-      const existing = new Set(
-        (await gameLibraryStore.listGames()).map((g) => g.fingerprint),
-      );
-      const preview = importPgnGames(picked.text, {
-        fileName: picked.filename,
-        existingFingerprints: existing,
-        importedAt: Date.now(),
-      });
-      const needsName = preview.imported.some(
-        (g) => !gameHasUsableName(g.headers) && !g.displayName?.trim(),
-      );
-      if (needsName && preview.imported.length > 0) {
-        const index = preview.imported.findIndex(
-          (g) => !gameHasUsableName(g.headers) && !g.displayName?.trim(),
-        );
-        setNamePrompt({
-          games: preview.imported,
-          index: Math.max(0, index),
-          draft: '',
-          skippedDuplicates: preview.skippedDuplicates,
-          skippedInvalid: preview.skippedInvalid,
-          errors: preview.errors,
+      const picked = await pickPgnFiles();
+      if (picked.kind === 'cancelled') return;
+      if (picked.kind === 'needsSelection') {
+        setMultiSelect({
+          candidates: picked.candidates,
+          selected: new Set(),
+          resolveSelected: picked.resolveSelected,
         });
         return;
       }
-      await gameLibraryStore.addGames(preview.imported);
-      await reload();
-      finishImportStatus(
-        preview.imported.length,
-        preview.skippedDuplicates,
-        preview.skippedInvalid,
-        preview.errors,
-      );
+      await importFiles(picked.files);
     } catch (e) {
       setStatus(e instanceof Error ? e.message : t('parties.importFailed'));
     } finally {
@@ -133,48 +191,14 @@ export default function PartiesLibraryScreen() {
     }
   };
 
-  const cancelNamePrompt = () => {
-    setNamePrompt(null);
-    setStatus(t('parties.importCancelled'));
-  };
-
-  const submitNamePrompt = async () => {
-    if (!namePrompt) return;
-    const name = namePrompt.draft.trim();
-    if (!name) {
-      setStatus(t('parties.nameRequired'));
-      return;
-    }
-    const gamesNamed = namePrompt.games.map((g, i) =>
-      i === namePrompt.index ? { ...g, displayName: name } : g,
-    );
-    const nextIdx = gamesNamed.findIndex(
-      (g, i) =>
-        i > namePrompt.index &&
-        !gameHasUsableName(g.headers) &&
-        !g.displayName?.trim(),
-    );
-    if (nextIdx >= 0) {
-      setNamePrompt({
-        ...namePrompt,
-        games: gamesNamed,
-        index: nextIdx,
-        draft: '',
-      });
-      setStatus(null);
-      return;
-    }
-    setNamePrompt(null);
+  const confirmMultiSelect = async () => {
+    if (!multiSelect) return;
+    const ids = [...multiSelect.selected].slice(0, MAX_PGN_IMPORT_BATCH);
     setImporting(true);
     try {
-      await gameLibraryStore.addGames(gamesNamed);
-      await reload();
-      finishImportStatus(
-        gamesNamed.length,
-        namePrompt.skippedDuplicates,
-        namePrompt.skippedInvalid,
-        namePrompt.errors,
-      );
+      const files = await multiSelect.resolveSelected(ids);
+      setMultiSelect(null);
+      await importFiles(files);
     } catch (e) {
       setStatus(e instanceof Error ? e.message : t('parties.importFailed'));
     } finally {
@@ -182,20 +206,64 @@ export default function PartiesLibraryScreen() {
     }
   };
 
-  const onDelete = (game: ImportedChessGame) => {
-    const title = t('parties.deleteTitle');
-    const message = t('parties.deleteConfirmMessage');
+  const onDeleteGame = (game: ImportedChessGame) => {
     const doDelete = () => {
       void gameLibraryStore.deleteGame(game.id).then(reload);
     };
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.confirm) {
-      if (window.confirm(`${title}\n${message}`)) doDelete();
+      if (window.confirm(`${t('parties.deleteTitle')}\n${t('parties.deleteConfirmMessage')}`)) {
+        doDelete();
+      }
       return;
     }
-    Alert.alert(title, message, [
+    Alert.alert(t('parties.deleteTitle'), t('parties.deleteConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('parties.deleteConfirm'), style: 'destructive', onPress: doDelete },
+    ]);
+  };
+
+  const openFolder = (folder: GameLibraryFolder) => {
+    setFolderStack((s) => [...s, folder]);
+    setFolderId(folder.id);
+  };
+
+  const goUp = () => {
+    setFolderStack((s) => {
+      const next = s.slice(0, -1);
+      setFolderId(next.length ? next[next.length - 1]!.id : null);
+      return next;
+    });
+  };
+
+  const createFolder = async () => {
+    const name = newFolderDraft.trim();
+    if (!name) return;
+    await gameLibraryStore.createFolder(name, folderId);
+    setNewFolderOpen(false);
+    setNewFolderDraft('');
+    await reload();
+  };
+
+  const onDeleteFolder = async (folder: GameLibraryFolder) => {
+    const snap = await gameLibraryStore.getSnapshot();
+    const counts = countFolderContents(snap, folder.id);
+    const message = t('parties.folderDeleteConfirm', {
+      games: String(counts.games),
+      folders: String(counts.subfolders),
+    });
+    const doDelete = () => {
+      void gameLibraryStore
+        .deleteFolder(folder.id, { deleteContents: true })
+        .then(reload);
+    };
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.confirm) {
+      if (window.confirm(message)) doDelete();
+      return;
+    }
+    Alert.alert(t('parties.folderDeleteTitle'), message, [
       { text: t('common.cancel'), style: 'cancel' },
       {
-        text: t('parties.deleteConfirm'),
+        text: t('parties.folderDeleteAll'),
         style: 'destructive',
         onPress: doDelete,
       },
@@ -215,8 +283,11 @@ export default function PartiesLibraryScreen() {
       testID="parties-library"
     >
       <ScreenHeader
-        onBack={() => router.back()}
-        title={t('parties.title')}
+        onBack={() => {
+          if (folderStack.length > 0) goUp();
+          else router.back();
+        }}
+        title={title}
         subtitle={t('parties.subtitle')}
         backTestID="parties-back"
       />
@@ -243,46 +314,85 @@ export default function PartiesLibraryScreen() {
         )}
       </Pressable>
 
-      <Pressable
-        testID="parties-open-workspace"
-        onPress={() => router.push('/parties/analyzer' as Href)}
-        style={({ pressed }) => [
-          styles.importBtn,
-          {
-            backgroundColor: colors.card,
-            borderWidth: 1,
-            borderColor: colors.border,
-            opacity: pressed ? 0.85 : 1,
-          },
-        ]}
-      >
-        <Text
-          style={{
-            color: colors.foreground,
-            fontSize: 15,
-            fontFamily: DesignTokens.typography.weightSemiBold,
-          }}
+      <View style={styles.rowBtns}>
+        <Pressable
+          testID="parties-new-folder"
+          onPress={() => setNewFolderOpen(true)}
+          style={[
+            styles.secondaryBtn,
+            { borderColor: colors.border, backgroundColor: colors.card },
+          ]}
         >
-          {t('parties.openWorkspace')}
-        </Text>
-      </Pressable>
+          <Text style={{ color: colors.foreground }}>
+            {t('parties.newFolder')}
+          </Text>
+        </Pressable>
+        <Pressable
+          testID="parties-open-workspace"
+          onPress={() => router.push('/parties/analyzer')}
+          style={[
+            styles.secondaryBtn,
+            { borderColor: colors.border, backgroundColor: colors.card },
+          ]}
+        >
+          <Text style={{ color: colors.foreground }}>
+            {t('parties.openWorkspace')}
+          </Text>
+        </Pressable>
+      </View>
 
+      {importProgress ? (
+        <Text style={[styles.status, { color: colors.mutedForeground }]}>
+          {importProgress}
+        </Text>
+      ) : null}
       {status ? (
-        <Text style={[styles.status, { color: colors.mutedForeground }]}>{status}</Text>
+        <Text style={[styles.status, { color: colors.mutedForeground }]}>
+          {status}
+        </Text>
       ) : null}
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
-      ) : games.length === 0 ? (
+      ) : folders.length === 0 && games.length === 0 ? (
         <Text style={[styles.empty, { color: colors.mutedForeground }]}>
           {t('parties.empty')}
         </Text>
       ) : (
         <View style={styles.list}>
+          {folders.map((folder) => (
+            <View
+              key={folder.id}
+              style={[
+                styles.card,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Pressable
+                testID={`parties-folder-${folder.id}`}
+                onPress={() => openFolder(folder)}
+                style={styles.cardMain}
+              >
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+                  📁 {folder.name}
+                </Text>
+              </Pressable>
+              <Pressable
+                testID={`parties-folder-delete-${folder.id}`}
+                onPress={() => void onDeleteFolder(folder)}
+                style={styles.deleteBtn}
+              >
+                <Ionicons name="trash-outline" size={18} color="#c44" />
+              </Pressable>
+            </View>
+          ))}
           {games.map((game) => (
             <View
               key={game.id}
-              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[
+                styles.card,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
             >
               <Pressable
                 testID={`parties-game-${game.id}`}
@@ -302,25 +412,35 @@ export default function PartiesLibraryScreen() {
                     {game.headers.result}
                   </Text>
                 ) : null}
-                <Text style={[styles.cardSub, { color: colors.mutedForeground }]}>
+                <Text
+                  style={[styles.cardSub, { color: colors.mutedForeground }]}
+                >
                   {gameSubtitle(game) || t('parties.noMeta')}
                 </Text>
                 <Text style={[styles.meta, { color: colors.mutedForeground }]}>
                   {t('parties.moveCount', { count: game.moves.length })}
                 </Text>
                 {game.analysis?.hasBeenAnalyzed ? (
-                  <Text
-                    style={[styles.meta, { color: colors.primary }]}
-                    testID={`parties-analyzed-${game.id}`}
-                  >
+                  <Text style={[styles.meta, { color: colors.primary }]}>
                     {t('parties.anyliseurAnalyzed')}
                   </Text>
                 ) : null}
               </Pressable>
               <Pressable
+                testID={`parties-rename-${game.id}`}
+                onPress={() =>
+                  setRenameEdit({
+                    gameId: game.id,
+                    draft: gameLibraryTitle(game),
+                  })
+                }
+                style={styles.deleteBtn}
+              >
+                <Ionicons name="pencil-outline" size={18} color={colors.foreground} />
+              </Pressable>
+              <Pressable
                 testID={`parties-delete-${game.id}`}
-                accessibilityLabel={t('parties.deleteConfirm')}
-                onPress={() => onDelete(game)}
+                onPress={() => onDeleteGame(game)}
                 style={styles.deleteBtn}
               >
                 <Ionicons name="trash-outline" size={18} color="#c44" />
@@ -330,11 +450,12 @@ export default function PartiesLibraryScreen() {
         </View>
       )}
 
+      {/* Post-import rename offer */}
       <Modal
-        visible={namePrompt != null}
+        visible={renameOffer != null}
         transparent
         animationType="fade"
-        onRequestClose={cancelNamePrompt}
+        onRequestClose={advanceRenameOffers}
       >
         <View style={styles.modalBackdrop}>
           <View
@@ -342,19 +463,70 @@ export default function PartiesLibraryScreen() {
               styles.modalCard,
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
-            testID="parties-name-prompt"
+            testID="parties-rename-offer"
+          >
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t('parties.importRenameOffer', {
+                file: renameOffer?.fileName ?? '',
+              })}
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                testID="parties-rename-no"
+                onPress={advanceRenameOffers}
+                style={[styles.modalBtn, { borderColor: colors.border }]}
+              >
+                <Text style={{ color: colors.foreground }}>{t('common.no')}</Text>
+              </Pressable>
+              <Pressable
+                testID="parties-rename-yes"
+                onPress={() => {
+                  if (!renameOffer) return;
+                  setRenameEdit({
+                    gameId: renameOffer.gameId,
+                    draft: renameOffer.currentName,
+                  });
+                  setRenameOffer(null);
+                }}
+                style={[
+                  styles.modalBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={{ color: '#fff' }}>{t('common.yes')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Rename editor */}
+      <Modal
+        visible={renameEdit != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setRenameEdit(null);
+          advanceRenameOffers();
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            testID="parties-rename-edit"
           >
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
               {t('parties.gameName')}
             </Text>
             <TextInput
               testID="parties-name-input"
-              value={namePrompt?.draft ?? ''}
+              value={renameEdit?.draft ?? ''}
               onChangeText={(draft) =>
-                setNamePrompt((prev) => (prev ? { ...prev, draft } : prev))
+                setRenameEdit((prev) => (prev ? { ...prev, draft } : prev))
               }
-              placeholder={t('parties.gameNamePlaceholder')}
-              placeholderTextColor={colors.mutedForeground}
               style={[
                 styles.modalInput,
                 {
@@ -368,24 +540,185 @@ export default function PartiesLibraryScreen() {
             <View style={styles.modalActions}>
               <Pressable
                 testID="parties-name-cancel"
-                onPress={cancelNamePrompt}
+                onPress={() => {
+                  setRenameEdit(null);
+                  advanceRenameOffers();
+                }}
                 style={[styles.modalBtn, { borderColor: colors.border }]}
               >
-                <Text style={{ color: colors.foreground }}>{t('common.cancel')}</Text>
+                <Text style={{ color: colors.foreground }}>
+                  {t('common.cancel')}
+                </Text>
               </Pressable>
               <Pressable
-                testID="parties-name-import"
-                onPress={() => void submitNamePrompt()}
-                style={[styles.modalBtnPrimary, { backgroundColor: colors.primary }]}
+                testID="parties-name-save"
+                onPress={() => {
+                  void (async () => {
+                    if (!renameEdit) return;
+                    await gameLibraryStore.renameGame(
+                      renameEdit.gameId,
+                      renameEdit.draft,
+                    );
+                    setRenameEdit(null);
+                    await reload();
+                    advanceRenameOffers();
+                  })();
+                }}
+                style={[
+                  styles.modalBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
               >
-                <Text
-                  style={{
-                    color: '#fff',
-                    fontFamily: DesignTokens.typography.weightSemiBold,
-                  }}
-                >
-                  {t('parties.importAction')}
+                <Text style={{ color: '#fff' }}>{t('common.save')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Multi-select when >10 files */}
+      <Modal
+        visible={multiSelect != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMultiSelect(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                maxHeight: '80%',
+              },
+            ]}
+            testID="parties-multi-select"
+          >
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t('parties.multiSelectTitle')}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, marginBottom: 8 }}>
+              {t('parties.multiSelectCount', {
+                selected: String(multiSelect?.selected.size ?? 0),
+                max: String(MAX_PGN_IMPORT_BATCH),
+              })}
+            </Text>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {multiSelect?.candidates.map((c) => {
+                const selected = multiSelect.selected.has(c.id);
+                return (
+                  <Pressable
+                    key={c.id}
+                    testID={`parties-multi-${c.id}`}
+                    onPress={() => {
+                      setMultiSelect((prev) => {
+                        if (!prev) return prev;
+                        const next = new Set(prev.selected);
+                        if (next.has(c.id)) next.delete(c.id);
+                        else if (next.size < MAX_PGN_IMPORT_BATCH) next.add(c.id);
+                        return { ...prev, selected: next };
+                      });
+                    }}
+                    style={[
+                      styles.multiRow,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: selected
+                          ? colors.primary
+                          : colors.secondary,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: selected
+                          ? colors.primaryForeground
+                          : colors.foreground,
+                      }}
+                    >
+                      {c.filename}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setMultiSelect(null)}
+                style={[styles.modalBtn, { borderColor: colors.border }]}
+              >
+                <Text style={{ color: colors.foreground }}>
+                  {t('common.cancel')}
                 </Text>
+              </Pressable>
+              <Pressable
+                testID="parties-multi-import"
+                disabled={!multiSelect || multiSelect.selected.size === 0}
+                onPress={() => void confirmMultiSelect()}
+                style={[
+                  styles.modalBtnPrimary,
+                  {
+                    backgroundColor: colors.primary,
+                    opacity:
+                      !multiSelect || multiSelect.selected.size === 0 ? 0.5 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: '#fff' }}>{t('parties.importAction')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* New folder */}
+      <Modal
+        visible={newFolderOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setNewFolderOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t('parties.newFolder')}
+            </Text>
+            <TextInput
+              value={newFolderDraft}
+              onChangeText={setNewFolderDraft}
+              style={[
+                styles.modalInput,
+                {
+                  color: colors.foreground,
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                },
+              ]}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setNewFolderOpen(false)}
+                style={[styles.modalBtn, { borderColor: colors.border }]}
+              >
+                <Text style={{ color: colors.foreground }}>
+                  {t('common.cancel')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => void createFolder()}
+                style={[
+                  styles.modalBtnPrimary,
+                  { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text style={{ color: '#fff' }}>{t('common.save')}</Text>
               </Pressable>
             </View>
           </View>
@@ -413,6 +746,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  rowBtns: { flexDirection: 'row', gap: 8 },
+  secondaryBtn: {
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
   },
   status: {
     fontSize: 13,
@@ -455,7 +798,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   deleteBtn: {
-    width: 48,
+    width: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -500,5 +843,11 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 10,
+  },
+  multiRow: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.sm,
+    padding: 10,
+    marginBottom: 6,
   },
 });

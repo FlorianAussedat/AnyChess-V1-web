@@ -38,9 +38,18 @@ export type GameAnalysisMeta = {
   profileId: string;
 };
 
+export type GameLibraryFolder = {
+  id: string;
+  name: string;
+  /** null = root level */
+  parentId: string | null;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type ImportedChessGame = {
   id: string;
-  /** User-provided title when PGN metadata has no usable name. */
+  /** User-facing title (defaults to filename stem on import). */
   displayName?: string;
   /** Content fingerprint for duplicate detection (not filename). */
   fingerprint: string;
@@ -53,6 +62,8 @@ export type ImportedChessGame = {
    * side variations — preserved in `source.rawPgn` for future readers.
    */
   hasVariations: boolean;
+  /** null / undefined = root of the library */
+  folderId?: string | null;
   source: {
     fileName?: string;
     importedAt: number;
@@ -65,8 +76,15 @@ export type ImportedChessGame = {
   analysis?: GameAnalysisMeta;
 };
 
-export type GameLibrarySnapshot = {
+/** Legacy flat snapshot. */
+export type GameLibrarySnapshotV1 = {
   version: 1;
+  games: ImportedChessGame[];
+};
+
+export type GameLibrarySnapshot = {
+  version: 2;
+  folders: GameLibraryFolder[];
   games: ImportedChessGame[];
 };
 
