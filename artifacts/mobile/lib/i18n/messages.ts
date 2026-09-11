@@ -138,6 +138,13 @@ export type MessageKey =
   | 'parties.importRenameOffer'
   | 'parties.multiSelectTitle'
   | 'parties.multiSelectCount'
+  | 'parties.gameSelectTitle'
+  | 'parties.gameSelectFound'
+  | 'parties.gameSelectSearch'
+  | 'parties.gameSelectMax'
+  | 'parties.gameSelectEmpty'
+  | 'parties.gameSelectIndexed'
+  | 'parties.importSelectedCount'
   | 'parties.newFolder'
   | 'parties.folderDeleteTitle'
   | 'parties.folderDeleteConfirm'
@@ -943,8 +950,15 @@ const fr: Dict = {
   'parties.importProgress': 'Import {{done}} / {{total}}',
   'parties.importRenameOffer':
     'Fichier « {{file}} » importé.\nRenommer ?',
-  'parties.multiSelectTitle': 'Sélectionne jusqu’à 10 parties à importer.',
+  'parties.multiSelectTitle': 'Sélectionne jusqu’à 10 fichiers PGN à importer.',
   'parties.multiSelectCount': '{{selected}} / {{max}} sélectionnées',
+  'parties.gameSelectTitle': 'Sélectionne jusqu’à 10 parties à importer.',
+  'parties.gameSelectFound': '{{count}} parties trouvées',
+  'parties.gameSelectSearch': 'Rechercher (joueur, événement, date…)',
+  'parties.gameSelectMax': 'Maximum 10 parties par import.',
+  'parties.gameSelectEmpty': 'Aucune partie ne correspond.',
+  'parties.gameSelectIndexed': 'Indexé {{count}} parties en {{ms}} ms',
+  'parties.importSelectedCount': 'Importer {{count}} parties',
   'parties.newFolder': 'Nouveau dossier',
   'parties.folderDeleteTitle': 'Supprimer le dossier ?',
   'parties.folderDeleteConfirm':
@@ -1809,8 +1823,15 @@ const en: Dict = {
   'parties.importOk': '{{count}} game(s) imported',
   'parties.importProgress': 'Import {{done}} / {{total}}',
   'parties.importRenameOffer': 'File “{{file}}” imported.\nRename?',
-  'parties.multiSelectTitle': 'Select up to 10 games to import.',
+  'parties.multiSelectTitle': 'Select up to 10 PGN files to import.',
   'parties.multiSelectCount': '{{selected}} / {{max}} selected',
+  'parties.gameSelectTitle': 'Select up to 10 games to import.',
+  'parties.gameSelectFound': '{{count}} games found',
+  'parties.gameSelectSearch': 'Search (player, event, date…)',
+  'parties.gameSelectMax': 'Maximum 10 games per import.',
+  'parties.gameSelectEmpty': 'No matching games.',
+  'parties.gameSelectIndexed': 'Indexed {{count}} games in {{ms}} ms',
+  'parties.importSelectedCount': 'Import {{count}} games',
   'parties.newFolder': 'New folder',
   'parties.folderDeleteTitle': 'Delete folder?',
   'parties.folderDeleteConfirm':

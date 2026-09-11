@@ -35,6 +35,12 @@ import {
   pickPgnFiles,
   type PickedPgnCandidate,
 } from '@/lib/gameLibrary/pickPgnFiles';
+import {
+  formatPgnGameIndexTitle,
+  indexPgnGamesLight,
+  type PgnGameIndexEntry,
+} from '@/lib/gameLibrary/indexPgnGamesLight';
+import { PgnGameSelectModal, type PgnGameSelectCandidate } from '@/components/parties/PgnGameSelectModal';
 import type { PickedPgnFile } from '@/lib/repertoire/pickPgnFile';
 
 type RenameOffer = {
@@ -46,6 +52,20 @@ type RenameOffer = {
 type RenameEdit = {
   gameId: string;
   draft: string;
+};
+
+type IndexedSource = {
+  filename: string;
+  text: string;
+  entries: PgnGameIndexEntry[];
+  indexedMs: number;
+};
+
+type GameSelectState = {
+  sources: IndexedSource[];
+  candidates: PgnGameSelectCandidate[];
+  selected: Set<string>;
+  indexHint: string | null;
 };
 
 export default function PartiesLibraryScreen() {
@@ -70,6 +90,7 @@ export default function PartiesLibraryScreen() {
     selected: Set<string>;
     resolveSelected: (ids: string[]) => Promise<PickedPgnFile[]>;
   } | null>(null);
+  const [gameSelect, setGameSelect] = useState<GameSelectState | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderDraft, setNewFolderDraft] = useState('');
 
@@ -113,43 +134,143 @@ export default function PartiesLibraryScreen() {
   };
 
   const importFiles = async (files: PickedPgnFile[]) => {
+    // Light-index every file first — never parse all movetexts of a multi-game PGN.
+    const sources: IndexedSource[] = [];
+    for (const file of files) {
+      const indexed = indexPgnGamesLight(file.text);
+      sources.push({
+        filename: file.filename,
+        text: file.text,
+        entries: indexed.entries,
+        indexedMs: indexed.indexedMs,
+      });
+    }
+
+    const candidates: PgnGameSelectCandidate[] = [];
+    for (let s = 0; s < sources.length; s += 1) {
+      const source = sources[s]!;
+      for (const entry of source.entries) {
+        candidates.push({
+          ...entry,
+          id: `${s}:${entry.index}`,
+          sourceLabel:
+            sources.length > 1 ? source.filename : undefined,
+        });
+      }
+    }
+
+    if (candidates.length === 0) {
+      setStatus(t('parties.importNone'));
+      return;
+    }
+
+    // Single game → import immediately (simple path).
+    if (candidates.length === 1) {
+      await importSelectedGames(sources, [candidates[0]!.id]);
+      return;
+    }
+
+    // Multi-game (even small) → same selection UI; never auto-import all.
+    const totalMs = sources.reduce((acc, s) => acc + s.indexedMs, 0);
+    setGameSelect({
+      sources,
+      candidates,
+      selected: new Set(),
+      indexHint: t('parties.gameSelectIndexed', {
+        count: String(candidates.length),
+        ms: String(totalMs),
+      }),
+    });
+  };
+
+  const importSelectedGames = async (
+    sources: IndexedSource[],
+    selectedIds: string[],
+  ) => {
     let importedCount = 0;
     let skippedDuplicates = 0;
     let skippedInvalid = 0;
     const errors: string[] = [];
     const offers: RenameOffer[] = [];
 
-    for (let i = 0; i < files.length; i += 1) {
-      const file = files[i]!;
-      setImportProgress(
-        t('parties.importProgress', {
-          done: String(i + 1),
-          total: String(files.length),
-        }),
-      );
-      try {
-        const result = await gameLibraryStore.importPgnText(file.text, file.filename, {
-          folderId,
-          useFileNameAsDisplayName: true,
-        });
-        importedCount += result.imported.length;
-        skippedDuplicates += result.skippedDuplicates;
-        skippedInvalid += result.skippedInvalid;
-        errors.push(...result.errors);
-        for (const game of result.imported) {
-          const currentName =
-            game.displayName?.trim() ||
-            displayNameFromFilename(file.filename) ||
-            gameLibraryTitle(game);
-          offers.push({
-            gameId: game.id,
-            fileName: file.filename,
-            currentName,
-          });
+    const bySource = new Map<number, number[]>();
+    for (const id of selectedIds.slice(0, MAX_PGN_IMPORT_BATCH)) {
+      const [sRaw, iRaw] = id.split(':');
+      const s = Number(sRaw);
+      const index = Number(iRaw);
+      if (!Number.isFinite(s) || !Number.isFinite(index)) continue;
+      const list = bySource.get(s) ?? [];
+      list.push(index);
+      bySource.set(s, list);
+    }
+
+    const jobs: Array<{ source: IndexedSource; indices: number[] }> = [];
+    for (const [s, indices] of bySource) {
+      const source = sources[s];
+      if (!source || indices.length === 0) continue;
+      jobs.push({ source, indices });
+    }
+
+    let done = 0;
+    const total = selectedIds.length;
+    for (const job of jobs) {
+      const displayNames: Record<number, string> = {};
+      for (const index of job.indices) {
+        const entry = job.source.entries.find((e) => e.index === index);
+        if (entry) {
+          const title = formatPgnGameIndexTitle(entry).replace(/\n/g, ' · ');
+          displayNames[index] = title;
         }
-      } catch (e) {
-        skippedInvalid += 1;
-        errors.push(e instanceof Error ? e.message : String(e));
+      }
+
+      // Import one selected game at a time for progress + rename queue.
+      for (const index of job.indices) {
+        done += 1;
+        setImportProgress(
+          t('parties.importProgress', {
+            done: String(done),
+            total: String(total),
+          }),
+        );
+        try {
+          const multiGameFile = job.source.entries.length > 1;
+          const result = await gameLibraryStore.importPgnText(
+            job.source.text,
+            job.source.filename,
+            {
+              folderId,
+              useFileNameAsDisplayName: !multiGameFile,
+              gameIndices: [index],
+              indexEntries: job.source.entries,
+              displayNames: multiGameFile
+                ? {
+                    [index]:
+                      displayNames[index] ??
+                      displayNameFromFilename(job.source.filename),
+                  }
+                : undefined,
+            },
+          );
+          importedCount += result.imported.length;
+          skippedDuplicates += result.skippedDuplicates;
+          skippedInvalid += result.skippedInvalid;
+          errors.push(...result.errors);
+          for (const game of result.imported) {
+            const currentName =
+              game.displayName?.trim() ||
+              displayNames[index] ||
+              displayNameFromFilename(job.source.filename) ||
+              gameLibraryTitle(game);
+            offers.push({
+              gameId: game.id,
+              fileName: job.source.filename,
+              currentName,
+            });
+          }
+        } catch (e) {
+          skippedInvalid += 1;
+          errors.push(e instanceof Error ? e.message : String(e));
+        }
       }
     }
 
@@ -199,6 +320,21 @@ export default function PartiesLibraryScreen() {
       const files = await multiSelect.resolveSelected(ids);
       setMultiSelect(null);
       await importFiles(files);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : t('parties.importFailed'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const confirmGameSelect = async () => {
+    if (!gameSelect || gameSelect.selected.size === 0) return;
+    const ids = [...gameSelect.selected].slice(0, MAX_PGN_IMPORT_BATCH);
+    const sources = gameSelect.sources;
+    setGameSelect(null);
+    setImporting(true);
+    try {
+      await importSelectedGames(sources, ids);
     } catch (e) {
       setStatus(e instanceof Error ? e.message : t('parties.importFailed'));
     } finally {
@@ -575,6 +711,19 @@ export default function PartiesLibraryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Multi-game PGN picker (virtualized) */}
+      <PgnGameSelectModal
+        visible={gameSelect != null}
+        candidates={gameSelect?.candidates ?? []}
+        selected={gameSelect?.selected ?? new Set()}
+        indexingLabel={gameSelect?.indexHint}
+        onChangeSelected={(next) => {
+          setGameSelect((prev) => (prev ? { ...prev, selected: next } : prev));
+        }}
+        onCancel={() => setGameSelect(null)}
+        onConfirm={() => void confirmGameSelect()}
+      />
 
       {/* Multi-select when >10 files */}
       <Modal

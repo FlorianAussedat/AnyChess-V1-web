@@ -59,6 +59,20 @@ export {
 } from './displayNameFromFilename.ts';
 
 export {
+  indexPgnGamesLight,
+  formatPgnGameIndexTitle,
+  filterPgnGameIndex,
+  extractPgnSlice,
+  togglePgnGameSelection,
+  type PgnGameIndexEntry,
+  type PgnLightIndexResult,
+} from './indexPgnGamesLight.ts';
+
+export {
+  importSelectedPgnGames,
+} from './importSelectedPgnGames.ts';
+
+export {
   migrateGameLibrarySnapshot,
   listChildFolders,
   countFolderContents,

@@ -13,6 +13,9 @@ import {
   newLibraryFolderId,
 } from './folders.ts';
 import { importPgnGames } from './importPgnGames.ts';
+import { indexPgnGamesLight } from './indexPgnGamesLight.ts';
+import { importSelectedPgnGames } from './importSelectedPgnGames.ts';
+import type { PgnGameIndexEntry } from './indexPgnGamesLight.ts';
 import type {
   GameLibraryFolder,
   GameLibrarySnapshot,
@@ -217,15 +220,36 @@ export class GameLibraryStore {
       folderId?: string | null;
       /** When true (default), stem of fileName becomes displayName if unset. */
       useFileNameAsDisplayName?: boolean;
+      /**
+       * When set, only these game indices (from light index) are parsed/imported.
+       * Omit to import every game in the text (legacy / small files).
+       */
+      gameIndices?: number[];
+      /** Precomputed light index entries (optional; rebuilt when omitted). */
+      indexEntries?: PgnGameIndexEntry[];
     },
-  ): Promise<ImportPgnResult & { snapshot: GameLibrarySnapshot }> {
+  ): Promise<ImportPgnResult & { snapshot: GameLibrarySnapshot; parsedCount?: number }> {
     const snap = await this.getSnapshot();
     const existing = new Set(snap.games.map((g) => g.fingerprint));
-    const result = importPgnGames(pgnText, {
-      fileName,
-      existingFingerprints: existing,
-      importedAt: Date.now(),
-    });
+
+    let result: ImportPgnResult & { parsedCount?: number };
+    if (options?.gameIndices && options.gameIndices.length > 0) {
+      const entries =
+        options.indexEntries ?? indexPgnGamesLight(pgnText).entries;
+      result = importSelectedPgnGames(pgnText, entries, options.gameIndices, {
+        fileName,
+        existingFingerprints: existing,
+        importedAt: Date.now(),
+        displayNamesByIndex: options.displayNames,
+      });
+    } else {
+      result = importPgnGames(pgnText, {
+        fileName,
+        existingFingerprints: existing,
+        importedAt: Date.now(),
+      });
+    }
+
     if (result.imported.length === 0) {
       return { ...result, snapshot: snap };
     }
@@ -236,7 +260,11 @@ export class GameLibraryStore {
         ? displayNameFromFilename(fileName)
         : '';
     result.imported = result.imported.map((game, index) => {
-      const name = names?.[index]?.trim() || useFile || game.displayName;
+      const name =
+        names?.[index]?.trim() ||
+        game.displayName?.trim() ||
+        useFile ||
+        undefined;
       return {
         ...game,
         displayName: name || undefined,
