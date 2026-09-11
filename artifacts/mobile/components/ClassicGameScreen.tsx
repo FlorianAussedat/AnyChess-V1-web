@@ -38,6 +38,7 @@ import {
   computeBoardSize,
   fitBoardSizeToViewport,
 } from '@/lib/game/boardSize';
+import { openPgnInAnalyzer } from '@/lib/gameLibrary';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
 import { BrandAssets } from '@/constants/BrandAssets';
@@ -128,6 +129,15 @@ export function ClassicGameScreen() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportedText, setExportedText] = useState('');
   const [draftMove, setDraftMove] = useState('');
+  const prevGameOver = useRef(false);
+
+  useEffect(() => {
+    if (isGameOver && !prevGameOver.current && campLocked) {
+      setExportedText(exportPgn());
+      setExportOpen(true);
+    }
+    prevGameOver.current = isGameOver;
+  }, [isGameOver, campLocked, exportPgn]);
   /** Single source of truth for Classic vs Keypad input UI — persisted preference. */
   const { inputMode, setChessInputMode, keypadActive } = useChessInputMode();
 
@@ -378,11 +388,22 @@ export function ClassicGameScreen() {
         visible={exportOpen}
         body={`Inclut les coups, le résultat, ta couleur, Stockfish${
           openingIdentity ? `, l’ouverture (${openingIdentity.name}) et le code ECO` : ''
-        }.`}
+        }. Analyse ouvre la partie dans le Lecteur + Analyseur.`}
         exportedText={exportedText}
         exportPgn={exportPgn}
         downloadPgn={downloadPgn}
         onClose={() => setExportOpen(false)}
+        onOpenInAnalyzer={async () => {
+          const opened = await openPgnInAnalyzer({
+            pgnText: exportedText || exportPgn(),
+            fileName: 'partie-classique.pgn',
+            displayName: openingIdentity?.name || 'Partie classique',
+            flipped: playerColor === 'b',
+            tab: 'analysis',
+          });
+          if (!opened) return;
+          router.push(opened.href);
+        }}
       />
     </>
   );

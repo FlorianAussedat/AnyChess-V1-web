@@ -55,6 +55,7 @@ import {
   removeFromTryAgain,
   isInTryAgain,
   getPositionStats,
+  openEndgameInReader,
   getFinishedIds,
   getTryAgainIds,
   progressiveDeteriorationMessage,
@@ -673,7 +674,15 @@ export default function EndgameTrainingPlayScreen() {
 
               <AppButton
                 label={t('quiz.endgameAnalyse')}
-                onPress={() => setOverlay('analysis')}
+                onPress={() => {
+                  if (!snap.result || !snap.position || busy) return;
+                  setBusy(true);
+                  void openEndgameInReader({
+                    result: snap.result,
+                    defender: snap.position.defender,
+                    routerPush: (href) => router.push(href as Href),
+                  }).finally(() => setBusy(false));
+                }}
                 testID="endgame-analyse"
               />
 

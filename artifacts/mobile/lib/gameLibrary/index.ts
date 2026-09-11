@@ -78,3 +78,10 @@ export {
   countFolderContents,
   collectDescendantFolderIds,
 } from './folders.ts';
+
+export {
+  buildAnalyzerHref,
+  openPgnInAnalyzer,
+  type AnalyzerHref,
+  type AnalyzerRouteParams,
+} from './openPgnInAnalyzer.ts';

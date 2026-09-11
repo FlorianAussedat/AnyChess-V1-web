@@ -1,7 +1,12 @@
 /**
  * Adapter: push a theoretical attempt into Game Library + open Lecteur.
  */
-import { gameLibraryStore } from '../../gameLibrary/GameLibraryStore.ts';
+import {
+  buildAnalyzerHref,
+  openPgnInAnalyzer,
+  type AnalyzerHref,
+} from '../../gameLibrary/openPgnInAnalyzer.ts';
+import type { GameLibraryStore } from '../../gameLibrary/GameLibraryStore.ts';
 import type { EvaluationPoint, FirstMajorTurn } from '../../endgameTraining/domain/types.ts';
 import type { TheoreticalAttemptResult } from '../domain/types.ts';
 
@@ -60,7 +65,8 @@ function buildPgn(input: {
 
 export async function openTheoreticalInReader(input: {
   result: TheoreticalAttemptResult;
-  routerPush: (href: string) => void;
+  routerPush: (href: AnalyzerHref) => void;
+  store?: GameLibraryStore;
 }): Promise<string | null> {
   const resultTag =
     input.result.outcome === 'success'
@@ -78,9 +84,15 @@ export async function openTheoreticalInReader(input: {
     result: resultTag,
   });
 
-  const imported = await gameLibraryStore.importPgnText(pgn, 'theoretical-endgame.pgn');
-  const game = imported.imported[0];
-  if (!game) return null;
+  const opened = await openPgnInAnalyzer({
+    pgnText: pgn,
+    fileName: 'theoretical-endgame.pgn',
+    displayName: 'Finales théoriques',
+    flipped: input.result.playerColor === 'black',
+    tab: 'analysis',
+    store: input.store,
+  });
+  if (!opened) return null;
 
   const payload: TheoreticalAnalysisPayload = {
     positionId: input.result.positionId,
@@ -105,7 +117,13 @@ export async function openTheoreticalInReader(input: {
     outcome: input.result.outcome,
     timeline: [],
   };
-  overlayByGameId.set(game.id, payload);
-  input.routerPush(`/parties/analyzer?gameId=${encodeURIComponent(game.id)}`);
-  return game.id;
+  overlayByGameId.set(opened.gameId, payload);
+  input.routerPush(
+    opened.href ??
+      buildAnalyzerHref(opened.gameId, {
+        flipped: input.result.playerColor === 'black',
+        tab: 'analysis',
+      }),
+  );
+  return opened.gameId;
 }

@@ -49,6 +49,7 @@ import {
   recordAttempt,
   formatComprehensionScore,
   pickPositionInTheme,
+  openTheoreticalInReader,
   type SessionSnapshot,
 } from '@/lib/theoreticalEndgame';
 import { canOfferTheoreticalFinishGame } from '@/lib/theoreticalEndgame/domain/officialResultMessages';
@@ -537,7 +538,14 @@ export default function TheoreticalEndgamePlayScreen() {
 
               <AppButton
                 label={t('quiz.theoreticalAnalyse')}
-                onPress={() => setOverlay('analysis')}
+                onPress={() => {
+                  if (!snap.result || busy) return;
+                  setBusy(true);
+                  void openTheoreticalInReader({
+                    result: snap.result,
+                    routerPush: (href) => router.push(href as Href),
+                  }).finally(() => setBusy(false));
+                }}
                 testID="theoretical-analyse"
               />
               <AppButton

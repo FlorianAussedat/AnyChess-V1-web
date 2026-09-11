@@ -42,6 +42,7 @@ import {
   computeBoardSize,
   fitBoardSizeToViewport,
 } from '@/lib/game/boardSize';
+import { openPgnInAnalyzer } from '@/lib/gameLibrary';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
@@ -406,11 +407,22 @@ export function OpeningGameScreen() {
         visible={exportOpen}
         body={`Inclut les coups, le résultat, ta couleur, le répertoire${
           theoryExit ? ' et le commentaire de sortie de théorie' : ''
-        }.`}
+        }. Analyse ouvre la partie dans le Lecteur + Analyseur.`}
         exportedText={exportedText}
         exportPgn={exportPgn}
         downloadPgn={downloadPgn}
         onClose={() => setExportOpen(false)}
+        onOpenInAnalyzer={async () => {
+          const opened = await openPgnInAnalyzer({
+            pgnText: exportedText || exportPgn(),
+            fileName: 'ouverture.pgn',
+            displayName: openingLabel || repertoireName || 'Ouverture',
+            flipped: playerColor === 'b',
+            tab: 'analysis',
+          });
+          if (!opened) return;
+          router.push(opened.href);
+        }}
       />
     </>
   );

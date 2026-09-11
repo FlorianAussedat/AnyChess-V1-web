@@ -2,7 +2,12 @@
  * Adapter: push an endgame attempt into the Game Library + open Lecteur.
  * Stores analysis overlay payload keyed by game id for the reader to pick up.
  */
-import { gameLibraryStore } from '../../gameLibrary/GameLibraryStore.ts';
+import {
+  buildAnalyzerHref,
+  openPgnInAnalyzer,
+  type AnalyzerHref,
+} from '../../gameLibrary/openPgnInAnalyzer.ts';
+import type { GameLibraryStore } from '../../gameLibrary/GameLibraryStore.ts';
 import type { AttemptResult, EvaluationPoint, FirstMajorTurn } from '../domain/types.ts';
 
 export type EndgameAnalysisPayload = {
@@ -44,7 +49,6 @@ function buildPgn(input: {
     `[Orientation "${input.defender}"]`,
   ];
   const moves: string[] = [];
-  let ply = 0;
   let moveNum = 1;
   // Detect who moves first from FEN
   const stm = input.startFen.split(' ')[1] === 'b' ? 'b' : 'w';
@@ -58,7 +62,6 @@ function buildPgn(input: {
       whiteToMove = true;
       moveNum += 1;
     }
-    ply += 1;
   }
   return `${headers.join('\n')}\n\n${moves.join(' ')} ${input.result}\n`;
 }
@@ -66,7 +69,8 @@ function buildPgn(input: {
 export async function openEndgameInReader(input: {
   result: AttemptResult;
   defender: 'white' | 'black';
-  routerPush: (href: string) => void;
+  routerPush: (href: AnalyzerHref) => void;
+  store?: GameLibraryStore;
 }): Promise<string | null> {
   const resultTag =
     input.result.outcome === 'loss'
@@ -82,9 +86,15 @@ export async function openEndgameInReader(input: {
     result: resultTag,
   });
 
-  const imported = await gameLibraryStore.importPgnText(pgn, 'endgame-training.pgn');
-  const game = imported.imported[0];
-  if (!game) return null;
+  const opened = await openPgnInAnalyzer({
+    pgnText: pgn,
+    fileName: 'endgame-training.pgn',
+    displayName: 'Entraînement aux Finales',
+    flipped: input.defender === 'black',
+    tab: 'analysis',
+    store: input.store,
+  });
+  if (!opened) return null;
 
   const payload: EndgameAnalysisPayload = {
     positionId: input.result.positionId,
@@ -97,7 +107,13 @@ export async function openEndgameInReader(input: {
     movesResisted: input.result.movesResisted,
     outcome: input.result.outcome,
   };
-  overlayByGameId.set(game.id, payload);
-  input.routerPush(`/parties/analyzer?gameId=${encodeURIComponent(game.id)}`);
-  return game.id;
+  overlayByGameId.set(opened.gameId, payload);
+  input.routerPush(
+    opened.href ??
+      buildAnalyzerHref(opened.gameId, {
+        flipped: input.defender === 'black',
+        tab: 'analysis',
+      }),
+  );
+  return opened.gameId;
 }
