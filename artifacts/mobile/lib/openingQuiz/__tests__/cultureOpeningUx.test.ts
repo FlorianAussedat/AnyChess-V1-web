@@ -13,10 +13,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const quizDir = join(here, '../../../app/quiz-ouverture');
 
 describe('quelle ouverture harmonization', () => {
-  it('uses NumberedSanRows + difficulty selector + answer paths', () => {
+  it('uses NumberedSanRows + text level picker + answer paths', () => {
     const src = readFileSync(join(quizDir, 'quelle.tsx'), 'utf8');
     assert.match(src, /NumberedSanRows/);
-    assert.match(src, /DifficultySelector/);
+    assert.match(src, /quelle-level-picker/);
+    assert.match(src, /OptionChip/);
+    assert.doesNotMatch(src, /DifficultySelector/);
     assert.match(src, /ChessAnswerInput/);
     assert.match(src, /GameMicButton/);
     assert.match(src, /quelle-mic/);
