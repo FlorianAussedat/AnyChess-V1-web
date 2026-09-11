@@ -68,8 +68,14 @@ import {
 } from '@/lib/endgameTraining/selection/selectors';
 import { canOfferFinishGame } from '@/lib/endgameTraining/domain/officialResultMessages';
 import { formatDrawAlternativesMessage } from '@/lib/endgameTraining/domain/drawAlternatives';
-import { PressureGauge } from '@/lib/endgameTraining/ui/PressureGauge';
-import { EvaluationCurve } from '@/lib/endgameTraining/ui/EvaluationCurve';
+import {
+  defenderToWhiteEval,
+  timelineToEvalCurvePoints,
+} from '@/lib/endgameTraining/ui/toWhiteEval';
+import {
+  EvalBalanceBar,
+  EvalCurve,
+} from '@/components/analysis';
 import type {
   FinishGamePayload,
   ReviewLaunchPayload,
@@ -358,6 +364,22 @@ export default function EndgameTrainingPlayScreen() {
     );
   }, [snap.result, chessNotation]);
 
+  const playerPerspective = snap.position?.defender ?? 'white';
+  const liveWhiteEval = useMemo(
+    () => defenderToWhiteEval(snap.evalCp, snap.mateIn, playerPerspective),
+    [snap.evalCp, snap.mateIn, playerPerspective],
+  );
+  const resultCurvePoints = useMemo(
+    () => timelineToEvalCurvePoints(snap.timeline, playerPerspective),
+    [snap.timeline, playerPerspective],
+  );
+  const showResultCurve =
+    showResult &&
+    resultCurvePoints.length >= 2 &&
+    (snap.phase === 'lost' ||
+      snap.phase === 'won-draw' ||
+      snap.phase === 'won-30');
+
   const handleAddTryAgain = async () => {
     if (!snap.position) return;
     await addToTryAgain(snap.position.id);
@@ -454,8 +476,6 @@ export default function EndgameTrainingPlayScreen() {
     );
   }
 
-  const playerPerspective = snap.position?.defender ?? 'white';
-
   return (
     <>
       <ChessScreenScaffold
@@ -497,12 +517,12 @@ export default function EndgameTrainingPlayScreen() {
             </Pressable>
           </View>
 
-          <PressureGauge
-            scoreCp={snap.evalCp}
-            mateIn={snap.mateIn}
-            visible={showGauge}
-            perspective={playerPerspective}
-          />
+          {showGauge ? (
+            <EvalBalanceBar
+              value={liveWhiteEval}
+              testID="endgame-eval-balance"
+            />
+          ) : null}
 
           {snap.finishGameActive && (
             <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
@@ -634,12 +654,20 @@ export default function EndgameTrainingPlayScreen() {
                   snap.result.officialResultMessage}
               </Text>
 
+              {showResultCurve && (
+                <EvalCurve
+                  points={resultCurvePoints}
+                  activeNodeId={
+                    resultCurvePoints[resultCurvePoints.length - 1]?.nodeId ??
+                    null
+                  }
+                  onSelectNode={() => {}}
+                  testID="endgame-eval-curve"
+                />
+              )}
+
               {snap.phase === 'lost' && (
                 <>
-                  <EvaluationCurve
-                    timeline={snap.timeline}
-                    firstMajorTurn={snap.result.firstMajorTurn}
-                  />
                   <Text style={{ color: colors.foreground }}>
                     {sessionRef.current.getFirstMajorTurnMessage() ||
                       progressiveDeteriorationMessage()}
