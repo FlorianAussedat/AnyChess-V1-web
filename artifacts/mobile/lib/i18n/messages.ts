@@ -589,6 +589,12 @@ export type MessageKey =
   | 'quiz.correctFamily'
   | 'quiz.answerIs'
   | 'quiz.newOpening'
+  | 'quiz.pickLevel'
+  | 'quiz.notEnoughLines'
+  | 'quiz.reviewQuestions'
+  | 'quiz.changeLevel'
+  | 'quiz.seeRecords'
+  | 'quiz.replaySameLevel'
   | 'quiz.buildSubtitle'
   | 'quiz.opening'
   | 'quiz.variation'
@@ -610,19 +616,25 @@ export type MessageKey =
   | 'records.cat.play'
   | 'records.cat.blind'
   | 'records.cat.culture'
+  | 'records.cat.openingQuiz'
   | 'records.cat.tacticsDesc'
   | 'records.cat.namingDesc'
   | 'records.cat.playDesc'
   | 'records.cat.blindDesc'
+  | 'records.cat.openingQuizDesc'
   | 'records.subtitle'
   | 'records.best60'
+  | 'records.bestOutOfTen'
   | 'records.resetTactics'
   | 'records.emptyTactics'
+  | 'records.emptyOpeningQuiz'
   | 'records.blindResetBody'
   | 'records.tacticsResetBody'
+  | 'records.openingQuizResetBody'
   | 'records.sessionResetTitle'
   | 'records.sessionResetBody'
   | 'records.blindHint'
+  | 'records.openingQuizHint'
   | 'records.puzzleSubtitle'
   | 'records.visionSubtitle'
   | 'records.visionResetTitle'
@@ -633,6 +645,19 @@ export type MessageKey =
   | 'openings.emptyLead'
   | 'openings.emptySources'
   | 'openings.emptyPurpose'
+  | 'openings.createFolder'
+  | 'openings.pickFolderTitle'
+  | 'openings.pickFolderHint'
+  | 'openings.pickFolderEmpty'
+  | 'openings.renameDisplayName'
+  | 'openings.renameDisplayPlaceholder'
+  | 'openings.moveToFolder'
+  | 'openings.addToOpeningsFolder'
+  | 'openings.addToOpeningsDone'
+  | 'openings.addToOpeningsFail'
+  | 'openings.noPgnInGame'
+  | 'openings.importNeedsFolder'
+  | 'openings.linesCount'
   | 'openings.sectionWhite'
   | 'openings.sectionBlack'
   | 'openings.sectionUnassigned'
@@ -1424,6 +1449,13 @@ const fr: Dict = {
   'quiz.correctFamily': 'Correct (famille acceptée) !',
   'quiz.answerIs': 'Réponse : {{name}}',
   'quiz.newOpening': 'Nouvelle ouverture',
+  'quiz.pickLevel': 'Choisis ton niveau',
+  'quiz.notEnoughLines':
+    'Pas assez d’ouvertures pour ce niveau ({{available}} / {{needed}}). Choisis un autre niveau.',
+  'quiz.reviewQuestions': 'Revoir les questions',
+  'quiz.changeLevel': 'Changer de niveau',
+  'quiz.seeRecords': 'Voir les records',
+  'quiz.replaySameLevel': 'Rejouer ce niveau',
   'quiz.buildSubtitle': 'Joue la ligne de référence exacte, coup par coup.',
   'quiz.opening': 'OUVERTURE',
   'quiz.variation': 'VARIATION',
@@ -1445,25 +1477,34 @@ const fr: Dict = {
   'records.cat.play': 'Jouer le coup',
   'records.cat.blind': 'Mémorisation',
   'records.cat.culture': 'Culture',
+  'records.cat.openingQuiz': 'Quelle ouverture',
   'records.cat.tacticsDesc': 'Meilleures séries de problèmes par bande de difficulté',
   'records.cat.namingDesc': 'Meilleur score en 60 secondes (Vision de l’échiquier)',
   'records.cat.playDesc': 'Meilleur score en 60 secondes (Vision de l’échiquier)',
   'records.cat.blindDesc':
     'Meilleur nombre de coups complets à 100 % sans aide ni erreur',
+  'records.cat.openingQuizDesc':
+    'Meilleur score sur 10 questions, par niveau de difficulté',
   'records.subtitle': 'Tes meilleurs scores déjà enregistrés sur cet appareil',
   'records.best60': 'Meilleur score / 60 s',
+  'records.bestOutOfTen': 'Meilleur score / 10',
   'records.resetTactics': 'Réinitialiser les records tactiques',
   'records.emptyTactics':
     'Aucun record pour l’instant — résous des problèmes pour en enregistrer.',
+  'records.emptyOpeningQuiz':
+    'Aucun record pour l’instant — joue Quelle ouverture ? pour en enregistrer.',
   'records.blindResetBody':
     'Cette action remettra à zéro les records Écouter puis reconstruire et Regarder puis réciter.',
   'records.tacticsResetBody':
     'Cette action effacera toutes les meilleures séries enregistrées.',
+  'records.openingQuizResetBody':
+    'Cette action remettra à zéro les meilleurs scores Quelle ouverture ? pour tous les niveaux.',
   'records.sessionResetTitle': 'Réinitialiser le record ?',
   'records.sessionResetBody':
     'Cette action remettra à zéro le meilleur score 60 secondes de {{label}}.',
   'records.blindHint':
     'Meilleur nombre de coups complets à 100 %, sans aide ni erreur.',
+  'records.openingQuizHint': 'Meilleur score sur 10 questions, par niveau.',
   'records.puzzleSubtitle': 'Meilleures séries par bande de difficulté',
   'records.visionSubtitle':
     'Meilleurs scores sur 60 secondes — Vision de l’échiquier',
@@ -1474,18 +1515,34 @@ const fr: Dict = {
     'Anciens records par délai encore présents en stockage (legacy).',
   'openings.emptyTitle': 'Tu n’as pas encore de répertoire',
   'openings.emptyBody':
-    'Importe un fichier PGN contenant une ouverture que tu souhaites travailler.',
+    'Crée d’abord un dossier, puis importe un PGN d’ouverture à travailler.',
   'openings.emptyLead':
-    'Importe un fichier PGN contenant une ouverture que tu souhaites travailler.',
+    'Commence par créer un dossier d’ouvertures. Tu pourras ensuite y importer un fichier PGN.',
   'openings.emptySources':
-    'Tu peux obtenir ces fichiers depuis ton logiciel d’échecs, une base de parties, un répertoire que tu as créé toi-même, ou un service d’entraînement qui permet l’export en PGN.',
+    'Les PGN viennent de ton logiciel d’échecs, d’une base de parties, d’un répertoire que tu as préparé, ou d’un service qui exporte en PGN.',
   'openings.emptyPurpose':
     'AnyChess utilisera les variantes de ton fichier pour te les faire rejouer et t’aider à les mémoriser.',
+  'openings.createFolder': 'Créer un dossier',
+  'openings.pickFolderTitle': 'Choisir un dossier d’ouvertures',
+  'openings.pickFolderHint':
+    'Chaque PGN doit aller dans un dossier existant. Crée-en un si besoin — aucun dossier « Non classées » n’est créé automatiquement.',
+  'openings.pickFolderEmpty':
+    'Aucun dossier pour l’instant. Crée un dossier avant d’importer.',
+  'openings.renameDisplayName': 'Renommer',
+  'openings.renameDisplayPlaceholder': 'Nom affiché dans AnyChess',
+  'openings.moveToFolder': 'Déplacer',
+  'openings.addToOpeningsFolder': 'Ajouter à un dossier d’ouvertures',
+  'openings.addToOpeningsDone': 'Partie ajoutée au répertoire « {{name}} ».',
+  'openings.addToOpeningsFail': 'Impossible d’ajouter la partie au répertoire.',
+  'openings.noPgnInGame': 'Aucun PGN disponible pour cette partie.',
+  'openings.importNeedsFolder':
+    'Choisis ou crée un dossier avant d’importer un PGN.',
+  'openings.linesCount': '{{count}} ligne(s)',
   'openings.sectionWhite': 'RÉPERTOIRE BLANCS',
   'openings.sectionBlack': 'RÉPERTOIRE NOIRS',
   'openings.sectionUnassigned': 'SANS CÔTÉ',
   'openings.sectionUnassignedHint':
-    'Ouvre chaque dossier et choisis « Je joue Blancs » ou « Je joue Noirs » à l’import.',
+    'Ouvre chaque dossier et choisis Blancs ou Noirs avant l’entraînement.',
   'openings.newRepertoire': 'Nouveau répertoire',
   'openings.renameRepertoire': 'Renommer le répertoire',
   'openings.create': 'Créer',
@@ -1504,7 +1561,7 @@ const fr: Dict = {
     'Récite la suite d’une branche choisie dans ce répertoire.',
   'openings.managePgn': 'Gérer les PGN',
   'openings.emptyPgnBody':
-    'Importe un ou plusieurs fichiers .pgn (collage ou sélection de fichier).',
+    'Importe un ou plusieurs fichiers .pgn dans ce dossier.',
   'openings.filesCount': '{{count}} fichier(s) PGN',
   'openings.importSideRequired':
     'Indique de quel côté tu travailles ce répertoire.',
@@ -2296,6 +2353,13 @@ const en: Dict = {
   'quiz.correctFamily': 'Correct (family accepted)!',
   'quiz.answerIs': 'Answer: {{name}}',
   'quiz.newOpening': 'New opening',
+  'quiz.pickLevel': 'Choose your level',
+  'quiz.notEnoughLines':
+    'Not enough openings for this level ({{available}} / {{needed}}). Pick another level.',
+  'quiz.reviewQuestions': 'Review questions',
+  'quiz.changeLevel': 'Change level',
+  'quiz.seeRecords': 'See records',
+  'quiz.replaySameLevel': 'Replay this level',
   'quiz.buildSubtitle': 'Play the exact reference line, move by move.',
   'quiz.opening': 'OPENING',
   'quiz.variation': 'VARIATION',
@@ -2317,25 +2381,34 @@ const en: Dict = {
   'records.cat.play': 'Play the move',
   'records.cat.blind': 'Memorization',
   'records.cat.culture': 'Culture',
+  'records.cat.openingQuiz': 'Which opening',
   'records.cat.tacticsDesc': 'Best puzzle streaks by difficulty band',
   'records.cat.namingDesc': 'Best 60-second score (Board vision)',
   'records.cat.playDesc': 'Best 60-second score (Board vision)',
   'records.cat.blindDesc':
     'Best number of full moves at 100% with no help and no errors',
+  'records.cat.openingQuizDesc':
+    'Best score out of 10 questions, by difficulty level',
   'records.subtitle': 'Your best scores already saved on this device',
   'records.best60': 'Best score / 60 s',
+  'records.bestOutOfTen': 'Best score / 10',
   'records.resetTactics': 'Reset tactics records',
   'records.emptyTactics':
     'No records yet — solve puzzles to save some.',
+  'records.emptyOpeningQuiz':
+    'No records yet — play Which opening? to save some.',
   'records.blindResetBody':
     'This will reset the Listen then reconstruct and Watch then recite records.',
   'records.tacticsResetBody':
     'This will clear all saved best streaks.',
+  'records.openingQuizResetBody':
+    'This will reset Which opening? best scores for every level.',
   'records.sessionResetTitle': 'Reset this record?',
   'records.sessionResetBody':
     'This will reset the best 60-second score for {{label}}.',
   'records.blindHint':
     'Best full-move count at 100%, with no hints or mistakes.',
+  'records.openingQuizHint': 'Best score out of 10 questions, by level.',
   'records.puzzleSubtitle': 'Best streaks by difficulty band',
   'records.visionSubtitle': 'Best 60-second scores — Board vision',
   'records.visionResetTitle': 'Reset all records?',
@@ -2345,18 +2418,34 @@ const en: Dict = {
     'Older delay-based records are still present in storage (legacy).',
   'openings.emptyTitle': 'You don’t have a repertoire yet',
   'openings.emptyBody':
-    'Import a PGN file with an opening you want to practice.',
+    'Create a folder first, then import a PGN opening to practice.',
   'openings.emptyLead':
-    'Import a PGN file with an opening you want to practice.',
+    'Start by creating an openings folder. You can import a PGN file into it afterward.',
   'openings.emptySources':
-    'You can get these files from your chess software, a game database, a repertoire you built yourself, or a training service that exports to PGN.',
+    'PGNs come from your chess software, a game database, a repertoire you prepared, or a service that exports to PGN.',
   'openings.emptyPurpose':
     'AnyChess will use the variations in your file so you can replay and memorize them.',
+  'openings.createFolder': 'Create a folder',
+  'openings.pickFolderTitle': 'Choose an openings folder',
+  'openings.pickFolderHint':
+    'Every PGN must go into an existing folder. Create one if needed — no automatic “Unclassified” folder is created.',
+  'openings.pickFolderEmpty':
+    'No folders yet. Create a folder before importing.',
+  'openings.renameDisplayName': 'Rename',
+  'openings.renameDisplayPlaceholder': 'Display name in AnyChess',
+  'openings.moveToFolder': 'Move',
+  'openings.addToOpeningsFolder': 'Add to an openings folder',
+  'openings.addToOpeningsDone': 'Game added to repertoire “{{name}}”.',
+  'openings.addToOpeningsFail': 'Unable to add the game to the repertoire.',
+  'openings.noPgnInGame': 'No PGN available for this game.',
+  'openings.importNeedsFolder':
+    'Choose or create a folder before importing a PGN.',
+  'openings.linesCount': '{{count}} line(s)',
   'openings.sectionWhite': 'WHITE REPERTOIRE',
   'openings.sectionBlack': 'BLACK REPERTOIRE',
   'openings.sectionUnassigned': 'NO SIDE',
   'openings.sectionUnassignedHint':
-    'Open each folder and choose “I play White” or “I play Black” on import.',
+    'Open each folder and choose White or Black before training.',
   'openings.newRepertoire': 'New repertoire',
   'openings.renameRepertoire': 'Rename repertoire',
   'openings.create': 'Create',
@@ -2375,7 +2464,7 @@ const en: Dict = {
     'Recite the continuation of a branch chosen from this repertoire.',
   'openings.managePgn': 'Manage PGNs',
   'openings.emptyPgnBody':
-    'Import one or more .pgn files (paste or file picker).',
+    'Import one or more .pgn files into this folder.',
   'openings.filesCount': '{{count}} PGN file(s)',
   'openings.importSideRequired':
     'Choose which side you train this repertoire from.',

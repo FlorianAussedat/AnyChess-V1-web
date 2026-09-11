@@ -3,14 +3,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { StoredPgnFile } from '@/lib/repertoire';
+import { pgnFileDisplayName, type StoredPgnFile } from '@/lib/repertoire';
 import { formatDate } from '@/components/openings/formatDate';
 
 type Props = {
   file: StoredPgnFile;
   onOpenDetail: (file: StoredPgnFile) => void;
   onToggleEnabled: (file: StoredPgnFile) => void;
-  onReplace: (file: StoredPgnFile) => void;
+  onRename: (file: StoredPgnFile) => void;
+  onMove: (file: StoredPgnFile) => void;
   onDelete: (file: StoredPgnFile) => void;
 };
 
@@ -18,11 +19,13 @@ export function PgnFileRow({
   file,
   onOpenDetail,
   onToggleEnabled,
-  onReplace,
+  onRename,
+  onMove,
   onDelete,
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
+  const name = pgnFileDisplayName(file);
 
   return (
     <View
@@ -40,13 +43,10 @@ export function PgnFileRow({
             color={file.summary.parseSucceeded ? colors.primary : '#F5A623'}
           />
           <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>
-            {file.filename}
+            {name}
             {file.enabled === false ? ` ${t('openings.disabled')}` : ''}
           </Text>
         </View>
-        <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-          {t('openings.importedOn', { date: formatDate(file.importedAt) })}
-        </Text>
         <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
           {t('openings.gamesCount', { count: file.summary.gameCount })}
           {' · '}
@@ -54,6 +54,9 @@ export function PgnFileRow({
           {file.summary.errors.length > 0
             ? ` · ${t('openings.errorsCount', { count: file.summary.errors.length })}`
             : ''}
+        </Text>
+        <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
+          {t('openings.importedOn', { date: formatDate(file.importedAt) })}
         </Text>
         <Text
           style={[
@@ -91,18 +94,29 @@ export function PgnFileRow({
           />
         </Pressable>
         <Pressable
-          onPress={() => onReplace(file)}
+          onPress={() => onRename(file)}
           hitSlop={8}
           style={styles.iconOnly}
-          testID={`replace-pgn-${file.id}`}
+          testID={`rename-pgn-${file.id}`}
+          accessibilityLabel={t('openings.renameDisplayName')}
         >
-          <Ionicons name="swap-horizontal-outline" size={18} color={colors.mutedForeground} />
+          <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
+        </Pressable>
+        <Pressable
+          onPress={() => onMove(file)}
+          hitSlop={8}
+          style={styles.iconOnly}
+          testID={`move-pgn-${file.id}`}
+          accessibilityLabel={t('openings.moveToFolder')}
+        >
+          <Ionicons name="folder-outline" size={18} color={colors.mutedForeground} />
         </Pressable>
         <Pressable
           onPress={() => onDelete(file)}
           hitSlop={8}
           style={styles.iconOnly}
           testID={`delete-pgn-${file.id}`}
+          accessibilityLabel={t('openings.delete')}
         >
           <Ionicons name="trash-outline" size={18} color={colors.destructive} />
         </Pressable>

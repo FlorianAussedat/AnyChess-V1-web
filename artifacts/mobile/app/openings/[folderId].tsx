@@ -15,19 +15,42 @@ import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import type { StoredPgnFile, RepertoireSide } from '@/lib/repertoire';
+import {
+  joinSelectedPgnSlices,
+  pgnFileDisplayName,
+  type StoredPgnFile,
+  type RepertoireSide,
+} from '@/lib/repertoire';
 import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
+import {
+  indexPgnGamesLight,
+  MAX_OPENINGS_PGN_IMPORT_BATCH,
+  type PgnGameIndexEntry,
+} from '@/lib/gameLibrary';
+import { displayNameFromFilename } from '@/lib/gameLibrary/displayNameFromFilename';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import type { PlayerColor } from '@/contexts/GameContext';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { HubModeCard } from '@/components/HubModeCard';
 import { PgnFileRow } from '@/components/openings/PgnFileRow';
-import { ImportPgnModal } from '@/components/openings/ImportPgnModal';
+import { NameModal } from '@/components/openings/NameModal';
+import { FolderPickModal } from '@/components/openings/FolderPickModal';
 import { PlayOpeningModal } from '@/components/openings/PlayOpeningModal';
 import { preferencesStore } from '@/lib/preferences';
 import { getStrengthBand } from '@/lib/difficulty/StockfishStrengthBands';
 import { SideMigrationModal } from '@/components/openings/SideMigrationModal';
 import { PgnFileDetailModal } from '@/components/openings/PgnFileDetailModal';
+import {
+  PgnGameSelectModal,
+  type PgnGameSelectCandidate,
+} from '@/components/parties/PgnGameSelectModal';
+
+type PendingImport = {
+  filename: string;
+  sourceText: string;
+  entries: PgnGameIndexEntry[];
+  selectedIndices: number[];
+};
 
 export default function FolderDetailScreen() {
   const colors = useColors();
@@ -38,13 +61,16 @@ export default function FolderDetailScreen() {
 
   const {
     ready,
+    folders,
     getFolder,
     getFiles,
     importPgn,
-    replacePgn,
     deletePgn,
+    renamePgnDisplayName,
+    movePgn,
     setFolderSide,
     setFileEnabled,
+    createFolder,
   } = useRepertoireLibrary();
 
   const folder = folderId ? getFolder(folderId) : null;
@@ -53,19 +79,33 @@ export default function FolderDetailScreen() {
     [folderId, getFiles],
   );
 
-  const [importOpen, setImportOpen] = useState(false);
-  const [replaceTarget, setReplaceTarget] = useState<StoredPgnFile | null>(null);
+  const totalGames = useMemo(
+    () => files.reduce((sum, f) => sum + (f.summary.gameCount || 0), 0),
+    [files],
+  );
+  const totalLines = useMemo(
+    () => files.reduce((sum, f) => sum + (f.summary.branchCount || 0), 0),
+    [files],
+  );
+
   const [detailFile, setDetailFile] = useState<StoredPgnFile | null>(null);
   const [playOpen, setPlayOpen] = useState(false);
   const [sideMigrationOpen, setSideMigrationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<'play' | 'continue' | null>(null);
-  const [importSide, setImportSide] = useState<RepertoireSide | null>(null);
   const [migrationSide, setMigrationSide] = useState<RepertoireSide | null>(null);
-  const [filename, setFilename] = useState('lignes.pgn');
-  const [pgnText, setPgnText] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [lastImportResult, setLastImportResult] = useState<StoredPgnFile | null>(null);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [gameSelectOpen, setGameSelectOpen] = useState(false);
+  const [gameCandidates, setGameCandidates] = useState<PgnGameSelectCandidate[]>([]);
+  const [gameSelected, setGameSelected] = useState<Set<string>>(new Set());
+
+  const [renameFile, setRenameFile] = useState<StoredPgnFile | null>(null);
+  const [nameDraft, setNameDraft] = useState('');
+  const [moveFile, setMoveFile] = useState<StoredPgnFile | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const canPlay = files.some((f) => f.summary.parseSucceeded);
 
@@ -119,63 +159,99 @@ export default function FolderDetailScreen() {
     [folderId, canPlay, folder?.side, router],
   );
 
-  const openImport = useCallback(() => {
-    setFilename('lignes.pgn');
-    setPgnText('');
-    setFormError(null);
-    setLastImportResult(null);
-    setReplaceTarget(null);
-    setImportSide(folder?.side ?? null);
-    setImportOpen(true);
-  }, [folder?.side]);
+  const clearImportSelect = useCallback(() => {
+    setPendingImport(null);
+    setGameSelectOpen(false);
+    setGameCandidates([]);
+    setGameSelected(new Set());
+  }, []);
 
-  const openReplace = useCallback((file: StoredPgnFile) => {
-    setReplaceTarget(file);
-    setFilename(file.filename);
-    setPgnText(file.pgnText);
-    setFormError(null);
-    setLastImportResult(null);
-    setImportSide(folder?.side ?? null);
-    setImportOpen(true);
-  }, [folder?.side]);
+  const runImport = useCallback(
+    async (pending: PendingImport) => {
+      if (!folderId) return;
+      setBusy(true);
+      setFormError(null);
+      try {
+        const pgnText = joinSelectedPgnSlices(
+          pending.sourceText,
+          pending.entries,
+          pending.selectedIndices,
+        );
+        if (!pgnText.trim()) {
+          setStatusMsg(t('openings.noValidPositions'));
+          clearImportSelect();
+          return;
+        }
+        const displayName = displayNameFromFilename(pending.filename);
+        await importPgn(folderId, pending.filename, pgnText, displayName);
+        clearImportSelect();
+        setStatusMsg(null);
+      } catch (err) {
+        setStatusMsg(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [clearImportSelect, folderId, importPgn, t],
+  );
 
-  const submitImport = useCallback(async () => {
-    if (!folderId) return;
-    if (!folder?.side && !importSide) {
-      setFormError(t('openings.importSideRequired'));
-      return;
-    }
-    setBusy(true);
+  const openImport = useCallback(async () => {
     setFormError(null);
+    setStatusMsg(null);
     try {
-      if (!folder?.side && importSide) {
-        await setFolderSide(folderId, importSide);
+      const picked = await pickPgnFile();
+      if (!picked) return;
+      const indexed = indexPgnGamesLight(picked.text);
+      if (indexed.entries.length === 0) {
+        setStatusMsg(t('openings.noValidPositions'));
+        return;
       }
-      let file: StoredPgnFile;
-      if (replaceTarget) {
-        file = await replacePgn(replaceTarget.id, pgnText, filename);
-      } else {
-        file = await importPgn(folderId, filename, pgnText);
+      if (indexed.entries.length === 1) {
+        await runImport({
+          filename: picked.filename,
+          sourceText: picked.text,
+          entries: indexed.entries,
+          selectedIndices: [indexed.entries[0]!.index],
+        });
+        return;
       }
-      setLastImportResult(file);
-      if (file.summary.parseSucceeded) {
-        // Keep modal open briefly so the user sees the summary, then close.
-        setTimeout(() => {
-          setImportOpen(false);
-          setReplaceTarget(null);
-          setLastImportResult(null);
-        }, 900);
-      }
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
+      setPendingImport({
+        filename: picked.filename,
+        sourceText: picked.text,
+        entries: indexed.entries,
+        selectedIndices: [],
+      });
+      setGameCandidates(
+        indexed.entries.map((e) => ({
+          ...e,
+          id: `g-${e.index}`,
+          sourceLabel: picked.filename,
+        })),
+      );
+      setGameSelected(new Set());
+      setGameSelectOpen(true);
+    } catch {
+      setStatusMsg(t('openings.fileReadError'));
     }
-  }, [folderId, folder?.side, importSide, filename, pgnText, replaceTarget, importPgn, replacePgn, setFolderSide, t]);
+  }, [runImport, t]);
+
+  const confirmGameSelect = useCallback(() => {
+    if (!pendingImport) return;
+    const indices = [...gameSelected]
+      .map((id) => Number(id.replace(/^g-/, '')))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+    if (indices.length === 0) return;
+    void runImport({
+      ...pendingImport,
+      selectedIndices: indices,
+    });
+  }, [gameSelected, pendingImport, runImport]);
 
   const confirmDeleteFile = useCallback(
     (file: StoredPgnFile) => {
-      const message = t('openings.removeFileBody', { name: file.filename });
+      const name = pgnFileDisplayName(file);
+      const message = t('openings.removeFileBody', { name });
       if (Platform.OS === 'web') {
         if (typeof window !== 'undefined' && window.confirm(message)) {
           deletePgn(file.id).catch(() => {});
@@ -196,17 +272,62 @@ export default function FolderDetailScreen() {
     [deletePgn, t],
   );
 
-  const onPickFile = useCallback(async () => {
+  const openRenameFile = useCallback((file: StoredPgnFile) => {
+    setRenameFile(file);
+    setNameDraft(pgnFileDisplayName(file));
+    setFormError(null);
+  }, []);
+
+  const submitRenameFile = useCallback(async () => {
+    if (!renameFile) return;
+    setBusy(true);
     setFormError(null);
     try {
-      const picked = await pickPgnFile();
-      if (!picked) return;
-      setFilename(picked.filename);
-      setPgnText(picked.text);
-    } catch {
-      setFormError(t('openings.fileReadError'));
+      await renamePgnDisplayName(renameFile.id, nameDraft);
+      setRenameFile(null);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
     }
-  }, [t]);
+  }, [nameDraft, renameFile, renamePgnDisplayName]);
+
+  const openMoveFile = useCallback((file: StoredPgnFile) => {
+    setMoveFile(file);
+  }, []);
+
+  const submitMoveFile = useCallback(
+    async (targetFolderId: string) => {
+      if (!moveFile) return;
+      setBusy(true);
+      try {
+        await movePgn(moveFile.id, targetFolderId);
+        setMoveFile(null);
+      } catch (err) {
+        setStatusMsg(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [moveFile, movePgn],
+  );
+
+  const submitCreateForMove = useCallback(async () => {
+    setBusy(true);
+    setFormError(null);
+    try {
+      const created = await createFolder(nameDraft);
+      setCreateOpen(false);
+      if (moveFile) {
+        await movePgn(moveFile.id, created.id);
+        setMoveFile(null);
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [createFolder, moveFile, movePgn, nameDraft]);
 
   const onToggleEnabled = useCallback(
     (file: StoredPgnFile) => {
@@ -246,12 +367,17 @@ export default function FolderDetailScreen() {
       <ScreenHeader
         onBack={() => router.back()}
         title={folder.name}
-        subtitle={`${t('openings.filesCount', { count: files.length })}${
+        subtitle={`${t('openings.filesCount', { count: files.length })} · ${t(
+          'openings.gamesCount',
+          { count: totalGames },
+        )} · ${t('openings.linesCount', { count: totalLines })}${
           folder.side ? ` · ${sideLabel(folder.side)}` : ''
         }`}
         trailing={
           <Pressable
-            onPress={openImport}
+            onPress={() => {
+              void openImport();
+            }}
             style={({ pressed }) => [
               styles.primaryBtn,
               {
@@ -264,7 +390,9 @@ export default function FolderDetailScreen() {
             testID="import-pgn-btn"
           >
             <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
-            <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>{t('openings.import')}</Text>
+            <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>
+              {t('openings.import')}
+            </Text>
           </Pressable>
         }
       />
@@ -273,8 +401,14 @@ export default function FolderDetailScreen() {
         {t('openings.folderHint')}
       </Text>
 
+      {statusMsg ? (
+        <Text style={[styles.status, { color: colors.mutedForeground }]}>{statusMsg}</Text>
+      ) : null}
+
       <View style={styles.exerciseBlock}>
-        <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>{t('openings.exercises')}</Text>
+        <Text style={[styles.exerciseHeading, { color: colors.foreground }]}>
+          {t('openings.exercises')}
+        </Text>
         <HubModeCard
           title={t('openings.playVsRepertoire')}
           description={t('openings.playVsDesc')}
@@ -316,33 +450,70 @@ export default function FolderDetailScreen() {
               file={item}
               onOpenDetail={setDetailFile}
               onToggleEnabled={onToggleEnabled}
-              onReplace={openReplace}
+              onRename={openRenameFile}
+              onMove={openMoveFile}
               onDelete={confirmDeleteFile}
             />
           )}
         />
       )}
 
-      <ImportPgnModal
-        visible={importOpen}
-        replaceTarget={replaceTarget}
-        filename={filename}
-        onFilenameChange={setFilename}
-        pgnText={pgnText}
-        onPgnTextChange={setPgnText}
-        busy={busy}
-        formError={formError}
-        showSidePicker={!folder.side}
-        importSide={importSide}
-        onImportSideChange={setImportSide}
-        lastImportResult={lastImportResult}
-        onPickFile={onPickFile}
-        onCancel={() => {
-          setImportOpen(false);
-          setReplaceTarget(null);
+      <PgnGameSelectModal
+        visible={gameSelectOpen}
+        candidates={gameCandidates}
+        selected={gameSelected}
+        onChangeSelected={(next) => setGameSelected(next)}
+        onCancel={clearImportSelect}
+        onConfirm={confirmGameSelect}
+        maxSelection={MAX_OPENINGS_PGN_IMPORT_BATCH}
+        confirmLabel={t('openings.import')}
+      />
+
+      <NameModal
+        visible={renameFile != null}
+        title={t('openings.renameDisplayName')}
+        placeholder={t('openings.renameDisplayPlaceholder')}
+        value={nameDraft}
+        onChangeText={setNameDraft}
+        onCancel={() => setRenameFile(null)}
+        onSubmit={() => {
+          void submitRenameFile();
         }}
-        onSubmit={submitImport}
-        onRequestClose={() => setImportOpen(false)}
+        busy={busy}
+        error={formError}
+        submitLabel={t('common.save')}
+      />
+
+      <FolderPickModal
+        visible={moveFile != null && !createOpen}
+        folders={folders}
+        excludeFolderId={folderId}
+        busy={busy}
+        title={t('openings.moveToFolder')}
+        onSelect={(id) => {
+          void submitMoveFile(id);
+        }}
+        onCreateFolder={() => {
+          setNameDraft('');
+          setFormError(null);
+          setCreateOpen(true);
+        }}
+        onCancel={() => setMoveFile(null)}
+      />
+
+      <NameModal
+        visible={createOpen}
+        title={t('openings.newRepertoire')}
+        placeholder={t('openings.namePlaceholder')}
+        value={nameDraft}
+        onChangeText={setNameDraft}
+        onCancel={() => setCreateOpen(false)}
+        onSubmit={() => {
+          void submitCreateForMove();
+        }}
+        busy={busy}
+        error={formError}
+        submitLabel={t('openings.create')}
       />
 
       <PlayOpeningModal
@@ -382,28 +553,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 10,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 18,
-    fontFamily: 'Inter_700Bold',
-  },
-  subtitle: {
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 1,
-  },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -422,6 +571,11 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     paddingHorizontal: 2,
   },
+  status: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    paddingHorizontal: 2,
+  },
   exerciseBlock: {
     gap: 8,
   },
@@ -429,25 +583,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
     marginBottom: 2,
-  },
-  exerciseCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    minHeight: 64,
-  },
-  exerciseTitle: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  exerciseDesc: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 16,
-    marginTop: 2,
   },
   list: {
     gap: 10,

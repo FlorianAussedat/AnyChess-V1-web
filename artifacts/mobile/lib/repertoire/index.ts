@@ -44,6 +44,8 @@ export type {
   RepertoireStoreSnapshot,
   RepertoireSide,
 } from './storage/types';
+export { pgnFileDisplayName } from './storage/types';
+export { joinSelectedPgnSlices } from './joinSelectedPgnSlices';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
 export {
