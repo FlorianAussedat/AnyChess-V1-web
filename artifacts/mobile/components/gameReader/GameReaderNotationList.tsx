@@ -444,16 +444,16 @@ function NotationRow({
 
 const styles = StyleSheet.create({
   scroll: { width: '100%' },
-  content: { gap: 2, paddingVertical: 2 },
-  plyBlock: { width: '100%', gap: 2 },
+  content: { gap: 1, paddingVertical: 1 },
+  plyBlock: { width: '100%', gap: 1 },
   mainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     paddingHorizontal: 2,
   },
   moveNum: {
-    width: 28,
+    width: 26,
     fontSize: 13,
     fontFamily: DesignTokens.typography.weightSemiBold,
     textAlign: 'right',
@@ -464,8 +464,8 @@ const styles = StyleSheet.create({
   },
   cell: {
     borderRadius: DesignTokens.radius.sm,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 5,
   },
   san: {
     fontSize: 14,

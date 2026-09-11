@@ -664,8 +664,7 @@ export default function GameWorkspaceScreen() {
                   backgroundColor:
                     tab === 'game' ? colors.primary : colors.card,
                   borderColor: colors.border,
-                  // @ts-expect-error web cursor
-                  cursor: 'pointer',
+                  cursor: 'pointer' as const,
                 },
               ]}
             >
@@ -692,8 +691,7 @@ export default function GameWorkspaceScreen() {
                   backgroundColor:
                     tab === 'analysis' ? colors.primary : colors.card,
                   borderColor: colors.border,
-                  // @ts-expect-error web cursor
-                  cursor: 'pointer',
+                  cursor: 'pointer' as const,
                 },
               ]}
             >
