@@ -32,16 +32,22 @@ import {
 } from '@/lib/moveInput/canonicalMove';
 import {
   applyUserMoveInput,
+  flagsFromPlayTurn,
   legalDestinationsForSquare,
+  opponentSearchTurn,
+  playTurnAfterEmptyOpponentPick,
+  playTurnAfterUndo,
   speakMoveHistorySummary,
   undoPlayerTurn,
   type BoardPiece,
   type LastMove,
   type MoveEvent,
   type PlayerColor,
+  type PlayTurnState,
 } from '@/lib/game';
 import { tMsg } from '@/lib/i18n';
 import { useSharedPlayState } from '@/hooks/useSharedPlayState';
+import { preferencesStore } from '@/lib/preferences';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
@@ -54,6 +60,8 @@ interface OpeningGameContextValue {
   isGameOver: boolean;
   waitingForUser: boolean;
   isOpponentThinking: boolean;
+  /** Formal play-turn state (booleans above are derived). */
+  playTurn: PlayTurnState;
   playerColor: PlayerColor;
   moveEvent: MoveEvent | null;
   isSpeaking: boolean;
@@ -74,6 +82,7 @@ interface OpeningGameContextValue {
   repeatLast: () => void;
   summarizeGame: () => void;
   undoMove: () => void;
+  retryOpponentMove: () => void;
   /** Keep current position and continue vs Stockfish. */
   continueVsEngine: () => void;
   /** Undo off-book move and return to theory without revealing. */
@@ -112,7 +121,8 @@ export function OpeningGameProvider({
   repertoire,
   repertoireName,
   loadError = null,
-  strengthBandId = DEFAULT_STRENGTH_BAND_ID,
+  strengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
+    DEFAULT_STRENGTH_BAND_ID,
 }: ProviderProps) {
   const opponentRef = useRef<OpeningOpponent | null>(null);
   const [phase, setPhase] = React.useState<OpeningPhase>('book');
@@ -120,6 +130,7 @@ export function OpeningGameProvider({
     React.useState<OpeningTrainingState>('playingTheory');
   const [theoryExit, setTheoryExit] = React.useState<TheoryExit | null>(null);
   const [ready, setReady] = React.useState(false);
+  const [playTurn, setPlayTurnState] = React.useState<PlayTurnState>('waitingForUser');
   const band = getStrengthBand(strengthBandId);
   const strengthBandLabel = band.label;
 
@@ -154,6 +165,16 @@ export function OpeningGameProvider({
     resetUiForNewGame,
     scheduleOpponentKickoff,
   } = play;
+
+  const setPlayTurn = useCallback(
+    (next: PlayTurnState, gameOver = false) => {
+      setPlayTurnState(next);
+      const flags = flagsFromPlayTurn(next, gameOver);
+      setWaitingForUser(flags.waitingForUser);
+      setIsOpponentThinking(flags.isOpponentThinking);
+    },
+    [setWaitingForUser, setIsOpponentThinking],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -223,10 +244,16 @@ export function OpeningGameProvider({
 
   const opponentMove = useCallback(async () => {
     const game = gameRef.current;
-    if (game.isGameOver()) return;
+    if (game.isGameOver()) {
+      setPlayTurn('finished', true);
+      return;
+    }
 
     const myGen = moveGenerationRef.current;
-    setIsOpponentThinking(true);
+    const searchTurn = opponentSearchTurn(
+      opponentRef.current?.getTrainingState() ?? 'playingTheory',
+    );
+    setPlayTurn(searchTurn);
 
     let selected: Move | null = null;
     let theoryMessage: string | null = null;
@@ -238,7 +265,10 @@ export function OpeningGameProvider({
       selected = null;
     }
 
-    if (myGen !== moveGenerationRef.current) return;
+    if (myGen !== moveGenerationRef.current) {
+      // A newer generation owns the UI (undo / retry / remount). Do not clear flags.
+      return;
+    }
 
     syncTheoryUi();
 
@@ -248,10 +278,12 @@ export function OpeningGameProvider({
     }
 
     if (!selected) {
-      setIsOpponentThinking(false);
-      // lineComplete / outOfTheory: wait for decision buttons, not a user move.
       const st = opponentRef.current?.getTrainingState() ?? 'playingTheory';
-      setWaitingForUser(st === 'playingTheory' || st === 'engineContinuation');
+      const next = playTurnAfterEmptyOpponentPick(st);
+      setPlayTurn(next, game.isGameOver());
+      if (next === 'error') {
+        setStatus(tMsg('game.opponentFailed'));
+      }
       return;
     }
 
@@ -266,22 +298,24 @@ export function OpeningGameProvider({
       syncState();
 
       const announcement = gameStateAnnouncement(game, verbalMove(played));
-      setIsOpponentThinking(false);
-      setWaitingForUser(!game.isGameOver());
+      if (game.isGameOver()) {
+        setPlayTurn('finished', true);
+      } else {
+        setPlayTurn('waitingForUser');
+      }
       setStatus(announcement);
       speak(announcement);
     } catch {
-      setIsOpponentThinking(false);
-      setWaitingForUser(true);
+      setPlayTurn('error');
+      setStatus(tMsg('game.opponentFailed'));
     }
   }, [
     gameRef,
     moveGenerationRef,
-    setIsOpponentThinking,
+    setPlayTurn,
     syncTheoryUi,
     speak,
     setStatus,
-    setWaitingForUser,
     setLastMove,
     syncState,
   ]);
@@ -310,8 +344,7 @@ export function OpeningGameProvider({
         speak(playerAnnouncement);
         speak(theoryMsg);
         setStatus(theoryMsg);
-        setWaitingForUser(false);
-        setIsOpponentThinking(false);
+        setPlayTurn('awaitingTheoryDecision');
         return;
       }
 
@@ -319,9 +352,13 @@ export function OpeningGameProvider({
       setStatus(playerAnnouncement);
 
       if (game.isGameOver()) {
-        setWaitingForUser(false);
+        setPlayTurn('finished', true);
       } else {
-        setWaitingForUser(false);
+        setPlayTurn(
+          opponentSearchTurn(
+            opponentRef.current?.getTrainingState() ?? 'playingTheory',
+          ),
+        );
         opponentMoveRef.current();
       }
     },
@@ -334,8 +371,7 @@ export function OpeningGameProvider({
       syncTheoryUi,
       speak,
       setStatus,
-      setWaitingForUser,
-      setIsOpponentThinking,
+      setPlayTurn,
       opponentMoveRef,
     ],
   );
@@ -347,28 +383,40 @@ export function OpeningGameProvider({
     const result = undoPlayerTurn(gameRef.current, playerColorRef.current);
     if (result.kind === 'noop') return;
 
+    const kickoff = () => {
+      const next = playTurnAfterUndo(result.needsOpponentKickoff);
+      if (result.needsOpponentKickoff) {
+        // Prefer repertoire reply if still in book after undo.
+        const search = opponentSearchTurn(
+          opponentRef.current?.getTrainingState() ?? 'playingTheory',
+        );
+        setPlayTurn(search);
+        opponentMoveRef.current();
+      } else {
+        setPlayTurn(next);
+      }
+    };
+
     if (result.kind === 'undone-to-start') {
       opponentRef.current?.onUndo(0);
       syncTheoryUi();
       syncState();
       setLastMove(null);
-      setWaitingForUser(true);
-      setIsOpponentThinking(false);
       setHeardText('');
       setStatus(result.status);
       speak(result.speak);
+      kickoff();
       return;
     }
 
     opponentRef.current?.onUndo(result.plyAfter);
     syncTheoryUi();
     syncState();
-    setIsOpponentThinking(false);
     setHeardText('');
-    setWaitingForUser(true);
     setLastMove(result.lastMove);
     setStatus(result.status);
     speak(result.speak);
+    kickoff();
   }, [
     cancelPending,
     gameRef,
@@ -376,12 +424,21 @@ export function OpeningGameProvider({
     syncTheoryUi,
     syncState,
     setLastMove,
-    setWaitingForUser,
-    setIsOpponentThinking,
+    setPlayTurn,
     setHeardText,
     setStatus,
     speak,
+    opponentMoveRef,
   ]);
+
+  const retryOpponentMove = useCallback(() => {
+    if (gameRef.current.isGameOver()) return;
+    const search = opponentSearchTurn(
+      opponentRef.current?.getTrainingState() ?? 'engineContinuation',
+    );
+    setPlayTurn(search);
+    opponentMoveRef.current();
+  }, [gameRef, setPlayTurn, opponentMoveRef]);
 
   const applyUserMove = useCallback(
     (raw: string, source: MoveInputSource = 'voice') => {
@@ -475,11 +532,11 @@ export function OpeningGameProvider({
       syncState();
 
       if (color === 'b') {
-        setWaitingForUser(false);
+        setPlayTurn('playingRepertoireReply');
         setStatus(tMsg('game.opponentPreparing'));
         scheduleOpponentKickoff(1200);
       } else {
-        setWaitingForUser(true);
+        setPlayTurn('waitingForUser');
         setStatus(tMsg('game.yourTurn'));
       }
     },
@@ -488,7 +545,7 @@ export function OpeningGameProvider({
       gameRef,
       resetUiForNewGame,
       syncState,
-      setWaitingForUser,
+      setPlayTurn,
       setStatus,
       scheduleOpponentKickoff,
     ],
@@ -512,9 +569,15 @@ export function OpeningGameProvider({
     if (!opp) return;
     opp.continueVsEngine();
     syncTheoryUi();
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[openings] continueVsEngine strengthBand=${strengthBandId} label=${strengthBandLabel}`,
+      );
+    }
     const game = gameRef.current;
     if (game.isGameOver()) {
-      setWaitingForUser(false);
+      setPlayTurn('finished', true);
       setStatus(tMsg('openings.theoryCompleteContinuing'));
       return;
     }
@@ -524,18 +587,18 @@ export function OpeningGameProvider({
     // kick Stockfish. If it's the user's turn, wait for them.
     const turn = game.turn();
     if (turn === playerColorRef.current) {
-      setWaitingForUser(true);
-      setIsOpponentThinking(false);
+      setPlayTurn('waitingForUser');
     } else {
-      setWaitingForUser(false);
+      setPlayTurn('waitingForEngine');
       opponentMoveRef.current();
     }
   }, [
     syncTheoryUi,
+    strengthBandId,
+    strengthBandLabel,
     gameRef,
     playerColorRef,
-    setWaitingForUser,
-    setIsOpponentThinking,
+    setPlayTurn,
     setStatus,
     speak,
     opponentMoveRef,
@@ -551,9 +614,8 @@ export function OpeningGameProvider({
     opponentRef.current?.returnToTheory();
     syncTheoryUi();
     syncState();
-    setIsOpponentThinking(false);
     setHeardText('');
-    setWaitingForUser(true);
+    setPlayTurn('waitingForUser');
     setLastMove(result.kind === 'undone-to-start' ? null : result.lastMove);
     setStatus(tMsg('game.yourTurn'));
     speak(tMsg('game.yourTurn'));
@@ -563,9 +625,8 @@ export function OpeningGameProvider({
     playerColorRef,
     syncTheoryUi,
     syncState,
-    setIsOpponentThinking,
     setHeardText,
-    setWaitingForUser,
+    setPlayTurn,
     setLastMove,
     setStatus,
     speak,
@@ -593,7 +654,7 @@ export function OpeningGameProvider({
     if (!choice) {
       syncTheoryUi();
       syncState();
-      setWaitingForUser(true);
+      setPlayTurn('waitingForUser');
       setStatus(tMsg('game.yourTurn'));
       return null;
     }
@@ -611,18 +672,17 @@ export function OpeningGameProvider({
       setStatus(tMsg('openings.expectedMove', { move: expectedLabel }));
       speak(tMsg('openings.expectedMove', { move: verbalMove(played) }));
       setHeardText('');
-      setIsOpponentThinking(false);
       if (game.isGameOver()) {
-        setWaitingForUser(false);
+        setPlayTurn('finished', true);
       } else {
-        setWaitingForUser(false);
+        setPlayTurn('playingRepertoireReply');
         opponentMoveRef.current();
       }
       return expectedLabel;
     } catch {
       syncTheoryUi();
       syncState();
-      setWaitingForUser(true);
+      setPlayTurn('waitingForUser');
       setStatus(tMsg('game.yourTurn'));
       return null;
     }
@@ -636,8 +696,7 @@ export function OpeningGameProvider({
     setStatus,
     speak,
     setHeardText,
-    setIsOpponentThinking,
-    setWaitingForUser,
+    setPlayTurn,
     opponentMoveRef,
   ]);
 
@@ -703,6 +762,7 @@ export function OpeningGameProvider({
         isGameOver,
         waitingForUser,
         isOpponentThinking,
+        playTurn,
         playerColor,
         moveEvent,
         isSpeaking,
@@ -723,6 +783,7 @@ export function OpeningGameProvider({
         repeatLast,
         summarizeGame: summarizeGameHistory,
         undoMove,
+        retryOpponentMove,
         continueVsEngine,
         undoAndThinkAgain,
         showExpectedMove,

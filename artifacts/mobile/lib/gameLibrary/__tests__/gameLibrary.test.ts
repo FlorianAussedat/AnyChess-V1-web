@@ -204,9 +204,76 @@ describe('gameLibrary persistence', () => {
   it('validates snapshots', () => {
     assert.deepEqual(validateGameLibrarySnapshot(null), null);
     assert.deepEqual(validateGameLibrarySnapshot(emptyGameLibrarySnapshot()), {
-      version: 1,
+      version: 2,
+      folders: [],
       games: [],
     });
+  });
+
+  it('migrates v1 snapshots to v2 with games at root', () => {
+    const migrated = validateGameLibrarySnapshot({
+      version: 1,
+      games: [
+        {
+          id: 'g1',
+          fingerprint: 'fp',
+          headers: {},
+          initialFen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          moves: [],
+          hasVariations: false,
+          source: { importedAt: 1 },
+        },
+      ],
+    });
+    assert.equal(migrated?.version, 2);
+    assert.equal(migrated?.folders.length, 0);
+    assert.equal(migrated?.games[0]?.folderId, null);
+  });
+
+  it('clears durable Analysée badges (session-only status)', async () => {
+    const storage = new MemoryKeyValueStorage();
+    await storage.setItem(
+      'anychess.gameLibrary.v1',
+      JSON.stringify({
+        version: 2,
+        folders: [],
+        games: [
+          {
+            id: 'g1',
+            fingerprint: 'fp',
+            headers: {},
+            initialFen:
+              'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+            moves: [
+              {
+                ply: 1,
+                san: 'e4',
+                fenAfter:
+                  'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+              },
+            ],
+            hasVariations: false,
+            source: { importedAt: 1 },
+            analysis: {
+              hasBeenAnalyzed: true,
+              analyzedAt: 1,
+              profileId: 'normal',
+            },
+          },
+        ],
+      }),
+    );
+    const store = new GameLibraryStore(storage);
+    const game = await store.getGame('g1');
+    assert.equal(game?.analysis, undefined);
+
+    const result = await store.importPgnText(SAMPLE_PGN, 'sample.pgn');
+    const imported = result.imported[0]!;
+    const cleared = await store.markAnalyzed(imported.id, {
+      profileId: 'normal',
+      analyzedAt: 42,
+    });
+    assert.equal(cleared?.analysis, undefined);
   });
 });
 

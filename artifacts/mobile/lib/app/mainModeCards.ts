@@ -73,9 +73,9 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
   {
     id: 'parties',
     route: '/parties' as Href,
-    title: 'Lecteur de Parties',
+    title: 'Parties',
     description:
-      'Importe des PGN et rejoue-les à vue ou à l’écoute, coup après coup.',
+      'Importe un PGN, rejoue la partie et analyse avec Stockfish dans le même workspace.',
     iconName: 'play-circle-outline',
     requiredMascotAsset: 'mascot-player-knight-dj.png',
   },

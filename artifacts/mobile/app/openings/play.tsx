@@ -16,6 +16,7 @@ import {
   DEFAULT_STRENGTH_BAND_ID,
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
+import { preferencesStore } from '@/lib/preferences';
 
 /**
  * Opening Game play route.
@@ -24,6 +25,7 @@ import {
  * OpeningGameProvider (separate from Classic GameContext).
  *
  * Query: /openings/play?folderId=…&color=w|b&band=…
+ * `band` overrides Paramètres; otherwise the shared preference is used.
  */
 export default function OpeningPlayRoute() {
   const colors = useColors();
@@ -38,10 +40,13 @@ export default function OpeningPlayRoute() {
   }>();
 
   const initialColor: PlayerColor = color === 'b' ? 'b' : 'w';
+  const preferredBand =
+    preferencesStore.getPreferences().stockfishStrengthBandId ||
+    DEFAULT_STRENGTH_BAND_ID;
   const strengthBandId =
     typeof band === 'string' && band.length > 0
       ? getStrengthBand(band).id
-      : DEFAULT_STRENGTH_BAND_ID;
+      : getStrengthBand(preferredBand).id;
 
   const [repertoire, setRepertoire] = useState<ParsedRepertoire | null>(null);
   const [repertoireName, setRepertoireName] = useState('');

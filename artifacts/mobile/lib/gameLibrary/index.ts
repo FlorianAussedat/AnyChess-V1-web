@@ -2,7 +2,10 @@ export type {
   ImportedGameHeaders,
   ImportedGameMove,
   ImportedChessGame,
+  GameAnalysisMeta,
+  GameLibraryFolder,
   GameLibrarySnapshot,
+  GameLibrarySnapshotV1,
   ImportPgnResult,
 } from './types.ts';
 
@@ -36,11 +39,49 @@ export {
 } from './GamePlaybackScheduler.ts';
 
 export {
-  GameLibraryStore,
-  gameLibraryStore,
+  GAME_LIBRARY_STORAGE_KEY,
   emptyGameLibrarySnapshot,
   validateGameLibrarySnapshot,
-  GAME_LIBRARY_STORAGE_KEY,
+  GameLibraryStore,
+  gameLibraryStore,
 } from './GameLibraryStore.ts';
 
-export { gamePlayersTitle, gameSubtitle } from './display.ts';
+export {
+  gamePlayersTitle,
+  gameSubtitle,
+  gameHasUsableName,
+  gameLibraryTitle,
+} from './display.ts';
+
+export {
+  displayNameFromFilename,
+  MAX_PGN_IMPORT_BATCH,
+} from './displayNameFromFilename.ts';
+
+export {
+  indexPgnGamesLight,
+  formatPgnGameIndexTitle,
+  filterPgnGameIndex,
+  extractPgnSlice,
+  togglePgnGameSelection,
+  type PgnGameIndexEntry,
+  type PgnLightIndexResult,
+} from './indexPgnGamesLight.ts';
+
+export {
+  importSelectedPgnGames,
+} from './importSelectedPgnGames.ts';
+
+export {
+  migrateGameLibrarySnapshot,
+  listChildFolders,
+  countFolderContents,
+  collectDescendantFolderIds,
+} from './folders.ts';
+
+export {
+  buildAnalyzerHref,
+  openPgnInAnalyzer,
+  type AnalyzerHref,
+  type AnalyzerRouteParams,
+} from './openPgnInAnalyzer.ts';

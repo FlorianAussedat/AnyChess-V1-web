@@ -106,4 +106,27 @@ describe('PreferencesStore', () => {
     await store.ensureLoaded();
     assert.equal(store.isHydrated(), true);
   });
+
+  it('persists chessInputMode and stockfishStrengthBandId', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const store = new PreferencesStore(storage);
+    await store.ensureLoaded();
+    await store.update({
+      chessInputMode: 'keypad',
+      stockfishStrengthBandId: '1200-1400',
+    });
+    const again = new PreferencesStore(storage);
+    await again.ensureLoaded();
+    assert.equal(again.getPreferences().chessInputMode, 'keypad');
+    assert.equal(again.getPreferences().stockfishStrengthBandId, '1200-1400');
+  });
+
+  it('defaults missing stockfishStrengthBandId to the classic default', () => {
+    const merged = mergePreferencesDocument({
+      version: 1,
+      language: 'fr',
+    });
+    assert.ok(merged);
+    assert.equal(merged!.stockfishStrengthBandId, '1600-1800');
+  });
 });

@@ -88,7 +88,7 @@ export function GameActionRow({ onRepeat, onUndo, onSummarize, onNewGame }: Prop
 }
 
 const styles = StyleSheet.create({
-  actionRow: { flexDirection: 'row', gap: 5 },
+  actionRow: { flexDirection: 'row', gap: 8 },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',

@@ -19,6 +19,8 @@ export type MessageKey =
   | 'common.reset'
   | 'common.erase'
   | 'common.save'
+  | 'common.yes'
+  | 'common.no'
   | 'common.continue'
   | 'common.retry'
   | 'common.newGame'
@@ -132,12 +134,34 @@ export type MessageKey =
   | 'parties.noMeta'
   | 'parties.moveCount'
   | 'parties.importOk'
+  | 'parties.importProgress'
+  | 'parties.importRenameOffer'
+  | 'parties.multiSelectTitle'
+  | 'parties.multiSelectCount'
+  | 'parties.gameSelectTitle'
+  | 'parties.gameSelectFound'
+  | 'parties.gameSelectSearch'
+  | 'parties.gameSelectMax'
+  | 'parties.gameSelectEmpty'
+  | 'parties.gameSelectIndexed'
+  | 'parties.importSelectedCount'
+  | 'parties.newFolder'
+  | 'parties.folderDeleteTitle'
+  | 'parties.folderDeleteConfirm'
+  | 'parties.folderDeleteAll'
   | 'parties.importDuplicates'
   | 'parties.importSkipped'
   | 'parties.importNone'
   | 'parties.importFailed'
   | 'parties.deleteTitle'
+  | 'parties.deleteConfirmMessage'
   | 'parties.deleteConfirm'
+  | 'parties.voiceCommands'
+  | 'parties.nameRequired'
+  | 'parties.importCancelled'
+  | 'parties.importAction'
+  | 'parties.gameNamePlaceholder'
+  | 'parties.gameName'
   | 'parties.reader'
   | 'parties.play'
   | 'parties.pause'
@@ -154,6 +178,73 @@ export type MessageKey =
   | 'parties.backToLibrary'
   | 'parties.notFound'
   | 'parties.loading'
+  | 'parties.openAnalyzer'
+  | 'parties.openWorkspace'
+  | 'parties.workspace'
+  | 'parties.workspaceSubtitle'
+  | 'parties.parseError'
+  | 'parties.parseErrorHint'
+  | 'parties.analyzerLoad'
+  | 'parties.analyzerPaste'
+  | 'parties.analyzerEmpty'
+  | 'parties.analyzerSubtitle'
+  | 'parties.analyzer'
+  | 'parties.flipBoard'
+  | 'parties.anyliseurTabGame'
+  | 'parties.anyliseurTabAnalysis'
+  | 'parties.anyliseurProfileFast'
+  | 'parties.anyliseurProfileNormal'
+  | 'parties.anyliseurProfileDeep'
+  | 'parties.anyliseurExport'
+  | 'parties.anyliseurExportDone'
+  | 'parties.anyliseurExportFail'
+  | 'parties.anyliseurOpenReader'
+  | 'parties.anyliseurArrowsOn'
+  | 'parties.anyliseurArrowsOff'
+  | 'parties.anyliseurUnavailable'
+  | 'parties.anyliseurRetry'
+  | 'parties.anyliseurInitializing'
+  | 'parties.anyliseurAnalyzing'
+  | 'parties.anyliseurReady'
+  | 'parties.anyliseurProgress'
+  | 'parties.anyliseurProgressMain'
+  | 'parties.anyliseurProgressVariants'
+  | 'parties.anyliseurPlayed'
+  | 'parties.anyliseurBest'
+  | 'parties.anyliseurBefore'
+  | 'parties.anyliseurAfter'
+  | 'parties.anyliseurBestMoves'
+  | 'parties.anyliseurWaiting'
+  | 'parties.anyliseurMore'
+  | 'parties.anyliseurLess'
+  | 'parties.anyliseurCurve'
+  | 'parties.anyliseurAnalyzed'
+  | 'parties.anyliseurReanalyze'
+  | 'parties.anyliseurExportIncludeEvals'
+  | 'parties.anyliseurExportCopyPgn'
+  | 'parties.anyliseurExportDownloadPgn'
+  | 'parties.anyliseurExportCopyFen'
+  | 'parties.anyliseurExportDownloadFen'
+  | 'parties.anyliseurImportFile'
+  | 'parties.anyliseurImportPaste'
+  | 'parties.anyliseurImportLibrary'
+  | 'parties.anyliseurImportInvalid'
+  | 'parties.anyliseurMultiGameChoice'
+  | 'parties.anyliseurFenLoaded'
+  | 'parties.anyliseurA11yFlip'
+  | 'parties.anyliseurA11yFlipHint'
+  | 'parties.anyliseurA11yArrowsHint'
+  | 'parties.anyliseurA11yProfile'
+  | 'parties.anyliseurA11yProfileHint'
+  | 'parties.anyliseurA11yImport'
+  | 'parties.anyliseurA11yImportHint'
+  | 'parties.anyliseurA11yExportHint'
+  | 'parties.anyliseurA11yOpenReaderHint'
+  | 'parties.anyliseurA11yReturn'
+  | 'parties.anyliseurA11yReturnHint'
+  | 'parties.anyliseurProfileTitle'
+  | 'parties.anyliseurProfileHint'
+  | 'parties.anyliseurProfileClose'
   // Game shared
   | 'game.movesPlayed'
   | 'game.exportPgn'
@@ -161,6 +252,8 @@ export type MessageKey =
   | 'game.yourTurn'
   | 'game.opponentThinking'
   | 'game.opponentPreparing'
+  | 'game.opponentFailed'
+  | 'game.opponentRetry'
   | 'game.unrecognized'
   | 'game.ambiguous'
   | 'game.illegal'
@@ -685,6 +778,9 @@ export type MessageKey =
   | 'settings.problemDifficulty'
   | 'settings.visualProblemDifficulty'
   | 'settings.blindProblemDifficulty'
+  | 'settings.engineStrength'
+  | 'settings.stockfishStrength'
+  | 'settings.stockfishStrengthHint'
   | 'puzzle.randomAll'
   | 'puzzle.pieceCount'
   | 'puzzle.startBlind'
@@ -726,6 +822,8 @@ const fr: Dict = {
   'common.reset': 'Réinitialiser',
   'common.erase': 'Effacer',
   'common.save': 'Enregistrer',
+  'common.yes': 'Oui',
+  'common.no': 'Non',
   'common.continue': 'Continuer',
   'common.retry': 'Réessayer',
   'common.newGame': 'Nouvelle partie',
@@ -841,22 +939,46 @@ const fr: Dict = {
   'modes.quiz-ouverture.title': 'Culture générale',
   'modes.quiz-ouverture.description':
     'Teste tes connaissances sur les ouvertures et la culture échiquéenne.',
-  'modes.parties.title': 'Lecteur de Parties',
+  'modes.parties.title': 'Parties',
   'modes.parties.description':
-    'Importe des PGN et rejoue-les à vue ou à l’écoute, coup après coup.',
-  'parties.title': 'Lecteur de Parties',
+    'Importe un PGN, rejoue la partie et analyse avec Stockfish dans le même workspace.',
+  'parties.title': 'Parties',
   'parties.subtitle': 'Bibliothèque',
   'parties.importPgn': 'Importer un PGN',
   'parties.empty': 'Aucune partie importée. Importe un fichier PGN pour commencer.',
   'parties.noMeta': 'Métadonnées indisponibles',
   'parties.moveCount': '{{count}} demi-coups',
   'parties.importOk': '{{count}} partie(s) importée(s)',
+  'parties.importProgress': 'Import {{done}} / {{total}}',
+  'parties.importRenameOffer':
+    'Fichier « {{file}} » importé.\nRenommer ?',
+  'parties.multiSelectTitle': 'Sélectionne jusqu’à 10 fichiers PGN à importer.',
+  'parties.multiSelectCount': '{{selected}} / {{max}} sélectionnées',
+  'parties.gameSelectTitle': 'Sélectionne jusqu’à 10 parties à importer.',
+  'parties.gameSelectFound': '{{count}} parties trouvées',
+  'parties.gameSelectSearch': 'Rechercher (joueur, événement, date…)',
+  'parties.gameSelectMax': 'Maximum 10 parties par import.',
+  'parties.gameSelectEmpty': 'Aucune partie ne correspond.',
+  'parties.gameSelectIndexed': 'Indexé {{count}} parties en {{ms}} ms',
+  'parties.importSelectedCount': 'Importer {{count}} parties',
+  'parties.newFolder': 'Nouveau dossier',
+  'parties.folderDeleteTitle': 'Supprimer le dossier ?',
+  'parties.folderDeleteConfirm':
+    'Ce dossier contient {{games}} partie(s) et {{folders}} sous-dossier(s).',
+  'parties.folderDeleteAll': 'Supprimer le dossier et son contenu',
   'parties.importDuplicates': '{{count}} déjà présente(s)',
   'parties.importSkipped': '{{count}} ignorée(s)',
   'parties.importNone': 'Aucune nouvelle partie importée',
   'parties.importFailed': 'Échec de l’import PGN',
   'parties.deleteTitle': 'Supprimer la partie ?',
   'parties.deleteConfirm': 'Supprimer',
+  'parties.voiceCommands': 'Commandes vocales',
+  'parties.nameRequired': 'Le nom ne peut pas être vide.',
+  'parties.importCancelled': 'Import annulé',
+  'parties.importAction': 'Importer',
+  'parties.gameNamePlaceholder': 'Ex. Morphy – Duke of Brunswick',
+  'parties.gameName': 'Nom de la partie',
+  'parties.deleteConfirmMessage': 'Supprimer cette partie ?',
   'parties.reader': 'Lecteur de Parties',
   'parties.play': 'Lecture',
   'parties.pause': 'Pause',
@@ -873,12 +995,82 @@ const fr: Dict = {
   'parties.backToLibrary': 'Retour à la bibliothèque',
   'parties.notFound': 'Partie introuvable',
   'parties.loading': 'Chargement…',
+  'parties.flipBoard': 'Retourner l’échiquier',
+  'parties.anyliseurTabGame': 'Partie',
+  'parties.anyliseurTabAnalysis': 'Analyse',
+  'parties.anyliseurProfileFast': 'Rapide',
+  'parties.anyliseurProfileNormal': 'Normal',
+  'parties.anyliseurProfileDeep': 'Approfondie',
+  'parties.anyliseurExport': 'Export',
+  'parties.anyliseurExportDone': 'PGN enrichi copié.',
+  'parties.anyliseurExportFail': 'Impossible de copier le PGN.',
+  'parties.anyliseurOpenReader': 'Lecteur',
+  'parties.anyliseurArrowsOn': 'Flèche on',
+  'parties.anyliseurArrowsOff': 'Flèche off',
+  'parties.anyliseurUnavailable': "Le moteur d'analyse n'est pas disponible.",
+  'parties.anyliseurRetry': 'Réessayer',
+  'parties.anyliseurInitializing': 'Initialisation du moteur…',
+  'parties.anyliseurAnalyzing': 'Analyse en cours…',
+  'parties.anyliseurReady': 'Moteur prêt',
+  'parties.anyliseurProgress': 'Analyse {{done}} / {{total}}',
+  'parties.anyliseurProgressMain': 'Analyse ligne principale {{done}} / {{total}}',
+  'parties.anyliseurProgressVariants': 'Analyse variantes {{done}} / {{total}}',
+  'parties.anyliseurPlayed': 'Joué',
+  'parties.anyliseurBest': 'Meilleur',
+  'parties.anyliseurBefore': 'Avant',
+  'parties.anyliseurAfter': 'Après',
+  'parties.anyliseurBestMoves': 'Meilleurs coups',
+  'parties.anyliseurWaiting': 'En attente de lignes…',
+  'parties.anyliseurMore': 'Plus de détails',
+  'parties.anyliseurLess': 'Moins',
+  'parties.anyliseurCurve': "Courbe d'évaluation",
+  'parties.anyliseurAnalyzed': 'Analysée',
+  'parties.anyliseurReanalyze': 'Ré-analyser',
+  'parties.anyliseurExportIncludeEvals': 'Inclure les évaluations',
+  'parties.anyliseurExportCopyPgn': 'Copier le PGN',
+  'parties.anyliseurExportDownloadPgn': 'Télécharger le PGN',
+  'parties.anyliseurExportCopyFen': 'Copier la FEN',
+  'parties.anyliseurExportDownloadFen': 'Télécharger la FEN',
+  'parties.anyliseurImportFile': 'Importer un fichier PGN',
+  'parties.anyliseurImportPaste': 'Coller un PGN ou une FEN',
+  'parties.anyliseurImportLibrary': 'Choisir dans la bibliothèque',
+  'parties.anyliseurImportInvalid': 'Import invalide — la partie actuelle est conservée.',
+  'parties.anyliseurMultiGameChoice': 'Plusieurs parties détectées — choisissez-en une.',
+  'parties.anyliseurFenLoaded': 'Position FEN chargée.',
+  'parties.anyliseurA11yFlip': 'Retourner l’échiquier',
+  'parties.anyliseurA11yFlipHint': 'Inverse la vue des camps blanc et noir',
+  'parties.anyliseurA11yArrowsHint': 'Affiche ou masque la flèche du meilleur coup',
+  'parties.anyliseurA11yProfile': 'Profil d’analyse',
+  'parties.anyliseurA11yProfileHint': 'Choisir le temps de calcul du moteur',
+  'parties.anyliseurA11yImport': 'Importer un PGN',
+  'parties.anyliseurA11yImportHint': 'Charger une nouvelle partie depuis un PGN',
+  'parties.anyliseurA11yExportHint': 'Copier le PGN enrichi dans le presse-papiers',
+  'parties.anyliseurA11yOpenReaderHint': 'Ouvrir la même position dans le Lecteur',
+  'parties.anyliseurA11yReturn': 'Revenir à l’origine d’exploration',
+  'parties.anyliseurA11yReturnHint': 'Retourne au point avant les coups d’exploration',
+  'parties.anyliseurProfileTitle': 'Profil d’analyse',
+  'parties.anyliseurProfileHint':
+    'Ces modes règlent le temps de recherche du moteur, pas la difficulté.',
+  'parties.anyliseurProfileClose': 'Fermer le profil d’analyse',
+  'parties.analyzer': 'AnyLyseur',
+  'parties.analyzerSubtitle': 'Analyse de partie et de position',
+  'parties.analyzerEmpty': 'Colle un PGN pour démarrer AnyLyseur.',
+  'parties.analyzerPaste': 'Colle un PGN ici…',
+  'parties.analyzerLoad': 'Charger',
+  'parties.parseError': 'Impossible de lire cette partie.',
+  'parties.parseErrorHint': 'Vérifie le PGN (coups, en-têtes) puis réessaie.',
+  'parties.openAnalyzer': 'Ouvrir AnyLyseur',
+  'parties.openWorkspace': 'Nouvelle partie / analyse',
+  'parties.workspace': 'Workspace partie',
+  'parties.workspaceSubtitle': 'Partie et analyse — un seul état',
   'game.movesPlayed': 'Coups joués',
   'game.exportPgn': 'Exporter en PGN',
   'game.export': 'Exporter',
   'game.yourTurn': 'À toi de jouer.',
   'game.opponentThinking': "L'adversaire réfléchit…",
   'game.opponentPreparing': "L'adversaire prépare son coup…",
+  'game.opponentFailed': "Le moteur n'a pas pu jouer ce coup.",
+  'game.opponentRetry': 'Réessayer',
   'game.unrecognized': 'Coup non reconnu. Répète.',
   'game.ambiguous': 'Coup ambigu. Précise la case de départ.',
   'game.illegal': 'Coup illégal. Répète.',
@@ -1459,6 +1651,10 @@ const fr: Dict = {
   'settings.problemDifficulty': 'DIFFICULTÉ DES PROBLÈMES',
   'settings.visualProblemDifficulty': 'Difficulté problèmes visuels',
   'settings.blindProblemDifficulty': 'Difficulté problèmes à l’aveugle',
+  'settings.engineStrength': 'NIVEAU MOTEUR',
+  'settings.stockfishStrength': 'Niveau adversaire Stockfish',
+  'settings.stockfishStrengthHint':
+    'Utilisé en Partie classique et lorsque tu sors du répertoire en Ouvertures.',
   'puzzle.randomAll': 'Aléatoire / Tous',
   'puzzle.pieceCount': 'Nombre de pièces',
   'puzzle.startBlind': 'Commencer à l’aveugle',
@@ -1502,6 +1698,8 @@ const en: Dict = {
   'common.reset': 'Reset',
   'common.erase': 'Clear',
   'common.save': 'Save',
+  'common.yes': 'Yes',
+  'common.no': 'No',
   'common.continue': 'Continue',
   'common.retry': 'Try again',
   'common.newGame': 'New game',
@@ -1617,22 +1815,45 @@ const en: Dict = {
   'modes.quiz-ouverture.title': 'General knowledge',
   'modes.quiz-ouverture.description':
     'Test your knowledge of openings and chess culture.',
-  'modes.parties.title': 'Game Reader',
+  'modes.parties.title': 'Games',
   'modes.parties.description':
-    'Import PGN files and replay them visually or by listening, move by move.',
-  'parties.title': 'Game Reader',
+    'Import a PGN, replay the game, and analyze with Stockfish in one workspace.',
+  'parties.title': 'Games',
   'parties.subtitle': 'Library',
   'parties.importPgn': 'Import a PGN',
   'parties.empty': 'No imported games yet. Import a PGN file to get started.',
   'parties.noMeta': 'No metadata available',
   'parties.moveCount': '{{count}} plies',
   'parties.importOk': '{{count}} game(s) imported',
+  'parties.importProgress': 'Import {{done}} / {{total}}',
+  'parties.importRenameOffer': 'File “{{file}}” imported.\nRename?',
+  'parties.multiSelectTitle': 'Select up to 10 PGN files to import.',
+  'parties.multiSelectCount': '{{selected}} / {{max}} selected',
+  'parties.gameSelectTitle': 'Select up to 10 games to import.',
+  'parties.gameSelectFound': '{{count}} games found',
+  'parties.gameSelectSearch': 'Search (player, event, date…)',
+  'parties.gameSelectMax': 'Maximum 10 games per import.',
+  'parties.gameSelectEmpty': 'No matching games.',
+  'parties.gameSelectIndexed': 'Indexed {{count}} games in {{ms}} ms',
+  'parties.importSelectedCount': 'Import {{count}} games',
+  'parties.newFolder': 'New folder',
+  'parties.folderDeleteTitle': 'Delete folder?',
+  'parties.folderDeleteConfirm':
+    'This folder contains {{games}} game(s) and {{folders}} subfolder(s).',
+  'parties.folderDeleteAll': 'Delete folder and its contents',
   'parties.importDuplicates': '{{count}} already present',
   'parties.importSkipped': '{{count}} skipped',
   'parties.importNone': 'No new games imported',
   'parties.importFailed': 'PGN import failed',
   'parties.deleteTitle': 'Delete this game?',
   'parties.deleteConfirm': 'Delete',
+  'parties.voiceCommands': 'Voice commands',
+  'parties.nameRequired': 'Name cannot be empty.',
+  'parties.importCancelled': 'Import cancelled',
+  'parties.importAction': 'Import',
+  'parties.gameNamePlaceholder': 'e.g. Morphy – Duke of Brunswick',
+  'parties.gameName': 'Game name',
+  'parties.deleteConfirmMessage': 'Delete this game?',
   'parties.reader': 'Game Reader',
   'parties.play': 'Play',
   'parties.pause': 'Pause',
@@ -1649,12 +1870,82 @@ const en: Dict = {
   'parties.backToLibrary': 'Back to library',
   'parties.notFound': 'Game not found',
   'parties.loading': 'Loading…',
+  'parties.flipBoard': 'Flip board',
+  'parties.anyliseurTabGame': 'Game',
+  'parties.anyliseurTabAnalysis': 'Analysis',
+  'parties.anyliseurProfileFast': 'Fast',
+  'parties.anyliseurProfileNormal': 'Normal',
+  'parties.anyliseurProfileDeep': 'Deep',
+  'parties.anyliseurExport': 'Export',
+  'parties.anyliseurExportDone': 'Enriched PGN copied.',
+  'parties.anyliseurExportFail': 'Could not copy PGN.',
+  'parties.anyliseurOpenReader': 'Reader',
+  'parties.anyliseurArrowsOn': 'Arrow on',
+  'parties.anyliseurArrowsOff': 'Arrow off',
+  'parties.anyliseurUnavailable': 'The analysis engine is unavailable.',
+  'parties.anyliseurRetry': 'Retry',
+  'parties.anyliseurInitializing': 'Starting engine…',
+  'parties.anyliseurAnalyzing': 'Analyzing…',
+  'parties.anyliseurReady': 'Engine ready',
+  'parties.anyliseurProgress': 'Analysis {{done}} / {{total}}',
+  'parties.anyliseurProgressMain': 'Main line analysis {{done}} / {{total}}',
+  'parties.anyliseurProgressVariants': 'Variants analysis {{done}} / {{total}}',
+  'parties.anyliseurPlayed': 'Played',
+  'parties.anyliseurBest': 'Best',
+  'parties.anyliseurBefore': 'Before',
+  'parties.anyliseurAfter': 'After',
+  'parties.anyliseurBestMoves': 'Best moves',
+  'parties.anyliseurWaiting': 'Waiting for lines…',
+  'parties.anyliseurMore': 'More details',
+  'parties.anyliseurLess': 'Less',
+  'parties.anyliseurCurve': 'Evaluation curve',
+  'parties.anyliseurAnalyzed': 'Analyzed',
+  'parties.anyliseurReanalyze': 'Re-analyze',
+  'parties.anyliseurExportIncludeEvals': 'Include evaluations',
+  'parties.anyliseurExportCopyPgn': 'Copy PGN',
+  'parties.anyliseurExportDownloadPgn': 'Download PGN',
+  'parties.anyliseurExportCopyFen': 'Copy FEN',
+  'parties.anyliseurExportDownloadFen': 'Download FEN',
+  'parties.anyliseurImportFile': 'Import a PGN file',
+  'parties.anyliseurImportPaste': 'Paste a PGN or FEN',
+  'parties.anyliseurImportLibrary': 'Choose from library',
+  'parties.anyliseurImportInvalid': 'Invalid import — current game kept.',
+  'parties.anyliseurMultiGameChoice': 'Multiple games found — pick one.',
+  'parties.anyliseurFenLoaded': 'FEN position loaded.',
+  'parties.anyliseurA11yFlip': 'Flip board',
+  'parties.anyliseurA11yFlipHint': 'Swap white and black board orientation',
+  'parties.anyliseurA11yArrowsHint': 'Show or hide the best-move arrow',
+  'parties.anyliseurA11yProfile': 'Analysis profile',
+  'parties.anyliseurA11yProfileHint': 'Choose engine search time',
+  'parties.anyliseurA11yImport': 'Import PGN',
+  'parties.anyliseurA11yImportHint': 'Load a new game from PGN',
+  'parties.anyliseurA11yExportHint': 'Copy enriched PGN to the clipboard',
+  'parties.anyliseurA11yOpenReaderHint': 'Open the same position in the Reader',
+  'parties.anyliseurA11yReturn': 'Return to exploration origin',
+  'parties.anyliseurA11yReturnHint': 'Go back to the position before exploration moves',
+  'parties.anyliseurProfileTitle': 'Analysis profile',
+  'parties.anyliseurProfileHint':
+    'These modes set engine search time, not difficulty.',
+  'parties.anyliseurProfileClose': 'Close analysis profile',
+  'parties.analyzer': 'AnyLyseur',
+  'parties.analyzerSubtitle': 'Game and position analysis',
+  'parties.analyzerEmpty': 'Paste a PGN to start AnyLyseur.',
+  'parties.analyzerPaste': 'Paste a PGN here…',
+  'parties.analyzerLoad': 'Load',
+  'parties.parseError': 'Unable to read this game.',
+  'parties.parseErrorHint': 'Check the PGN (moves, headers) and try again.',
+  'parties.openAnalyzer': 'Open AnyLyseur',
+  'parties.openWorkspace': 'New game / analysis',
+  'parties.workspace': 'Game workspace',
+  'parties.workspaceSubtitle': 'Game and analysis — one shared state',
   'game.movesPlayed': 'Moves played',
   'game.exportPgn': 'Export PGN',
   'game.export': 'Export',
   'game.yourTurn': 'Your move.',
   'game.opponentThinking': 'Opponent is thinking…',
   'game.opponentPreparing': 'Opponent is preparing a move…',
+  'game.opponentFailed': 'The engine could not play this move.',
+  'game.opponentRetry': 'Retry',
   'game.unrecognized': 'Move not recognized. Try again.',
   'game.ambiguous': 'Ambiguous move. Specify the from-square.',
   'game.illegal': 'Illegal move. Try again.',
@@ -2230,6 +2521,10 @@ const en: Dict = {
   'settings.problemDifficulty': 'PROBLEM DIFFICULTY',
   'settings.visualProblemDifficulty': 'Visual problem difficulty',
   'settings.blindProblemDifficulty': 'Blind problem difficulty',
+  'settings.engineStrength': 'ENGINE STRENGTH',
+  'settings.stockfishStrength': 'Stockfish opponent level',
+  'settings.stockfishStrengthHint':
+    'Used in Classic play and when you leave the repertoire in Openings training.',
   'puzzle.randomAll': 'Random / All',
   'puzzle.pieceCount': 'Number of pieces',
   'puzzle.startBlind': 'Start blindfold',

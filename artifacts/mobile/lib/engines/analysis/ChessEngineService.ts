@@ -4,8 +4,12 @@
  * Owns one UCI transport when provided. Screens never see UCI / WASM.
  * Never falls back to a random-move opponent.
  *
- * Platform binding lives in `createChessEngineService(.web).ts` so Metro can
- * pick the Worker transport on web without a forced `transport.ts` import.
+ * Search lifecycle:
+ * - At most one active search on the transport.
+ * - stop() waits (bounded) for bestmove before a new go.
+ * - Late info/bestmove for a previous epoch are ignored.
+ * - Cancelled searches never surface as fake 0.00 evals.
+ * - Illegal bestmoves for the analyzed FEN are discarded.
  */
 import { Chess } from 'chess.js';
 import type { UciTransport } from '../stockfish/types.ts';
@@ -16,6 +20,7 @@ import {
   parseInfoScoreSnapshot,
   type InfoScoreSnapshot,
 } from '../stockfish/uci.ts';
+import { AnalysisCancelledError } from './AnalysisCancelledError.ts';
 import type {
   AnalyzePositionOptions,
   ChessEngineServiceOptions,
@@ -27,16 +32,20 @@ import type {
 import { STOCKFISH_PLATFORM_NOTES } from './types.ts';
 
 type PendingAnalysis = {
-  id: number;
+  /** Monotonic search epoch — only matching bestmove may settle this pending. */
+  epoch: number;
   resolve: (result: EngineAnalysis) => void;
   reject: (err: Error) => void;
   fen: string;
   latest: InfoScoreSnapshot | null;
-  /** MultiPV snapshots keyed by rank. */
   linesByPv: Map<number, InfoScoreSnapshot>;
   multiPv: number;
   timeout: ReturnType<typeof setTimeout> | null;
+  /** When true, settle as cancelled (never as a complete analysis). */
+  cancelled: boolean;
 };
+
+const STOP_WAIT_MS = 750;
 
 function toBestMove(
   from: string,
@@ -45,6 +54,19 @@ function toBestMove(
 ): EngineBestMove {
   const uci = `${from}${to}${promotion ?? ''}`;
   return { from, to, promotion, uci };
+}
+
+function cancelledAnalysis(): EngineAnalysis {
+  return {
+    bestMove: null,
+    score: null,
+    scoreCp: 0,
+    mateIn: null,
+    wdl: null,
+    depth: 0,
+    lines: [],
+    cancelled: true,
+  };
 }
 
 function snapshotToAnalysis(
@@ -72,15 +94,22 @@ function snapshotToAnalysis(
     wdl: latest?.wdl ?? null,
     depth: latest?.depth ?? 0,
     lines,
+    cancelled: false,
   };
 }
 
+/** Only return a move that is legal in `fen`. Never invent illegal suggestions. */
 function resolveLegalBestMove(
   fen: string,
   uci: { from: string; to: string; promotion?: string } | null,
   pvMove: string | null,
 ): EngineBestMove | null {
-  const legal = new Chess(fen).moves({ verbose: true });
+  let legal;
+  try {
+    legal = new Chess(fen).moves({ verbose: true });
+  } catch {
+    return null;
+  }
   const tryMatch = (from: string, to: string, promotion?: string) => {
     const match = legal.find(
       (m) =>
@@ -88,13 +117,14 @@ function resolveLegalBestMove(
         m.to === to &&
         (!promotion || m.promotion === promotion),
     );
-    if (match) {
-      return toBestMove(match.from, match.to, match.promotion);
-    }
-    return toBestMove(from, to, promotion);
+    if (!match) return null;
+    return toBestMove(match.from, match.to, match.promotion);
   };
 
-  if (uci) return tryMatch(uci.from, uci.to, uci.promotion);
+  if (uci) {
+    const hit = tryMatch(uci.from, uci.to, uci.promotion);
+    if (hit) return hit;
+  }
   if (pvMove && pvMove.length >= 4) {
     return tryMatch(
       pvMove.slice(0, 2),
@@ -105,13 +135,46 @@ function resolveLegalBestMove(
   return null;
 }
 
+function filterLegalPv(fen: string, pv: string[]): string[] {
+  if (pv.length === 0) return [];
+  try {
+    const chess = new Chess(fen);
+    const out: string[] = [];
+    for (const token of pv) {
+      if (token.length < 4) break;
+      const from = token.slice(0, 2);
+      const to = token.slice(2, 4);
+      const promotion = token.length > 4 ? token[4]!.toLowerCase() : undefined;
+      const match = chess
+        .moves({ verbose: true })
+        .find(
+          (m) =>
+            m.from === from &&
+            m.to === to &&
+            (!promotion || m.promotion === promotion),
+        );
+      if (!match) break;
+      chess.move(match);
+      out.push(
+        `${match.from}${match.to}${match.promotion ?? ''}`,
+      );
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 export class ChessEngineService {
   private transport: UciTransport | null = null;
   private readyPromise: Promise<void> | null = null;
   private destroyed = false;
   private bootTimeout: ReturnType<typeof setTimeout> | null = null;
   private pending: PendingAnalysis | null = null;
-  private nextRequestId = 1;
+  /** Epoch of the last go; incremented for each search and stop. */
+  private searchEpoch = 0;
+  /** Resolves when a stop's bestmove (or timeout) arrives. */
+  private stopWaiters = new Set<() => void>();
   private status: EngineStatus = 'uninitialized';
   private lastError: string | null = null;
   private readonly enginePath: string;
@@ -190,18 +253,62 @@ export class ChessEngineService {
       this.pending = null;
       p.reject(new Error('[ChessEngineService] Destroyed during analysis.'));
     }
+    this.notifyStopWaiters();
     this.disposeTransport();
     this.readyPromise = null;
     this.setStatus(this.createTransport ? 'uninitialized' : 'unavailable');
   }
 
+  /**
+   * Cancel the active search and wait (bounded) for UCI termination.
+   * Cancelled pending resolves with `cancelled: true` — never a fake full eval.
+   */
   async stop(): Promise<void> {
-    if (this.pending) {
-      const p = this.pending;
-      this.clearPendingTimeout(p);
-      this.pending = null;
-      p.resolve(snapshotToAnalysis(p.latest, null, []));
+    await this.settleActiveSearch({ cancel: true });
+    if (this.status === 'thinking') this.setStatus('ready');
+  }
+
+  private notifyStopWaiters(): void {
+    const waiters = [...this.stopWaiters];
+    this.stopWaiters.clear();
+    for (const w of waiters) w();
+  }
+
+  private waitForSearchEnd(timeoutMs: number): Promise<void> {
+    if (!this.pending) return Promise.resolve();
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        this.stopWaiters.delete(finish);
+        clearTimeout(timer);
+        resolve();
+      };
+      this.stopWaiters.add(finish);
+      const timer = setTimeout(finish, timeoutMs);
+    });
+  }
+
+  private async settleActiveSearch(options: {
+    cancel: boolean;
+  }): Promise<void> {
+    const pending = this.pending;
+    if (!pending) {
+      if (this.transport && this.status !== 'unavailable') {
+        try {
+          this.transport.send('stop');
+        } catch {
+          /* ignore */
+        }
+      }
+      return;
     }
+
+    if (options.cancel) {
+      pending.cancelled = true;
+    }
+
     if (this.transport && this.status !== 'unavailable') {
       try {
         this.transport.send('stop');
@@ -209,7 +316,16 @@ export class ChessEngineService {
         /* ignore */
       }
     }
-    if (this.status === 'thinking') this.setStatus('ready');
+
+    await this.waitForSearchEnd(STOP_WAIT_MS);
+
+    // Bounded recovery: if bestmove never arrived, force-settle as cancelled.
+    if (this.pending === pending) {
+      this.clearPendingTimeout(pending);
+      this.pending = null;
+      pending.resolve(cancelledAnalysis());
+      this.notifyStopWaiters();
+    }
   }
 
   async analyzePosition(options: AnalyzePositionOptions): Promise<EngineAnalysis> {
@@ -218,17 +334,16 @@ export class ChessEngineService {
       throw new Error('[ChessEngineService] Not ready.');
     }
 
-    if (this.pending) {
-      this.transport.send('stop');
-      const stale = this.pending;
-      this.clearPendingTimeout(stale);
-      this.pending = null;
-      stale.resolve(snapshotToAnalysis(stale.latest, null, []));
-    }
+    // One search at a time: fully settle the previous epoch first.
+    await this.settleActiveSearch({ cancel: true });
 
     const movetime = options.movetimeMs ?? this.defaultMoveTimeMs;
     const multiPv = Math.max(1, Math.round(options.multiPv ?? 1));
-    const id = this.nextRequestId++;
+    const depth =
+      options.depth != null && options.depth > 0
+        ? Math.round(options.depth)
+        : null;
+    const epoch = ++this.searchEpoch;
     this.setStatus('thinking');
 
     if (multiPv !== this.activeMultiPv) {
@@ -238,13 +353,14 @@ export class ChessEngineService {
 
     return new Promise<EngineAnalysis>((resolve, reject) => {
       const pending: PendingAnalysis = {
-        id,
+        epoch,
         resolve: (result) => {
           if (this.status === 'thinking') this.setStatus('ready');
           if (typeof __DEV__ !== 'undefined' && __DEV__) {
             const bm = result.bestMove?.uci ?? '—';
-            const evalLabel =
-              result.score?.type === 'mate'
+            const evalLabel = result.cancelled
+              ? 'cancelled'
+              : result.score?.type === 'mate'
                 ? `mate ${result.score.value}`
                 : `${(result.scoreCp / 100).toFixed(2)}`;
             console.log(
@@ -263,9 +379,10 @@ export class ChessEngineService {
         linesByPv: new Map(),
         multiPv,
         timeout: null,
+        cancelled: false,
       };
       pending.timeout = setTimeout(() => {
-        if (this.pending?.id !== id) return;
+        if (this.pending?.epoch !== epoch) return;
         this.pending = null;
         try {
           this.transport?.send('stop');
@@ -273,12 +390,16 @@ export class ChessEngineService {
           /* ignore */
         }
         pending.reject(new Error('[ChessEngineService] Analysis timed out.'));
+        this.notifyStopWaiters();
       }, this.analysisTimeoutMs);
 
       this.pending = pending;
       this.transport!.send(`position fen ${options.fen}`);
-      if (options.depth != null && options.depth > 0) {
-        this.transport!.send(`go depth ${Math.round(options.depth)}`);
+      // Respect both depth and time budget (UCI: stop at whichever comes first).
+      if (depth != null && movetime > 0) {
+        this.transport!.send(`go depth ${depth} movetime ${movetime}`);
+      } else if (depth != null) {
+        this.transport!.send(`go depth ${depth}`);
       } else {
         this.transport!.send(`go movetime ${movetime}`);
       }
@@ -287,6 +408,7 @@ export class ChessEngineService {
 
   async getBestMove(options: AnalyzePositionOptions): Promise<EngineBestMove | null> {
     const analysis = await this.analyzePosition(options);
+    if (analysis.cancelled) return null;
     return analysis.bestMove;
   }
 
@@ -323,6 +445,50 @@ export class ChessEngineService {
     } catch {
       /* ignore */
     }
+  }
+
+  private settlePendingWithBestmove(line: string): void {
+    const pending = this.pending;
+    if (!pending) return;
+    // Epoch check: a late bestmove after we already force-settled must not
+    // attach to a newer pending (pending would be different object/epoch).
+    this.pending = null;
+    this.clearPendingTimeout(pending);
+    this.notifyStopWaiters();
+
+    if (pending.cancelled) {
+      pending.resolve(cancelledAnalysis());
+      return;
+    }
+
+    const uci = parseBestMove(line);
+    const pv1 = pending.linesByPv.get(1) ?? pending.latest;
+    const bestMove = resolveLegalBestMove(
+      pending.fen,
+      uci,
+      pv1?.pvMove ?? null,
+    );
+    const lines = [...pending.linesByPv.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([rank, snap]) => {
+        const legalPv = filterLegalPv(pending.fen, snap.pv ?? []);
+        return {
+          multipv: rank,
+          scoreCp: snap.scoreCp,
+          mateIn: snap.mateIn,
+          wdl: snap.wdl,
+          depth: snap.depth,
+          bestMove: resolveLegalBestMove(
+            pending.fen,
+            null,
+            legalPv[0] ?? snap.pvMove,
+          ),
+          pv: legalPv.length > 0 ? legalPv : snap.pv ?? [],
+        };
+      })
+      .filter((l) => l.bestMove != null || l.pv.length > 0 || l.multipv === 1);
+
+    pending.resolve(snapshotToAnalysis(pv1, bestMove, lines));
   }
 
   private boot(): Promise<void> {
@@ -371,7 +537,11 @@ export class ChessEngineService {
           if (line.startsWith('readyok')) {
             if (typeof __DEV__ !== 'undefined' && __DEV__) {
               console.log('[Stockfish] readyok received');
-              console.log('[Stockfish] boot duration:', Date.now() - bootStartedAt, 'ms');
+              console.log(
+                '[Stockfish] boot duration:',
+                Date.now() - bootStartedAt,
+                'ms',
+              );
             }
             this.clearBootTimeout();
             this.setStatus('ready');
@@ -381,10 +551,10 @@ export class ChessEngineService {
         }
 
         if (this.pending && line.startsWith('info ')) {
+          if (this.pending.cancelled) return;
           const snap = parseInfoScoreSnapshot(line);
           if (snap) {
             this.pending.linesByPv.set(snap.multipv, snap);
-            // Prefer PV1 for the headline score.
             if (snap.multipv === 1 || !this.pending.latest) {
               this.pending.latest = snap;
             } else if (
@@ -397,28 +567,12 @@ export class ChessEngineService {
           return;
         }
 
-        if (this.pending && line.startsWith('bestmove')) {
-          const pending = this.pending;
-          this.pending = null;
-          this.clearPendingTimeout(pending);
-          const uci = parseBestMove(line);
-          const pv1 = pending.linesByPv.get(1) ?? pending.latest;
-          const bestMove = resolveLegalBestMove(
-            pending.fen,
-            uci,
-            pv1?.pvMove ?? null,
-          );
-          const lines = [...pending.linesByPv.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([rank, snap]) => ({
-              multipv: rank,
-              scoreCp: snap.scoreCp,
-              mateIn: snap.mateIn,
-              wdl: snap.wdl,
-              depth: snap.depth,
-              bestMove: resolveLegalBestMove(pending.fen, null, snap.pvMove),
-            }));
-          pending.resolve(snapshotToAnalysis(pv1, bestMove, lines));
+        if (line.startsWith('bestmove')) {
+          if (!this.pending) {
+            // Orphan bestmove from a search we already force-settled — ignore.
+            return;
+          }
+          this.settlePendingWithBestmove(line);
         }
       };
 
@@ -465,7 +619,9 @@ export function createMockChessEngineService(
     analyzePosition: async (opts) => Promise.resolve(handler(opts.fen)),
     getBestMove: async (opts) => {
       const a = await Promise.resolve(handler(opts.fen));
-      return a.bestMove;
+      return a.cancelled ? null : a.bestMove;
     },
   };
 }
+
+export { AnalysisCancelledError };

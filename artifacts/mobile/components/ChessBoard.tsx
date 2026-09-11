@@ -6,6 +6,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import Svg, { Line, Defs, Marker, Path } from 'react-native-svg';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { BoardTheme } from '@/constants/boardTheme';
 import { computeBoardSize, type BoardSizeMode } from '@/lib/game/boardSize';
@@ -61,6 +62,8 @@ interface Props {
   sizeMode?: BoardSizeMode;
   /** Optional explicit edge length (overrides sizeMode calculation). */
   size?: number;
+  /** Optional analysis arrows (UCI squares). */
+  arrows?: { from: string; to: string; color?: string }[];
 }
 
 export function ChessBoard({
@@ -73,6 +76,7 @@ export function ChessBoard({
   showCoordinates = true,
   sizeMode = 'default',
   size,
+  arrows = [],
 }: Props) {
   const { width } = useWindowDimensions();
   const boardSize = size ?? computeBoardSize(width, sizeMode);
@@ -201,6 +205,56 @@ export function ChessBoard({
           })}
         </View>
       ))}
+
+      {arrows.length > 0 ? (
+        <Svg
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          width={boardSize}
+          height={boardSize}
+        >
+          <Defs>
+            <Marker
+              id="anyliseur-arrow"
+              markerWidth="6"
+              markerHeight="6"
+              refX="5"
+              refY="3"
+              orient="auto"
+            >
+              <Path d="M0,0 L6,3 L0,6 Z" fill={arrows[0]?.color ?? '#F5A623'} />
+            </Marker>
+          </Defs>
+          {arrows.map((arrow, idx) => {
+            const fromFile = arrow.from.charCodeAt(0) - 97;
+            const fromRank = parseInt(arrow.from[1]!, 10);
+            const toFile = arrow.to.charCodeAt(0) - 97;
+            const toRank = parseInt(arrow.to[1]!, 10);
+            const fromCol = isFlipped ? 7 - fromFile : fromFile;
+            const fromRow = isFlipped ? fromRank - 1 : 8 - fromRank;
+            const toCol = isFlipped ? 7 - toFile : toFile;
+            const toRow = isFlipped ? toRank - 1 : 8 - toRank;
+            const x1 = (fromCol + 0.5) * cellSize;
+            const y1 = (fromRow + 0.5) * cellSize;
+            const x2 = (toCol + 0.5) * cellSize;
+            const y2 = (toRow + 0.5) * cellSize;
+            return (
+              <Line
+                key={`${arrow.from}${arrow.to}-${idx}`}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={arrow.color ?? '#F5A623'}
+                strokeWidth={Math.max(3, cellSize * 0.08)}
+                strokeLinecap="round"
+                markerEnd="url(#anyliseur-arrow)"
+                opacity={0.9}
+              />
+            );
+          })}
+        </Svg>
+      ) : null}
     </View>
   );
 }

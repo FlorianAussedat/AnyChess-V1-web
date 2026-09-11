@@ -129,9 +129,22 @@ export type InfoScoreSnapshot = {
   wdl: { win: number; draw: number; loss: number } | null;
   /** First PV move in UCI, if present. */
   pvMove: string | null;
+  /** Full principal variation in UCI tokens (may be empty). */
+  pv: string[];
   /** 1-based MultiPV rank when present (default 1). */
   multipv: number;
 };
+
+/** Extract UCI PV tokens after ` pv ` (remainder of the info line). */
+export function parseInfoPvTokens(line: string): string[] {
+  const idx = line.search(/\bpv\s+/);
+  if (idx < 0) return [];
+  const rest = line.slice(idx).replace(/^pv\s+/, '');
+  return rest
+    .trim()
+    .split(/\s+/)
+    .filter((tok) => /^[a-h][1-8][a-h][1-8][qrbn]?$/i.test(tok));
+}
 
 export function parseInfoScoreSnapshot(line: string): InfoScoreSnapshot | null {
   if (!line.startsWith('info ')) return null;
@@ -160,14 +173,15 @@ export function parseInfoScoreSnapshot(line: string): InfoScoreSnapshot | null {
       }
     : null;
 
-  const pvMatch = line.match(/\bpv\s+(\S+)/);
+  const pv = parseInfoPvTokens(line);
   const multipvMatch = line.match(/\bmultipv\s+(\d+)/);
   return {
     scoreCp,
     mateIn,
     depth: depthMatch ? parseInt(depthMatch[1]!, 10) : 0,
     wdl,
-    pvMove: pvMatch?.[1] ?? null,
+    pvMove: pv[0] ?? null,
+    pv,
     multipv: multipvMatch ? parseInt(multipvMatch[1]!, 10) : 1,
   };
 }
