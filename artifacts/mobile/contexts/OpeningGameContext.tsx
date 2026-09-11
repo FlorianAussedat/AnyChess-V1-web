@@ -238,7 +238,10 @@ export function OpeningGameProvider({
       selected = null;
     }
 
-    if (myGen !== moveGenerationRef.current) return;
+    if (myGen !== moveGenerationRef.current) {
+      setIsOpponentThinking(false);
+      return;
+    }
 
     syncTheoryUi();
 
@@ -347,28 +350,37 @@ export function OpeningGameProvider({
     const result = undoPlayerTurn(gameRef.current, playerColorRef.current);
     if (result.kind === 'noop') return;
 
+    const kickoff = () => {
+      if (result.needsOpponentKickoff) {
+        setWaitingForUser(false);
+        setIsOpponentThinking(false);
+        opponentMoveRef.current();
+      } else {
+        setWaitingForUser(true);
+        setIsOpponentThinking(false);
+      }
+    };
+
     if (result.kind === 'undone-to-start') {
       opponentRef.current?.onUndo(0);
       syncTheoryUi();
       syncState();
       setLastMove(null);
-      setWaitingForUser(true);
-      setIsOpponentThinking(false);
       setHeardText('');
       setStatus(result.status);
       speak(result.speak);
+      kickoff();
       return;
     }
 
     opponentRef.current?.onUndo(result.plyAfter);
     syncTheoryUi();
     syncState();
-    setIsOpponentThinking(false);
     setHeardText('');
-    setWaitingForUser(true);
     setLastMove(result.lastMove);
     setStatus(result.status);
     speak(result.speak);
+    kickoff();
   }, [
     cancelPending,
     gameRef,
@@ -381,6 +393,7 @@ export function OpeningGameProvider({
     setHeardText,
     setStatus,
     speak,
+    opponentMoveRef,
   ]);
 
   const applyUserMove = useCallback(

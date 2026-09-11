@@ -98,6 +98,7 @@ export function ClassicGameScreen() {
     repeatLast,
     summarizeGame,
     undoMove,
+    retryOpponentMove,
     exportPgn,
     downloadPgn,
   } = useGame();
@@ -272,6 +273,7 @@ export function ClassicGameScreen() {
                   thinkingLabel={t('game.opponentThinking')}
                   composeText={keypadActive ? draftMove : null}
                   compact
+                  onRetryOpponent={retryOpponentMove}
                   testID="classic-coup-banner"
                 />
               </View>

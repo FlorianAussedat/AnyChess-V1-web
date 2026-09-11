@@ -34,7 +34,12 @@ import {
 interface PendingSearch {
   resolve: (move: Move | null) => void;
   legalMoves: Move[];
+  /** Hard wall-clock timeout so UI never stays on « adversaire réfléchit » forever. */
+  timeoutId: ReturnType<typeof setTimeout> | null;
 }
+
+/** Extra ms beyond `go movetime` before we abort a hung Worker search. */
+const SEARCH_TIMEOUT_SLACK_MS = 4000;
 
 export class StockfishEngine implements ChessEngine {
   private readonly config: StockfishConfig;
@@ -242,13 +247,29 @@ export class StockfishEngine implements ChessEngine {
     if (this.pending) {
       const stale = this.pending;
       this.pending = null;
+      if (stale.timeoutId != null) clearTimeout(stale.timeoutId);
       stale.resolve(null);
       this.transport.send('stop');
     }
 
     this.searchInfo = new Map();
+    const searchBudget = Math.max(
+      this.config.moveTimeMs + SEARCH_TIMEOUT_SLACK_MS,
+      this.config.moveTimeMs * 2,
+    );
     return new Promise<Move | null>((resolve) => {
-      this.pending = { resolve, legalMoves };
+      const timeoutId = setTimeout(() => {
+        if (this.pending?.resolve !== resolve) return;
+        this.pending = null;
+        this.searchInfo = new Map();
+        try {
+          this.transport?.send('stop');
+        } catch {
+          /* ignore */
+        }
+        resolve(null);
+      }, searchBudget);
+      this.pending = { resolve, legalMoves, timeoutId };
       this.transport!.send(`position fen ${fen}`);
       this.transport!.send(`go movetime ${this.config.moveTimeMs}`);
     });
@@ -258,6 +279,7 @@ export class StockfishEngine implements ChessEngine {
     if (this.pending) {
       const pending = this.pending;
       this.pending = null;
+      if (pending.timeoutId != null) clearTimeout(pending.timeoutId);
       pending.resolve(null);
     }
     if (this.isReady && this.transport) {
@@ -271,6 +293,7 @@ export class StockfishEngine implements ChessEngine {
     const pending = this.pending;
     if (!pending) return; // stale bestmove from an already-cancelled search
     this.pending = null;
+    if (pending.timeoutId != null) clearTimeout(pending.timeoutId);
 
     const candidates = [...this.searchInfo.values()];
     this.searchInfo = new Map();

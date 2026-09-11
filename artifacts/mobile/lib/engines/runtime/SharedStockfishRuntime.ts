@@ -1,6 +1,13 @@
 /**
  * Single shared StockfishAnalysisService for endgame modes (Web Worker).
  * Avoids creating/destroying a Worker on every screen navigation.
+ *
+ * Architecture note (play vs analysis concurrency) — Option B:
+ * Classic/Openings play uses StockfishEngine (own Worker).
+ * AnyLyseur analysis uses ChessEngineService (own Worker).
+ * Endgames share this runtime (third Worker when those modes are used).
+ * Separate Workers so a low-priority analysis search never blocks
+ * opponent move selection. Within each Worker, searches are serialized.
  */
 import { Platform } from 'react-native';
 import { StockfishAnalysisService } from '../../defendDraw/StockfishAnalysisService.ts';

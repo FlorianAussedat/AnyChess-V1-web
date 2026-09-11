@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -12,6 +12,8 @@ type Props = {
   /** When set (e.g. Classic keypad compose), shown as the primary line. */
   composeText?: string | null;
   compact?: boolean;
+  /** Shown when the opponent engine failed to return a move. */
+  onRetryOpponent?: () => void;
   testID?: string;
 };
 
@@ -23,12 +25,18 @@ export function GameStatusCard({
   thinkingLabel,
   composeText = null,
   compact = false,
+  onRetryOpponent,
   testID = 'game-status-card',
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
   const resolvedThinkingLabel = thinkingLabel ?? t('game.opponentThinking');
   const composing = !!composeText && composeText.length > 0;
+  const showRetry =
+    Boolean(onRetryOpponent) &&
+    !isOpponentThinking &&
+    !isGameOver &&
+    status === t('game.opponentFailed');
   const primary = composing
     ? composeText
     : isOpponentThinking
@@ -68,6 +76,17 @@ export function GameStatusCard({
           {t('game.heard', { text: heardText })}
         </Text>
       )}
+      {showRetry ? (
+        <Pressable
+          testID="opponent-retry"
+          onPress={onRetryOpponent}
+          style={[styles.retryBtn, { borderColor: colors.primary }]}
+        >
+          <Text style={{ color: colors.primary, fontSize: 12 }}>
+            {t('game.opponentRetry')}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -90,4 +109,12 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 14, fontFamily: 'Inter_500Medium', lineHeight: 20 },
   statusTextCompact: { fontSize: 15, lineHeight: 20 },
   heardText: { fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
 });

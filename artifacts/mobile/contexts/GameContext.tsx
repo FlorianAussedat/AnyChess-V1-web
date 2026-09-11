@@ -66,6 +66,8 @@ interface GameContextValue {
   repeatLast: () => void;
   summarizeGame: () => void;
   undoMove: () => void;
+  /** Re-kick opponent search after a failed engine move. */
+  retryOpponentMove: () => void;
   exportPgn: () => string;
   downloadPgn: () => void;
 }
@@ -178,11 +180,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       selected = null;
     }
 
-    if (myGen !== moveGenerationRef.current) return;
+    if (myGen !== moveGenerationRef.current) {
+      setIsOpponentThinking(false);
+      return;
+    }
 
     if (!selected) {
       setIsOpponentThinking(false);
       setWaitingForUser(true);
+      setStatus(tMsg('game.opponentFailed'));
       return;
     }
 
@@ -263,20 +269,31 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (result.kind === 'noop') return;
 
     syncState();
-    setIsOpponentThinking(false);
     setHeardText('');
-    setWaitingForUser(true);
+
+    const kickoff = () => {
+      if (result.needsOpponentKickoff) {
+        setWaitingForUser(false);
+        setIsOpponentThinking(false);
+        opponentMoveRef.current();
+      } else {
+        setIsOpponentThinking(false);
+        setWaitingForUser(true);
+      }
+    };
 
     if (result.kind === 'undone-to-start') {
       setLastMove(null);
       setStatus(result.status);
       speak(result.speak);
+      kickoff();
       return;
     }
 
     setLastMove(result.lastMove);
     setStatus(result.status);
     speak(result.speak);
+    kickoff();
   }, [
     cancelPending,
     gameRef,
@@ -288,6 +305,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setLastMove,
     setStatus,
     speak,
+    opponentMoveRef,
   ]);
 
   const applyUserMove = useCallback(
@@ -445,6 +463,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     downloadPgnFile(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
 
+  const retryOpponentMove = useCallback(() => {
+    if (gameRef.current.isGameOver()) return;
+    setWaitingForUser(false);
+    opponentMoveRef.current();
+  }, [gameRef, setWaitingForUser, opponentMoveRef]);
+
   return (
     <GameContext.Provider
       value={{
@@ -469,6 +493,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         repeatLast,
         summarizeGame: summarizeGameHistory,
         undoMove,
+        retryOpponentMove,
         exportPgn,
         downloadPgn,
       }}

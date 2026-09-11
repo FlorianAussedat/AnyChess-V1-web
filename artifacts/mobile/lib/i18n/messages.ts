@@ -19,6 +19,8 @@ export type MessageKey =
   | 'common.reset'
   | 'common.erase'
   | 'common.save'
+  | 'common.yes'
+  | 'common.no'
   | 'common.continue'
   | 'common.retry'
   | 'common.newGame'
@@ -132,6 +134,14 @@ export type MessageKey =
   | 'parties.noMeta'
   | 'parties.moveCount'
   | 'parties.importOk'
+  | 'parties.importProgress'
+  | 'parties.importRenameOffer'
+  | 'parties.multiSelectTitle'
+  | 'parties.multiSelectCount'
+  | 'parties.newFolder'
+  | 'parties.folderDeleteTitle'
+  | 'parties.folderDeleteConfirm'
+  | 'parties.folderDeleteAll'
   | 'parties.importDuplicates'
   | 'parties.importSkipped'
   | 'parties.importNone'
@@ -233,6 +243,8 @@ export type MessageKey =
   | 'game.yourTurn'
   | 'game.opponentThinking'
   | 'game.opponentPreparing'
+  | 'game.opponentFailed'
+  | 'game.opponentRetry'
   | 'game.unrecognized'
   | 'game.ambiguous'
   | 'game.illegal'
@@ -798,6 +810,8 @@ const fr: Dict = {
   'common.reset': 'Réinitialiser',
   'common.erase': 'Effacer',
   'common.save': 'Enregistrer',
+  'common.yes': 'Oui',
+  'common.no': 'Non',
   'common.continue': 'Continuer',
   'common.retry': 'Réessayer',
   'common.newGame': 'Nouvelle partie',
@@ -923,6 +937,16 @@ const fr: Dict = {
   'parties.noMeta': 'Métadonnées indisponibles',
   'parties.moveCount': '{{count}} demi-coups',
   'parties.importOk': '{{count}} partie(s) importée(s)',
+  'parties.importProgress': 'Import {{done}} / {{total}}',
+  'parties.importRenameOffer':
+    'Fichier « {{file}} » importé.\nRenommer ?',
+  'parties.multiSelectTitle': 'Sélectionne jusqu’à 10 parties à importer.',
+  'parties.multiSelectCount': '{{selected}} / {{max}} sélectionnées',
+  'parties.newFolder': 'Nouveau dossier',
+  'parties.folderDeleteTitle': 'Supprimer le dossier ?',
+  'parties.folderDeleteConfirm':
+    'Ce dossier contient {{games}} partie(s) et {{folders}} sous-dossier(s).',
+  'parties.folderDeleteAll': 'Supprimer le dossier et son contenu',
   'parties.importDuplicates': '{{count}} déjà présente(s)',
   'parties.importSkipped': '{{count}} ignorée(s)',
   'parties.importNone': 'Aucune nouvelle partie importée',
@@ -1024,6 +1048,8 @@ const fr: Dict = {
   'game.yourTurn': 'À toi de jouer.',
   'game.opponentThinking': "L'adversaire réfléchit…",
   'game.opponentPreparing': "L'adversaire prépare son coup…",
+  'game.opponentFailed': "Le moteur n'a pas pu jouer ce coup.",
+  'game.opponentRetry': 'Réessayer',
   'game.unrecognized': 'Coup non reconnu. Répète.',
   'game.ambiguous': 'Coup ambigu. Précise la case de départ.',
   'game.illegal': 'Coup illégal. Répète.',
@@ -1647,6 +1673,8 @@ const en: Dict = {
   'common.reset': 'Reset',
   'common.erase': 'Clear',
   'common.save': 'Save',
+  'common.yes': 'Yes',
+  'common.no': 'No',
   'common.continue': 'Continue',
   'common.retry': 'Try again',
   'common.newGame': 'New game',
@@ -1772,6 +1800,15 @@ const en: Dict = {
   'parties.noMeta': 'No metadata available',
   'parties.moveCount': '{{count}} plies',
   'parties.importOk': '{{count}} game(s) imported',
+  'parties.importProgress': 'Import {{done}} / {{total}}',
+  'parties.importRenameOffer': 'File “{{file}}” imported.\nRename?',
+  'parties.multiSelectTitle': 'Select up to 10 games to import.',
+  'parties.multiSelectCount': '{{selected}} / {{max}} selected',
+  'parties.newFolder': 'New folder',
+  'parties.folderDeleteTitle': 'Delete folder?',
+  'parties.folderDeleteConfirm':
+    'This folder contains {{games}} game(s) and {{folders}} subfolder(s).',
+  'parties.folderDeleteAll': 'Delete folder and its contents',
   'parties.importDuplicates': '{{count}} already present',
   'parties.importSkipped': '{{count}} skipped',
   'parties.importNone': 'No new games imported',
@@ -1873,6 +1910,8 @@ const en: Dict = {
   'game.yourTurn': 'Your move.',
   'game.opponentThinking': 'Opponent is thinking…',
   'game.opponentPreparing': 'Opponent is preparing a move…',
+  'game.opponentFailed': 'The engine could not play this move.',
+  'game.opponentRetry': 'Retry',
   'game.unrecognized': 'Move not recognized. Try again.',
   'game.ambiguous': 'Ambiguous move. Specify the from-square.',
   'game.illegal': 'Illegal move. Try again.',
