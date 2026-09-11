@@ -1,6 +1,6 @@
 /**
  * Empty library state for « Apprends tes ouvertures ».
- * Parent owns storage / import; this only presents copy + CTA.
+ * Parent owns storage; this only presents copy + create-folder CTA.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -11,12 +11,12 @@ import { AppButton } from '@/components/ui/AppButton';
 import { DesignTokens } from '@/constants/designTokens';
 
 type Props = {
-  onImport: () => void;
+  onCreateFolder: () => void;
   testID?: string;
 };
 
 export function OpeningEmptyState({
-  onImport,
+  onCreateFolder,
   testID = 'openings-empty-state',
 }: Props) {
   const colors = useColors();
@@ -25,7 +25,7 @@ export function OpeningEmptyState({
   return (
     <View style={styles.wrap} testID={testID}>
       <Ionicons
-        name="documents-outline"
+        name="folder-open-outline"
         size={44}
         color={colors.mutedForeground}
         accessibilityElementsHidden
@@ -44,9 +44,9 @@ export function OpeningEmptyState({
         {t('openings.emptyPurpose')}
       </Text>
       <AppButton
-        label={t('openings.importPgn')}
-        onPress={onImport}
-        testID="openings-empty-import-btn"
+        label={t('openings.createFolder')}
+        onPress={onCreateFolder}
+        testID="openings-empty-create-btn"
         style={styles.cta}
       />
     </View>

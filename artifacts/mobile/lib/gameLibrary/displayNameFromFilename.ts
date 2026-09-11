@@ -10,4 +10,8 @@ export function displayNameFromFilename(fileName: string | undefined | null): st
   return withoutExt;
 }
 
+/** Max games selectable per import in Lecteur / Bibliothèque. */
 export const MAX_PGN_IMPORT_BATCH = 10;
+
+/** Max games selectable per import into an Openings folder. */
+export const MAX_OPENINGS_PGN_IMPORT_BATCH = 100;

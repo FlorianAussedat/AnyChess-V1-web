@@ -106,7 +106,9 @@ export type OfficialDrawReason =
   | 'stalemate'
   | 'threefold'
   | 'fifty'
-  | 'insufficient';
+  | 'insufficient'
+  /** Attacker lacks mating material (K / K+N / K+B) while defender may still mate. */
+  | 'position-defended';
 
 export type DrawAlternativeSummary = {
   san: string;

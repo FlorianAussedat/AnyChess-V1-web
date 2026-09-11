@@ -31,7 +31,7 @@ export function PgnFileDetailModal({ file, onClose }: Props) {
           {file && (
             <>
               <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-                {file.filename}
+                {file.displayName?.trim() || file.filename}
               </Text>
               <ScrollView style={{ maxHeight: 360 }}>
                 <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>

@@ -8,7 +8,8 @@ export type RecordsCategoryId =
   | 'tactics'
   | 'move-naming'
   | 'play-move'
-  | 'memorisation';
+  | 'memorisation'
+  | 'opening-quiz';
 
 export interface RecordsCategoryMeta {
   id: RecordsCategoryId;
@@ -43,6 +44,12 @@ export const RECORDS_CATEGORIES: RecordsCategoryMeta[] = [
     labelKey: 'records.cat.blind',
     descriptionKey: 'records.cat.blindDesc',
     legacyRoute: '/blind',
+  },
+  {
+    id: 'opening-quiz',
+    labelKey: 'records.cat.openingQuiz',
+    descriptionKey: 'records.cat.openingQuizDesc',
+    legacyRoute: '/quiz-ouverture/quelle',
   },
 ];
 
