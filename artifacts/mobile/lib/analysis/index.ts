@@ -43,6 +43,17 @@ export {
   type AnalysisControllerOptions,
 } from './AnalysisController.ts';
 
+export {
+  sessionAnalysisStore,
+  makeSessionGameKey,
+  type SessionGameAnalysisRecord,
+} from './sessionAnalysisStore.ts';
+
+export {
+  orderNodesForBackgroundAnalysis,
+  collectVariantNodesForAnalysis,
+} from './orderBackgroundAnalysis.ts';
+
 export * from './engine/index.ts';
 
 export {

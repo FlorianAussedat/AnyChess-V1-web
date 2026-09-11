@@ -1,17 +1,16 @@
 /**
  * AnyLyseur analysis orchestrator:
  * - auto position analysis with generation ids (no stale UI)
- * - full-game main-line pipeline (non-blocking)
+ * - full-game pipeline: current → main line → variants
  * - current position always preempts batch
- * - in-memory session cache keyed by FEN+profile
- * - game node results isolated by sessionId
- * - branch analysis on demand without abandoning main-line queue
+ * - session-global in-memory cache (survives leave/reopen)
+ * - game node results isolated by sessionId + fingerprint
  */
 import type { ChessEngine } from './engine/ChessEngine.ts';
-import { AnalysisCache, makeAnalysisCacheKey } from './analysisCache.ts';
 import { mapEngineAnalysisToPosition } from './mapEngineAnalysis.ts';
 import { DEFAULT_ANALYSIS_PROFILE, getAnalysisProfile } from './profiles.ts';
 import { terminalWhiteScoreFromFen } from './scoreWhite.ts';
+import { sessionAnalysisStore } from './sessionAnalysisStore.ts';
 import type {
   AnalysisEngineStatus,
   AnalysisProfileId,
@@ -31,9 +30,17 @@ export type AnalysisControllerOptions = {
   onChange?: (state: AnalysisSessionState) => void;
 };
 
+export type AnalysisPhase = 'idle' | 'main' | 'variants' | 'complete';
+
+function analysisDevLog(message: string): void {
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    // eslint-disable-next-line no-console
+    console.log(message);
+  }
+}
+
 export class AnalysisController {
   private readonly engine: ChessEngine;
-  private readonly cache = new AnalysisCache();
   private readonly onChange?: (state: AnalysisSessionState) => void;
   private disposed = false;
   private positionGen = 0;
@@ -44,7 +51,6 @@ export class AnalysisController {
   private engineStatus: AnalysisEngineStatus = 'initializing';
   private engineError: string | null = null;
   private position: PositionAnalysis | null = null;
-  /** FEN the UI currently wants analyzed (even when serving from cache). */
   private desiredFen: string | null = null;
   private analyzingFen: string | null = null;
   private gameNodes: Record<string, GameNodeAnalysis> = {};
@@ -52,10 +58,15 @@ export class AnalysisController {
   private gameTotal = 0;
   private arrowsEnabled = true;
   private pendingGameNodes: AnalyzeNodeSpec[] = [];
-  /** Isolates node results across different games that reuse local ids. */
   private sessionId: string | null = null;
+  private fingerprint: string | null = null;
   private mainLineNodeIds: string[] = [];
+  private variantNodeIds: string[] = [];
   private mainLineComplete = false;
+  private variantsComplete = false;
+  private gameComplete = false;
+  private phase: AnalysisPhase = 'idle';
+  private pendingPumpAfterReady = false;
 
   constructor(options: AnalysisControllerOptions) {
     this.engine = options.engine;
@@ -75,10 +86,13 @@ export class AnalysisController {
         done: this.gameDone,
         total: this.gameTotal,
         running: this.gameRunning,
+        phase: this.phase,
       },
       arrowsEnabled: this.arrowsEnabled,
       sessionId: this.sessionId,
       mainLineComplete: this.mainLineComplete,
+      gameComplete: this.gameComplete,
+      analysisPhase: this.phase,
       desiredFen: this.desiredFen,
     };
   }
@@ -103,6 +117,11 @@ export class AnalysisController {
       await this.engine.init();
       if (this.disposed) return;
       this.setEngineStatus('ready');
+      if (this.pendingPumpAfterReady || this.pendingGameNodes.length > 0) {
+        this.pendingPumpAfterReady = false;
+        this.gameRunning = this.pendingGameNodes.length > 0;
+        void this.pumpGameAnalysis();
+      }
     } catch (err) {
       if (this.disposed) return;
       this.setEngineStatus(
@@ -120,12 +139,12 @@ export class AnalysisController {
   setProfile(profileId: AnalysisProfileId): void {
     if (this.profileId === profileId) return;
     this.profileId = profileId;
-    this.cache.clear();
-    this.clearGameResults({ keepSession: true });
+    sessionAnalysisStore.clearPositionsForProfile(profileId);
+    this.clearGameResultsLocal({ keepSession: true });
     this.emit();
   }
 
-  private clearGameResults(options?: { keepSession?: boolean }): void {
+  private clearGameResultsLocal(options?: { keepSession?: boolean }): void {
     this.gameGen += 1;
     this.gameRunning = false;
     this.pendingGameNodes = [];
@@ -133,24 +152,85 @@ export class AnalysisController {
     this.gameDone = 0;
     this.gameTotal = 0;
     this.mainLineComplete = false;
+    this.variantsComplete = false;
+    this.gameComplete = false;
+    this.phase = 'idle';
     if (!options?.keepSession) {
       this.sessionId = null;
+      this.fingerprint = null;
       this.mainLineNodeIds = [];
+      this.variantNodeIds = [];
     }
   }
 
   getCachedPosition(fen: string): PositionAnalysis | undefined {
     const profile = getAnalysisProfile(this.profileId);
-    return this.cache.get(
-      makeAnalysisCacheKey(fen, profile.id, profile.depth, profile.multiPv),
+    return sessionAnalysisStore.getPosition(
+      fen,
+      profile.id,
+      profile.depth,
+      profile.multiPv,
     );
   }
 
-  /**
-   * Analyze the currently displayed position.
-   * Always bumps generation — including cache hits — so in-flight results
-   * for previous FENs can never overwrite the UI.
-   */
+  private putCachedPosition(fen: string, mapped: PositionAnalysis): void {
+    const profile = getAnalysisProfile(this.profileId);
+    sessionAnalysisStore.setPosition(
+      fen,
+      profile.id,
+      profile.depth,
+      profile.multiPv,
+      mapped,
+    );
+  }
+
+  private syncGameRecord(): void {
+    if (!this.sessionId || !this.fingerprint) return;
+    sessionAnalysisStore.upsertGame({
+      gameId: this.sessionId,
+      fingerprint: this.fingerprint,
+      profileId: this.profileId,
+      gameNodes: { ...this.gameNodes },
+      mainLineNodeIds: [...this.mainLineNodeIds],
+      variantNodeIds: [...this.variantNodeIds],
+      mainLineComplete: this.mainLineComplete,
+      variantsComplete: this.variantsComplete,
+      complete: this.gameComplete,
+      updatedAt: Date.now(),
+    });
+  }
+
+  private recomputeProgress(): void {
+    const mainDone = this.mainLineNodeIds.filter(
+      (id) => this.gameNodes[id]?.profileId === this.profileId,
+    ).length;
+    const varDone = this.variantNodeIds.filter(
+      (id) => this.gameNodes[id]?.profileId === this.profileId,
+    ).length;
+    this.mainLineComplete =
+      this.mainLineNodeIds.length > 0 &&
+      mainDone >= this.mainLineNodeIds.length;
+    this.variantsComplete =
+      this.variantNodeIds.length === 0 ||
+      varDone >= this.variantNodeIds.length;
+    this.gameComplete = this.mainLineComplete && this.variantsComplete;
+
+    if (!this.mainLineComplete) {
+      this.phase = this.gameRunning || mainDone > 0 ? 'main' : 'idle';
+      this.gameDone = mainDone;
+      this.gameTotal = Math.max(1, this.mainLineNodeIds.length);
+    } else if (!this.variantsComplete) {
+      this.phase = 'variants';
+      this.gameDone = varDone;
+      this.gameTotal = Math.max(1, this.variantNodeIds.length);
+    } else {
+      this.phase = 'complete';
+      this.gameDone =
+        this.mainLineNodeIds.length + this.variantNodeIds.length;
+      this.gameTotal = Math.max(1, this.gameDone);
+    }
+  }
+
   async analyzeCurrentPosition(fen: string): Promise<PositionAnalysis | null> {
     if (this.disposed) return null;
 
@@ -170,6 +250,7 @@ export class AnalysisController {
         terminalOutcome: terminal.terminalOutcome,
       };
       if (gen !== this.positionGen || this.disposed) return null;
+      this.putCachedPosition(fen, mapped);
       this.position = mapped;
       this.analyzingFen = null;
       this.emit();
@@ -182,12 +263,12 @@ export class AnalysisController {
     if (this.engineStatus === 'unavailable' || this.engineStatus === 'error') {
       const cached = this.getCachedPosition(fen);
       if (cached && gen === this.positionGen) {
+        sessionAnalysisStore.logCacheLookup(fen, true);
         this.position = cached;
         this.analyzingFen = null;
         this.emit();
         return cached;
       }
-      // Invalidate stale displayed position when switching FEN without cache.
       if (this.position && this.position.fen !== fen && gen === this.positionGen) {
         this.position = null;
         this.emit();
@@ -197,12 +278,12 @@ export class AnalysisController {
 
     const cached = this.getCachedPosition(fen);
     if (cached) {
+      sessionAnalysisStore.logCacheLookup(fen, true);
       if (gen !== this.positionGen || this.disposed) return null;
       this.position = cached;
       this.analyzingFen = null;
       if (!this.gameRunning) this.setEngineStatus('idle');
       else this.emit();
-      // Stop any in-flight search for a previous FEN.
       void this.engine.stop().then(() => {
         if (this.gameRunning && gen === this.positionGen) {
           void this.pumpGameAnalysis();
@@ -211,7 +292,8 @@ export class AnalysisController {
       return cached;
     }
 
-    // Clear stale arrows/eval immediately while waiting for the new FEN.
+    sessionAnalysisStore.logCacheLookup(fen, false);
+
     if (this.position && this.position.fen !== fen) {
       this.position = null;
     }
@@ -229,10 +311,7 @@ export class AnalysisController {
       const mapped = mapEngineAnalysisToPosition(fen, raw, profile.id);
       if (!mapped) return null;
       if (this.disposed || gen !== this.positionGen) return null;
-      this.cache.set(
-        makeAnalysisCacheKey(fen, profile.id, profile.depth, profile.multiPv),
-        mapped,
-      );
+      this.putCachedPosition(fen, mapped);
       this.position = mapped;
       this.analyzingFen = null;
       this.setEngineStatus(resumeGame ? 'analyzing' : 'idle');
@@ -249,33 +328,81 @@ export class AnalysisController {
     }
   }
 
-  /**
-   * Start / resume main-line analysis for a game session.
-   * Changing sessionId clears node results from previous games.
-   */
   startGameAnalysis(
     nodes: AnalyzeNodeSpec[],
     options?: {
       sessionId?: string;
+      fingerprint?: string;
       asMainLine?: boolean;
-      /** Node ids that count toward main-line completion badge (defaults to `nodes`). */
       progressNodeIds?: string[];
+      mainLineNodeIds?: string[];
+      variantNodeIds?: string[];
     },
   ): void {
     if (this.disposed) return;
     const sessionId = options?.sessionId ?? this.sessionId ?? 'default';
+    const fingerprint = options?.fingerprint ?? this.fingerprint ?? sessionId;
     const asMainLine = options?.asMainLine !== false;
 
-    if (sessionId !== this.sessionId) {
-      this.clearGameResults();
+    if (sessionId !== this.sessionId || fingerprint !== this.fingerprint) {
       this.sessionId = sessionId;
+      this.fingerprint = fingerprint;
+      const stored = sessionAnalysisStore.getGame(
+        sessionId,
+        fingerprint,
+        this.profileId,
+      );
+      if (stored) {
+        this.gameNodes = { ...stored.gameNodes };
+        this.mainLineNodeIds = [...stored.mainLineNodeIds];
+        this.variantNodeIds = [...stored.variantNodeIds];
+        this.mainLineComplete = stored.mainLineComplete;
+        this.variantsComplete = stored.variantsComplete;
+        this.gameComplete = stored.complete;
+        this.recomputeProgress();
+        analysisDevLog(`Analysis cache HIT: game ${sessionId}`);
+      } else {
+        this.gameNodes = {};
+        this.mainLineComplete = false;
+        this.variantsComplete = false;
+        this.gameComplete = false;
+        this.mainLineNodeIds = [];
+        this.variantNodeIds = [];
+        analysisDevLog(`Analysis cache MISS: game ${sessionId}`);
+      }
     }
 
     if (asMainLine) {
-      this.mainLineNodeIds =
-        options?.progressNodeIds ?? nodes.map((n) => n.nodeId);
-      this.gameTotal = this.mainLineNodeIds.length;
-      this.recomputeMainLineProgress();
+      if (options?.mainLineNodeIds) {
+        this.mainLineNodeIds = options.mainLineNodeIds;
+      } else if (options?.progressNodeIds) {
+        this.mainLineNodeIds = options.progressNodeIds;
+      } else {
+        this.mainLineNodeIds = nodes.map((n) => n.nodeId);
+      }
+      if (options?.variantNodeIds) {
+        this.variantNodeIds = options.variantNodeIds;
+      }
+      this.recomputeProgress();
+    }
+
+    if (this.gameComplete) {
+      this.pendingGameNodes = [];
+      this.gameRunning = false;
+      this.phase = 'complete';
+      this.emit();
+      return;
+    }
+
+    // Same game already pumping — don't bump generation (would cancel work).
+    if (
+      this.gameRunning &&
+      this.sessionId === sessionId &&
+      this.fingerprint === fingerprint &&
+      asMainLine
+    ) {
+      this.emit();
+      return;
     }
 
     this.gameGen += 1;
@@ -292,9 +419,29 @@ export class AnalysisController {
       ) {
         continue;
       }
+      const profile = getAnalysisProfile(this.profileId);
+      const cached = sessionAnalysisStore.getPosition(
+        n.fen,
+        profile.id,
+        profile.depth,
+        profile.multiPv,
+      );
+      if (cached && cached.profileId === this.profileId) {
+        this.gameNodes[n.nodeId] = {
+          nodeId: n.nodeId,
+          fen: n.fen,
+          evaluation: cached.evaluation,
+          mate: cached.mate,
+          bestMove: cached.bestMove,
+          depth: cached.depth,
+          analyzedAt: cached.analyzedAt,
+          profileId: cached.profileId,
+          terminalOutcome: cached.terminalOutcome,
+        };
+        continue;
+      }
       pending.push(n);
     }
-    // Preserve unfinished main-line work when enqueueing a branch.
     if (!asMainLine) {
       for (const n of this.pendingGameNodes) {
         if (!seen.has(n.nodeId)) {
@@ -304,18 +451,22 @@ export class AnalysisController {
       }
     }
     this.pendingGameNodes = pending;
+    this.recomputeProgress();
+    this.syncGameRecord();
     this.gameRunning = this.pendingGameNodes.length > 0;
     this.emit();
+
+    if (this.engineStatus === 'initializing') {
+      this.pendingPumpAfterReady = true;
+      return;
+    }
     void this.pumpGameAnalysis();
   }
 
-  /** Enqueue branch nodes without resetting main-line progress / badge. */
-  analyzeBranchNodes(
-    nodes: AnalyzeNodeSpec[],
-    sessionId?: string,
-  ): void {
+  analyzeBranchNodes(nodes: AnalyzeNodeSpec[], sessionId?: string): void {
     this.startGameAnalysis(nodes, {
       sessionId: sessionId ?? this.sessionId ?? undefined,
+      fingerprint: this.fingerprint ?? undefined,
       asMainLine: false,
     });
   }
@@ -327,7 +478,6 @@ export class AnalysisController {
     this.emit();
   }
 
-  /** Pause all engine work (screen blur). Does not dispose the controller. */
   async pause(): Promise<void> {
     this.positionGen += 1;
     this.analyzingFen = null;
@@ -340,24 +490,20 @@ export class AnalysisController {
     if (this.engineStatus === 'analyzing') this.setEngineStatus('idle');
   }
 
-  private recomputeMainLineProgress(): void {
-    let done = 0;
-    for (const id of this.mainLineNodeIds) {
-      const node = this.gameNodes[id];
-      if (node && node.profileId === this.profileId) done += 1;
-    }
-    this.gameDone = done;
-    this.mainLineComplete =
-      this.mainLineNodeIds.length > 0 &&
-      done >= this.mainLineNodeIds.length;
-  }
-
   isMainLineFullyAnalyzed(): boolean {
     return this.mainLineComplete;
   }
 
+  isGameFullyAnalyzed(): boolean {
+    return this.gameComplete;
+  }
+
   private async pumpGameAnalysis(): Promise<void> {
     if (this.pumping) return;
+    if (this.engineStatus === 'initializing') {
+      this.pendingPumpAfterReady = true;
+      return;
+    }
     this.pumping = true;
     const gen = this.gameGen;
     try {
@@ -367,18 +513,16 @@ export class AnalysisController {
         this.gameRunning &&
         this.pendingGameNodes.length > 0
       ) {
-        // Position analysis has priority — pause batch until free.
         if (this.analyzingFen) return;
 
         const next = this.pendingGameNodes.shift()!;
         const profile = getAnalysisProfile(this.profileId);
-        const key = makeAnalysisCacheKey(
+        let mapped = sessionAnalysisStore.getPosition(
           next.fen,
           profile.id,
           profile.depth,
           profile.multiPv,
         );
-        let mapped = this.cache.get(key);
 
         if (!mapped) {
           const terminal = terminalWhiteScoreFromFen(next.fen);
@@ -393,17 +537,21 @@ export class AnalysisController {
               mate: terminal.mate,
               terminalOutcome: terminal.terminalOutcome,
             };
-            this.cache.set(key, mapped);
+            this.putCachedPosition(next.fen, mapped);
           }
         }
 
         if (!mapped) {
-          if (this.engineStatus === 'unavailable') {
+          if (
+            this.engineStatus === 'unavailable' ||
+            this.engineStatus === 'error'
+          ) {
             this.pendingGameNodes.unshift(next);
             this.gameRunning = false;
             this.emit();
             return;
           }
+          sessionAnalysisStore.logCacheLookup(next.fen, false);
           this.setEngineStatus('analyzing');
           try {
             const raw = await this.engine.analyzePosition({
@@ -418,7 +566,6 @@ export class AnalysisController {
               this.pendingGameNodes.unshift(next);
               return;
             }
-            // If a position analysis started while we were waiting, re-queue.
             if (this.analyzingFen) {
               this.pendingGameNodes.unshift(next);
               return;
@@ -433,7 +580,7 @@ export class AnalysisController {
               return;
             }
             mapped = result;
-            this.cache.set(key, mapped);
+            this.putCachedPosition(next.fen, mapped);
           } catch (err) {
             if (this.disposed || gen !== this.gameGen) {
               this.pendingGameNodes.unshift(next);
@@ -447,6 +594,8 @@ export class AnalysisController {
             this.gameRunning = false;
             return;
           }
+        } else {
+          sessionAnalysisStore.logCacheLookup(next.fen, true);
         }
 
         if (this.disposed || gen !== this.gameGen) {
@@ -465,13 +614,37 @@ export class AnalysisController {
           profileId: mapped.profileId,
           terminalOutcome: mapped.terminalOutcome,
         };
-        this.recomputeMainLineProgress();
+        if (this.sessionId && this.fingerprint) {
+          sessionAnalysisStore.setGameNode(
+            this.sessionId,
+            this.fingerprint,
+            this.profileId,
+            this.gameNodes[next.nodeId]!,
+            {
+              mainLineNodeIds: this.mainLineNodeIds,
+              variantNodeIds: this.variantNodeIds,
+            },
+          );
+        }
+        const wasMainComplete = this.mainLineComplete;
+        this.recomputeProgress();
+        if (this.mainLineComplete && !wasMainComplete) {
+          analysisDevLog('Main line complete');
+          if (this.variantNodeIds.length > 0 && !this.variantsComplete) {
+            analysisDevLog('Variants analysis start');
+          }
+        }
+        if (this.gameComplete) {
+          analysisDevLog('Game analysis complete');
+        }
         this.emit();
       }
 
       if (gen === this.gameGen) {
         this.gameRunning = this.pendingGameNodes.length > 0;
         if (!this.gameRunning) {
+          this.recomputeProgress();
+          this.syncGameRecord();
           if (this.engineStatus === 'analyzing' && !this.analyzingFen) {
             this.setEngineStatus('idle');
           } else {
@@ -500,8 +673,8 @@ export class AnalysisController {
     if (profileId) {
       this.setProfile(profileId);
     } else {
-      this.cache.clear();
-      this.clearGameResults({ keepSession: true });
+      sessionAnalysisStore.clearPositionsForProfile(this.profileId);
+      this.clearGameResultsLocal({ keepSession: true });
       this.emit();
     }
     return this.analyzeCurrentPosition(fen);
@@ -529,18 +702,19 @@ export class AnalysisController {
     };
   }
 
+  /** Dispose Worker — keeps session analysis cache intact. */
   async dispose(): Promise<void> {
     this.disposed = true;
     this.gameGen += 1;
     this.positionGen += 1;
     this.gameRunning = false;
     this.pendingGameNodes = [];
+    this.syncGameRecord();
     try {
       await this.engine.stop();
     } catch {
       /* ignore */
     }
     this.engine.dispose();
-    this.cache.clear();
   }
 }

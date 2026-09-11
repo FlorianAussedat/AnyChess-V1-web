@@ -1,5 +1,6 @@
 /**
- * React binding for AnalysisController — auto position + main-line game analysis.
+ * React binding for AnalysisController — auto position + full-game analysis.
+ * Auto-start does not depend on the Analyse tab; it waits for engine ready.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReaderGame } from '@/lib/gameReader';
@@ -9,7 +10,10 @@ import {
   collectActiveLineNodes,
   collectMainLineNodes,
 } from './mainLineNodes.ts';
-import { orderNodesForBackgroundAnalysis } from './orderBackgroundAnalysis.ts';
+import {
+  collectVariantNodesForAnalysis,
+  orderNodesForBackgroundAnalysis,
+} from './orderBackgroundAnalysis.ts';
 import type { AnalysisProfileId, AnalysisSessionState } from './types.ts';
 
 export type UseAnyLyseurAnalysisOptions = {
@@ -17,11 +21,16 @@ export type UseAnyLyseurAnalysisOptions = {
   currentFen: string | null;
   currentNodeId: string | null;
   activeLineNodeIds: string[];
-  /** When true, also analyze the active branch after entering a side line. */
   analyzeActiveBranch?: boolean;
-  /** Pause engine work when the screen is not focused. */
   active?: boolean;
 };
+
+function analysisDevLog(message: string): void {
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    // eslint-disable-next-line no-console
+    console.log(message);
+  }
+}
 
 export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
   const {
@@ -35,7 +44,14 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
 
   const [state, setState] = useState<AnalysisSessionState | null>(null);
   const controllerRef = useRef<AnalysisController | null>(null);
-  const activeLineKey = activeLineNodeIds.join('|');
+  const gameRef = useRef(game);
+  const currentFenRef = useRef(currentFen);
+  const activeLineRef = useRef(activeLineNodeIds);
+  gameRef.current = game;
+  currentFenRef.current = currentFen;
+  activeLineRef.current = activeLineNodeIds;
+
+  const fingerprint = game?.fingerprint ?? game?.id ?? null;
 
   useEffect(() => {
     const engine = createChessEngine();
@@ -52,6 +68,7 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     };
   }, []);
 
+  // Current position — always preempts; does not restart the full-game queue.
   useEffect(() => {
     if (!active) {
       void controllerRef.current?.pause();
@@ -61,14 +78,16 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     void controllerRef.current.analyzeCurrentPosition(currentFen);
   }, [currentFen, active]);
 
-  useEffect(() => {
-    if (!active || !game || !controllerRef.current) return;
-    const main = collectMainLineNodes(game);
+  const startFullGameAnalysis = useCallback((g: ReaderGame) => {
+    const ctrl = controllerRef.current;
+    if (!ctrl) return;
+    const main = collectMainLineNodes(g);
     const mainSpecs = [
-      { nodeId: `${game.id}::start`, fen: game.initialFen },
+      { nodeId: `${g.id}::start`, fen: g.initialFen },
       ...main.map((n) => ({ nodeId: n.nodeId, fen: n.fen })),
     ];
-    const activeNodes = collectActiveLineNodes(game, activeLineNodeIds);
+    const variantSpecs = collectVariantNodesForAnalysis(g);
+    const activeNodes = collectActiveLineNodes(g, activeLineRef.current);
     const activeSpecs = activeNodes.map((n) => ({
       nodeId: n.nodeId,
       fen: n.fen,
@@ -76,15 +95,39 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     const ordered = orderNodesForBackgroundAnalysis({
       mainLine: mainSpecs,
       activeLine: activeSpecs,
-      currentFen,
+      currentFen: currentFenRef.current,
+      variantNodes: variantSpecs,
     });
-    controllerRef.current.startGameAnalysis(ordered, {
-      sessionId: game.id,
+    analysisDevLog(`Analysis auto start: ${g.id}`);
+    ctrl.startGameAnalysis(ordered, {
+      sessionId: g.id,
+      fingerprint: g.fingerprint ?? g.id,
       asMainLine: true,
+      mainLineNodeIds: mainSpecs.map((n) => n.nodeId),
+      variantNodeIds: variantSpecs.map((n) => n.nodeId),
       progressNodeIds: mainSpecs.map((n) => n.nodeId),
     });
-  }, [game?.id, active, currentFen, activeLineKey]);
+  }, []);
 
+  // Full-game auto analysis — keyed by game identity (not cursor FEN).
+  useEffect(() => {
+    if (!active || !game || !controllerRef.current) return;
+    startFullGameAnalysis(game);
+  }, [game?.id, fingerprint, active, startFullGameAnalysis]);
+
+  // If the Worker becomes ready after the game effect ran while initializing,
+  // resume the queued analysis automatically.
+  const prevEngineStatus = useRef<string | null>(null);
+  useEffect(() => {
+    const status = state?.engineStatus ?? null;
+    const becameReady =
+      prevEngineStatus.current === 'initializing' && status === 'ready';
+    prevEngineStatus.current = status;
+    if (!becameReady || !active || !game || !controllerRef.current) return;
+    startFullGameAnalysis(game);
+  }, [state?.engineStatus, active, game, startFullGameAnalysis]);
+
+  // Side-branch boost when the user navigates into a variation (optional).
   useEffect(() => {
     if (!active || !analyzeActiveBranch || !game || !controllerRef.current)
       return;
@@ -96,7 +139,7 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
       branch.map((n) => ({ nodeId: n.nodeId, fen: n.fen })),
       game.id,
     );
-  }, [game?.id, activeLineKey, analyzeActiveBranch, active]);
+  }, [game?.id, activeLineNodeIds.join('|'), analyzeActiveBranch, active]);
 
   const setProfile = useCallback((profileId: AnalysisProfileId) => {
     controllerRef.current?.setProfile(profileId);
@@ -106,18 +149,9 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     async (profileId?: AnalysisProfileId) => {
       if (!currentFen || !controllerRef.current) return;
       await controllerRef.current.reanalyze(currentFen, profileId);
-      if (game) {
-        const main = collectMainLineNodes(game);
-        controllerRef.current.startGameAnalysis(
-          [
-            { nodeId: `${game.id}::start`, fen: game.initialFen },
-            ...main.map((n) => ({ nodeId: n.nodeId, fen: n.fen })),
-          ],
-          { sessionId: game.id, asMainLine: true },
-        );
-      }
+      if (game) startFullGameAnalysis(game);
     },
-    [currentFen, game],
+    [currentFen, game, startFullGameAnalysis],
   );
 
   const setArrowsEnabled = useCallback((enabled: boolean) => {
@@ -136,17 +170,8 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     setState(controller.getState());
     await controller.init();
     if (currentFen) await controller.analyzeCurrentPosition(currentFen);
-    if (game) {
-      const main = collectMainLineNodes(game);
-      controller.startGameAnalysis(
-        [
-          { nodeId: `${game.id}::start`, fen: game.initialFen },
-          ...main.map((n) => ({ nodeId: n.nodeId, fen: n.fen })),
-        ],
-        { sessionId: game.id, asMainLine: true },
-      );
-    }
-  }, [currentFen, game]);
+    if (game) startFullGameAnalysis(game);
+  }, [currentFen, game, startFullGameAnalysis]);
 
   const classificationInputs = useMemo(() => {
     if (!controllerRef.current || !game || !currentNodeId) return null;
@@ -163,7 +188,6 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     });
   }, [game, currentNodeId, state?.position, state?.gameNodes]);
 
-  /** Displayed analysis only when it matches the current FEN + profile. */
   const displayPosition = useMemo(() => {
     if (!state?.position || !currentFen) return null;
     if (state.position.fen !== currentFen) return null;
@@ -180,5 +204,6 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     retryEngine,
     classificationInputs,
     isMainLineFullyAnalyzed: state?.mainLineComplete ?? false,
+    isGameFullyAnalyzed: state?.gameComplete ?? false,
   };
 }

@@ -207,6 +207,8 @@ export type MessageKey =
   | 'parties.anyliseurAnalyzing'
   | 'parties.anyliseurReady'
   | 'parties.anyliseurProgress'
+  | 'parties.anyliseurProgressMain'
+  | 'parties.anyliseurProgressVariants'
   | 'parties.anyliseurPlayed'
   | 'parties.anyliseurBest'
   | 'parties.anyliseurBefore'
@@ -1011,6 +1013,8 @@ const fr: Dict = {
   'parties.anyliseurAnalyzing': 'Analyse en cours…',
   'parties.anyliseurReady': 'Moteur prêt',
   'parties.anyliseurProgress': 'Analyse {{done}} / {{total}}',
+  'parties.anyliseurProgressMain': 'Analyse ligne principale {{done}} / {{total}}',
+  'parties.anyliseurProgressVariants': 'Analyse variantes {{done}} / {{total}}',
   'parties.anyliseurPlayed': 'Joué',
   'parties.anyliseurBest': 'Meilleur',
   'parties.anyliseurBefore': 'Avant',
@@ -1884,6 +1888,8 @@ const en: Dict = {
   'parties.anyliseurAnalyzing': 'Analyzing…',
   'parties.anyliseurReady': 'Engine ready',
   'parties.anyliseurProgress': 'Analysis {{done}} / {{total}}',
+  'parties.anyliseurProgressMain': 'Main line analysis {{done}} / {{total}}',
+  'parties.anyliseurProgressVariants': 'Variants analysis {{done}} / {{total}}',
   'parties.anyliseurPlayed': 'Played',
   'parties.anyliseurBest': 'Best',
   'parties.anyliseurBefore': 'Before',

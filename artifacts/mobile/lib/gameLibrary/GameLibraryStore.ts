@@ -34,21 +34,9 @@ export function validateGameLibrarySnapshot(
 ): GameLibrarySnapshot | null {
   const migrated = migrateGameLibrarySnapshot(raw);
   if (!migrated) return null;
-  // Normalize analysis badges (same rules as before).
+  // Strip durable "Analysée" flags — analysis lives in session memory only.
   for (const game of migrated.games) {
-    const analysis = game.analysis;
-    if (analysis && typeof analysis === 'object') {
-      if (
-        analysis.hasBeenAnalyzed === true &&
-        typeof analysis.analyzedAt === 'number' &&
-        typeof analysis.profileId === 'string' &&
-        analysis.profileId.length > 0
-      ) {
-        /* keep */
-      } else {
-        delete game.analysis;
-      }
-    }
+    if (game.analysis) delete game.analysis;
   }
   return migrated;
 }
@@ -315,22 +303,21 @@ export class GameLibraryStore {
     return this.persist(next);
   }
 
+  /**
+   * @deprecated Analysis completeness is session-memory only.
+   * Clears any stale durable badge instead of writing one.
+   */
   async markAnalyzed(
     id: string,
-    meta: { profileId: string; analyzedAt?: number },
+    _meta: { profileId: string; analyzedAt?: number },
   ): Promise<ImportedChessGame | null> {
     const snap = await this.getSnapshot();
     const index = snap.games.findIndex((g) => g.id === id);
     if (index < 0) return null;
     const game = snap.games[index]!;
-    const updated: ImportedChessGame = {
-      ...game,
-      analysis: {
-        hasBeenAnalyzed: true,
-        analyzedAt: meta.analyzedAt ?? Date.now(),
-        profileId: meta.profileId,
-      },
-    };
+    if (!game.analysis) return game;
+    const updated: ImportedChessGame = { ...game };
+    delete updated.analysis;
     const games = [...snap.games];
     games[index] = updated;
     await this.persist({ version: 2, folders: snap.folders, games });

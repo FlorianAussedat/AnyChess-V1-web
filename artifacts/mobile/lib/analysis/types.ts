@@ -72,6 +72,8 @@ export type GameAnalysisProgress = {
   done: number;
   total: number;
   running: boolean;
+  /** Current batch phase for progress labels. */
+  phase?: 'idle' | 'main' | 'variants' | 'complete';
 };
 
 export type AnalysisSessionState = {
@@ -88,6 +90,9 @@ export type AnalysisSessionState = {
   sessionId: string | null;
   /** True only when every main-line node has analysis for the current profile. */
   mainLineComplete: boolean;
+  /** True when main line + variants are complete for the current profile. */
+  gameComplete: boolean;
+  analysisPhase: 'idle' | 'main' | 'variants' | 'complete';
   /** FEN the UI currently wants — used to reject stale display. */
   desiredFen: string | null;
 };

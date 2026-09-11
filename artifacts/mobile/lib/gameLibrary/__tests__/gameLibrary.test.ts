@@ -230,25 +230,50 @@ describe('gameLibrary persistence', () => {
     assert.equal(migrated?.games[0]?.folderId, null);
   });
 
-  it('persists AnyLyseur analysis metadata via markAnalyzed', async () => {
+  it('clears durable Analysée badges (session-only status)', async () => {
     const storage = new MemoryKeyValueStorage();
+    await storage.setItem(
+      'anychess.gameLibrary.v1',
+      JSON.stringify({
+        version: 2,
+        folders: [],
+        games: [
+          {
+            id: 'g1',
+            fingerprint: 'fp',
+            headers: {},
+            initialFen:
+              'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+            moves: [
+              {
+                ply: 1,
+                san: 'e4',
+                fenAfter:
+                  'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1',
+              },
+            ],
+            hasVariations: false,
+            source: { importedAt: 1 },
+            analysis: {
+              hasBeenAnalyzed: true,
+              analyzedAt: 1,
+              profileId: 'normal',
+            },
+          },
+        ],
+      }),
+    );
     const store = new GameLibraryStore(storage);
-    const result = await store.importPgnText(SAMPLE_PGN, 'sample.pgn');
-    const game = result.imported[0]!;
-    assert.equal(game.analysis?.hasBeenAnalyzed, undefined);
+    const game = await store.getGame('g1');
+    assert.equal(game?.analysis, undefined);
 
-    const updated = await store.markAnalyzed(game.id, {
+    const result = await store.importPgnText(SAMPLE_PGN, 'sample.pgn');
+    const imported = result.imported[0]!;
+    const cleared = await store.markAnalyzed(imported.id, {
       profileId: 'normal',
       analyzedAt: 42,
     });
-    assert.equal(updated?.analysis?.hasBeenAnalyzed, true);
-    assert.equal(updated?.analysis?.profileId, 'normal');
-    assert.equal(updated?.analysis?.analyzedAt, 42);
-
-    const again = new GameLibraryStore(storage);
-    const loaded = await again.getGame(game.id);
-    assert.equal(loaded?.analysis?.hasBeenAnalyzed, true);
-    assert.equal(loaded?.analysis?.profileId, 'normal');
+    assert.equal(cleared?.analysis, undefined);
   });
 });
 

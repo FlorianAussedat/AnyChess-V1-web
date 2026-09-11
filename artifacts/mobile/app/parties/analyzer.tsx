@@ -184,13 +184,19 @@ export default function GameWorkspaceScreen() {
     activeLineNodeIds: reader?.activeLineNodeIds ?? [],
   });
 
-  useEffect(() => {
-    if (!gameId || !analysis?.mainLineComplete) return;
-    void gameLibraryStore.markAnalyzed(gameId, {
-      profileId: analysis.profileId,
-      analyzedAt: Date.now(),
-    });
-  }, [gameId, analysis?.mainLineComplete, analysis?.profileId]);
+  // "Analysée" is session-cache only — do not persist a disk flag.
+  const analysisProgressLabel = useMemo(() => {
+    if (!analysis?.gameProgress.running) return null;
+    const done = String(analysis.gameProgress.done);
+    const total = String(analysis.gameProgress.total);
+    if (analysis.gameProgress.phase === 'variants') {
+      return t('parties.anyliseurProgressVariants', { done, total });
+    }
+    if (analysis.gameProgress.phase === 'main') {
+      return t('parties.anyliseurProgressMain', { done, total });
+    }
+    return t('parties.anyliseurProgress', { done, total });
+  }, [analysis?.gameProgress, t]);
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
@@ -486,12 +492,7 @@ export default function GameWorkspaceScreen() {
             : analysis?.engineStatus === 'initializing'
               ? t('parties.anyliseurInitializing')
               : t('parties.anyliseurReady')}
-        {analysis?.gameProgress.running
-          ? ` · ${t('parties.anyliseurProgress', {
-              done: String(analysis.gameProgress.done),
-              total: String(analysis.gameProgress.total),
-            })}`
-          : ''}
+        {analysisProgressLabel ? ` · ${analysisProgressLabel}` : ''}
       </Text>
 
       {engineUnavailable ? (
@@ -734,15 +735,12 @@ export default function GameWorkspaceScreen() {
               ) : null
             }
             bottomSlot={
-              showEngineUi && analysis?.gameProgress.running ? (
+              showEngineUi && analysisProgressLabel ? (
                 <Text
                   style={{ color: colors.mutedForeground, fontSize: 12 }}
                   testID="anyliseur-progress"
                 >
-                  {t('parties.anyliseurProgress', {
-                    done: String(analysis.gameProgress.done),
-                    total: String(analysis.gameProgress.total),
-                  })}
+                  {analysisProgressLabel}
                 </Text>
               ) : null
             }

@@ -40,6 +40,7 @@ import {
   indexPgnGamesLight,
   type PgnGameIndexEntry,
 } from '@/lib/gameLibrary/indexPgnGamesLight';
+import { sessionAnalysisStore } from '@/lib/analysis/sessionAnalysisStore';
 import { PgnGameSelectModal, type PgnGameSelectCandidate } from '@/components/parties/PgnGameSelectModal';
 import type { PickedPgnFile } from '@/lib/repertoire/pickPgnFile';
 
@@ -93,6 +94,13 @@ export default function PartiesLibraryScreen() {
   const [gameSelect, setGameSelect] = useState<GameSelectState | null>(null);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderDraft, setNewFolderDraft] = useState('');
+  const [sessionAnalyzedTick, setSessionAnalyzedTick] = useState(0);
+
+  useEffect(() => {
+    return sessionAnalysisStore.subscribe(() => {
+      setSessionAnalyzedTick((n) => n + 1);
+    });
+  }, []);
 
   const reload = useCallback(async () => {
     const [folderList, gameList] = await Promise.all([
@@ -556,8 +564,15 @@ export default function PartiesLibraryScreen() {
                 <Text style={[styles.meta, { color: colors.mutedForeground }]}>
                   {t('parties.moveCount', { count: game.moves.length })}
                 </Text>
-                {game.analysis?.hasBeenAnalyzed ? (
-                  <Text style={[styles.meta, { color: colors.primary }]}>
+                {sessionAnalyzedTick >= 0 &&
+                sessionAnalysisStore.isGameFullyAnalyzed(
+                  game.id,
+                  game.fingerprint,
+                ) ? (
+                  <Text
+                    style={[styles.meta, { color: colors.primary }]}
+                    testID={`parties-analyzed-${game.id}`}
+                  >
                     {t('parties.anyliseurAnalyzed')}
                   </Text>
                 ) : null}
