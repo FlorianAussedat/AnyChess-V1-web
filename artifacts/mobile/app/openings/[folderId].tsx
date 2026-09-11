@@ -24,6 +24,8 @@ import { HubModeCard } from '@/components/HubModeCard';
 import { PgnFileRow } from '@/components/openings/PgnFileRow';
 import { ImportPgnModal } from '@/components/openings/ImportPgnModal';
 import { PlayOpeningModal } from '@/components/openings/PlayOpeningModal';
+import { preferencesStore } from '@/lib/preferences';
+import { getStrengthBand } from '@/lib/difficulty/StockfishStrengthBands';
 import { SideMigrationModal } from '@/components/openings/SideMigrationModal';
 import { PgnFileDetailModal } from '@/components/openings/PgnFileDetailModal';
 
@@ -106,10 +108,12 @@ export default function FolderDetailScreen() {
   const startPlay = useCallback(
     (strengthBandId: string) => {
       if (!folderId || !canPlay || !folder?.side) return;
+      const normalized = getStrengthBand(strengthBandId).id;
+      void preferencesStore.update({ stockfishStrengthBandId: normalized });
       setPlayOpen(false);
       const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
       router.push(
-        `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}&band=${encodeURIComponent(strengthBandId)}` as Href,
+        `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}&band=${encodeURIComponent(normalized)}` as Href,
       );
     },
     [folderId, canPlay, folder?.side, router],
@@ -345,6 +349,9 @@ export default function FolderDetailScreen() {
         visible={playOpen}
         folderName={folder.name}
         folderSide={folder.side}
+        initialBandId={
+          preferencesStore.getPreferences().stockfishStrengthBandId
+        }
         onCancel={() => setPlayOpen(false)}
         onConfirm={startPlay}
         onRequestClose={() => setPlayOpen(false)}

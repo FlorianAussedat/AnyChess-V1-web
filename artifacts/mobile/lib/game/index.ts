@@ -27,3 +27,11 @@ export {
   applyUserMoveInput,
   type ApplyUserMoveInputResult,
 } from './applyUserMoveInput.ts';
+export {
+  flagsFromPlayTurn,
+  opponentSearchTurn,
+  playTurnAfterEmptyOpponentPick,
+  playTurnAfterUndo,
+  type PlayTurnFlags,
+  type PlayTurnState,
+} from './playTurnState.ts';

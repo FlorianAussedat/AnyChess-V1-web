@@ -769,6 +769,9 @@ export type MessageKey =
   | 'settings.problemDifficulty'
   | 'settings.visualProblemDifficulty'
   | 'settings.blindProblemDifficulty'
+  | 'settings.engineStrength'
+  | 'settings.stockfishStrength'
+  | 'settings.stockfishStrengthHint'
   | 'puzzle.randomAll'
   | 'puzzle.pieceCount'
   | 'puzzle.startBlind'
@@ -1630,6 +1633,10 @@ const fr: Dict = {
   'settings.problemDifficulty': 'DIFFICULTÉ DES PROBLÈMES',
   'settings.visualProblemDifficulty': 'Difficulté problèmes visuels',
   'settings.blindProblemDifficulty': 'Difficulté problèmes à l’aveugle',
+  'settings.engineStrength': 'NIVEAU MOTEUR',
+  'settings.stockfishStrength': 'Niveau adversaire Stockfish',
+  'settings.stockfishStrengthHint':
+    'Utilisé en Partie classique et lorsque tu sors du répertoire en Ouvertures.',
   'puzzle.randomAll': 'Aléatoire / Tous',
   'puzzle.pieceCount': 'Nombre de pièces',
   'puzzle.startBlind': 'Commencer à l’aveugle',
@@ -2487,6 +2494,10 @@ const en: Dict = {
   'settings.problemDifficulty': 'PROBLEM DIFFICULTY',
   'settings.visualProblemDifficulty': 'Visual problem difficulty',
   'settings.blindProblemDifficulty': 'Blind problem difficulty',
+  'settings.engineStrength': 'ENGINE STRENGTH',
+  'settings.stockfishStrength': 'Stockfish opponent level',
+  'settings.stockfishStrengthHint':
+    'Used in Classic play and when you leave the repertoire in Openings training.',
   'puzzle.randomAll': 'Random / All',
   'puzzle.pieceCount': 'Number of pieces',
   'puzzle.startBlind': 'Start blindfold',

@@ -30,13 +30,17 @@ describe('shared chess screen scaffold', () => {
     assert.doesNotMatch(classic, /from '@expo\/vector-icons'/);
   });
 
-  it('Opening uses scaffold + board section', () => {
+  it('Opening uses scaffold + classic command row layout', () => {
     const opening = read('components/OpeningGameScreen.tsx');
     assert.match(opening, /ChessScreenScaffold/);
     assert.match(opening, /ChessBoardSection/);
-    assert.match(opening, /ChessMoveInput/);
-    assert.match(opening, /opening-status-row/);
+    assert.match(opening, /ChessKeyboardToggle/);
+    assert.match(opening, /opening-command-row/);
+    assert.match(opening, /opening-input-mode-toggle/);
+    assert.match(opening, /fitBoardSizeToViewport/);
     assert.match(opening, /OpeningVariationLabel/);
+    assert.match(opening, /opening-status-row/);
+    assert.doesNotMatch(opening, /ChessMoveInput/);
   });
 });
 

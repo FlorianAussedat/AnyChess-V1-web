@@ -42,6 +42,11 @@ export type UserPreferences = {
   blindProblemDifficulty: string;
   /** Classic (voice+board) vs chess keypad — shared across game modes. */
   chessInputMode: ChessInputMode;
+  /**
+   * Default Stockfish strength band for Classic and openings-vs-engine
+   * (see lib/difficulty/StockfishStrengthBands.ts).
+   */
+  stockfishStrengthBandId: string;
   updatedAt: string;
 };
 
@@ -55,6 +60,7 @@ export type UserPreferencesPatch = Partial<{
   visualProblemDifficulty: string;
   blindProblemDifficulty: string;
   chessInputMode: ChessInputMode;
+  stockfishStrengthBandId: string;
 }>;
 
 export const DEFAULT_APP_LANGUAGE: AppLanguage = 'fr';

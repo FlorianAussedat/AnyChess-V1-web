@@ -60,5 +60,6 @@ export function usePreferences() {
     visualProblemDifficulty: preferences.visualProblemDifficulty,
     blindProblemDifficulty: preferences.blindProblemDifficulty,
     chessInputMode: preferences.chessInputMode,
+    stockfishStrengthBandId: preferences.stockfishStrengthBandId,
   };
 }

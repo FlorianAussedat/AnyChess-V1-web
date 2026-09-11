@@ -32,9 +32,19 @@ import {
   type DictationPace,
 } from '@/lib/preferences';
 import { getPuzzleRatingBand } from '@/lib/puzzles';
+import {
+  getStrengthBand,
+} from '@/lib/difficulty/StockfishStrengthBands';
+import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import type { MessageKey } from '@/lib/i18n/messages';
 
-type EditorKind = null | 'language' | 'notation' | 'visualDifficulty' | 'blindDifficulty';
+type EditorKind =
+  | null
+  | 'language'
+  | 'notation'
+  | 'visualDifficulty'
+  | 'blindDifficulty'
+  | 'stockfishStrength';
 
 const PACE_LABEL_KEYS: Record<DictationPace, MessageKey> = {
   slow: 'settings.paceSlow',
@@ -56,6 +66,7 @@ export default function ParametresScreen() {
     dictationPace,
     visualProblemDifficulty,
     blindProblemDifficulty,
+    stockfishStrengthBandId,
     updatePreferences,
     resetPreferences,
   } = usePreferences();
@@ -66,6 +77,7 @@ export default function ParametresScreen() {
   const languageLabel = language === 'en' ? t('profil.langEn') : t('profil.langFr');
   const notationLabel =
     chessNotation === 'en' ? t('profil.notationEn') : t('profil.notationFr');
+  const strengthLabel = getStrengthBand(stockfishStrengthBandId).label;
 
   const resetPrefs = () => {
     Alert.alert(t('profil.resetPrefsTitle'), t('profil.resetPrefsBody'), [
@@ -177,6 +189,18 @@ export default function ParametresScreen() {
           value={getPuzzleRatingBand(blindProblemDifficulty).label}
           onPress={() => setEditor('blindDifficulty')}
           testID="profil-row-blind-difficulty"
+        />
+      </View>
+
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('settings.engineStrength')}
+      </Text>
+      <View style={styles.section}>
+        <ProfilNavRow
+          label={t('settings.stockfishStrength')}
+          value={strengthLabel}
+          onPress={() => setEditor('stockfishStrength')}
+          testID="profil-row-stockfish-strength"
         />
       </View>
 
@@ -318,6 +342,45 @@ export default function ParametresScreen() {
               onPress={() => setEditor(null)}
               style={[styles.modalBtn, { backgroundColor: colors.primary, alignSelf: 'stretch' }]}
               testID="profil-difficulty-done"
+            >
+              <Text
+                style={{
+                  color: colors.primaryForeground,
+                  fontFamily: DesignTokens.typography.weightSemiBold,
+                  textAlign: 'center',
+                }}
+              >
+                OK
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <Modal
+        visible={editor === 'stockfishStrength'}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditor(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+              {t('settings.stockfishStrength')}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+              {t('settings.stockfishStrengthHint')}
+            </Text>
+            <StrengthBandSlider
+              bandId={stockfishStrengthBandId}
+              onBandIdChange={(bandId) => {
+                void updatePreferences({ stockfishStrengthBandId: bandId });
+              }}
+              testID="profil-stockfish-strength-slider"
+            />
+            <Pressable
+              onPress={() => setEditor(null)}
+              style={[styles.modalBtn, { backgroundColor: colors.primary, alignSelf: 'stretch' }]}
+              testID="profil-stockfish-strength-done"
             >
               <Text
                 style={{

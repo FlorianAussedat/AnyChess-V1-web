@@ -31,6 +31,18 @@ import {
   DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
   normalizePuzzleDifficultyBandId,
 } from './puzzleDifficulty.ts';
+import {
+  DEFAULT_STRENGTH_BAND_ID,
+  getStrengthBand,
+} from '../difficulty/StockfishStrengthBands.ts';
+
+function normalizeStrengthBandId(
+  value: unknown,
+  fallback: string = DEFAULT_STRENGTH_BAND_ID,
+): string {
+  if (typeof value !== 'string' || !value.trim()) return fallback;
+  return getStrengthBand(value).id;
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -74,6 +86,7 @@ export function defaultUserPreferences(): UserPreferences {
     visualProblemDifficulty: DEFAULT_VISUAL_PROBLEM_DIFFICULTY,
     blindProblemDifficulty: DEFAULT_BLIND_PROBLEM_DIFFICULTY,
     chessInputMode: 'classic',
+    stockfishStrengthBandId: DEFAULT_STRENGTH_BAND_ID,
     updatedAt: nowIso(),
   };
 }
@@ -121,6 +134,12 @@ export function mergePreferencesDocument(
   }
   if (isChessInputMode(o.chessInputMode)) {
     next.chessInputMode = o.chessInputMode;
+  }
+  if (o.stockfishStrengthBandId !== undefined) {
+    next.stockfishStrengthBandId = normalizeStrengthBandId(
+      o.stockfishStrengthBandId,
+      next.stockfishStrengthBandId,
+    );
   }
 
   if (typeof o.updatedAt === 'string' && o.updatedAt) {
@@ -335,6 +354,18 @@ export class PreferencesStore {
               current.blindProblemDifficulty,
             )
           : current.blindProblemDifficulty,
+      chessInputMode:
+        patch.chessInputMode !== undefined &&
+        isChessInputMode(patch.chessInputMode)
+          ? patch.chessInputMode
+          : current.chessInputMode,
+      stockfishStrengthBandId:
+        patch.stockfishStrengthBandId !== undefined
+          ? normalizeStrengthBandId(
+              patch.stockfishStrengthBandId,
+              current.stockfishStrengthBandId,
+            )
+          : current.stockfishStrengthBandId,
       updatedAt: nowIso(),
       version: USER_PREFERENCES_DOCUMENT_VERSION,
     };

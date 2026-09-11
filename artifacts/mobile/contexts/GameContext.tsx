@@ -40,6 +40,7 @@ import {
 } from '@/lib/game';
 import { tMsg } from '@/lib/i18n';
 import { useSharedPlayState } from '@/hooks/useSharedPlayState';
+import { preferencesStore } from '@/lib/preferences';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
@@ -75,9 +76,12 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const strengthBandIdRef = useRef(DEFAULT_STRENGTH_BAND_ID);
+  const initialBand =
+    preferencesStore.getPreferences().stockfishStrengthBandId ||
+    DEFAULT_STRENGTH_BAND_ID;
+  const strengthBandIdRef = useRef(initialBand);
   const engineRef = useRef<ChessEngine | null>(null);
-  const [strengthBandId, setStrengthBandIdState] = useState(DEFAULT_STRENGTH_BAND_ID);
+  const [strengthBandId, setStrengthBandIdState] = useState(initialBand);
 
   const play = useSharedPlayState();
   const {
@@ -151,9 +155,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const setStrengthBandId = useCallback(
     (id: string) => {
-      strengthBandIdRef.current = id;
-      setStrengthBandIdState(id);
-      recreateEngine(id);
+      const normalized = getStrengthBand(id).id;
+      strengthBandIdRef.current = normalized;
+      setStrengthBandIdState(normalized);
+      recreateEngine(normalized);
+      void preferencesStore.update({ stockfishStrengthBandId: normalized });
     },
     [recreateEngine],
   );

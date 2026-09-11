@@ -45,7 +45,6 @@ describe('shared ChessMoveInput / ChessMoveKeypad', () => {
 describe('modes migrated to chess-move keyboard', () => {
   it('wires ChessMoveInput into SAN answer surfaces', () => {
     const files = [
-      'components/OpeningGameScreen.tsx',
       'components/puzzles/PuzzlePlayingPhase.tsx',
       'components/blind/BlindRecitationPhase.tsx',
       'components/blind/BlindReconstructionPhase.tsx',
@@ -60,11 +59,18 @@ describe('modes migrated to chess-move keyboard', () => {
     }
   });
 
-  it('keeps Classic on the shared ChessMoveKeypad (auto-submit)', () => {
-    const classic = read('components/ClassicGameScreen.tsx');
-    assert.match(classic, /ChessMoveKeypad/);
-    assert.match(classic, /autoSubmit/);
-    assert.match(classic, /fen=\{keypadFen\}/);
+  it('keeps Classic and Openings on the shared ChessMoveKeypad (auto-submit)', () => {
+    for (const file of [
+      'components/ClassicGameScreen.tsx',
+      'components/OpeningGameScreen.tsx',
+    ]) {
+      const src = read(file);
+      assert.match(src, /ChessMoveKeypad/, file);
+      assert.match(src, /autoSubmit/, file);
+      assert.match(src, /fen=\{keypadFen\}/, file);
+      assert.match(src, /ChessKeyboardToggle/, file);
+      assert.doesNotMatch(src, /ChessMoveInput/, file);
+    }
   });
 });
 

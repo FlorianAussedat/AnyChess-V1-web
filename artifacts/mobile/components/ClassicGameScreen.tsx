@@ -48,6 +48,7 @@ import {
 } from '@/lib/difficulty/StockfishStrengthBands';
 import { useChessInputMode } from '@/hooks/useChessInputMode';
 import { fenFromSanHistory } from '@/lib/moveInput/keypadPromotion';
+import { preferencesStore } from '@/lib/preferences';
 
 /** Classic input UI: voice/board (classic) vs chess keypad. */
 export type ClassicInputMode = 'classic' | 'keypad';
@@ -57,6 +58,14 @@ export type ClassicInputMode = 'classic' | 'keypad';
  * (header, actions, status, talk row, history peek, gaps, safe areas, nav).
  */
 const CLASSIC_BOARD_RESERVED_CHROME = 340;
+
+function preferredStrengthBandId(fallback: string): string {
+  return (
+    preferencesStore.getPreferences().stockfishStrengthBandId ||
+    fallback ||
+    DEFAULT_STRENGTH_BAND_ID
+  );
+}
 
 export function ClassicGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
@@ -112,7 +121,9 @@ export function ClassicGameScreen() {
   const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
   const [campLocked, setCampLocked] = useState(false);
   const [pendingSide, setPendingSide] = useState<SideChoice>('w');
-  const [setupBandId, setSetupBandId] = useState(strengthBandId || DEFAULT_STRENGTH_BAND_ID);
+  const [setupBandId, setSetupBandId] = useState(() =>
+    preferredStrengthBandId(strengthBandId || DEFAULT_STRENGTH_BAND_ID),
+  );
   const [boardVisible, setBoardVisible] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportedText, setExportedText] = useState('');
