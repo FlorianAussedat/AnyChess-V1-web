@@ -42,7 +42,50 @@ import {
 } from '@/lib/gameLibrary/indexPgnGamesLight';
 import { sessionAnalysisStore } from '@/lib/analysis/sessionAnalysisStore';
 import { PgnGameSelectModal, type PgnGameSelectCandidate } from '@/components/parties/PgnGameSelectModal';
+import { FolderPickModal } from '@/components/openings/FolderPickModal';
+import { NameModal } from '@/components/openings/NameModal';
 import type { PickedPgnFile } from '@/lib/repertoire/pickPgnFile';
+import {
+  repertoireService,
+  type RepertoireFolder,
+} from '@/lib/repertoire';
+
+/** Prefer stored raw PGN; otherwise rebuild a minimal single-game PGN. */
+function importedGameToPgn(game: ImportedChessGame): string | null {
+  const raw = game.source.rawPgn?.trim();
+  if (raw) return raw;
+
+  const tags: Array<[string, string | undefined]> = [
+    ['Event', game.headers.event],
+    ['Site', game.headers.site],
+    ['Date', game.headers.date],
+    ['Round', game.headers.round],
+    ['White', game.headers.white],
+    ['Black', game.headers.black],
+    ['Result', game.headers.result],
+    ['ECO', game.headers.eco],
+    ['Opening', game.headers.opening],
+    ['WhiteElo', game.headers.whiteElo],
+    ['BlackElo', game.headers.blackElo],
+  ];
+  if (game.initialFen && !game.initialFen.startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR')) {
+    tags.push(['SetUp', '1'], ['FEN', game.initialFen]);
+  }
+  const headerLines = tags
+    .filter(([, v]) => Boolean(v && String(v).trim()))
+    .map(([k, v]) => `[${k} "${String(v).replace(/"/g, '')}"]`);
+  if (game.moves.length === 0 && headerLines.length === 0) return null;
+
+  const parts: string[] = [];
+  for (let i = 0; i < game.moves.length; i++) {
+    const m = game.moves[i]!;
+    if (i % 2 === 0) parts.push(`${Math.floor(i / 2) + 1}.`);
+    parts.push(m.san);
+  }
+  const result = game.headers.result?.trim() || '*';
+  const movetext = parts.length > 0 ? `${parts.join(' ')} ${result}` : result;
+  return `${headerLines.join('\n')}\n\n${movetext}`.trim();
+}
 
 type RenameOffer = {
   gameId: string;
@@ -95,6 +138,14 @@ export default function PartiesLibraryScreen() {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderDraft, setNewFolderDraft] = useState('');
   const [sessionAnalyzedTick, setSessionAnalyzedTick] = useState(0);
+
+  const [openingsFolders, setOpeningsFolders] = useState<RepertoireFolder[]>([]);
+  const [addToOpeningsGame, setAddToOpeningsGame] =
+    useState<ImportedChessGame | null>(null);
+  const [openingsCreateOpen, setOpeningsCreateOpen] = useState(false);
+  const [openingsCreateDraft, setOpeningsCreateDraft] = useState('');
+  const [openingsBusy, setOpeningsBusy] = useState(false);
+  const [openingsFormError, setOpeningsFormError] = useState<string | null>(null);
 
   useEffect(() => {
     return sessionAnalysisStore.subscribe(() => {
@@ -366,6 +417,72 @@ export default function PartiesLibraryScreen() {
     ]);
   };
 
+  const openAddToOpenings = useCallback(async (game: ImportedChessGame) => {
+    setStatus(null);
+    setOpeningsFormError(null);
+    try {
+      await repertoireService.ensureLoaded();
+      setOpeningsFolders(repertoireService.getFolders());
+      setAddToOpeningsGame(game);
+      setOpeningsCreateOpen(false);
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : t('openings.addToOpeningsFail'));
+    }
+  }, [t]);
+
+  const importGameIntoOpeningsFolder = useCallback(
+    async (targetFolderId: string) => {
+      if (!addToOpeningsGame) return;
+      const pgn = importedGameToPgn(addToOpeningsGame);
+      if (!pgn) {
+        setStatus(t('openings.noPgnInGame'));
+        setAddToOpeningsGame(null);
+        return;
+      }
+      setOpeningsBusy(true);
+      setOpeningsFormError(null);
+      try {
+        const folder = repertoireService.getFolder(targetFolderId);
+        const filename =
+          addToOpeningsGame.source.fileName?.trim() ||
+          `${gameLibraryTitle(addToOpeningsGame).replace(/\s+/g, '_') || 'game'}.pgn`;
+        await repertoireService.importPgn(
+          targetFolderId,
+          filename,
+          pgn,
+          gameLibraryTitle(addToOpeningsGame),
+        );
+        setAddToOpeningsGame(null);
+        setOpeningsCreateOpen(false);
+        setStatus(
+          t('openings.addToOpeningsDone', {
+            name: folder?.name ?? targetFolderId,
+          }),
+        );
+      } catch (e) {
+        setStatus(e instanceof Error ? e.message : t('openings.addToOpeningsFail'));
+      } finally {
+        setOpeningsBusy(false);
+      }
+    },
+    [addToOpeningsGame, t],
+  );
+
+  const createOpeningsFolderAndImport = useCallback(async () => {
+    setOpeningsBusy(true);
+    setOpeningsFormError(null);
+    try {
+      const folder = await repertoireService.createFolder(openingsCreateDraft);
+      setOpeningsFolders(repertoireService.getFolders());
+      setOpeningsCreateOpen(false);
+      await importGameIntoOpeningsFolder(folder.id);
+    } catch (e) {
+      setOpeningsFormError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOpeningsBusy(false);
+    }
+  }, [importGameIntoOpeningsFolder, openingsCreateDraft]);
+
   const openFolder = (folder: GameLibraryFolder) => {
     setFolderStack((s) => [...s, folder]);
     setFolderId(folder.id);
@@ -590,6 +707,16 @@ export default function PartiesLibraryScreen() {
                 <Ionicons name="pencil-outline" size={18} color={colors.foreground} />
               </Pressable>
               <Pressable
+                testID={`parties-add-openings-${game.id}`}
+                onPress={() => {
+                  void openAddToOpenings(game);
+                }}
+                style={styles.deleteBtn}
+                accessibilityLabel={t('openings.addToOpeningsFolder')}
+              >
+                <Ionicons name="library-outline" size={18} color={colors.foreground} />
+              </Pressable>
+              <Pressable
                 testID={`parties-delete-${game.id}`}
                 onPress={() => onDeleteGame(game)}
                 style={styles.deleteBtn}
@@ -738,6 +865,40 @@ export default function PartiesLibraryScreen() {
         }}
         onCancel={() => setGameSelect(null)}
         onConfirm={() => void confirmGameSelect()}
+      />
+
+      <FolderPickModal
+        visible={addToOpeningsGame != null && !openingsCreateOpen}
+        folders={openingsFolders}
+        busy={openingsBusy}
+        title={t('openings.addToOpeningsFolder')}
+        onSelect={(folderId) => {
+          void importGameIntoOpeningsFolder(folderId);
+        }}
+        onCreateFolder={() => {
+          setOpeningsCreateDraft('');
+          setOpeningsFormError(null);
+          setOpeningsCreateOpen(true);
+        }}
+        onCancel={() => setAddToOpeningsGame(null)}
+      />
+
+      <NameModal
+        visible={openingsCreateOpen}
+        title={t('openings.newRepertoire')}
+        placeholder={t('openings.namePlaceholder')}
+        value={openingsCreateDraft}
+        onChangeText={setOpeningsCreateDraft}
+        onCancel={() => {
+          setOpeningsCreateOpen(false);
+          if (!addToOpeningsGame) return;
+        }}
+        onSubmit={() => {
+          void createOpeningsFolderAndImport();
+        }}
+        busy={openingsBusy}
+        error={openingsFormError}
+        submitLabel={t('openings.create')}
       />
 
       {/* Multi-select when >10 files */}
