@@ -65,8 +65,45 @@ export function useRepertoireLibrary() {
   }, [tick]);
 
   const importPgn = useCallback(
-    async (folderId: string, filename: string, pgnText: string) => {
-      const file = await repertoireService.importPgn(folderId, filename, pgnText);
+    async (
+      folderId: string,
+      filename: string,
+      pgnText: string,
+      displayName?: string,
+    ) => {
+      const file = await repertoireService.importPgn(
+        folderId,
+        filename,
+        pgnText,
+        displayName,
+      );
+      bump();
+      return file;
+    },
+    [bump],
+  );
+
+  const renamePgnDisplayName = useCallback(
+    async (fileId: string, displayName: string) => {
+      const file = await repertoireService.renamePgnDisplayName(fileId, displayName);
+      bump();
+      return file;
+    },
+    [bump],
+  );
+
+  const movePgn = useCallback(
+    async (fileId: string, targetFolderId: string) => {
+      const file = await repertoireService.movePgn(fileId, targetFolderId);
+      bump();
+      return file;
+    },
+    [bump],
+  );
+
+  const copyPgnToFolder = useCallback(
+    async (fileId: string, targetFolderId: string) => {
+      const file = await repertoireService.copyPgnToFolder(fileId, targetFolderId);
       bump();
       return file;
     },
@@ -136,6 +173,9 @@ export function useRepertoireLibrary() {
     importPgn,
     replacePgn,
     deletePgn,
+    renamePgnDisplayName,
+    movePgn,
+    copyPgnToFolder,
     setFileEnabled,
     setFolderSide,
     getTrainableFolders,

@@ -93,6 +93,17 @@ export const StorageKeys = {
     shape: '{ listenReconstruct: number, watchRecite: number }',
     documentVersion: 1,
   },
+  /**
+   * Quelle ouverture? — best score out of 10 per difficulty level.
+   * Fresh store (no migration from older opening-quiz stats).
+   */
+  openingQuizRecords: {
+    key: 'anychess.openingQuiz.records.v1',
+    feature: 'quiz-ouverture/quelle',
+    shape:
+      '{ bestByDifficulty: Record<AnyChessDifficultyId, number 0..10> }',
+    documentVersion: 1,
+  },
   continueLineRecent: {
     key: 'anychess.continueLine.recent.v1',
     feature: 'openings/continue-line',

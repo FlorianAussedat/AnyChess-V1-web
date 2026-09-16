@@ -112,10 +112,11 @@ describe('OpeningIdentificationSession difficulty modes', () => {
 });
 
 describe('quelle difficulty UX contracts', () => {
-  it('wires DifficultySelector and MCQ / free-text modes', () => {
+  it('wires text level picker and MCQ / free-text modes (no knight DifficultySelector)', () => {
     const src = readFileSync(join(quizDir, 'quelle.tsx'), 'utf8');
-    assert.match(src, /DifficultySelector/);
-    assert.match(src, /quelle-difficulty/);
+    assert.doesNotMatch(src, /DifficultySelector/);
+    assert.doesNotMatch(src, /BrandAssets\.difficulty/);
+    assert.match(src, /quelle-level-picker/);
     assert.match(src, /quelle-mcq/);
     assert.match(src, /quelle-freetext/);
     assert.match(src, /grandMaitre|free-text/);

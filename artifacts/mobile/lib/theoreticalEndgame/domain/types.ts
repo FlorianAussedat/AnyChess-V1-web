@@ -84,7 +84,8 @@ export type OfficialEndReason =
   | 'stalemate'
   | 'threefold'
   | 'fifty'
-  | 'insufficient';
+  | 'insufficient'
+  | 'position-defended';
 
 export type FirstTheoreticalLoss = {
   playerMoveNumber: number;

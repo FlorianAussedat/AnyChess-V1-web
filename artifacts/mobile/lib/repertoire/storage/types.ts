@@ -39,6 +39,11 @@ export interface StoredPgnFile {
   id: string;
   folderId: string;
   filename: string;
+  /**
+   * Display name in AnyChess only — does not rename the source file on disk.
+   * Falls back to `filename` when unset.
+   */
+  displayName?: string;
   importedAt: string;
   /** Raw PGN text as imported / replaced. */
   pgnText: string;
@@ -48,6 +53,12 @@ export interface StoredPgnFile {
    * merges (Review / Play). Defaults to true when missing (legacy snapshots).
    */
   enabled?: boolean;
+}
+
+/** Prefer displayName, else filename. */
+export function pgnFileDisplayName(file: StoredPgnFile): string {
+  const named = file.displayName?.trim();
+  return named || file.filename;
 }
 
 /** Full snapshot persisted by the storage backend. */

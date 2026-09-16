@@ -15,17 +15,36 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import type { RepertoireFolder, RepertoireSide, ReviewSideFilter } from '@/lib/repertoire';
-import { filterFoldersByReviewSide } from '@/lib/repertoire';
+import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
+import {
+  filterFoldersByReviewSide,
+  joinSelectedPgnSlices,
+} from '@/lib/repertoire';
 import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
+import {
+  indexPgnGamesLight,
+  MAX_OPENINGS_PGN_IMPORT_BATCH,
+  type PgnGameIndexEntry,
+} from '@/lib/gameLibrary';
+import { displayNameFromFilename } from '@/lib/gameLibrary/displayNameFromFilename';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { FolderListRow } from '@/components/openings/FolderListRow';
 import { NameModal } from '@/components/openings/NameModal';
 import { OpeningEmptyState } from '@/components/openings/OpeningEmptyState';
 import { OpeningsReviewBlock } from '@/components/openings/OpeningsReviewBlock';
 import { MixedTrainingModal } from '@/components/openings/MixedTrainingModal';
-import { ImportPgnModal } from '@/components/openings/ImportPgnModal';
-import { folderNameFromPgnFilename } from '@/lib/repertoire/folderNameFromPgnFilename';
+import { FolderPickModal } from '@/components/openings/FolderPickModal';
+import {
+  PgnGameSelectModal,
+  type PgnGameSelectCandidate,
+} from '@/components/parties/PgnGameSelectModal';
+
+type PendingImport = {
+  filename: string;
+  sourceText: string;
+  entries: PgnGameIndexEntry[];
+  selectedIndices: number[];
+};
 
 export default function OpeningsFolderList() {
   const colors = useColors();
@@ -43,7 +62,6 @@ export default function OpeningsFolderList() {
     getFiles,
     getTrainableFolders,
     importPgn,
-    setFolderSide,
   } = useRepertoireLibrary();
 
   const trainable = getTrainableFolders();
@@ -51,18 +69,19 @@ export default function OpeningsFolderList() {
   const [mixedOpen, setMixedOpen] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
+  /** After create from empty / folder-pick, navigate into the new folder. */
+  const [navigateAfterCreate, setNavigateAfterCreate] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RepertoireFolder | null>(null);
   const [nameDraft, setNameDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [importOpen, setImportOpen] = useState(false);
-  const [filename, setFilename] = useState('lignes.pgn');
-  const [pgnText, setPgnText] = useState('');
-  const [importSide, setImportSide] = useState<RepertoireSide | null>(null);
-  const [lastImportResult, setLastImportResult] = useState<
-    Awaited<ReturnType<typeof importPgn>> | null
-  >(null);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [gameSelectOpen, setGameSelectOpen] = useState(false);
+  const [gameCandidates, setGameCandidates] = useState<PgnGameSelectCandidate[]>([]);
+  const [gameSelected, setGameSelected] = useState<Set<string>>(new Set());
+  const [folderPickOpen, setFolderPickOpen] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   const whiteFolders = useMemo(
     () => folders.filter((f) => f.side === 'white'),
@@ -77,9 +96,10 @@ export default function OpeningsFolderList() {
     [folders],
   );
 
-  const openCreate = useCallback(() => {
+  const openCreate = useCallback((navigateInto = false) => {
     setNameDraft('');
     setFormError(null);
+    setNavigateAfterCreate(navigateInto);
     setCreateOpen(true);
   }, []);
 
@@ -89,50 +109,132 @@ export default function OpeningsFolderList() {
     setFormError(null);
   }, []);
 
-  const openImport = useCallback(() => {
-    setFilename('lignes.pgn');
-    setPgnText('');
-    setFormError(null);
-    setLastImportResult(null);
-    setImportSide(null);
-    setImportOpen(true);
+  const beginFolderPick = useCallback((pending: PendingImport) => {
+    setPendingImport(pending);
+    setGameSelectOpen(false);
+    setFolderPickOpen(true);
   }, []);
 
-  const createFolderUnique = useCallback(
-    async (desiredName: string) => {
-      let candidate = desiredName.trim() || 'PGN';
-      let attempt = 1;
-      for (;;) {
-        try {
-          return await createFolder(candidate);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          // Name collision — try "Name (2)", "Name (3)", …
-          if (attempt >= 20) throw err;
-          attempt += 1;
-          candidate = `${desiredName.trim() || 'PGN'} (${attempt})`;
-          // If the error wasn't a name clash, still retry a few times then rethrow.
-          if (!/existe|exists|déjà|already/i.test(message) && attempt > 2) {
-            throw err;
-          }
+  const openImport = useCallback(async () => {
+    setFormError(null);
+    setStatusMsg(null);
+    try {
+      const picked = await pickPgnFile();
+      if (!picked) return;
+      const indexed = indexPgnGamesLight(picked.text);
+      if (indexed.entries.length === 0) {
+        setStatusMsg(t('openings.noValidPositions'));
+        return;
+      }
+      if (indexed.entries.length === 1) {
+        beginFolderPick({
+          filename: picked.filename,
+          sourceText: picked.text,
+          entries: indexed.entries,
+          selectedIndices: [indexed.entries[0]!.index],
+        });
+        return;
+      }
+      const candidates: PgnGameSelectCandidate[] = indexed.entries.map((e) => ({
+        ...e,
+        id: `g-${e.index}`,
+        sourceLabel: picked.filename,
+      }));
+      setPendingImport({
+        filename: picked.filename,
+        sourceText: picked.text,
+        entries: indexed.entries,
+        selectedIndices: [],
+      });
+      setGameCandidates(candidates);
+      setGameSelected(new Set());
+      setGameSelectOpen(true);
+    } catch {
+      setStatusMsg(t('openings.fileReadError'));
+    }
+  }, [beginFolderPick, t]);
+
+  const confirmGameSelect = useCallback(() => {
+    if (!pendingImport) return;
+    const indices = [...gameSelected]
+      .map((id) => Number(id.replace(/^g-/, '')))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+    if (indices.length === 0) return;
+    beginFolderPick({
+      ...pendingImport,
+      selectedIndices: indices,
+    });
+  }, [beginFolderPick, gameSelected, pendingImport]);
+
+  const clearImportFlow = useCallback(() => {
+    setPendingImport(null);
+    setGameSelectOpen(false);
+    setFolderPickOpen(false);
+    setGameCandidates([]);
+    setGameSelected(new Set());
+  }, []);
+
+  const importIntoFolder = useCallback(
+    async (folderId: string) => {
+      if (!pendingImport) return;
+      setBusy(true);
+      setFormError(null);
+      try {
+        const pgnText = joinSelectedPgnSlices(
+          pendingImport.sourceText,
+          pendingImport.entries,
+          pendingImport.selectedIndices,
+        );
+        if (!pgnText.trim()) {
+          setStatusMsg(t('openings.noValidPositions'));
+          clearImportFlow();
+          return;
         }
+        const displayName = displayNameFromFilename(pendingImport.filename);
+        await importPgn(folderId, pendingImport.filename, pgnText, displayName);
+        clearImportFlow();
+        router.push(`/openings/${folderId}` as Href);
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : String(err));
+        setStatusMsg(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(false);
       }
     },
-    [createFolder],
+    [clearImportFlow, importPgn, pendingImport, router, t],
   );
 
   const submitCreate = useCallback(async () => {
     setBusy(true);
     setFormError(null);
     try {
-      await createFolder(nameDraft);
+      const folder = await createFolder(nameDraft);
+      const shouldNavigate = navigateAfterCreate || folders.length === 0;
       setCreateOpen(false);
+      setNavigateAfterCreate(false);
+      // Import pending PGN into the newly created folder (never auto-unclassified).
+      if (pendingImport) {
+        await importIntoFolder(folder.id);
+        return;
+      }
+      if (shouldNavigate) {
+        router.push(`/openings/${folder.id}` as Href);
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
-  }, [createFolder, nameDraft]);
+  }, [
+    createFolder,
+    folders.length,
+    importIntoFolder,
+    nameDraft,
+    navigateAfterCreate,
+    pendingImport,
+    router,
+  ]);
 
   const submitRename = useCallback(async () => {
     if (!renameTarget) return;
@@ -147,51 +249,6 @@ export default function OpeningsFolderList() {
       setBusy(false);
     }
   }, [renameFolder, renameTarget, nameDraft]);
-
-  const submitImport = useCallback(async () => {
-    if (!importSide) {
-      setFormError(t('openings.importSideRequired'));
-      return;
-    }
-    setBusy(true);
-    setFormError(null);
-    try {
-      const folder = await createFolderUnique(folderNameFromPgnFilename(filename));
-      await setFolderSide(folder.id, importSide);
-      const file = await importPgn(folder.id, filename, pgnText);
-      setLastImportResult(file);
-      if (file.summary.parseSucceeded) {
-        setTimeout(() => {
-          setImportOpen(false);
-          setLastImportResult(null);
-        }, 900);
-      }
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }, [
-    importSide,
-    createFolderUnique,
-    filename,
-    pgnText,
-    importPgn,
-    setFolderSide,
-    t,
-  ]);
-
-  const onPickFile = useCallback(async () => {
-    setFormError(null);
-    try {
-      const picked = await pickPgnFile();
-      if (!picked) return;
-      setFilename(picked.filename);
-      setPgnText(picked.text);
-    } catch {
-      setFormError(t('openings.fileReadError'));
-    }
-  }, [t]);
 
   const toggleMixedFolder = useCallback((folderId: string) => {
     setMixedSelect((prev) => {
@@ -286,19 +343,42 @@ export default function OpeningsFolderList() {
         subtitle={t('openings.repertoires')}
         backTestID="openings-back"
         trailing={
-          <Pressable
-            onPress={openCreate}
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
-            ]}
-            testID="create-folder-btn"
-          >
-            <Ionicons name="add" size={18} color={colors.primaryForeground} />
-            <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
-              {t('openings.new')}
-            </Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            {folders.length > 0 ? (
+              <Pressable
+                onPress={() => {
+                  void openImport();
+                }}
+                style={({ pressed }) => [
+                  styles.secondaryBtn,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+                testID="import-pgn-root-btn"
+              >
+                <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
+                <Text style={[styles.primaryBtnLabel, { color: colors.foreground }]}>
+                  {t('openings.importPgn')}
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => openCreate(false)}
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+              ]}
+              testID="create-folder-btn"
+            >
+              <Ionicons name="add" size={18} color={colors.primaryForeground} />
+              <Text style={[styles.primaryBtnLabel, { color: colors.primaryForeground }]}>
+                {t('openings.new')}
+              </Text>
+            </Pressable>
+          </View>
         }
       />
 
@@ -313,6 +393,10 @@ export default function OpeningsFolderList() {
         />
       )}
 
+      {statusMsg ? (
+        <Text style={[styles.status, { color: colors.mutedForeground }]}>{statusMsg}</Text>
+      ) : null}
+
       {!ready ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
@@ -322,7 +406,7 @@ export default function OpeningsFolderList() {
           <Text style={[styles.emptyTitle, { color: colors.destructive }]}>{error}</Text>
         </View>
       ) : folders.length === 0 ? (
-        <OpeningEmptyState onImport={openImport} />
+        <OpeningEmptyState onCreateFolder={() => openCreate(true)} />
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {whiteFolders.length > 0 && (
@@ -361,8 +445,14 @@ export default function OpeningsFolderList() {
         placeholder={t('openings.namePlaceholder')}
         value={nameDraft}
         onChangeText={setNameDraft}
-        onCancel={() => setCreateOpen(false)}
-        onSubmit={submitCreate}
+        onCancel={() => {
+          setCreateOpen(false);
+          setNavigateAfterCreate(false);
+          if (pendingImport) setFolderPickOpen(true);
+        }}
+        onSubmit={() => {
+          void submitCreate();
+        }}
         busy={busy}
         error={formError}
         submitLabel={t('openings.create')}
@@ -375,35 +465,38 @@ export default function OpeningsFolderList() {
         value={nameDraft}
         onChangeText={setNameDraft}
         onCancel={() => setRenameTarget(null)}
-        onSubmit={submitRename}
+        onSubmit={() => {
+          void submitRename();
+        }}
         busy={busy}
         error={formError}
         submitLabel={t('common.save')}
       />
 
-      <ImportPgnModal
-        visible={importOpen}
-        replaceTarget={null}
-        filename={filename}
-        onFilenameChange={setFilename}
-        pgnText={pgnText}
-        onPgnTextChange={setPgnText}
+      <PgnGameSelectModal
+        visible={gameSelectOpen}
+        candidates={gameCandidates}
+        selected={gameSelected}
+        onChangeSelected={(next) => setGameSelected(next)}
+        onCancel={clearImportFlow}
+        onConfirm={confirmGameSelect}
+        maxSelection={MAX_OPENINGS_PGN_IMPORT_BATCH}
+        confirmLabel={t('openings.import')}
+      />
+
+      <FolderPickModal
+        visible={folderPickOpen}
+        folders={folders}
         busy={busy}
-        formError={formError}
-        showSidePicker
-        importSide={importSide}
-        onImportSideChange={setImportSide}
-        lastImportResult={lastImportResult}
-        onPickFile={onPickFile}
-        onCancel={() => {
-          setImportOpen(false);
-          setLastImportResult(null);
+        onSelect={(folderId) => {
+          void importIntoFolder(folderId);
         }}
-        onSubmit={submitImport}
-        onRequestClose={() => {
-          setImportOpen(false);
-          setLastImportResult(null);
+        onCreateFolder={() => {
+          // Keep pendingImport; submitCreate imports into the new folder.
+          setFolderPickOpen(false);
+          openCreate(false);
         }}
+        onCancel={clearImportFlow}
       />
 
       <MixedTrainingModal
@@ -421,6 +514,7 @@ export default function OpeningsFolderList() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 14, gap: 12 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -428,6 +522,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
+  },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
   },
   primaryBtnLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   list: { gap: 16, paddingBottom: 20 },
@@ -442,6 +545,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     lineHeight: 17,
     marginTop: -4,
+  },
+  status: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    paddingHorizontal: 2,
   },
   centered: {
     flex: 1,

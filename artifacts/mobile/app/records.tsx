@@ -28,15 +28,30 @@ import {
   RECORDS_CATEGORIES,
   type RecordsCategoryId,
   type BlindMemoryRecords,
+  type OpeningQuizRecords,
   loadMoveNamingBest,
   loadPlayMoveBest,
   loadTacticsRecords,
   loadBlindMemoryRecords,
+  loadOpeningQuizRecords,
   resetMoveNamingRecords,
   resetPlayMoveRecords,
   resetTacticsRecords,
   resetBlindMemoryRecords,
+  resetOpeningQuizRecords,
 } from '@/lib/records/AnyChessRecords';
+import {
+  ANYCHESS_DIFFICULTIES,
+  type AnyChessDifficultyId,
+} from '@/lib/difficulty/anyChessDifficulty';
+import type { MessageKey } from '@/lib/i18n';
+
+const OPENING_DIFFICULTY_LABEL: Record<AnyChessDifficultyId, MessageKey> = {
+  debutant: 'difficulty.debutant',
+  confirme: 'difficulty.confirme',
+  expert: 'difficulty.expert',
+  grandMaitre: 'difficulty.grandMaitre',
+};
 
 function ratingLabel(id: string): string {
   return PUZZLE_RATING_BANDS.find((b) => b.id === id)?.label ?? id;
@@ -60,18 +75,28 @@ export default function RecordsHubScreen() {
     listenReconstruct: 0,
     watchRecite: 0,
   });
+  const [openingQuizRecords, setOpeningQuizRecords] = useState<OpeningQuizRecords>({
+    bestByDifficulty: {
+      debutant: 0,
+      confirme: 0,
+      expert: 0,
+      grandMaitre: 0,
+    },
+  });
 
   const reload = useCallback(async () => {
-    const [tacticsSnap, mn, pm, br] = await Promise.all([
+    const [tacticsSnap, mn, pm, br, oq] = await Promise.all([
       loadTacticsRecords(),
       loadMoveNamingBest(),
       loadPlayMoveBest(),
       loadBlindMemoryRecords(),
+      loadOpeningQuizRecords(),
     ]);
     setTactics(tacticsSnap);
     setMoveNamingBest(mn);
     setPlayMoveBest(pm);
     setBlindRecords(br);
+    setOpeningQuizRecords(oq);
   }, []);
 
   useEffect(() => {
@@ -132,6 +157,12 @@ export default function RecordsHubScreen() {
           onReset={() => resetBlindMemoryRecords().then(reload)}
           colors={colors}
         />
+      ) : category === 'opening-quiz' ? (
+        <OpeningQuizRecordsPanel
+          records={openingQuizRecords}
+          onReset={() => resetOpeningQuizRecords().then(reload)}
+          colors={colors}
+        />
       ) : (
         <Session60RecordsPanel
           label={t('records.cat.naming')}
@@ -142,6 +173,68 @@ export default function RecordsHubScreen() {
         />
       )}
     </ScrollView>
+  );
+}
+
+function OpeningQuizRecordsPanel({
+  records,
+  onReset,
+  colors,
+}: {
+  records: OpeningQuizRecords;
+  onReset: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const { t } = useTranslation();
+  const resetAll = () =>
+    Alert.alert(
+      t('records.resetTitle'),
+      t('records.openingQuizResetBody'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.reset'),
+          style: 'destructive',
+          onPress: onReset,
+        },
+      ],
+    );
+
+  const hasAny = ANYCHESS_DIFFICULTIES.some(
+    (id) => (records.bestByDifficulty[id] ?? 0) > 0,
+  );
+
+  return (
+    <View style={styles.panel}>
+      {!hasAny ? (
+        <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+          {t('records.emptyOpeningQuiz')}
+        </Text>
+      ) : (
+        ANYCHESS_DIFFICULTIES.map((id) => (
+          <View
+            key={id}
+            style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}
+            testID={`records-opening-quiz-${id}`}
+          >
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', flex: 1 }}>
+              {t(OPENING_DIFFICULTY_LABEL[id])}
+            </Text>
+            <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 20 }}>
+              {records.bestByDifficulty[id] ?? 0}/10
+            </Text>
+          </View>
+        ))
+      )}
+      <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+        {t('records.openingQuizHint')}
+      </Text>
+      <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-hub-opening-quiz-records">
+        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+          {t('common.reset')}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 

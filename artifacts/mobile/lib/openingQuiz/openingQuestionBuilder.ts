@@ -132,11 +132,11 @@ export function buildVariationOptions(
   return shuffleCopy([correct, ...chosen], rng);
 }
 
-export function pickLineForDifficulty(
+/** Lines eligible for a difficulty (same richness rules as pickLineForDifficulty). */
+export function eligibleLinesForDifficulty(
   difficulty: AnyChessDifficultyId,
-  recentNames: string[],
-  rng: () => number,
-): OpeningQuizLine | null {
+  recentNames: string[] = [],
+): OpeningQuizLine[] {
   let lines = availableOpeningQuizLines();
   const fresh = lines.filter((l) => !recentNames.includes(l.identity.name));
   lines = fresh.length > 0 ? fresh : lines;
@@ -150,18 +150,46 @@ export function pickLineForDifficulty(
     if (rich.length > 0) lines = rich;
   }
 
+  return lines;
+}
+
+export function pickLineForDifficulty(
+  difficulty: AnyChessDifficultyId,
+  recentNames: string[],
+  rng: () => number,
+): OpeningQuizLine | null {
+  const lines = eligibleLinesForDifficulty(difficulty, recentNames);
   if (lines.length === 0) return null;
   return lines[Math.floor(rng() * lines.length)] ?? null;
 }
 
-export function buildOpeningQuestion(
+/**
+ * Pick up to `count` distinct lines for a level (by identity.name).
+ * Does not silently repeat — returns fewer when the pool is too small.
+ */
+export function pickDistinctLinesForDifficulty(
   difficulty: AnyChessDifficultyId,
-  recentNames: string[] = [],
+  count: number,
   rng: () => number = Math.random,
-): BuiltOpeningQuestion | null {
-  const line = pickLineForDifficulty(difficulty, recentNames, rng);
-  if (!line) return null;
+): OpeningQuizLine[] {
+  const pool = shuffleCopy(eligibleLinesForDifficulty(difficulty, []), rng);
+  const seen = new Set<string>();
+  const picked: OpeningQuizLine[] = [];
+  for (const line of pool) {
+    const name = line.identity.name;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    picked.push(line);
+    if (picked.length >= count) break;
+  }
+  return picked;
+}
 
+export function buildOpeningQuestionFromLine(
+  line: OpeningQuizLine,
+  difficulty: AnyChessDifficultyId,
+  rng: () => number = Math.random,
+): BuiltOpeningQuestion {
   const family = familyOfOpeningName(line.identity.name);
   const letter = ecoLetter(line);
   const correctName = line.identity.name;
@@ -215,6 +243,16 @@ export function buildOpeningQuestion(
     correctFamily: family,
     correctName,
   };
+}
+
+export function buildOpeningQuestion(
+  difficulty: AnyChessDifficultyId,
+  recentNames: string[] = [],
+  rng: () => number = Math.random,
+): BuiltOpeningQuestion | null {
+  const line = pickLineForDifficulty(difficulty, recentNames, rng);
+  if (!line) return null;
+  return buildOpeningQuestionFromLine(line, difficulty, rng);
 }
 
 export function promptKindForQuestion(

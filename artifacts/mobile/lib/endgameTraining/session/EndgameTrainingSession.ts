@@ -255,8 +255,8 @@ export class EndgameTrainingSession {
     this.lastMove = { from: played.from, to: played.to };
     this.moveSans.push(played.san);
 
-    // Regulatory end first
-    const reg = evaluateRegulatoryEnd(this.game);
+    // Regulatory end first (incl. attacker lacks mating material)
+    const reg = this.evaluateRegulatory();
     if (reg) {
       return this.applyRegulatory(reg, played.san);
     }
@@ -440,6 +440,19 @@ export class EndgameTrainingSession {
     });
   }
 
+  /** chess.js draws + defender-mode attacker-cannot-mate. */
+  private evaluateRegulatory(): ReturnType<typeof evaluateRegulatoryEnd> {
+    const attacker = this.position
+      ? this.position.defender === 'white'
+        ? 'b'
+        : 'w'
+      : undefined;
+    return evaluateRegulatoryEnd(
+      this.game,
+      attacker ? { attacker } : undefined,
+    );
+  }
+
   private applyRegulatory(
     reg: NonNullable<ReturnType<typeof evaluateRegulatoryEnd>>,
     san: string,
@@ -523,7 +536,7 @@ export class EndgameTrainingSession {
       return;
     }
     if (this.game.isGameOver()) {
-      const reg = evaluateRegulatoryEnd(this.game);
+      const reg = this.evaluateRegulatory();
       if (reg) this.applyRegulatory(reg, '');
       return;
     }
@@ -573,7 +586,7 @@ export class EndgameTrainingSession {
       return;
     }
 
-    const reg = evaluateRegulatoryEnd(this.game);
+    const reg = this.evaluateRegulatory();
     if (reg) {
       this.applyRegulatory(reg, '');
       return;

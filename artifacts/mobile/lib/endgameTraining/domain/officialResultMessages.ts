@@ -18,6 +18,7 @@ const DRAW_MESSAGES: Record<OfficialDrawReason, string> = {
   threefold: 'Nulle obtenue par répétition. Bien joué !',
   insufficient: 'Nulle par matériel insuffisant. Bien joué !',
   fifty: 'Nulle obtenue par la règle des 50 coups. Bien joué !',
+  'position-defended': 'Nulle — position défendue',
 };
 
 export function officialResultMessage(ctx: OfficialResultContext): string | null {

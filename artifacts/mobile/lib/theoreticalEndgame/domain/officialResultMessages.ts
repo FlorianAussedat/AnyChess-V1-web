@@ -13,6 +13,7 @@ const DRAW_MESSAGES: Record<Exclude<OfficialEndReason, 'checkmate'>, string> = {
   threefold: 'Nulle obtenue par répétition. Bien joué !',
   insufficient: 'Nulle par matériel insuffisant. Bien joué !',
   fifty: 'Nulle obtenue par la règle des 50 coups. Bien joué !',
+  'position-defended': 'Nulle — position défendue',
 };
 
 export type TheoreticalOfficialContext = {

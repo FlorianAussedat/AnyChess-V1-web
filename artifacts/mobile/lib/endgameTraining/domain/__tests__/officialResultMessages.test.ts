@@ -28,6 +28,39 @@ describe('officialResultMessage', () => {
     );
   });
 
+  it('position-defended exact message', () => {
+    assert.equal(
+      officialResultMessage({
+        outcome: 'win-official-draw',
+        playerColor: 'white',
+        officialDrawReason: 'position-defended',
+      }),
+      'Nulle — position défendue',
+    );
+  });
+
+  it('insufficient material', () => {
+    assert.equal(
+      officialResultMessage({
+        outcome: 'win-official-draw',
+        playerColor: 'white',
+        officialDrawReason: 'insufficient',
+      }),
+      'Nulle par matériel insuffisant. Bien joué !',
+    );
+  });
+
+  it('fifty-move rule', () => {
+    assert.equal(
+      officialResultMessage({
+        outcome: 'win-official-draw',
+        playerColor: 'black',
+        officialDrawReason: 'fifty',
+      }),
+      'Nulle obtenue par la règle des 50 coups. Bien joué !',
+    );
+  });
+
   it('checkmate win for player', () => {
     assert.equal(
       officialResultMessage({

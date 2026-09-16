@@ -19,17 +19,19 @@ describe('AnyChessRecords catalog', () => {
       'move-naming',
       'play-move',
       'memorisation',
+      'opening-quiz',
     ]);
-    assert.equal(RECORDS_CATEGORIES.length, 4);
+    assert.equal(RECORDS_CATEGORIES.length, 5);
     for (const cat of RECORDS_CATEGORIES) {
       assert.ok(cat.labelKey.trim());
       assert.ok(cat.descriptionKey.trim());
     }
   });
 
-  it('includes Mémorisation and does not invent Classic / Quiz categories', () => {
+  it('includes Mémorisation and Quelle ouverture; does not invent Classic / Quiz categories', () => {
     const ids = listRecordsCategoryIds();
     assert.equal(ids.includes('memorisation'), true);
+    assert.equal(ids.includes('opening-quiz'), true);
     assert.equal(ids.includes('classic' as never), false);
     assert.equal(ids.includes('quiz' as never), false);
   });

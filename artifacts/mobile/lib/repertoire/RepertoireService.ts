@@ -189,6 +189,7 @@ export class RepertoireService {
     folderId: string,
     filename: string,
     pgnText: string,
+    displayName?: string,
   ): Promise<StoredPgnFile> {
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
@@ -205,6 +206,7 @@ export class RepertoireService {
       id: newId('pgn'),
       folderId,
       filename: uniquePgnFilename(filename, existingNames),
+      displayName: displayName?.trim() || undefined,
       importedAt: nowIso(),
       pgnText: text,
       summary: summariseParse(text),
@@ -264,6 +266,63 @@ export class RepertoireService {
     if (folder) folder.updatedAt = nowIso();
     invalidateFolderRepertoireCache(file.folderId);
     await this.persist();
+  }
+
+  /** Rename display name only (AnyChess UI) — does not touch disk filename. */
+  async renamePgnDisplayName(fileId: string, displayName: string): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+    const trimmed = displayName.trim();
+    if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
+    file.displayName = trimmed;
+    const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
+    if (folder) folder.updatedAt = nowIso();
+    await this.persist();
+    return file;
+  }
+
+  /** Move a PGN into another openings folder (same content, one folder membership). */
+  async movePgn(fileId: string, targetFolderId: string): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+    const target = this.snapshot!.folders.find((f) => f.id === targetFolderId);
+    if (!target) throw new Error(tMsg('errors.folderNotFound'));
+    if (file.folderId === targetFolderId) return file;
+
+    const existingNames = this.snapshot!.files
+      .filter((f) => f.folderId === targetFolderId)
+      .map((f) => f.filename);
+    const fromFolderId = file.folderId;
+    file.folderId = targetFolderId;
+    file.filename = uniquePgnFilename(file.filename, existingNames);
+    const from = this.snapshot!.folders.find((f) => f.id === fromFolderId);
+    if (from) from.updatedAt = nowIso();
+    target.updatedAt = nowIso();
+    invalidateFolderRepertoireCache(fromFolderId);
+    invalidateFolderRepertoireCache(targetFolderId);
+    await this.persist();
+    return file;
+  }
+
+  /**
+   * Copy PGN content into another folder (same source may live in several folders).
+   * Used by Bibliothèque → Ouvertures and multi-folder presence.
+   */
+  async copyPgnToFolder(
+    fileId: string,
+    targetFolderId: string,
+  ): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+    return this.importPgn(
+      targetFolderId,
+      file.filename,
+      file.pgnText,
+      file.displayName,
+    );
   }
 
   // ── Merged repertoire tree ────────────────────────────────────────────────

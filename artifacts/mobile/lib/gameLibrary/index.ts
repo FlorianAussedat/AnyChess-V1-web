@@ -56,6 +56,7 @@ export {
 export {
   displayNameFromFilename,
   MAX_PGN_IMPORT_BATCH,
+  MAX_OPENINGS_PGN_IMPORT_BATCH,
 } from './displayNameFromFilename.ts';
 
 export {

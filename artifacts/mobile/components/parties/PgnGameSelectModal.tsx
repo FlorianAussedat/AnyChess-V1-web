@@ -35,6 +35,8 @@ type Props = {
   onConfirm: () => void;
   confirmLabel?: string;
   indexingLabel?: string | null;
+  /** Override default library batch cap (e.g. openings = 100). */
+  maxSelection?: number;
 };
 
 export function PgnGameSelectModal({
@@ -46,6 +48,7 @@ export function PgnGameSelectModal({
   onConfirm,
   confirmLabel,
   indexingLabel,
+  maxSelection = MAX_PGN_IMPORT_BATCH,
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
@@ -118,7 +121,7 @@ export function PgnGameSelectModal({
           >
             {t('parties.multiSelectCount', {
               selected: String(selectedCount),
-              max: String(MAX_PGN_IMPORT_BATCH),
+              max: String(maxSelection),
             })}
           </Text>
 
@@ -173,7 +176,7 @@ export function PgnGameSelectModal({
                       onChangeSelected(next, false);
                       return;
                     }
-                    if (next.size >= MAX_PGN_IMPORT_BATCH) {
+                    if (next.size >= maxSelection) {
                       setCapHint(t('parties.gameSelectMax'));
                       onChangeSelected(next, true);
                       return;
