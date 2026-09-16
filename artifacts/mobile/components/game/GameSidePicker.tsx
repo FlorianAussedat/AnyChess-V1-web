@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { SideChoice } from '@/lib/game/types';
 
 type Props = {
@@ -11,20 +12,26 @@ type Props = {
   children?: React.ReactNode;
 };
 
-const OPTIONS = [
-  { id: 'w' as SideChoice, label: 'Blancs', icon: BrandAssets.sides.white },
-  { id: 'b' as SideChoice, label: 'Noirs', icon: BrandAssets.sides.black },
-  { id: 'random' as SideChoice, label: 'Aléatoire', icon: BrandAssets.sides.random },
-] as const;
-
 export function GameSidePicker({ pendingSide, onPickSide, children }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
+  const options = useMemo(
+    () =>
+      [
+        { id: 'w' as SideChoice, label: t('common.whites'), icon: BrandAssets.sides.white },
+        { id: 'b' as SideChoice, label: t('common.blacks'), icon: BrandAssets.sides.black },
+        { id: 'random' as SideChoice, label: t('common.random'), icon: BrandAssets.sides.random },
+      ] as const,
+    [t],
+  );
 
   return (
     <View style={styles.setupBlock}>
-      <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>Tu joues :</Text>
+      <Text style={[styles.setupLabel, { color: colors.mutedForeground }]}>
+        {t('game.youPlay')}
+      </Text>
       <View style={styles.colorRow}>
-        {OPTIONS.map((opt) => {
+        {options.map((opt) => {
           const active = pendingSide === opt.id;
           return (
             <Pressable

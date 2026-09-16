@@ -12,6 +12,34 @@ export {
 } from './OpeningQuizSelector.ts';
 export { OpeningIdentificationSession } from './OpeningIdentificationSession.ts';
 export {
+  OpeningIdentificationRun,
+  OPENING_QUIZ_SESSION_SIZE,
+} from './OpeningIdentificationRun.ts';
+export {
+  OpeningQuizRecordsStore,
+} from './OpeningQuizRecordsStore.ts';
+export type { OpeningQuizRecords } from './OpeningQuizRecordsStore.ts';
+export {
+  buildOpeningQuestion,
+  buildOpeningQuestionFromLine,
+  buildFamilyOptions,
+  buildVariationOptions,
+  eligibleLinesForDifficulty,
+  familyOfOpeningName,
+  pickDistinctLinesForDifficulty,
+  pickLineForDifficulty,
+  promptKindForQuestion,
+} from './openingQuestionBuilder.ts';
+export type {
+  BuiltOpeningQuestion,
+  OpeningQuizAnswerMode,
+  OpeningQuizPromptKind,
+} from './openingQuestionBuilder.ts';
+export type {
+  OpeningIdentificationRunSnapshot,
+  OpeningQuizReviewItem,
+} from './OpeningIdentificationRun.ts';
+export {
   openingTargets,
   openingTargetsForFamily,
   findOpeningTarget,

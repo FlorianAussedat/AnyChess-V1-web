@@ -10,9 +10,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { OptionChip } from '@/components/ui/OptionChip';
 import {
   PIECE_COUNT_BANDS,
@@ -24,13 +27,31 @@ import { formatStreakBandLabel } from '@/lib/puzzles/streakBand';
 import {
   RECORDS_CATEGORIES,
   type RecordsCategoryId,
+  type BlindMemoryRecords,
+  type OpeningQuizRecords,
   loadMoveNamingBest,
   loadPlayMoveBest,
   loadTacticsRecords,
+  loadBlindMemoryRecords,
+  loadOpeningQuizRecords,
   resetMoveNamingRecords,
   resetPlayMoveRecords,
   resetTacticsRecords,
+  resetBlindMemoryRecords,
+  resetOpeningQuizRecords,
 } from '@/lib/records/AnyChessRecords';
+import {
+  ANYCHESS_DIFFICULTIES,
+  type AnyChessDifficultyId,
+} from '@/lib/difficulty/anyChessDifficulty';
+import type { MessageKey } from '@/lib/i18n';
+
+const OPENING_DIFFICULTY_LABEL: Record<AnyChessDifficultyId, MessageKey> = {
+  debutant: 'difficulty.debutant',
+  confirme: 'difficulty.confirme',
+  expert: 'difficulty.expert',
+  grandMaitre: 'difficulty.grandMaitre',
+};
 
 function ratingLabel(id: string): string {
   return PUZZLE_RATING_BANDS.find((b) => b.id === id)?.label ?? id;
@@ -42,22 +63,40 @@ function pieceLabel(id: string): string {
 
 export default function RecordsHubScreen() {
   const colors = useColors();
+  const router = useRouter();
+  const { t } = useTranslation();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
 
   const [category, setCategory] = useState<RecordsCategoryId>('tactics');
   const [tactics, setTactics] = useState<PuzzleStreakState>(emptyStreakState());
   const [moveNamingBest, setMoveNamingBest] = useState(0);
   const [playMoveBest, setPlayMoveBest] = useState(0);
+  const [blindRecords, setBlindRecords] = useState<BlindMemoryRecords>({
+    listenReconstruct: 0,
+    watchRecite: 0,
+  });
+  const [openingQuizRecords, setOpeningQuizRecords] = useState<OpeningQuizRecords>({
+    bestByDifficulty: {
+      debutant: 0,
+      confirme: 0,
+      expert: 0,
+      grandMaitre: 0,
+    },
+  });
 
   const reload = useCallback(async () => {
-    const [t, mn, pm] = await Promise.all([
+    const [tacticsSnap, mn, pm, br, oq] = await Promise.all([
       loadTacticsRecords(),
       loadMoveNamingBest(),
       loadPlayMoveBest(),
+      loadBlindMemoryRecords(),
+      loadOpeningQuizRecords(),
     ]);
-    setTactics(t);
+    setTactics(tacticsSnap);
     setMoveNamingBest(mn);
     setPlayMoveBest(pm);
+    setBlindRecords(br);
+    setOpeningQuizRecords(oq);
   }, []);
 
   useEffect(() => {
@@ -76,16 +115,18 @@ export default function RecordsHubScreen() {
       ]}
       testID="records-screen"
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>Records</Text>
-      <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        Tes meilleurs scores déjà enregistrés sur cet appareil
-      </Text>
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={t('records.title')}
+        subtitle={t('records.subtitle')}
+        backTestID="records-back"
+      />
 
       <View style={styles.selector} testID="records-category-selector">
         {RECORDS_CATEGORIES.map((cat) => (
           <View key={cat.id} testID={`records-cat-${cat.id}`}>
             <OptionChip
-              label={cat.label}
+              label={t(cat.labelKey)}
               active={category === cat.id}
               onPress={() => setCategory(cat.id)}
             />
@@ -94,22 +135,37 @@ export default function RecordsHubScreen() {
       </View>
 
       <Text style={[styles.catDesc, { color: colors.mutedForeground }]}>
-        {RECORDS_CATEGORIES.find((c) => c.id === category)?.description}
+        {(() => {
+          const key = RECORDS_CATEGORIES.find((c) => c.id === category)?.descriptionKey;
+          return key ? t(key) : '';
+        })()}
       </Text>
 
       {category === 'tactics' ? (
         <TacticsRecordsPanel snapshot={tactics} onReload={reload} colors={colors} />
       ) : category === 'play-move' ? (
         <Session60RecordsPanel
-          label="Jouer le coup"
+          label={t('records.cat.play')}
           best={playMoveBest}
           onReset={() => resetPlayMoveRecords().then(reload)}
           resetTestID="reset-hub-play-move-records"
           colors={colors}
         />
+      ) : category === 'memorisation' ? (
+        <MemorisationRecordsPanel
+          records={blindRecords}
+          onReset={() => resetBlindMemoryRecords().then(reload)}
+          colors={colors}
+        />
+      ) : category === 'opening-quiz' ? (
+        <OpeningQuizRecordsPanel
+          records={openingQuizRecords}
+          onReset={() => resetOpeningQuizRecords().then(reload)}
+          colors={colors}
+        />
       ) : (
         <Session60RecordsPanel
-          label="Nommer le coup"
+          label={t('records.cat.naming')}
           best={moveNamingBest}
           onReset={() => resetMoveNamingRecords().then(reload)}
           resetTestID="reset-hub-move-naming-records"
@@ -117,6 +173,133 @@ export default function RecordsHubScreen() {
         />
       )}
     </ScrollView>
+  );
+}
+
+function OpeningQuizRecordsPanel({
+  records,
+  onReset,
+  colors,
+}: {
+  records: OpeningQuizRecords;
+  onReset: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const { t } = useTranslation();
+  const resetAll = () =>
+    Alert.alert(
+      t('records.resetTitle'),
+      t('records.openingQuizResetBody'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.reset'),
+          style: 'destructive',
+          onPress: onReset,
+        },
+      ],
+    );
+
+  const hasAny = ANYCHESS_DIFFICULTIES.some(
+    (id) => (records.bestByDifficulty[id] ?? 0) > 0,
+  );
+
+  return (
+    <View style={styles.panel}>
+      {!hasAny ? (
+        <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
+          {t('records.emptyOpeningQuiz')}
+        </Text>
+      ) : (
+        ANYCHESS_DIFFICULTIES.map((id) => (
+          <View
+            key={id}
+            style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}
+            testID={`records-opening-quiz-${id}`}
+          >
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', flex: 1 }}>
+              {t(OPENING_DIFFICULTY_LABEL[id])}
+            </Text>
+            <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 20 }}>
+              {records.bestByDifficulty[id] ?? 0}/10
+            </Text>
+          </View>
+        ))
+      )}
+      <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+        {t('records.openingQuizHint')}
+      </Text>
+      <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-hub-opening-quiz-records">
+        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+          {t('common.reset')}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function MemorisationRecordsPanel({
+  records,
+  onReset,
+  colors,
+}: {
+  records: BlindMemoryRecords;
+  onReset: () => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const { t } = useTranslation();
+  const resetAll = () =>
+    Alert.alert(
+      t('records.resetTitle'),
+      t('records.blindResetBody'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.reset'),
+          style: 'destructive',
+          onPress: onReset,
+        },
+      ],
+    );
+
+  const rows: { label: string; value: number; testID: string }[] = [
+    {
+      label: t('blind.listenReconstruct'),
+      value: records.listenReconstruct,
+      testID: 'records-blind-listen',
+    },
+    {
+      label: t('blind.watchRecite'),
+      value: records.watchRecite,
+      testID: 'records-blind-watch',
+    },
+  ];
+
+  return (
+    <View style={styles.panel}>
+      {rows.map((row) => (
+        <View
+          key={row.testID}
+          style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}
+          testID={row.testID}
+        >
+          <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', flex: 1 }}>
+            {row.label}
+          </Text>
+          <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 20 }}>
+            {row.value}
+          </Text>
+        </View>
+      ))}
+      <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
+        {t('records.blindHint')}
+      </Text>
+      <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-hub-blind-records">
+        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+          {t('common.reset')}
+        </Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -129,18 +312,19 @@ function TacticsRecordsPanel({
   onReload: () => Promise<void>;
   colors: ReturnType<typeof useColors>;
 }) {
+  const { t } = useTranslation();
   const bandIds = Object.keys(snapshot.bestByBand)
     .filter((id) => (snapshot.bestByBand[id] ?? 0) > 0)
     .sort((a, b) => (snapshot.bestByBand[b] ?? 0) - (snapshot.bestByBand[a] ?? 0));
 
   const resetAll = () =>
     Alert.alert(
-      'Réinitialiser les records ?',
-      'Cette action effacera toutes les meilleures séries enregistrées.',
+      t('records.resetTitle'),
+      t('records.tacticsResetBody'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Réinitialiser',
+          text: t('common.reset'),
           style: 'destructive',
           onPress: () => resetTacticsRecords().then(onReload),
         },
@@ -151,7 +335,7 @@ function TacticsRecordsPanel({
     <View style={styles.panel}>
       {bandIds.length === 0 ? (
         <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
-          Aucun record pour l’instant — résous des problèmes pour en enregistrer.
+          {t('records.emptyTactics')}
         </Text>
       ) : (
         bandIds.map((bandId) => (
@@ -170,7 +354,7 @@ function TacticsRecordsPanel({
       )}
       <Pressable onPress={resetAll} style={styles.resetBtn} testID="reset-hub-tactics-records">
         <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
-          Réinitialiser les records tactiques
+          {t('records.resetTactics')}
         </Text>
       </Pressable>
     </View>
@@ -190,14 +374,15 @@ function Session60RecordsPanel({
   resetTestID: string;
   colors: ReturnType<typeof useColors>;
 }) {
+  const { t } = useTranslation();
   const resetAll = () =>
     Alert.alert(
-      'Réinitialiser le record ?',
-      `Cette action remettra à zéro le meilleur score 60 secondes de ${label}.`,
+      t('records.sessionResetTitle'),
+      t('records.sessionResetBody', { label }),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Réinitialiser',
+          text: t('common.reset'),
           style: 'destructive',
           onPress: onReset,
         },
@@ -208,7 +393,7 @@ function Session60RecordsPanel({
     <View style={styles.panel}>
       <View style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}>
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', flex: 1 }}>
-          Meilleur score / 60 s
+          {t('records.best60')}
         </Text>
         <Text style={{ color: colors.primary, fontFamily: 'Inter_700Bold', fontSize: 22 }}>
           {best}
@@ -216,7 +401,7 @@ function Session60RecordsPanel({
       </View>
       <Pressable onPress={resetAll} style={styles.resetBtn} testID={resetTestID}>
         <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
-          Réinitialiser
+          {t('common.reset')}
         </Text>
       </Pressable>
     </View>
@@ -229,27 +414,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: DesignTokens.spacing.screenX,
     gap: DesignTokens.spacing.md,
   },
-  title: {
-    fontSize: DesignTokens.typography.title,
-    fontFamily: 'Inter_700Bold',
-  },
-  subtitle: {
-    fontSize: DesignTokens.typography.caption,
-    fontFamily: 'Inter_400Regular',
-    marginBottom: 4,
-  },
   selector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    minHeight: DesignTokens.minTouchTarget - 4,
-    justifyContent: 'center',
   },
   catDesc: {
     fontSize: DesignTokens.typography.caption,

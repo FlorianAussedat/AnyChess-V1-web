@@ -16,10 +16,11 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { audioSettings } from '@/services/AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
 import { runStorageMigrations } from '@/lib/storage';
 
 SplashScreen.preventAutoHideAsync();
@@ -48,9 +49,11 @@ function RootLayoutNav() {
       <Stack.Screen name="puzzles" />
       <Stack.Screen name="visualisation" />
       <Stack.Screen name="quiz-ouverture" />
+      <Stack.Screen name="parties" />
       <Stack.Screen name="records" />
+      <Stack.Screen name="utilisateur" />
+      <Stack.Screen name="parametres" />
       <Stack.Screen name="profil" />
-      <Stack.Screen name="settings" />
       {typeof __DEV__ !== 'undefined' && __DEV__ ? (
         <Stack.Screen name="dev/voice-parser" options={{ headerShown: true }} />
       ) : null}
@@ -64,14 +67,22 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    ...Ionicons.font,
+    ...Feather.font,
   });
 
-  const appReady = Boolean(fontsLoaded || fontError);
+  const [prefsHydrated, setPrefsHydrated] = useState(() =>
+    preferencesStore.isHydrated(),
+  );
+  const appReady = Boolean(fontsLoaded || fontError) && prefsHydrated;
   const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
     runStorageMigrations().catch(() => {});
-    audioSettings.ensureLoaded().catch(() => {});
+    preferencesStore
+      .ensureLoaded()
+      .then(() => setPrefsHydrated(true))
+      .catch(() => setPrefsHydrated(true));
   }, []);
 
   const hideNativeSplash = useCallback(() => {

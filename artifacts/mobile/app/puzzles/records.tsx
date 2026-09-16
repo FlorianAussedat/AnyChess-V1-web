@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
 import {
@@ -25,6 +26,7 @@ function pieceLabel(id: string): string {
 
 export default function PuzzleRecordsScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const [snapshot, setSnapshot] = useState<PuzzleStreakState>(emptyStreakState());
@@ -46,12 +48,12 @@ export default function PuzzleRecordsScreen() {
 
   const resetAll = () =>
     Alert.alert(
-      'Réinitialiser les records ?',
-      'Cette action effacera toutes les meilleures séries enregistrées.',
+      t('records.resetTitle'),
+      t('records.tacticsResetBody'),
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Réinitialiser',
+          text: t('common.reset'),
           style: 'destructive',
           onPress: () => puzzleStreakStore.resetAll().then(load),
         },
@@ -69,14 +71,14 @@ export default function PuzzleRecordsScreen() {
         },
       ]}
     >
-      <ScreenHeader onBack={() => router.back()} title="Records" />
+      <ScreenHeader onBack={() => router.back()} title={t('records.title')} />
       <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
-        Meilleures séries par bande de difficulté
+        {t('records.puzzleSubtitle')}
       </Text>
 
       {bandIds.length === 0 ? (
         <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
-          Aucun record pour l’instant — résous des problèmes pour en enregistrer.
+          {t('records.emptyTactics')}
         </Text>
       ) : (
         bandIds.map((bandId) => (
@@ -95,7 +97,7 @@ export default function PuzzleRecordsScreen() {
       )}
 
       <AppButton
-        label="Réinitialiser les records"
+        label={t('profil.resetRecords')}
         variant="destructive"
         onPress={resetAll}
         testID="reset-puzzle-records"

@@ -1,13 +1,14 @@
 /**
- * Shared written chess-move answer field.
+ * Free-text answer field (native soft keyboard).
+ *
+ * Use for names, comments, natural-language answers, search, etc.
+ * For chess notation answers, use `ChessMoveInput` instead
+ * (`inputType: "chess-move"`) so the AnyChess keypad is shown and the
+ * native keyboard stays closed.
  *
  * Voice transcripts and typed text must both go through `parseChessVoice`
- * (or the caller's equivalent that uses it). This component does not invent
- * a second parser — it only collects text and optionally keeps focus ready
- * for rapid successive answers.
- *
- * Mode-specific correctness (puzzle / repertoire / opening line) stays
- * outside this component.
+ * (or the caller's equivalent) when the answer is chess-related.
+ * Mode-specific correctness stays outside this component.
  */
 import React, { useCallback, useState } from 'react';
 import {
@@ -20,10 +21,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { usePersistentAnswerFocus } from '@/hooks/usePersistentAnswerFocus';
 
 export type ChessAnswerInputProps = {
   onSubmit: (raw: string) => void;
+  /** Semantic free-text marker (native keyboard). */
+  inputType?: 'free-text';
   /** When false, input is disabled and focus is not forced. */
   enabled?: boolean;
   /** Keep focus after submit for timed / rapid modes. Default true. */
@@ -42,6 +46,7 @@ export type ChessAnswerInputProps = {
 
 export function ChessAnswerInput({
   onSubmit,
+  inputType: _inputType = 'free-text',
   enabled = true,
   persistFocus = true,
   placeholder = 'Ex. Nc3, Fou b5, e4, petit roque…',
@@ -51,6 +56,7 @@ export function ChessAnswerInput({
   inputProps,
 }: ChessAnswerInputProps) {
   const colors = useColors();
+  const { t } = useTranslation();
   const [internal, setInternal] = useState('');
   const isControlled = controlledValue !== undefined;
   const text = isControlled ? controlledValue : internal;
@@ -89,6 +95,7 @@ export function ChessAnswerInput({
         editable={enabled}
         autoCorrect={false}
         autoCapitalize="none"
+        showSoftInputOnFocus
         testID={testID}
         {...inputProps}
       />
@@ -103,7 +110,7 @@ export function ChessAnswerInput({
         onPress={submit}
         disabled={!enabled}
         testID={`${testID}-send`}
-        accessibilityLabel="Valider le coup"
+        accessibilityLabel={t('a11y.validateMove')}
       >
         <Ionicons name="arrow-forward" size={20} color="#fff" />
       </Pressable>

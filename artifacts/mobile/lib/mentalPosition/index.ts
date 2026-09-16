@@ -40,3 +40,12 @@ export {
   generateMentalSequence,
   generateMentalSequenceWithQuestions,
 } from './generateMentalSequence.ts';
+export {
+  MENTAL_FULL_MOVES_MIN,
+  MENTAL_FULL_MOVES_MAX,
+  clampMentalFullMoves,
+  mentalHalfMoveCount,
+  mentalFullMoveStops,
+  toggleMentalPresentation,
+} from './mentalPresentation.ts';
+export type { MentalPresentationFlags } from './mentalPresentation.ts';

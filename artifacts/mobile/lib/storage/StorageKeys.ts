@@ -83,6 +83,27 @@ export const StorageKeys = {
     shape: '{ best: number }',
     documentVersion: 1,
   },
+  /**
+   * Mémorisation records — best perfect full-move counts per mode
+   * (Écouter puis reconstruire / Regarder puis réciter). Not split by perspective.
+   */
+  blindMemoryRecords: {
+    key: 'anychess.blind.memoryRecords.v1',
+    feature: 'blind/memorisation',
+    shape: '{ listenReconstruct: number, watchRecite: number }',
+    documentVersion: 1,
+  },
+  /**
+   * Quelle ouverture? — best score out of 10 per difficulty level.
+   * Fresh store (no migration from older opening-quiz stats).
+   */
+  openingQuizRecords: {
+    key: 'anychess.openingQuiz.records.v1',
+    feature: 'quiz-ouverture/quelle',
+    shape:
+      '{ bestByDifficulty: Record<AnyChessDifficultyId, number 0..10> }',
+    documentVersion: 1,
+  },
   continueLineRecent: {
     key: 'anychess.continueLine.recent.v1',
     feature: 'openings/continue-line',
@@ -121,6 +142,77 @@ export const StorageKeys = {
     shape:
       'ChessCultureFeedbackSnapshot { version: 1, questions: Record<questionId, feedback> }',
     documentVersion: 1,
+  },
+  /**
+   * Local-only user profile (pseudo + optional Elo ranges + practice years).
+   * No account / cloud — syncable later via stable id + updatedAt.
+   */
+  userProfile: {
+    key: 'anychess.profile.user.v1',
+    feature: 'profile',
+    shape:
+      'UserProfile { version: 1, id, username, rapidRangeId, blitzRangeId, bulletRangeId, chessYears, updatedAt }',
+    documentVersion: 1,
+  },
+  /** Default TTS voice speed (1–10) for exercises that speak moves. */
+  defaultVoiceSpeed: {
+    key: 'anychess.preferences.defaultVoiceSpeed.v1',
+    feature: 'preferences/voice',
+    shape: 'integer string 1..10',
+    documentVersion: 1,
+  },
+  /**
+   * Unified preferences document (language, notation, voice, coords, speed).
+   * Legacy per-key prefs are migrated into this document on first load.
+   */
+  userPreferences: {
+    key: 'anychess.preferences.user.v1',
+    feature: 'preferences',
+    shape:
+      'UserPreferences { version: 1, language, chessNotation, voiceEnabled, coordinatesEnabled, voiceSpeed, updatedAt }',
+    documentVersion: 1,
+  },
+  /** Imported PGN games for Lecteur de parties / Game Reader. */
+  gameLibrary: {
+    key: 'anychess.gameLibrary.v1',
+    feature: 'parties/game-library',
+    shape: 'GameLibrarySnapshot { version: 1, games: ImportedChessGame[] (main-line + rawPgn) }',
+    documentVersion: 1,
+  },
+  /**
+   * Shared Lecteur ↔ AnyLyseur session (selection, exploration tree, profile).
+   * Never wipe with AsyncStorage.clear() — remove this key only via clearSharedGameSession.
+   */
+  gameSession: {
+    key: 'anychess.gameSession.v1',
+    feature: 'parties/lecteur-anyliseur',
+    shape:
+      'SharedGameSession { version: 1, gameId, game, currentNodeId, activeLineNodeIds, boardFlipped, explorationOriginNodeId, analysisProfileId?, analysisCacheSummary? }',
+    documentVersion: 1,
+  },
+  endgameFavorites: {
+    key: 'anychess.endgames.favorites.v1',
+    feature: 'endgame-training',
+    shape: 'string[] position ids (stable across generations) — abandoned; superseded by tryAgain in v2',
+    documentVersion: 1,
+  },
+  endgameTrainingV2: {
+    key: 'anychess.endgameTraining.v2',
+    feature: 'endgame-training',
+    shape: 'EndgameTrainingStoreV2 { tryAgainIds, finishedIds, statsByPosition, showGauge, … }',
+    documentVersion: 2,
+  },
+  theoreticalEndgameV1: {
+    key: 'anychess.theoreticalEndgame.v1',
+    feature: 'theoretical-endgame',
+    shape: 'TheoreticalEndgameStoreV1 { catalogView, themeAttempts, … }',
+    documentVersion: 1,
+  },
+  theoreticalEndgameV2: {
+    key: 'anychess.theoreticalEndgame.v2',
+    feature: 'theoretical-endgame',
+    shape: 'TheoreticalEndgameStoreV2 { catalogView, datasetVersion, themeAttempts, … }',
+    documentVersion: 2,
   },
 } as const satisfies Record<string, StorageKeyMeta>;
 

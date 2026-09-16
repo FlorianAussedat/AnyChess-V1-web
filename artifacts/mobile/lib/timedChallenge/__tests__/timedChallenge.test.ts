@@ -10,7 +10,7 @@ import {
 
 describe('timed challenge shared primitives', () => {
   it('exposes countdown labels and 60-second session constant', () => {
-    assert.deepEqual([...COUNTDOWN_LABELS], ['3', '2', '1', 'GO']);
+    assert.deepEqual([...COUNTDOWN_LABELS], ['3', '2', '1', 'Chess!']);
     assert.equal(COUNTDOWN_STEP_MS, 1000);
     assert.equal(SESSION_SECONDS, 60);
   });

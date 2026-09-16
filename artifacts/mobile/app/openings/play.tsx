@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import {
   OpeningGameProvider,
@@ -15,6 +16,7 @@ import {
   DEFAULT_STRENGTH_BAND_ID,
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
+import { preferencesStore } from '@/lib/preferences';
 
 /**
  * Opening Game play route.
@@ -23,9 +25,11 @@ import {
  * OpeningGameProvider (separate from Classic GameContext).
  *
  * Query: /openings/play?folderId=…&color=w|b&band=…
+ * `band` overrides Paramètres; otherwise the shared preference is used.
  */
 export default function OpeningPlayRoute() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { contentTop } = useAppSafeInsets();
   const router = useRouter();
 
@@ -36,10 +40,13 @@ export default function OpeningPlayRoute() {
   }>();
 
   const initialColor: PlayerColor = color === 'b' ? 'b' : 'w';
+  const preferredBand =
+    preferencesStore.getPreferences().stockfishStrengthBandId ||
+    DEFAULT_STRENGTH_BAND_ID;
   const strengthBandId =
     typeof band === 'string' && band.length > 0
       ? getStrengthBand(band).id
-      : DEFAULT_STRENGTH_BAND_ID;
+      : getStrengthBand(preferredBand).id;
 
   const [repertoire, setRepertoire] = useState<ParsedRepertoire | null>(null);
   const [repertoireName, setRepertoireName] = useState('');
@@ -50,7 +57,7 @@ export default function OpeningPlayRoute() {
     let cancelled = false;
     async function load() {
       if (!folderId) {
-        setError('Dossier manquant.');
+        setError(t('openings.folderIdMissing'));
         setLoading(false);
         return;
       }
@@ -58,7 +65,7 @@ export default function OpeningPlayRoute() {
         await repertoireService.ensureLoaded();
         const folder = repertoireService.getFolder(folderId);
         if (!folder) {
-          setError('Répertoire introuvable.');
+          setError(t('openings.repertoireNotFound'));
           setLoading(false);
           return;
         }
@@ -66,8 +73,7 @@ export default function OpeningPlayRoute() {
           await repertoireService.buildFolderRepertoire(folderId);
         if (fileCount === 0 || rep.positionCount === 0) {
           setError(
-            issues[0]?.message ??
-              'Ce répertoire ne contient aucune position jouable. Importe d’abord un PGN.',
+            issues[0]?.message ?? t('openings.playEmpty'),
           );
           setLoading(false);
           return;
@@ -89,14 +95,14 @@ export default function OpeningPlayRoute() {
     return () => {
       cancelled = true;
     };
-  }, [folderId]);
+  }, [folderId, t]);
 
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ActivityIndicator color={colors.primary} />
         <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>
-          Préparation de la partie…
+          {t('openings.preparingGame')}
         </Text>
       </View>
     );
@@ -110,7 +116,7 @@ export default function OpeningPlayRoute() {
           { backgroundColor: colors.background, paddingTop: contentTop, paddingHorizontal: 20 },
         ]}
       >
-        <ScreenHeader onBack={() => router.back()} title="Ouverture" />
+        <ScreenHeader onBack={() => router.back()} title={t('openings.opening')} />
         <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
       </View>
     );

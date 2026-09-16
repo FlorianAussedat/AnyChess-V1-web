@@ -5,6 +5,7 @@
  * can rebuild a merged position-keyed tree for a folder. The UI never talks
  * to AsyncStorage or the PGN parser directly.
  */
+import { tMsg } from '@/lib/i18n';
 import { buildRepertoire } from './repertoireTree';
 import type { ParsedRepertoire, RepertoireIssue } from './types';
 import type { RepertoireStorage } from './storage/RepertoireStorage';
@@ -16,6 +17,16 @@ import type {
   RepertoireStoreSnapshot,
   StoredPgnFile,
 } from './storage/types';
+import { normaliseFilename, uniquePgnFilename } from './pgnFilename';
+import {
+  getFolderRepertoireCache,
+  invalidateFolderRepertoireCache,
+  makeFolderRepertoireCacheKey,
+  repertoireCacheDevLog,
+  setFolderRepertoireCache,
+} from './folderRepertoireCache';
+
+export { normaliseFilename, uniquePgnFilename } from './pgnFilename';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -35,11 +46,6 @@ function summariseParse(pgnText: string): PgnParseSummary {
     errors: parsed.errors,
     warnings: parsed.warnings,
   };
-}
-
-function normaliseFilename(name: string): string {
-  const trimmed = name.trim() || 'import.pgn';
-  return trimmed.toLowerCase().endsWith('.pgn') ? trimmed : `${trimmed}.pgn`;
 }
 
 export class RepertoireService {
@@ -94,12 +100,12 @@ export class RepertoireService {
   async createFolder(name: string): Promise<RepertoireFolder> {
     await this.ensureLoaded();
     const trimmed = name.trim();
-    if (!trimmed) throw new Error('Le nom du dossier ne peut pas être vide.');
+    if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
 
     const existing = this.snapshot!.folders.find(
       (f) => f.name.toLowerCase() === trimmed.toLowerCase(),
     );
-    if (existing) throw new Error(`Un dossier nommé « ${trimmed} » existe déjà.`);
+    if (existing) throw new Error(tMsg('errors.folderExists', { name: trimmed }));
 
     const folder: RepertoireFolder = {
       id: newId('folder'),
@@ -109,21 +115,22 @@ export class RepertoireService {
     };
     this.snapshot!.folders.push(folder);
     await this.persist();
+    invalidateFolderRepertoireCache();
     return folder;
   }
 
   async renameFolder(folderId: string, name: string): Promise<RepertoireFolder> {
     await this.ensureLoaded();
     const trimmed = name.trim();
-    if (!trimmed) throw new Error('Le nom du dossier ne peut pas être vide.');
+    if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
 
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
-    if (!folder) throw new Error('Dossier introuvable.');
+    if (!folder) throw new Error(tMsg('errors.folderNotFound'));
 
     const clash = this.snapshot!.folders.find(
       (f) => f.id !== folderId && f.name.toLowerCase() === trimmed.toLowerCase(),
     );
-    if (clash) throw new Error(`Un dossier nommé « ${trimmed} » existe déjà.`);
+    if (clash) throw new Error(tMsg('errors.folderExists', { name: trimmed }));
 
     folder.name = trimmed;
     folder.updatedAt = nowIso();
@@ -139,6 +146,7 @@ export class RepertoireService {
     await this.ensureLoaded();
     this.snapshot!.folders = this.snapshot!.folders.filter((f) => f.id !== folderId);
     this.snapshot!.files = this.snapshot!.files.filter((f) => f.folderId !== folderId);
+    invalidateFolderRepertoireCache(folderId);
     await this.persist();
   }
 
@@ -146,7 +154,7 @@ export class RepertoireService {
   async setFolderSide(folderId: string, side: RepertoireSide): Promise<RepertoireFolder> {
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
-    if (!folder) throw new Error('Dossier introuvable.');
+    if (!folder) throw new Error(tMsg('errors.folderNotFound'));
     folder.side = side;
     folder.updatedAt = nowIso();
     await this.persist();
@@ -181,18 +189,24 @@ export class RepertoireService {
     folderId: string,
     filename: string,
     pgnText: string,
+    displayName?: string,
   ): Promise<StoredPgnFile> {
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
-    if (!folder) throw new Error('Dossier introuvable.');
+    if (!folder) throw new Error(tMsg('errors.folderNotFound'));
 
     const text = pgnText.trim();
-    if (!text) throw new Error('Le contenu PGN est vide.');
+    if (!text) throw new Error(tMsg('errors.pgnEmpty'));
+
+    const existingNames = this.snapshot!.files
+      .filter((f) => f.folderId === folderId)
+      .map((f) => f.filename);
 
     const file: StoredPgnFile = {
       id: newId('pgn'),
       folderId,
-      filename: normaliseFilename(filename),
+      filename: uniquePgnFilename(filename, existingNames),
+      displayName: displayName?.trim() || undefined,
       importedAt: nowIso(),
       pgnText: text,
       summary: summariseParse(text),
@@ -201,6 +215,7 @@ export class RepertoireService {
 
     this.snapshot!.files.push(file);
     folder.updatedAt = nowIso();
+    invalidateFolderRepertoireCache(folderId);
     await this.persist();
     return file;
   }
@@ -209,10 +224,10 @@ export class RepertoireService {
   async replacePgn(fileId: string, pgnText: string, filename?: string): Promise<StoredPgnFile> {
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
-    if (!file) throw new Error('Fichier PGN introuvable.');
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
 
     const text = pgnText.trim();
-    if (!text) throw new Error('Le contenu PGN est vide.');
+    if (!text) throw new Error(tMsg('errors.pgnEmpty'));
 
     file.pgnText = text;
     file.importedAt = nowIso();
@@ -222,6 +237,7 @@ export class RepertoireService {
     const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
     if (folder) folder.updatedAt = nowIso();
 
+    invalidateFolderRepertoireCache(file.folderId);
     await this.persist();
     return file;
   }
@@ -234,6 +250,7 @@ export class RepertoireService {
     file.enabled = enabled;
     const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
     if (folder) folder.updatedAt = nowIso();
+    invalidateFolderRepertoireCache(file.folderId);
     await this.persist();
     return file;
   }
@@ -247,7 +264,65 @@ export class RepertoireService {
     this.snapshot!.files = this.snapshot!.files.filter((f) => f.id !== fileId);
     const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
     if (folder) folder.updatedAt = nowIso();
+    invalidateFolderRepertoireCache(file.folderId);
     await this.persist();
+  }
+
+  /** Rename display name only (AnyChess UI) — does not touch disk filename. */
+  async renamePgnDisplayName(fileId: string, displayName: string): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+    const trimmed = displayName.trim();
+    if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
+    file.displayName = trimmed;
+    const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
+    if (folder) folder.updatedAt = nowIso();
+    await this.persist();
+    return file;
+  }
+
+  /** Move a PGN into another openings folder (same content, one folder membership). */
+  async movePgn(fileId: string, targetFolderId: string): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+    const target = this.snapshot!.folders.find((f) => f.id === targetFolderId);
+    if (!target) throw new Error(tMsg('errors.folderNotFound'));
+    if (file.folderId === targetFolderId) return file;
+
+    const existingNames = this.snapshot!.files
+      .filter((f) => f.folderId === targetFolderId)
+      .map((f) => f.filename);
+    const fromFolderId = file.folderId;
+    file.folderId = targetFolderId;
+    file.filename = uniquePgnFilename(file.filename, existingNames);
+    const from = this.snapshot!.folders.find((f) => f.id === fromFolderId);
+    if (from) from.updatedAt = nowIso();
+    target.updatedAt = nowIso();
+    invalidateFolderRepertoireCache(fromFolderId);
+    invalidateFolderRepertoireCache(targetFolderId);
+    await this.persist();
+    return file;
+  }
+
+  /**
+   * Copy PGN content into another folder (same source may live in several folders).
+   * Used by Bibliothèque → Ouvertures and multi-folder presence.
+   */
+  async copyPgnToFolder(
+    fileId: string,
+    targetFolderId: string,
+  ): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+    return this.importPgn(
+      targetFolderId,
+      file.filename,
+      file.pgnText,
+      file.displayName,
+    );
   }
 
   // ── Merged repertoire tree ────────────────────────────────────────────────
@@ -279,9 +354,24 @@ export class RepertoireService {
       };
     }
 
+    const fingerprints = files.map(
+      (f) => `${f.id}:${f.importedAt}:${f.pgnText.length}:${f.summary.positionCount}`,
+    );
+    const cacheKey = makeFolderRepertoireCacheKey(folderId, fingerprints);
+    const cached = getFolderRepertoireCache(cacheKey);
+    if (cached) {
+      repertoireCacheDevLog('HIT', `${folderId} (${cached.buildMs}ms cached)`);
+      return {
+        repertoire: cached.repertoire,
+        fileCount: cached.fileCount,
+        issues: cached.issues,
+      };
+    }
+
+    const t0 =
+      typeof performance !== 'undefined' ? performance.now() : Date.now();
     const combined = files
       .map((f) => {
-        // Inject a Source header so deviation analysis can name the file.
         const hasHeaders = /^\s*\[/.test(f.pgnText);
         const sourceTag = `[Source "${f.filename.replace(/"/g, '')}"]\n`;
         return hasHeaders ? `${sourceTag}${f.pgnText}` : `${sourceTag}\n${f.pgnText}`;
@@ -289,7 +379,6 @@ export class RepertoireService {
       .join('\n\n');
     const repertoire = buildRepertoire(combined);
 
-    // Surface per-file issues with the filename for clarity.
     const issues: RepertoireIssue[] = [];
     for (const file of files) {
       for (const err of file.summary.errors) {
@@ -300,11 +389,23 @@ export class RepertoireService {
       }
     }
     for (const err of repertoire.errors) {
-      // Avoid duplicating if already covered by per-file summaries.
       if (!issues.some((i) => i.message.includes(err.message) && i.context === err.context)) {
         issues.push(err);
       }
     }
+
+    const t1 =
+      typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const buildMs = Math.round(t1 - t0);
+    repertoireCacheDevLog('MISS', `Build repertoire: ${buildMs} ms`);
+    setFolderRepertoireCache({
+      key: cacheKey,
+      repertoire,
+      fileCount: files.length,
+      issues,
+      builtAt: Date.now(),
+      buildMs,
+    });
 
     return { repertoire, fileCount: files.length, issues };
   }

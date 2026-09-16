@@ -26,6 +26,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CHESS_CONTEXT_STRINGS } from '@/lib/voice';
 import { shouldRestartRecognition } from '@/lib/speech/micLifecycle';
+import { preferencesStore } from '@/lib/preferences';
+import { speechLocaleForLanguage } from '@/lib/i18n';
 
 export type MicStatusCode =
   | 'idle'
@@ -131,8 +133,12 @@ export async function prepareSpeechRecognition(): Promise<MicStatus> {
 }
 
 export function startSpeechRecognition(): void {
+  // Locale follows app language preference (independent of chess notation).
+  const lang = speechLocaleForLanguage(
+    preferencesStore.getPreferences().language,
+  );
   ExpoSpeechRecognitionModule.start({
-    lang: 'fr-FR',
+    lang,
     interimResults: false,
     maxAlternatives: 4,
     continuous: true,

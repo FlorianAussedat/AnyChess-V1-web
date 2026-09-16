@@ -15,15 +15,16 @@ import {
   eloForBand,
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
-import { OpeningOpponent, type TheoryExit } from '@/lib/moves/OpeningOpponent';
+import { OpeningOpponent, type TheoryExit, type OpeningTrainingState, type OpeningPhase } from '@/lib/moves/OpeningOpponent';
 import type { ParsedRepertoire } from '@/lib/repertoire';
+import { movesForPosition } from '@/lib/repertoire';
 import {
   anyChessPgnFilename,
   downloadPgnFile,
   exportGamePgn,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
-import { identifyOpeningFromSans } from '@/lib/openings';
+import { identifyOpeningFromSans, getOpeningDisplayName } from '@/lib/openings';
 import { speechService } from '@/services/SpeechService';
 import {
   shouldEmitMoveRecognizedFeedback,
@@ -31,15 +32,22 @@ import {
 } from '@/lib/moveInput/canonicalMove';
 import {
   applyUserMoveInput,
+  flagsFromPlayTurn,
   legalDestinationsForSquare,
+  opponentSearchTurn,
+  playTurnAfterEmptyOpponentPick,
+  playTurnAfterUndo,
   speakMoveHistorySummary,
   undoPlayerTurn,
   type BoardPiece,
   type LastMove,
   type MoveEvent,
   type PlayerColor,
+  type PlayTurnState,
 } from '@/lib/game';
+import { tMsg } from '@/lib/i18n';
 import { useSharedPlayState } from '@/hooks/useSharedPlayState';
+import { preferencesStore } from '@/lib/preferences';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
@@ -52,12 +60,18 @@ interface OpeningGameContextValue {
   isGameOver: boolean;
   waitingForUser: boolean;
   isOpponentThinking: boolean;
+  /** Formal play-turn state (booleans above are derived). */
+  playTurn: PlayTurnState;
   playerColor: PlayerColor;
   moveEvent: MoveEvent | null;
   isSpeaking: boolean;
-  phase: 'book' | 'engine';
+  phase: OpeningPhase;
+  trainingState: OpeningTrainingState;
   theoryExit: TheoryExit | null;
   repertoireName: string;
+  openingLabel: string | null;
+  strengthBandId: string;
+  strengthBandLabel: string;
   ready: boolean;
   loadError: string | null;
   applyUserMove: (raw: string, source?: MoveInputSource) => void;
@@ -68,6 +82,17 @@ interface OpeningGameContextValue {
   repeatLast: () => void;
   summarizeGame: () => void;
   undoMove: () => void;
+  retryOpponentMove: () => void;
+  /** Keep current position and continue vs Stockfish. */
+  continueVsEngine: () => void;
+  /** Undo off-book move and return to theory without revealing. */
+  undoAndThinkAgain: () => void;
+  /** Undo off-book move, play/show the expected book move, continue theory. */
+  showExpectedMove: () => string | null;
+  /** Restart exact training from the initial position (same side/settings). */
+  restartLine: () => void;
+  /** Start another line (new game — different random book branches). */
+  nextLine: () => void;
   exportPgn: () => string;
   downloadPgn: () => void;
 }
@@ -96,12 +121,18 @@ export function OpeningGameProvider({
   repertoire,
   repertoireName,
   loadError = null,
-  strengthBandId = DEFAULT_STRENGTH_BAND_ID,
+  strengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
+    DEFAULT_STRENGTH_BAND_ID,
 }: ProviderProps) {
   const opponentRef = useRef<OpeningOpponent | null>(null);
-  const [phase, setPhase] = React.useState<'book' | 'engine'>('book');
+  const [phase, setPhase] = React.useState<OpeningPhase>('book');
+  const [trainingState, setTrainingState] =
+    React.useState<OpeningTrainingState>('playingTheory');
   const [theoryExit, setTheoryExit] = React.useState<TheoryExit | null>(null);
   const [ready, setReady] = React.useState(false);
+  const [playTurn, setPlayTurnState] = React.useState<PlayTurnState>('waitingForUser');
+  const band = getStrengthBand(strengthBandId);
+  const strengthBandLabel = band.label;
 
   const play = useSharedPlayState();
   const {
@@ -135,6 +166,16 @@ export function OpeningGameProvider({
     scheduleOpponentKickoff,
   } = play;
 
+  const setPlayTurn = useCallback(
+    (next: PlayTurnState, gameOver = false) => {
+      setPlayTurnState(next);
+      const flags = flagsFromPlayTurn(next, gameOver);
+      setWaitingForUser(flags.waitingForUser);
+      setIsOpponentThinking(flags.isOpponentThinking);
+    },
+    [setWaitingForUser, setIsOpponentThinking],
+  );
+
   useFocusEffect(
     useCallback(() => {
       if (!repertoire) {
@@ -157,32 +198,42 @@ export function OpeningGameProvider({
 
       return () => {
         cancelled = true;
-        opponent.cancel();
+        // Invalidate in-flight opponentMove callbacks (mirrors Classic GameContext).
+        cancelPendingOpponent(() => opponent.cancel());
         opponent.destroy();
         if (opponentRef.current === opponent) opponentRef.current = null;
         setReady(false);
       };
-    }, [repertoire, strengthBandId]),
+    }, [repertoire, strengthBandId, cancelPendingOpponent]),
   );
 
   const syncTheoryUi = useCallback(() => {
     const opp = opponentRef.current;
     setPhase(opp?.getPhase() ?? 'book');
+    setTrainingState(opp?.getTrainingState() ?? 'playingTheory');
     setTheoryExit(opp?.getTheoryExit() ?? null);
   }, []);
+
+  const openingLabel = React.useMemo(() => {
+    const eco = identifyOpeningFromSans(history);
+    return getOpeningDisplayName({
+      headersList: repertoire?.headers ?? null,
+      ecoName: eco?.name ?? null,
+    });
+  }, [history, repertoire]);
 
   const summarizeGameHistory = useCallback(() => {
     const moves = gameRef.current.history();
     if (!moves.length) {
-      speak('Aucun coup joué pour le moment.', { flush: true });
+      speak(tMsg('game.emptyHistory'), { flush: true });
       return;
     }
     speechService.cancel('summarize');
     const exit = opponentRef.current?.getTheoryExit() ?? theoryExit;
     if (exit?.kind === 'player-deviation') {
-      speechService.speak(`Rapport : ${exit.message}`);
+      speechService.speak(tMsg('openings.theoryReport', { message: exit.message }));
     } else if (exit?.kind === 'repertoire-end') {
-      speechService.speak('Rapport : ligne théorique importée suivie jusqu’à son terme.');
+      speechService.speak(tMsg('openings.theoryReportComplete'));
     }
     speakMoveHistorySummary(moves, { skipCancel: true });
   }, [gameRef, speak, theoryExit]);
@@ -193,10 +244,16 @@ export function OpeningGameProvider({
 
   const opponentMove = useCallback(async () => {
     const game = gameRef.current;
-    if (game.isGameOver()) return;
+    if (game.isGameOver()) {
+      setPlayTurn('finished', true);
+      return;
+    }
 
     const myGen = moveGenerationRef.current;
-    setIsOpponentThinking(true);
+    const searchTurn = opponentSearchTurn(
+      opponentRef.current?.getTrainingState() ?? 'playingTheory',
+    );
+    setPlayTurn(searchTurn);
 
     let selected: Move | null = null;
     let theoryMessage: string | null = null;
@@ -208,7 +265,10 @@ export function OpeningGameProvider({
       selected = null;
     }
 
-    if (myGen !== moveGenerationRef.current) return;
+    if (myGen !== moveGenerationRef.current) {
+      // A newer generation owns the UI (undo / retry / remount). Do not clear flags.
+      return;
+    }
 
     syncTheoryUi();
 
@@ -218,8 +278,12 @@ export function OpeningGameProvider({
     }
 
     if (!selected) {
-      setIsOpponentThinking(false);
-      setWaitingForUser(true);
+      const st = opponentRef.current?.getTrainingState() ?? 'playingTheory';
+      const next = playTurnAfterEmptyOpponentPick(st);
+      setPlayTurn(next, game.isGameOver());
+      if (next === 'error') {
+        setStatus(tMsg('game.opponentFailed'));
+      }
       return;
     }
 
@@ -234,22 +298,24 @@ export function OpeningGameProvider({
       syncState();
 
       const announcement = gameStateAnnouncement(game, verbalMove(played));
-      setIsOpponentThinking(false);
-      setWaitingForUser(!game.isGameOver());
+      if (game.isGameOver()) {
+        setPlayTurn('finished', true);
+      } else {
+        setPlayTurn('waitingForUser');
+      }
       setStatus(announcement);
       speak(announcement);
     } catch {
-      setIsOpponentThinking(false);
-      setWaitingForUser(true);
+      setPlayTurn('error');
+      setStatus(tMsg('game.opponentFailed'));
     }
   }, [
     gameRef,
     moveGenerationRef,
-    setIsOpponentThinking,
+    setPlayTurn,
     syncTheoryUi,
     speak,
     setStatus,
-    setWaitingForUser,
     setLastMove,
     syncState,
   ]);
@@ -274,18 +340,25 @@ export function OpeningGameProvider({
       speechService.cancel('move');
 
       if (theoryMsg) {
+        // Left theory — pause; do not call the engine until the user chooses.
         speak(playerAnnouncement);
         speak(theoryMsg);
         setStatus(theoryMsg);
-      } else {
-        speak(playerAnnouncement);
-        setStatus(playerAnnouncement);
+        setPlayTurn('awaitingTheoryDecision');
+        return;
       }
 
+      speak(playerAnnouncement);
+      setStatus(playerAnnouncement);
+
       if (game.isGameOver()) {
-        setWaitingForUser(false);
+        setPlayTurn('finished', true);
       } else {
-        setWaitingForUser(false);
+        setPlayTurn(
+          opponentSearchTurn(
+            opponentRef.current?.getTrainingState() ?? 'playingTheory',
+          ),
+        );
         opponentMoveRef.current();
       }
     },
@@ -298,7 +371,7 @@ export function OpeningGameProvider({
       syncTheoryUi,
       speak,
       setStatus,
-      setWaitingForUser,
+      setPlayTurn,
       opponentMoveRef,
     ],
   );
@@ -310,28 +383,40 @@ export function OpeningGameProvider({
     const result = undoPlayerTurn(gameRef.current, playerColorRef.current);
     if (result.kind === 'noop') return;
 
+    const kickoff = () => {
+      const next = playTurnAfterUndo(result.needsOpponentKickoff);
+      if (result.needsOpponentKickoff) {
+        // Prefer repertoire reply if still in book after undo.
+        const search = opponentSearchTurn(
+          opponentRef.current?.getTrainingState() ?? 'playingTheory',
+        );
+        setPlayTurn(search);
+        opponentMoveRef.current();
+      } else {
+        setPlayTurn(next);
+      }
+    };
+
     if (result.kind === 'undone-to-start') {
       opponentRef.current?.onUndo(0);
       syncTheoryUi();
       syncState();
       setLastMove(null);
-      setWaitingForUser(true);
-      setIsOpponentThinking(false);
       setHeardText('');
       setStatus(result.status);
       speak(result.speak);
+      kickoff();
       return;
     }
 
     opponentRef.current?.onUndo(result.plyAfter);
     syncTheoryUi();
     syncState();
-    setIsOpponentThinking(false);
     setHeardText('');
-    setWaitingForUser(true);
     setLastMove(result.lastMove);
     setStatus(result.status);
     speak(result.speak);
+    kickoff();
   }, [
     cancelPending,
     gameRef,
@@ -339,12 +424,21 @@ export function OpeningGameProvider({
     syncTheoryUi,
     syncState,
     setLastMove,
-    setWaitingForUser,
-    setIsOpponentThinking,
+    setPlayTurn,
     setHeardText,
     setStatus,
     speak,
+    opponentMoveRef,
   ]);
+
+  const retryOpponentMove = useCallback(() => {
+    if (gameRef.current.isGameOver()) return;
+    const search = opponentSearchTurn(
+      opponentRef.current?.getTrainingState() ?? 'engineContinuation',
+    );
+    setPlayTurn(search);
+    opponentMoveRef.current();
+  }, [gameRef, setPlayTurn, opponentMoveRef]);
 
   const applyUserMove = useCallback(
     (raw: string, source: MoveInputSource = 'voice') => {
@@ -370,17 +464,17 @@ export function OpeningGameProvider({
       setHeardText(result.heardText);
 
       if (result.kind === 'unrecognized') {
-        setStatus('Coup non reconnu. Répète.');
+        setStatus(tMsg('game.unrecognized'));
         if (result.emitError) emitEvent('error', source);
         return;
       }
       if (result.kind === 'ambiguous') {
-        setStatus('Coup ambigu. Précise la case de départ.');
+        setStatus(tMsg('game.ambiguous'));
         emitEvent('error', source);
         return;
       }
       if (result.kind === 'illegal') {
-        setStatus('Coup illégal. Répète.');
+        setStatus(tMsg('game.illegal'));
         emitEvent('error', source);
         return;
       }
@@ -433,16 +527,17 @@ export function OpeningGameProvider({
       gameRef.current.reset();
       resetUiForNewGame();
       setPhase('book');
+      setTrainingState('playingTheory');
       setTheoryExit(null);
       syncState();
 
       if (color === 'b') {
-        setWaitingForUser(false);
-        setStatus("L'adversaire prépare son coup…");
+        setPlayTurn('playingRepertoireReply');
+        setStatus(tMsg('game.opponentPreparing'));
         scheduleOpponentKickoff(1200);
       } else {
-        setWaitingForUser(true);
-        setStatus('À toi de jouer.');
+        setPlayTurn('waitingForUser');
+        setStatus(tMsg('game.yourTurn'));
       }
     },
     [
@@ -450,7 +545,7 @@ export function OpeningGameProvider({
       gameRef,
       resetUiForNewGame,
       syncState,
-      setWaitingForUser,
+      setPlayTurn,
       setStatus,
       scheduleOpponentKickoff,
     ],
@@ -459,6 +554,151 @@ export function OpeningGameProvider({
   const newGame = useCallback(() => {
     resetForColor(playerColorRef.current);
   }, [resetForColor, playerColorRef]);
+
+  const restartLine = useCallback(() => {
+    resetForColor(playerColorRef.current);
+  }, [resetForColor, playerColorRef]);
+
+  const nextLine = useCallback(() => {
+    // Same side/settings; newGame re-rolls random book branches.
+    resetForColor(playerColorRef.current);
+  }, [resetForColor, playerColorRef]);
+
+  const continueVsEngine = useCallback(() => {
+    const opp = opponentRef.current;
+    if (!opp) return;
+    opp.continueVsEngine();
+    syncTheoryUi();
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[openings] continueVsEngine strengthBand=${strengthBandId} label=${strengthBandLabel}`,
+      );
+    }
+    const game = gameRef.current;
+    if (game.isGameOver()) {
+      setPlayTurn('finished', true);
+      setStatus(tMsg('openings.theoryCompleteContinuing'));
+      return;
+    }
+    setStatus(tMsg('openings.theoryCompleteContinuing'));
+    speak(tMsg('openings.theoryCompleteContinuing'));
+    // If it's the opponent's turn after the user's off-book move (or line end),
+    // kick Stockfish. If it's the user's turn, wait for them.
+    const turn = game.turn();
+    if (turn === playerColorRef.current) {
+      setPlayTurn('waitingForUser');
+    } else {
+      setPlayTurn('waitingForEngine');
+      opponentMoveRef.current();
+    }
+  }, [
+    syncTheoryUi,
+    strengthBandId,
+    strengthBandLabel,
+    gameRef,
+    playerColorRef,
+    setPlayTurn,
+    setStatus,
+    speak,
+    opponentMoveRef,
+  ]);
+
+  const undoAndThinkAgain = useCallback(() => {
+    const exit = opponentRef.current?.getTheoryExit();
+    if (!exit || exit.kind !== 'player-deviation') return;
+    cancelPending();
+    speechService.cancel('undo');
+    const result = undoPlayerTurn(gameRef.current, playerColorRef.current);
+    if (result.kind === 'noop') return;
+    opponentRef.current?.returnToTheory();
+    syncTheoryUi();
+    syncState();
+    setHeardText('');
+    setPlayTurn('waitingForUser');
+    setLastMove(result.kind === 'undone-to-start' ? null : result.lastMove);
+    setStatus(tMsg('game.yourTurn'));
+    speak(tMsg('game.yourTurn'));
+  }, [
+    cancelPending,
+    gameRef,
+    playerColorRef,
+    syncTheoryUi,
+    syncState,
+    setHeardText,
+    setPlayTurn,
+    setLastMove,
+    setStatus,
+    speak,
+  ]);
+
+  const showExpectedMove = useCallback((): string | null => {
+    const opp = opponentRef.current;
+    const exit = opp?.getTheoryExit();
+    if (!opp || !exit || exit.kind !== 'player-deviation') return null;
+    const expected = exit.analysis?.availableMoves[0];
+    if (!expected) return null;
+
+    cancelPending();
+    speechService.cancel('hint');
+
+    // Undo the off-book move first.
+    const undoResult = undoPlayerTurn(gameRef.current, playerColorRef.current);
+    if (undoResult.kind === 'noop') return null;
+
+    opp.returnToTheory();
+    const game = gameRef.current;
+    const beforeFen = game.fen();
+    const choices = movesForPosition(opp.getRepertoire(), beforeFen);
+    const choice = choices.find((c) => c.uci === expected.uci) ?? choices[0];
+    if (!choice) {
+      syncTheoryUi();
+      syncState();
+      setPlayTurn('waitingForUser');
+      setStatus(tMsg('game.yourTurn'));
+      return null;
+    }
+
+    try {
+      const played = game.move({
+        from: choice.from,
+        to: choice.to,
+        promotion: choice.promotion || 'q',
+      }) as Move;
+      setLastMove({ from: played.from, to: played.to });
+      syncTheoryUi();
+      syncState();
+      const expectedLabel = expected.san;
+      setStatus(tMsg('openings.expectedMove', { move: expectedLabel }));
+      speak(tMsg('openings.expectedMove', { move: verbalMove(played) }));
+      setHeardText('');
+      if (game.isGameOver()) {
+        setPlayTurn('finished', true);
+      } else {
+        setPlayTurn('playingRepertoireReply');
+        opponentMoveRef.current();
+      }
+      return expectedLabel;
+    } catch {
+      syncTheoryUi();
+      syncState();
+      setPlayTurn('waitingForUser');
+      setStatus(tMsg('game.yourTurn'));
+      return null;
+    }
+  }, [
+    cancelPending,
+    gameRef,
+    playerColorRef,
+    syncTheoryUi,
+    syncState,
+    setLastMove,
+    setStatus,
+    speak,
+    setHeardText,
+    setPlayTurn,
+    opponentMoveRef,
+  ]);
 
   const changeColor = useCallback(
     (color: PlayerColor) => {
@@ -486,7 +726,7 @@ export function OpeningGameProvider({
 
     return exportGamePgn({
       headers: {
-        Event: 'AnyChess — Ouvertures',
+        Event: tMsg('openings.pgnEvent'),
         White: whiteName,
         Black: blackName,
         Result: result,
@@ -522,12 +762,17 @@ export function OpeningGameProvider({
         isGameOver,
         waitingForUser,
         isOpponentThinking,
+        playTurn,
         playerColor,
         moveEvent,
         isSpeaking,
         phase,
+        trainingState,
         theoryExit,
         repertoireName,
+        openingLabel,
+        strengthBandId,
+        strengthBandLabel,
         ready,
         loadError,
         applyUserMove,
@@ -538,6 +783,12 @@ export function OpeningGameProvider({
         repeatLast,
         summarizeGame: summarizeGameHistory,
         undoMove,
+        retryOpponentMove,
+        continueVsEngine,
+        undoAndThinkAgain,
+        showExpectedMove,
+        restartLine,
+        nextLine,
         exportPgn,
         downloadPgn,
       }}

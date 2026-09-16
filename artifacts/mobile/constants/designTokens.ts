@@ -95,6 +95,18 @@ export const DesignTokens = {
   minTouchTarget: 44,
   /** Header back / icon button size used across mode screens. */
   headerIconButton: 34,
+  /**
+   * Chess gameplay / training screen chrome (Classic Game is the reference).
+   * Prefer these over ad-hoc padding so layout changes propagate once.
+   */
+  chessScreen: {
+    paddingHorizontal: 8,
+    gap: 4,
+    sectionGap: 8,
+    inputHeight: 44,
+    inputRadius: 10,
+    toggleSize: 40,
+  },
   /** Home ModeCard target density (~4 cards above nav). */
   modeCardMinHeight: 150,
   modeCardHeight: 152,

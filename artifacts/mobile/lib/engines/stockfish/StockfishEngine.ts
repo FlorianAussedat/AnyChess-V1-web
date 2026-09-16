@@ -16,9 +16,12 @@
  */
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
+import { Platform } from 'react-native';
 import type { ChessEngine } from '../../engine';
+import { DEFEND_DRAW_ENGINE_CONFIG } from '../../defendDraw/engineConfig.ts';
 import { createUciTransport } from './transport';
 import type { StockfishConfig, UciTransport } from './types';
+import { getStockfishWorkerUrl } from './workerUrl.ts';
 import {
   chooseVariedMove,
   DEFAULT_STOCKFISH_CONFIG,
@@ -31,7 +34,12 @@ import {
 interface PendingSearch {
   resolve: (move: Move | null) => void;
   legalMoves: Move[];
+  /** Hard wall-clock timeout so UI never stays on « adversaire réfléchit » forever. */
+  timeoutId: ReturnType<typeof setTimeout> | null;
 }
+
+/** Extra ms beyond `go movetime` before we abort a hung Worker search. */
+const SEARCH_TIMEOUT_SLACK_MS = 4000;
 
 export class StockfishEngine implements ChessEngine {
   private readonly config: StockfishConfig;
@@ -102,7 +110,9 @@ export class StockfishEngine implements ChessEngine {
 
       let transport: UciTransport;
       try {
-        transport = createUciTransport(this.config.enginePath);
+        const enginePath =
+          Platform.OS === 'web' ? getStockfishWorkerUrl() : this.config.enginePath;
+        transport = createUciTransport(enginePath);
       } catch (err) {
         reject(err);
         return;
@@ -125,13 +135,18 @@ export class StockfishEngine implements ChessEngine {
         reject(error);
       };
 
+      const bootTimeoutMs = DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs;
+
       this.bootTimeout = setTimeout(() => {
         this.bootTimeout = null;
         if (this.destroyed || this.isReady) return;
         failBoot(
           new Error('[StockfishEngine] Timed out waiting for engine to become ready.'),
         );
-      }, 30_000);
+      }, bootTimeoutMs);
+
+      const bootStartedAt =
+        typeof __DEV__ !== 'undefined' && __DEV__ ? Date.now() : 0;
 
       const onLine = (line: string) => {
         if (this.destroyed || this.transport !== transport) return;
@@ -139,6 +154,9 @@ export class StockfishEngine implements ChessEngine {
         // Handshake progression.
         if (!this.isReady) {
           if (line.startsWith('uciok')) {
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log('[Stockfish] uciok received');
+            }
             for (const cmd of setupOptionCommands(this.config.elo, this.config.multiPv)) {
               transport.send(cmd);
             }
@@ -146,6 +164,10 @@ export class StockfishEngine implements ChessEngine {
             return;
           }
           if (line.startsWith('readyok')) {
+            if (typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log('[Stockfish] readyok received');
+              console.log('[Stockfish] boot duration:', Date.now() - bootStartedAt, 'ms');
+            }
             this.isReady = true;
             this.clearBootTimeout();
             transport.send('ucinewgame');
@@ -225,13 +247,29 @@ export class StockfishEngine implements ChessEngine {
     if (this.pending) {
       const stale = this.pending;
       this.pending = null;
+      if (stale.timeoutId != null) clearTimeout(stale.timeoutId);
       stale.resolve(null);
       this.transport.send('stop');
     }
 
     this.searchInfo = new Map();
+    const searchBudget = Math.max(
+      this.config.moveTimeMs + SEARCH_TIMEOUT_SLACK_MS,
+      this.config.moveTimeMs * 2,
+    );
     return new Promise<Move | null>((resolve) => {
-      this.pending = { resolve, legalMoves };
+      const timeoutId = setTimeout(() => {
+        if (this.pending?.resolve !== resolve) return;
+        this.pending = null;
+        this.searchInfo = new Map();
+        try {
+          this.transport?.send('stop');
+        } catch {
+          /* ignore */
+        }
+        resolve(null);
+      }, searchBudget);
+      this.pending = { resolve, legalMoves, timeoutId };
       this.transport!.send(`position fen ${fen}`);
       this.transport!.send(`go movetime ${this.config.moveTimeMs}`);
     });
@@ -241,6 +279,7 @@ export class StockfishEngine implements ChessEngine {
     if (this.pending) {
       const pending = this.pending;
       this.pending = null;
+      if (pending.timeoutId != null) clearTimeout(pending.timeoutId);
       pending.resolve(null);
     }
     if (this.isReady && this.transport) {
@@ -254,6 +293,7 @@ export class StockfishEngine implements ChessEngine {
     const pending = this.pending;
     if (!pending) return; // stale bestmove from an already-cancelled search
     this.pending = null;
+    if (pending.timeoutId != null) clearTimeout(pending.timeoutId);
 
     const candidates = [...this.searchInfo.values()];
     this.searchInfo = new Map();

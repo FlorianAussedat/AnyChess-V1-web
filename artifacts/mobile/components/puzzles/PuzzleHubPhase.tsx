@@ -1,140 +1,69 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import React from 'react';
+import { Pressable, Text } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
-import { ModeScreenShell } from '@/components/ModeScreenShell';
-import { PuzzleFilterChip } from '@/components/puzzles/PuzzleFilterChip';
-import { AppButton } from '@/components/ui/AppButton';
+import { useTranslation } from '@/hooks/useTranslation';
+import { BrandAssets } from '@/constants/BrandAssets';
+import { HubScreen } from '@/components/HubScreen';
+import { HubModeCard } from '@/components/HubModeCard';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
-import {
-  PIECE_COUNT_BANDS,
-  PUZZLE_RATING_BANDS,
-  puzzleRepository,
-} from '@/lib/puzzles';
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 
+/**
+ * Category hub — card selection only (same pattern as Vision / Mémorisation).
+ */
 export function PuzzleHubPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
-  const {
-    selectSubmode,
-    setRatingBand,
-    setPieceCountBand,
-    ratingBandId,
-    pieceCountBandId,
-    startPuzzle,
-    loadError,
-    submode,
-  } = usePuzzle();
-  const [starting, setStarting] = useState(false);
-  const packCount = puzzleRepository.count();
-  const manifest = puzzleRepository.getManifest();
-
-  const onPickMode = (mode: 'visual' | 'blind') => {
-    selectSubmode(mode);
-  };
-
-  const onStart = async () => {
-    if (!submode) return;
-    setStarting(true);
-    try {
-      await startPuzzle();
-    } finally {
-      setStarting(false);
-    }
-  };
+  const back = useSmartBack('/puzzles' as Href);
+  const { selectSubmode } = usePuzzle();
 
   return (
-    <ModeScreenShell title="Problèmes / Visualisation" onBack={() => router.back()}>
-      <ScrollView contentContainerStyle={puzzleStyles.body}>
-        <Text style={[puzzleStyles.lead, { color: colors.mutedForeground }]}>
-          Résous des problèmes Lichess hors-ligne (cote puzzle Lichess{' '}
-          {manifest.ratingMin}–{manifest.ratingMax}). Pack local : {packCount} problèmes.
+    <HubScreen
+      title={t('puzzle.hubTitle')}
+      subtitle={t('puzzle.hubLead')}
+      onBack={back}
+    >
+      <HubModeCard
+        title={t('puzzle.visualCardTitle')}
+        description={t('puzzle.visualCardDesc')}
+        icon={BrandAssets.exercises.problemesVisuels}
+        onPress={() => selectSubmode('visual')}
+        testID="puzzle-card-visual"
+      />
+      <HubModeCard
+        title={t('puzzle.blindCardTitle')}
+        description={t('puzzle.blindCardDesc')}
+        icon={BrandAssets.exercises.problemesAveugle}
+        onPress={() => selectSubmode('blind')}
+        testID="puzzle-card-blind"
+      />
+      <HubModeCard
+        title={t('quiz.defendsNulle')}
+        description={t('quiz.defendsNulleDesc')}
+        icon={BrandAssets.exercises.defendsNulle}
+        onPress={() => router.push('/puzzles/defends-nulle' as Href)}
+        testID="puzzle-card-defends-nulle"
+      />
+      <HubModeCard
+        title={t('quiz.theoreticalEndgameTitle')}
+        description={t('quiz.theoreticalEndgameDesc')}
+        icon={BrandAssets.exercises.finalesTheoriques}
+        onPress={() => router.push('/puzzles/finales-theoriques' as Href)}
+        testID="puzzle-card-finales-theoriques"
+      />
+      <Pressable
+        onPress={() => router.push('/puzzles/records' as Href)}
+        hitSlop={8}
+        style={puzzleStyles.recordsLink}
+        testID="puzzle-records-link"
+      >
+        <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+          {t('records.title')}
         </Text>
-
-        <Text style={[puzzleStyles.sectionLabel, { color: colors.mutedForeground }]}>Mode</Text>
-        <View style={puzzleStyles.row}>
-          <PuzzleFilterChip
-            label="Visuel"
-            active={submode === 'visual'}
-            onPress={() => onPickMode('visual')}
-          />
-          <PuzzleFilterChip
-            label="À l’aveugle"
-            active={submode === 'blind'}
-            onPress={() => onPickMode('blind')}
-          />
-        </View>
-
-        <Text style={[puzzleStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          Difficulté (cote puzzle Lichess)
-        </Text>
-        <View style={puzzleStyles.row}>
-          {PUZZLE_RATING_BANDS.map((band) => (
-            <PuzzleFilterChip
-              key={band.id}
-              label={band.label}
-              active={ratingBandId === band.id}
-              onPress={() => setRatingBand(band.id)}
-            />
-          ))}
-        </View>
-
-        {submode === 'blind' && (
-          <>
-            <Text style={[puzzleStyles.sectionLabel, { color: colors.mutedForeground }]}>
-              Nombre de pièces
-            </Text>
-            <View style={puzzleStyles.row}>
-              {PIECE_COUNT_BANDS.map((band) => (
-                <PuzzleFilterChip
-                  key={band.id}
-                  label={band.label}
-                  active={pieceCountBandId === band.id}
-                  onPress={() => setPieceCountBand(band.id)}
-                />
-              ))}
-            </View>
-          </>
-        )}
-
-        <AppButton
-          label={
-            submode === 'blind'
-              ? 'Commencer à l’aveugle'
-              : submode === 'visual'
-                ? 'Commencer en visuel'
-                : 'Choisir un mode'
-          }
-          onPress={() => void onStart()}
-          disabled={starting || !submode}
-          testID="puzzle-start"
-        />
-
-        {starting && <ActivityIndicator color={colors.primary} />}
-        {!!loadError && (
-          <View style={[puzzleStyles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={{ color: colors.destructive, fontFamily: 'Inter_500Medium' }}>
-              {loadError}
-            </Text>
-            <Text style={[puzzleStyles.hint, { color: colors.mutedForeground, marginTop: 4 }]}>
-              Aucun problème ne correspond à ces filtres. Élargis la cote
-              {submode === 'blind' ? ' ou le nombre de pièces' : ''} puis réessaie.
-            </Text>
-          </View>
-        )}
-
-        <Pressable
-          onPress={() => router.push('/puzzles/records' as Href)}
-          hitSlop={8}
-          style={puzzleStyles.recordsLink}
-          testID="puzzle-records-link"
-        >
-          <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
-            Records
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </ModeScreenShell>
+      </Pressable>
+    </HubScreen>
   );
 }

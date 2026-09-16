@@ -13,6 +13,12 @@ export type ChessCultureCategory =
   | 'terminology'
   | 'famous-games'
   | 'chess-culture'
+  | 'checkmates'
+  | 'openings'
+  | 'tactics'
+  | 'strategy'
+  | 'modern-chess'
+  | 'visual'
   | 'other';
 
 export type ChessCultureSourceType =
@@ -37,9 +43,17 @@ export type ChessCulturePresentation = {
   imageFit?: ChessCultureImageFit;
 };
 
+/** Optional English copy; French remains the canonical `question` / `answers` / `explanation`. */
+export type ChessCultureQuestionI18nEn = {
+  question: string;
+  answers: [string, string, string, string];
+  explanation: string;
+};
+
 export type ChessCultureQuestion = {
   id: string;
   revision: number;
+  /** Canonical French wording (legacy bank + new FR strings). */
   question: string;
   answers: [string, string, string, string];
   correctAnswer: 0 | 1 | 2 | 3;
@@ -51,6 +65,8 @@ export type ChessCultureQuestion = {
   sourceType: ChessCultureSourceType;
   active: boolean;
   presentation?: ChessCulturePresentation;
+  /** English localization for UI when app language is `en`. */
+  i18nEn?: ChessCultureQuestionI18nEn;
 };
 
 export type ChessCultureFeedbackStatus = 'normal' | 'validated' | 'blacklisted';

@@ -35,6 +35,14 @@ describe('StorageKeys registry', () => {
     assert.equal(StorageKeys.moveNamingRecords.key, 'anychess.move-naming.records.v1');
     assert.equal(StorageKeys.moveNamingSession60.key, 'anychess.move-naming.session60.v1');
     assert.equal(StorageKeys.playMoveSession60.key, 'anychess.play-move.session60.v1');
+    assert.equal(
+      StorageKeys.blindMemoryRecords.key,
+      'anychess.blind.memoryRecords.v1',
+    );
+    assert.equal(
+      StorageKeys.openingQuizRecords.key,
+      'anychess.openingQuiz.records.v1',
+    );
     assert.equal(StorageKeys.continueLineRecent.key, 'anychess.continueLine.recent.v1');
     assert.equal(StorageKeys.mentalRecent.key, 'anychess.mental.recent.v1');
     assert.equal(StorageKeys.boardCoordinatesVisible.key, 'anychess.board.coordinatesVisible.v1');
@@ -45,6 +53,17 @@ describe('StorageKeys registry', () => {
       StorageKeys.chessCultureFeedback.key,
       'anychess.chess-culture.feedback.v1',
     );
+    assert.equal(StorageKeys.userProfile.key, 'anychess.profile.user.v1');
+    assert.equal(
+      StorageKeys.defaultVoiceSpeed.key,
+      'anychess.preferences.defaultVoiceSpeed.v1',
+    );
+    assert.equal(
+      StorageKeys.userPreferences.key,
+      'anychess.preferences.user.v1',
+    );
+    assert.equal(StorageKeys.gameLibrary.key, 'anychess.gameLibrary.v1');
+    assert.equal(StorageKeys.gameSession.key, 'anychess.gameSession.v1');
   });
 });
 

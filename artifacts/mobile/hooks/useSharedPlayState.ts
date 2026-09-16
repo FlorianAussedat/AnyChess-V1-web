@@ -3,6 +3,7 @@ import { speechService } from '@/services/SpeechService';
 import type { BoardPiece, LastMove, MoveEvent, PlayerColor } from '@/lib/game/types';
 import type { MoveInputSource } from '@/lib/moveInput/canonicalMove';
 import { Chess } from 'chess.js';
+import { tMsg } from '@/lib/i18n';
 
 /**
  * Shared board / turn / speech state used by Classic and Openings providers.
@@ -21,7 +22,7 @@ export function useSharedPlayState() {
     () => gameRef.current.board() as (BoardPiece | null)[][],
   );
   const [history, setHistory] = useState<string[]>([]);
-  const [status, setStatus] = useState('À toi de jouer.');
+  const [status, setStatus] = useState(() => tMsg('game.yourTurn'));
   const [heardText, setHeardText] = useState('');
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [isGameOver, setIsGameOver] = useState(false);

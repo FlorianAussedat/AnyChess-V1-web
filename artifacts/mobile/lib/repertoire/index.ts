@@ -29,7 +29,12 @@ export type {
   RepertoireSelectionSettings,
   PgnHeaders,
 } from './types';
-export { RepertoireService, repertoireService } from './RepertoireService';
+export {
+  RepertoireService,
+  repertoireService,
+  normaliseFilename,
+  uniquePgnFilename,
+} from './RepertoireService';
 export type { RepertoireStorage } from './storage/RepertoireStorage';
 export { AsyncStorageRepertoireStorage, defaultRepertoireStorage } from './storage/AsyncStorageRepertoireStorage';
 export type {
@@ -39,6 +44,8 @@ export type {
   RepertoireStoreSnapshot,
   RepertoireSide,
 } from './storage/types';
+export { pgnFileDisplayName } from './storage/types';
+export { joinSelectedPgnSlices } from './joinSelectedPgnSlices';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
 export {
@@ -55,3 +62,15 @@ export type {
 } from './MixedRepertoireTraining';
 export { pickPgnFile } from './pickPgnFile';
 export type { PickedPgnFile } from './pickPgnFile';
+export { folderNameFromPgnFilename } from './folderNameFromPgnFilename';
+export {
+  getAllTrainingLinesFromPgn,
+  getValidRepertoireSansAtFen,
+} from './trainingLines';
+export type {
+  TrainingLinesResult,
+  TrainingLinesError,
+  GameTreeLine,
+  GameTreeStats,
+} from './trainingLines';
+

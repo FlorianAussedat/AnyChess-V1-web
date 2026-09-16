@@ -58,6 +58,33 @@ export const blindStyles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 16,
   },
+  /** Compact Passer / Aide row */
+  compactActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  compactAction: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+  },
+  recordLine: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+  },
+  ineligibleBanner: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+
   modeCard: {
     flexDirection: 'row',
     alignItems: 'center',

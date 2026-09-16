@@ -2,6 +2,8 @@ import React from 'react';
 import { ScrollView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
+import { BrandAssets } from '@/constants/BrandAssets';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { HubModeCard } from '@/components/HubModeCard';
 import { blindStyles } from '@/components/blind/blindStyles';
@@ -9,28 +11,29 @@ import { useBlindSequence } from '@/contexts/BlindSequenceContext';
 
 export function BlindHubPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { selectSubmode } = useBlindSequence();
   const router = useRouter();
 
   return (
-    <ModeScreenShell title="Mémorisation" onBack={() => router.back()}>
+    <ModeScreenShell title={t('blind.title')} onBack={() => router.back()}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
         <Text style={[blindStyles.lead, { color: colors.mutedForeground }]}>
-          Choisis un exercice. Les séquences sont générées par Stockfish (1 à 20 coups complets).
+          {t('blind.hubLead')}
         </Text>
 
         <HubModeCard
-          title="Écouter puis reconstruire"
-          description="Écoute une séquence, puis rejoue les coups sur l’échiquier."
-          iconName="ear-outline"
+          title={t('blind.listenReconstruct')}
+          description={t('blind.listenReconstructDesc')}
+          icon={BrandAssets.exercises.ecouterPuisReconstruire}
           onPress={() => selectSubmode('listen-reconstruct')}
           testID="blind-mode-listen"
         />
 
         <HubModeCard
-          title="Regarder puis réciter"
-          description="Observe une séquence, puis récite les coups de mémoire."
-          iconName="eye-outline"
+          title={t('blind.watchRecite')}
+          description={t('blind.watchReciteDesc')}
+          icon={BrandAssets.exercises.regarderPuisReciter}
           onPress={() => selectSubmode('watch-recite')}
           testID="blind-mode-watch"
         />

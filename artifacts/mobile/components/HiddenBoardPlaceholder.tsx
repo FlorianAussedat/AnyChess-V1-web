@@ -1,10 +1,16 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { BrandAssets } from '@/constants/BrandAssets';
+import { computeBoardSize, type BoardSizeMode } from '@/lib/game/boardSize';
 
 interface Props {
   onReveal?: () => void;
+  /** Match ChessBoard footprint (default = compact historical size). */
+  sizeMode?: BoardSizeMode;
+  /** Optional explicit edge length (overrides sizeMode). */
+  size?: number;
 }
 
 /**
@@ -13,25 +19,31 @@ interface Props {
  * Occupies the same footprint as the board so the layout does not jump, and
  * makes clear the game is still running — only the visual board is hidden.
  */
-export function HiddenBoardPlaceholder({ onReveal }: Props) {
+export function HiddenBoardPlaceholder({
+  onReveal,
+  sizeMode = 'default',
+  size,
+}: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
-  const size = Math.min(width - 20, 352);
+  const edge = size ?? computeBoardSize(width, sizeMode);
+  const hiddenLabel = t('a11y.boardHidden');
 
   return (
     <View
       style={[
         styles.wrapper,
-        { width: size, height: size, backgroundColor: colors.card, borderColor: colors.border },
+        { width: edge, height: edge, backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
       <Image
-        source={BrandAssets.toggles.boardOff}
+        source={BrandAssets.toggles.board.off}
         style={styles.boardIcon}
         resizeMode="contain"
-        accessibilityLabel="Échiquier masqué"
+        accessibilityLabel={hiddenLabel}
       />
-      <Text style={[styles.title, { color: colors.foreground }]}>Échiquier masqué</Text>
+      <Text style={[styles.title, { color: colors.foreground }]}>{hiddenLabel}</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
         La partie continue normalement.
       </Text>
@@ -44,7 +56,7 @@ export function HiddenBoardPlaceholder({ onReveal }: Props) {
           ]}
         >
           <Image
-            source={BrandAssets.toggles.boardOn}
+            source={BrandAssets.toggles.board.on}
             style={styles.revealIcon}
             resizeMode="contain"
           />

@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { ReviewSideFilter } from '@/lib/repertoire';
 
 type Props = {
@@ -10,74 +11,66 @@ type Props = {
   onOpenMixed: () => void;
 };
 
+/**
+ * Three equivalent review filters — same primary (orange) style when enabled;
+ * unavailable sides stay visible but grey/disabled.
+ */
 export function OpeningsReviewBlock({
   reviewDisabled,
   onStartReview,
   onOpenMixed,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
+
+  const renderReviewBtn = (
+    side: ReviewSideFilter,
+    label: string,
+    testID: string,
+  ) => {
+    const disabled = reviewDisabled(side);
+    return (
+      <Pressable
+        onPress={() => onStartReview(side)}
+        disabled={disabled}
+        style={({ pressed }) => [
+          styles.reviewBtn,
+          {
+            backgroundColor: disabled ? colors.input : colors.primary,
+            borderColor: disabled ? colors.border : colors.primary,
+            borderWidth: 1,
+            opacity: disabled ? 0.55 : pressed ? 0.75 : 1,
+          },
+        ]}
+        testID={testID}
+        accessibilityState={{ disabled }}
+      >
+        <Text
+          style={{
+            color: disabled ? colors.mutedForeground : colors.primaryForeground,
+            fontFamily: 'Inter_600SemiBold',
+            fontSize: 13,
+            textAlign: 'center',
+          }}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  };
+
   return (
     <View style={[styles.mixedBlock, { borderColor: colors.border, backgroundColor: colors.card }]}>
-      <Text style={[styles.mixedTitle, { color: colors.foreground }]}>Révision</Text>
+      <Text style={[styles.mixedTitle, { color: colors.foreground }]}>
+        {t('openings.review')}
+      </Text>
       <Text style={[styles.mixedHint, { color: colors.mutedForeground }]}>
-        Continue la ligne sur un ou plusieurs répertoires — l’orientation suit le côté de chaque
-        ligne.
+        {t('openings.reviewHint')}
       </Text>
       <View style={styles.reviewRow}>
-        <Pressable
-          onPress={() => onStartReview('all')}
-          disabled={reviewDisabled('all')}
-          style={({ pressed }) => [
-            styles.reviewBtn,
-            {
-              backgroundColor: colors.primary,
-              opacity: reviewDisabled('all') ? 0.4 : pressed ? 0.75 : 1,
-            },
-          ]}
-          testID="review-all-btn"
-        >
-          <Text
-            style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}
-          >
-            Tout réviser
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onStartReview('white')}
-          disabled={reviewDisabled('white')}
-          style={({ pressed }) => [
-            styles.reviewBtn,
-            {
-              backgroundColor: colors.input,
-              borderColor: colors.border,
-              borderWidth: 1,
-              opacity: reviewDisabled('white') ? 0.4 : pressed ? 0.75 : 1,
-            },
-          ]}
-          testID="review-white-btn"
-        >
-          <Text style={[styles.reviewBtnLabelMuted, { color: colors.foreground }]}>
-            Réviser Blancs
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onStartReview('black')}
-          disabled={reviewDisabled('black')}
-          style={({ pressed }) => [
-            styles.reviewBtn,
-            {
-              backgroundColor: colors.input,
-              borderColor: colors.border,
-              borderWidth: 1,
-              opacity: reviewDisabled('black') ? 0.4 : pressed ? 0.75 : 1,
-            },
-          ]}
-          testID="review-black-btn"
-        >
-          <Text style={[styles.reviewBtnLabelMuted, { color: colors.foreground }]}>
-            Réviser Noirs
-          </Text>
-        </Pressable>
+        {renderReviewBtn('all', t('openings.reviewAll'), 'review-all-btn')}
+        {renderReviewBtn('white', t('openings.reviewWhite'), 'review-white-btn')}
+        {renderReviewBtn('black', t('openings.reviewBlack'), 'review-black-btn')}
       </View>
       <Pressable
         onPress={onOpenMixed}
@@ -94,7 +87,7 @@ export function OpeningsReviewBlock({
       >
         <Ionicons name="shuffle-outline" size={18} color={colors.foreground} />
         <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-          Sélection personnalisée…
+          {t('openings.customSelection')}
         </Text>
       </Pressable>
     </View>
@@ -106,8 +99,16 @@ const styles = StyleSheet.create({
   mixedTitle: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   mixedHint: { fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 17 },
   reviewRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  reviewBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
-  reviewBtnLabelMuted: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  reviewBtn: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   mixedBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -8,10 +8,13 @@ export type MainModeId =
   | 'blind'
   | 'puzzles'
   | 'visualisation'
-  | 'quiz-ouverture';
+  | 'quiz-ouverture'
+  | 'parties';
 
 export type VisualisationExerciseId = 'mental' | 'nommer' | 'jouer' | 'records';
 
-export type QuizOuvertureExerciseId = 'quelle' | 'construis';
+export type QuizOuvertureExerciseId = 'quelle';
+
+export type PuzzleExerciseId = 'visual' | 'blind' | 'defends-nulle' | 'finales-theoriques' | 'records';
 
 export type OpeningsExerciseId = 'play' | 'continue-line' | 'manage-pgn';

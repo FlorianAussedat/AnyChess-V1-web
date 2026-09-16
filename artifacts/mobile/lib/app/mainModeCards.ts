@@ -70,4 +70,13 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
     iconName: 'help-circle-outline',
     requiredMascotAsset: 'mascot-quiz-knight-detective.png',
   },
+  {
+    id: 'parties',
+    route: '/parties' as Href,
+    title: 'Parties',
+    description:
+      'Importe un PGN, rejoue la partie et analyse avec Stockfish dans le même workspace.',
+    iconName: 'play-circle-outline',
+    requiredMascotAsset: 'mascot-player-knight-dj.png',
+  },
 ];

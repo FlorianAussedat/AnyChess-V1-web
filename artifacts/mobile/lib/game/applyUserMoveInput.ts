@@ -1,6 +1,7 @@
 import type { Chess, Move } from 'chess.js';
 import { normalizeTranscript, parseChessVoice } from '../voice/index.ts';
 import type { VoiceMode } from '../voice/index.ts';
+import type { ChessNotation } from '../preferences/types.ts';
 import { looksLikeChessMove } from './looksLikeChessMove.ts';
 import type { MoveInputSource } from '../moveInput/canonicalMove.ts';
 
@@ -23,10 +24,13 @@ export function applyUserMoveInput(opts: {
   waitingForUser: boolean;
   isOpponentThinking: boolean;
   source?: MoveInputSource;
+  /** When omitted, parseChessVoice reads PreferencesStore.chessNotation. */
+  chessNotation?: ChessNotation;
 }): ApplyUserMoveInputResult {
-  const { raw, game, mode, waitingForUser, isOpponentThinking } = opts;
+  const { raw, game, mode, waitingForUser, isOpponentThinking, chessNotation } =
+    opts;
   const input = normalizeTranscript(raw);
-  const parsed = parseChessVoice(raw, game, { mode });
+  const parsed = parseChessVoice(raw, game, { mode, chessNotation });
 
   if (parsed.type === 'command') {
     if (

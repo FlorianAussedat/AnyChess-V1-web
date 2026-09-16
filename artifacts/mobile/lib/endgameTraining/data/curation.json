@@ -1,0 +1,1468 @@
+{
+  "schemaVersion": "1.0.0",
+  "decisions": {
+    "ET-LP-C539EEA4": {
+      "positionId": "ET-LP-C539EEA4",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:49.108Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-7205FE50": {
+      "positionId": "ET-LP-7205FE50",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:50.171Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-91D7353E": {
+      "positionId": "ET-LP-91D7353E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:50.955Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-12531F29": {
+      "positionId": "ET-LP-12531F29",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:52.143Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-EF54EFD6": {
+      "positionId": "ET-LP-EF54EFD6",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:53.953Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-88333D70": {
+      "positionId": "ET-LP-88333D70",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:54.675Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C432BA50": {
+      "positionId": "ET-LP-C432BA50",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:55.378Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D6631E5F": {
+      "positionId": "ET-LP-D6631E5F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:23:56.916Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-841561EC": {
+      "positionId": "ET-LP-841561EC",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:00.211Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-7DDE6D87": {
+      "positionId": "ET-LP-7DDE6D87",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:01.684Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-3733EDA9": {
+      "positionId": "ET-LP-3733EDA9",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:02.409Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F08F7327": {
+      "positionId": "ET-LP-F08F7327",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:03.199Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E8C376D6": {
+      "positionId": "ET-LP-E8C376D6",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:06.378Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-540A3DCC": {
+      "positionId": "ET-LP-540A3DCC",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:07.229Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-83FA686D": {
+      "positionId": "ET-LP-83FA686D",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:08.897Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F6A68AFB": {
+      "positionId": "ET-LP-F6A68AFB",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:10.134Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-191C9FB7": {
+      "positionId": "ET-LP-191C9FB7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:11.110Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-627BFE14": {
+      "positionId": "ET-LP-627BFE14",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:13.783Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-A96BF8AD": {
+      "positionId": "ET-LP-A96BF8AD",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:24:14.681Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-837AE334": {
+      "positionId": "ET-LP-837AE334",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:25:55.420Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-200FADE2": {
+      "positionId": "ET-LP-200FADE2",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:25:56.725Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-899E0C0F": {
+      "positionId": "ET-LP-899E0C0F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:25:57.353Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4C2CCE70": {
+      "positionId": "ET-LP-4C2CCE70",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:25:58.277Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-84A073A1": {
+      "positionId": "ET-LP-84A073A1",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:25:59.119Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-374F5820": {
+      "positionId": "ET-LP-374F5820",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:00.242Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E895046F": {
+      "positionId": "ET-LP-E895046F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:00.866Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C79873DF": {
+      "positionId": "ET-LP-C79873DF",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:01.517Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E0826699": {
+      "positionId": "ET-LP-E0826699",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:02.768Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-BA309F97": {
+      "positionId": "ET-LP-BA309F97",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:04.224Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-47DE897F": {
+      "positionId": "ET-LP-47DE897F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:06.135Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-B7B2B716": {
+      "positionId": "ET-LP-B7B2B716",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:07.467Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-26D53EAF": {
+      "positionId": "ET-LP-26D53EAF",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:08.670Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-B0BF63DC": {
+      "positionId": "ET-LP-B0BF63DC",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:26:09.605Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F3680689": {
+      "positionId": "ET-LP-F3680689",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:12.647Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FF0F33DC": {
+      "positionId": "ET-LP-FF0F33DC",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:13.387Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-9CD2587B": {
+      "positionId": "ET-LP-9CD2587B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:16.669Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-BB74E290": {
+      "positionId": "ET-LP-BB74E290",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:17.277Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C4772425": {
+      "positionId": "ET-LP-C4772425",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:17.894Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-1848D6F1": {
+      "positionId": "ET-LP-1848D6F1",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:18.489Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-79A62F9A": {
+      "positionId": "ET-LP-79A62F9A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:20.456Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-DEBEFAFB": {
+      "positionId": "ET-LP-DEBEFAFB",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:22.622Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-AC972226": {
+      "positionId": "ET-LP-AC972226",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:23.218Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-410126EC": {
+      "positionId": "ET-LP-410126EC",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:24.390Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-EEDDFD6D": {
+      "positionId": "ET-LP-EEDDFD6D",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:25.953Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-226518FB": {
+      "positionId": "ET-LP-226518FB",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:33.701Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-6453EE69": {
+      "positionId": "ET-LP-6453EE69",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:35.791Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-1CEEC5F9": {
+      "positionId": "ET-LP-1CEEC5F9",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:30:37.586Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F16E6099": {
+      "positionId": "ET-LP-F16E6099",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:00.613Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D31B2638": {
+      "positionId": "ET-LP-D31B2638",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:05.760Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-A4D4C38E": {
+      "positionId": "ET-LP-A4D4C38E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:09.628Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D2F85F24": {
+      "positionId": "ET-LP-D2F85F24",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:15.648Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C8AFB7E3": {
+      "positionId": "ET-LP-C8AFB7E3",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:25.641Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-79D64029": {
+      "positionId": "ET-LP-79D64029",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:29.598Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-153257FE": {
+      "positionId": "ET-LP-153257FE",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:35.677Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-549C9D58": {
+      "positionId": "ET-LP-549C9D58",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:40.539Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-155EC59C": {
+      "positionId": "ET-LP-155EC59C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:42.899Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D7FBC37D": {
+      "positionId": "ET-LP-D7FBC37D",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:47.629Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F793F2C5": {
+      "positionId": "ET-LP-F793F2C5",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:53.633Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E2F12C49": {
+      "positionId": "ET-LP-E2F12C49",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:31:58.698Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4A0BD149": {
+      "positionId": "ET-LP-4A0BD149",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:01.538Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-077CC3E6": {
+      "positionId": "ET-LP-077CC3E6",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:03.565Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-AE2AD98F": {
+      "positionId": "ET-LP-AE2AD98F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:12.537Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-105C9CDB": {
+      "positionId": "ET-LP-105C9CDB",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:14.625Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-25C88466": {
+      "positionId": "ET-LP-25C88466",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:22.613Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-CF77893B": {
+      "positionId": "ET-LP-CF77893B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:31.538Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-CCABFC5E": {
+      "positionId": "ET-LP-CCABFC5E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:34.711Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-14F359E9": {
+      "positionId": "ET-LP-14F359E9",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:32:44.642Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-03ED26D4": {
+      "positionId": "ET-LP-03ED26D4",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:04.615Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-A6C9A97C": {
+      "positionId": "ET-LP-A6C9A97C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:15.537Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F6A50C64": {
+      "positionId": "ET-LP-F6A50C64",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:18.600Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-65A10190": {
+      "positionId": "ET-LP-65A10190",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:24.538Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-20C24504": {
+      "positionId": "ET-LP-20C24504",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:26.605Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-389D2618": {
+      "positionId": "ET-LP-389D2618",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:31.753Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-CA358DD4": {
+      "positionId": "ET-LP-CA358DD4",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:34.838Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-1EDBF8BB": {
+      "positionId": "ET-LP-1EDBF8BB",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:37.561Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-485C1CB5": {
+      "positionId": "ET-LP-485C1CB5",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:42.700Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-6D5667BF": {
+      "positionId": "ET-LP-6D5667BF",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:47.536Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-A0C0BEE7": {
+      "positionId": "ET-LP-A0C0BEE7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:49.670Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-764D9882": {
+      "positionId": "ET-LP-764D9882",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:33:52.667Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-95DC6778": {
+      "positionId": "ET-LP-95DC6778",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:00.734Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E2A120A2": {
+      "positionId": "ET-LP-E2A120A2",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:10.554Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F74DDADB": {
+      "positionId": "ET-LP-F74DDADB",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:12.606Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-9ABBD521": {
+      "positionId": "ET-LP-9ABBD521",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:22.889Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-BA41F472": {
+      "positionId": "ET-LP-BA41F472",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:23.537Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C7B23200": {
+      "positionId": "ET-LP-C7B23200",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:24.291Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-139A9C89": {
+      "positionId": "ET-LP-139A9C89",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:26.691Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FDC9E37D": {
+      "positionId": "ET-LP-FDC9E37D",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:27.762Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-2099F535": {
+      "positionId": "ET-LP-2099F535",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:28.421Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-91301231": {
+      "positionId": "ET-LP-91301231",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:30.234Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-B29AA03E": {
+      "positionId": "ET-LP-B29AA03E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:31.047Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-DFD965DA": {
+      "positionId": "ET-LP-DFD965DA",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:31.651Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-81D0353C": {
+      "positionId": "ET-LP-81D0353C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:32.471Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-8238195E": {
+      "positionId": "ET-LP-8238195E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:33.120Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-421AEDA1": {
+      "positionId": "ET-LP-421AEDA1",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:33.812Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-285799EB": {
+      "positionId": "ET-LP-285799EB",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:34.433Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FE323F6A": {
+      "positionId": "ET-LP-FE323F6A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:35.513Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FDED789C": {
+      "positionId": "ET-LP-FDED789C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:36.222Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-3D7A4ECE": {
+      "positionId": "ET-LP-3D7A4ECE",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:36.861Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D2B77016": {
+      "positionId": "ET-LP-D2B77016",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:38.213Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-A8A49FF8": {
+      "positionId": "ET-LP-A8A49FF8",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:38.897Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-94FA01BF": {
+      "positionId": "ET-LP-94FA01BF",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:40.241Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-1F1CCAC0": {
+      "positionId": "ET-LP-1F1CCAC0",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:42.304Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F619F39B": {
+      "positionId": "ET-LP-F619F39B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:43.006Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-874F656A": {
+      "positionId": "ET-LP-874F656A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:44.137Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-05699C03": {
+      "positionId": "ET-LP-05699C03",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:44.877Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-B9FCFD3E": {
+      "positionId": "ET-LP-B9FCFD3E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:46.811Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F83942F7": {
+      "positionId": "ET-LP-F83942F7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:48.345Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-2B02D3F7": {
+      "positionId": "ET-LP-2B02D3F7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:49.366Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-6F9D3ABC": {
+      "positionId": "ET-LP-6F9D3ABC",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:52.235Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-6395BE0F": {
+      "positionId": "ET-LP-6395BE0F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:34:58.135Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C1149F0E": {
+      "positionId": "ET-LP-C1149F0E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:02.204Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-032ECE5A": {
+      "positionId": "ET-LP-032ECE5A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:04.122Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FFC24E84": {
+      "positionId": "ET-LP-FFC24E84",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:09.210Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D161C16A": {
+      "positionId": "ET-LP-D161C16A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:12.102Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-EB8724D6": {
+      "positionId": "ET-LP-EB8724D6",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:17.242Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-31B4573B": {
+      "positionId": "ET-LP-31B4573B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:20.101Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C2A3F43F": {
+      "positionId": "ET-LP-C2A3F43F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:23.089Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F4015735": {
+      "positionId": "ET-LP-F4015735",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:28.245Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-302EA156": {
+      "positionId": "ET-LP-302EA156",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:30.109Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-836C2D6A": {
+      "positionId": "ET-LP-836C2D6A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:39.304Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-6B06B35A": {
+      "positionId": "ET-LP-6B06B35A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:41.256Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-46FF348F": {
+      "positionId": "ET-LP-46FF348F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:44.210Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-DCB81C90": {
+      "positionId": "ET-LP-DCB81C90",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:46.213Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-A3485A25": {
+      "positionId": "ET-LP-A3485A25",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:50.377Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-0E420C81": {
+      "positionId": "ET-LP-0E420C81",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:52.444Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-DFC6EE51": {
+      "positionId": "ET-LP-DFC6EE51",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:35:56.150Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-AC540DB4": {
+      "positionId": "ET-LP-AC540DB4",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:00.186Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-CB5252CF": {
+      "positionId": "ET-LP-CB5252CF",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:03.104Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-57FAEEA8": {
+      "positionId": "ET-LP-57FAEEA8",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:13.080Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-8D8656F0": {
+      "positionId": "ET-LP-8D8656F0",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:15.208Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-86564B7F": {
+      "positionId": "ET-LP-86564B7F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:19.334Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-276FD2A8": {
+      "positionId": "ET-LP-276FD2A8",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:22.297Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-6042B633": {
+      "positionId": "ET-LP-6042B633",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:26.367Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-1F37F1DF": {
+      "positionId": "ET-LP-1F37F1DF",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:28.339Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-ADD9076F": {
+      "positionId": "ET-LP-ADD9076F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:37.166Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-6C8B6FD4": {
+      "positionId": "ET-LP-6C8B6FD4",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:41.184Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-891DDDED": {
+      "positionId": "ET-LP-891DDDED",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:45.058Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-F4C7E372": {
+      "positionId": "ET-LP-F4C7E372",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:47.202Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-54FD6024": {
+      "positionId": "ET-LP-54FD6024",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:49.180Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-3657E456": {
+      "positionId": "ET-LP-3657E456",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:53.089Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-9F383E0B": {
+      "positionId": "ET-LP-9F383E0B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:36:58.283Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-7D8D918C": {
+      "positionId": "ET-LP-7D8D918C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:00.058Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D8D7C846": {
+      "positionId": "ET-LP-D8D7C846",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:03.224Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-5A53F0A0": {
+      "positionId": "ET-LP-5A53F0A0",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:06.087Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D985158C": {
+      "positionId": "ET-LP-D985158C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:10.063Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-DF083973": {
+      "positionId": "ET-LP-DF083973",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:12.325Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C37D59B8": {
+      "positionId": "ET-LP-C37D59B8",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:14.131Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-3E1667DE": {
+      "positionId": "ET-LP-3E1667DE",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:22.124Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E0DA36E0": {
+      "positionId": "ET-LP-E0DA36E0",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:27.151Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-2C1476B9": {
+      "positionId": "ET-LP-2C1476B9",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:31.194Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-8FDA70B9": {
+      "positionId": "ET-LP-8FDA70B9",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:37.135Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4613AA97": {
+      "positionId": "ET-LP-4613AA97",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:41.186Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-2F6071BF": {
+      "positionId": "ET-LP-2F6071BF",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:45.075Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-06FDD45B": {
+      "positionId": "ET-LP-06FDD45B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:47.089Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-66DD41F8": {
+      "positionId": "ET-LP-66DD41F8",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:53.072Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-7D50D450": {
+      "positionId": "ET-LP-7D50D450",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:55.063Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-54EBA7D3": {
+      "positionId": "ET-LP-54EBA7D3",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:37:58.138Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FC8BA100": {
+      "positionId": "ET-LP-FC8BA100",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:05.198Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-A063A68E": {
+      "positionId": "ET-LP-A063A68E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:10.112Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-7B440E0B": {
+      "positionId": "ET-LP-7B440E0B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:14.086Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-19EDBB34": {
+      "positionId": "ET-LP-19EDBB34",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:18.150Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E6DADD8C": {
+      "positionId": "ET-LP-E6DADD8C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:22.145Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-778AA5E9": {
+      "positionId": "ET-LP-778AA5E9",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:27.058Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-851306D8": {
+      "positionId": "ET-LP-851306D8",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:31.274Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-B7E16101": {
+      "positionId": "ET-LP-B7E16101",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:34.068Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-564599DD": {
+      "positionId": "ET-LP-564599DD",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:42.188Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-5E94CFF5": {
+      "positionId": "ET-LP-5E94CFF5",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:48.220Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-1009919B": {
+      "positionId": "ET-LP-1009919B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:53.834Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E485FC6F": {
+      "positionId": "ET-LP-E485FC6F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:54.778Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-BBA506AA": {
+      "positionId": "ET-LP-BBA506AA",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:55.467Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-932BE049": {
+      "positionId": "ET-LP-932BE049",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:56.094Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-B3814EB7": {
+      "positionId": "ET-LP-B3814EB7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:57.587Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-560011F7": {
+      "positionId": "ET-LP-560011F7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:58.324Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-9FB3140F": {
+      "positionId": "ET-LP-9FB3140F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:38:59.050Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-0A9E2E60": {
+      "positionId": "ET-LP-0A9E2E60",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:01.013Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-45654D86": {
+      "positionId": "ET-LP-45654D86",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:01.611Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FD2A6E12": {
+      "positionId": "ET-LP-FD2A6E12",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:02.728Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-C3F1C583": {
+      "positionId": "ET-LP-C3F1C583",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:04.019Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-0786499C": {
+      "positionId": "ET-LP-0786499C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:05.599Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-84F452ED": {
+      "positionId": "ET-LP-84F452ED",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:07.027Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E9AA5834": {
+      "positionId": "ET-LP-E9AA5834",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:08.174Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-FF3A4E1C": {
+      "positionId": "ET-LP-FF3A4E1C",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:10.231Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D08E51EC": {
+      "positionId": "ET-LP-D08E51EC",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:11.686Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4748145A": {
+      "positionId": "ET-LP-4748145A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:12.944Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4EF2A97A": {
+      "positionId": "ET-LP-4EF2A97A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:15.156Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4FD4C207": {
+      "positionId": "ET-LP-4FD4C207",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:15.797Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-EA2C806B": {
+      "positionId": "ET-LP-EA2C806B",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:16.430Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-EF30CCF7": {
+      "positionId": "ET-LP-EF30CCF7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:17.026Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-750B9CA5": {
+      "positionId": "ET-LP-750B9CA5",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:17.738Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4C397415": {
+      "positionId": "ET-LP-4C397415",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:24.541Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-0FB2A686": {
+      "positionId": "ET-LP-0FB2A686",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:31.572Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-0E6375E7": {
+      "positionId": "ET-LP-0E6375E7",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:39.585Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-1E6977FA": {
+      "positionId": "ET-LP-1E6977FA",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:43.569Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-62FACC0F": {
+      "positionId": "ET-LP-62FACC0F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:50.594Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-59B40E96": {
+      "positionId": "ET-LP-59B40E96",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:39:56.579Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-D981F69F": {
+      "positionId": "ET-LP-D981F69F",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:00.522Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-503C5349": {
+      "positionId": "ET-LP-503C5349",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:04.626Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-60A7EA94": {
+      "positionId": "ET-LP-60A7EA94",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:28.642Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-295D1708": {
+      "positionId": "ET-LP-295D1708",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:32.541Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-3EE75B56": {
+      "positionId": "ET-LP-3EE75B56",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:34.541Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-4161390A": {
+      "positionId": "ET-LP-4161390A",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:36.579Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-7BD43AF0": {
+      "positionId": "ET-LP-7BD43AF0",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:44.550Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-DAB3B804": {
+      "positionId": "ET-LP-DAB3B804",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:46.546Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-AE060F64": {
+      "positionId": "ET-LP-AE060F64",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:48.637Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-372B5BD2": {
+      "positionId": "ET-LP-372B5BD2",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:51.565Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-3A757C77": {
+      "positionId": "ET-LP-3A757C77",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:40:59.605Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-82FB03BD": {
+      "positionId": "ET-LP-82FB03BD",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:41:05.661Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E5E49B59": {
+      "positionId": "ET-LP-E5E49B59",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:41:08.529Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    },
+    "ET-LP-E911AB0E": {
+      "positionId": "ET-LP-E911AB0E",
+      "status": "accepted",
+      "reviewedAt": "2026-08-22T07:41:12.663Z",
+      "reviewer": "pipeline-auto",
+      "notes": "Auto-accepted after Syzygy move−1 certification"
+    }
+  }
+}

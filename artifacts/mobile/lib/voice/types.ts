@@ -73,6 +73,11 @@ export type ParseChessVoiceOptions = {
    * Architecture-ready for other pieces later.
    */
   defaultPromotion?: 'q' | 'r' | 'b' | 'n';
+  /**
+   * Active chess notation preference. When omitted, reads PreferencesStore.
+   * Selected notation wins when English rook `R` and French Roi `R` collide.
+   */
+  chessNotation?: 'fr' | 'en';
 };
 
 /**

@@ -1,0 +1,4991 @@
+{
+  "generatedAt": "2026-08-20T09:47:22.045Z",
+  "before": {
+    "total": 117,
+    "byDifficulty": {
+      "debutant": 12,
+      "confirme": 40,
+      "expert": 40,
+      "grandMaitre": 25
+    },
+    "byFamily": {
+      "pawn": 39,
+      "queen": 8,
+      "minor-piece": 2,
+      "fortress": 3,
+      "rook": 65
+    }
+  },
+  "after": {
+    "total": 34,
+    "byDifficulty": {
+      "debutant": 15,
+      "confirme": 18,
+      "expert": 1,
+      "grandMaitre": 0
+    },
+    "byFamily": {
+      "pawn": 19,
+      "minor-piece": 2,
+      "rook": 13
+    },
+    "byStyle": {
+      "technical": 30,
+      "practical": 4,
+      "critical": 0
+    }
+  },
+  "rejected": {
+    "count": 30,
+    "byReason": {
+      "bare-heavy-symmetry": 23,
+      "immediate-liquidation": 26,
+      "terminal-within-2-plies": 23,
+      "low-practical-pressure": 23,
+      "low-quality-score": 26,
+      "soft-drawing-ratio": 6,
+      "terminal-within-1-plies": 3
+    },
+    "positions": [
+      {
+        "id": "DD-010",
+        "fen": "8/8/4k3/8/8/4K3/4Q3/4q3 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-012",
+        "fen": "8/8/5pk1/5b2/5B2/5PK1/8/8 w - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "fortress",
+        "materialSignature": "KBP-kbp",
+        "reasons": [
+          "soft-drawing-ratio"
+        ],
+        "qualityScore": 70
+      },
+      {
+        "id": "DD-015",
+        "fen": "8/8/5pk1/5b2/8/5B2/5PK1/8 w - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "fortress",
+        "materialSignature": "KBP-kbp",
+        "reasons": [
+          "soft-drawing-ratio"
+        ],
+        "qualityScore": 70
+      },
+      {
+        "id": "DD-021",
+        "fen": "8/8/4pk2/4b3/8/4B3/4PK2/8 w - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "fortress",
+        "materialSignature": "KBP-kbp",
+        "reasons": [
+          "soft-drawing-ratio"
+        ],
+        "qualityScore": 70
+      },
+      {
+        "id": "DD-025",
+        "fen": "8/8/k5R1/8/2K5/8/1r6/8 b - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-036",
+        "fen": "5k2/8/8/8/6r1/1K6/4R3/8 w - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-039",
+        "fen": "7k/q2Q4/3K4/8/8/8/8/8 b - - 0 1",
+        "oldDifficulty": "grandMaitre",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "soft-drawing-ratio",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-041",
+        "fen": "8/8/8/4r3/6k1/1KR5/8/8 w - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-051",
+        "fen": "4k3/3R4/8/8/8/2Kb4/8/8 b - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kb",
+        "reasons": [
+          "immediate-liquidation",
+          "terminal-within-1-plies",
+          "low-quality-score"
+        ],
+        "qualityScore": 10
+      },
+      {
+        "id": "DD-056",
+        "fen": "8/2r4R/7K/1k6/8/8/8/8 b - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-113",
+        "fen": "6Q1/2q5/8/8/K7/8/3k4/8 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0,
+        "note": "Q vs Q bare — immediate liquidation to K vs K; no pedagogical interest"
+      },
+      {
+        "id": "DD-148",
+        "fen": "1K6/8/8/8/4R3/r7/1k6/8 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-177",
+        "fen": "8/8/r7/8/4R3/8/3k3K/8 w - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-261",
+        "fen": "8/4q3/8/5k2/8/7K/8/6Q1 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-321",
+        "fen": "8/1k5K/2R5/8/6r1/8/8/8 w - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-328",
+        "fen": "1k6/2q5/8/8/8/1KQ5/8/8 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-367",
+        "fen": "7k/b6R/8/8/8/8/8/5K2 b - - 0 1",
+        "oldDifficulty": "grandMaitre",
+        "family": "rook",
+        "materialSignature": "KR-kb",
+        "reasons": [
+          "immediate-liquidation",
+          "terminal-within-1-plies",
+          "low-quality-score"
+        ],
+        "qualityScore": 10
+      },
+      {
+        "id": "DD-372",
+        "fen": "8/Q7/8/8/8/k7/4q3/6K1 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-407",
+        "fen": "8/2r5/8/6R1/8/1K6/8/2k5 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-417",
+        "fen": "8/3Q4/8/6K1/8/3k4/4q3/8 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-426",
+        "fen": "2K5/6r1/8/8/5R2/2k5/8/8 w - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-487",
+        "fen": "8/1k6/r7/8/8/6R1/8/2K5 w - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "soft-drawing-ratio",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-512",
+        "fen": "8/2K5/2b2R2/4k3/8/8/8/8 b - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kb",
+        "reasons": [
+          "immediate-liquidation",
+          "terminal-within-1-plies",
+          "low-quality-score"
+        ],
+        "qualityScore": 10
+      },
+      {
+        "id": "DD-527",
+        "fen": "8/7K/8/5k2/5r2/8/4R3/8 w - - 0 1",
+        "oldDifficulty": "debutant",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-554",
+        "fen": "2K5/4k3/8/8/1r6/8/3R4/8 b - - 0 1",
+        "oldDifficulty": "debutant",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-575",
+        "fen": "8/R7/6K1/4r3/8/5k2/8/8 b - - 0 1",
+        "oldDifficulty": "debutant",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-580",
+        "fen": "7b/5k2/8/8/7K/8/8/6R1 b - - 0 1",
+        "oldDifficulty": "expert",
+        "family": "rook",
+        "materialSignature": "KR-kb",
+        "reasons": [
+          "soft-drawing-ratio"
+        ],
+        "qualityScore": 45
+      },
+      {
+        "id": "DD-601",
+        "fen": "4K3/8/8/k7/3r4/4R3/8/8 b - - 0 1",
+        "oldDifficulty": "confirme",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-632",
+        "fen": "8/1k6/6R1/8/8/4K3/5r2/8 b - - 0 1",
+        "oldDifficulty": "debutant",
+        "family": "rook",
+        "materialSignature": "KR-kr",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      },
+      {
+        "id": "DD-774",
+        "fen": "8/4k3/8/8/8/3KQ3/8/6q1 b - - 0 1",
+        "oldDifficulty": "grandMaitre",
+        "family": "queen",
+        "materialSignature": "KQ-kq",
+        "reasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ],
+        "qualityScore": 0
+      }
+    ]
+  },
+  "levelChanges": [
+    {
+      "id": "DD-001",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-002",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-003",
+      "from": "grandMaitre",
+      "to": "expert",
+      "note": "was grandMaitre, metrics suggest expert"
+    },
+    {
+      "id": "DD-005",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-006",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-007",
+      "from": "grandMaitre",
+      "to": "debutant",
+      "note": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-011",
+      "from": "grandMaitre",
+      "to": "confirme",
+      "note": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-013",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-014",
+      "from": "expert",
+      "to": "confirme",
+      "note": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-018",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-020",
+      "from": "grandMaitre",
+      "to": "confirme",
+      "note": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-022",
+      "from": "grandMaitre",
+      "to": "confirme",
+      "note": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-023",
+      "from": "grandMaitre",
+      "to": "confirme",
+      "note": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-061",
+      "from": "expert",
+      "to": "confirme",
+      "note": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-062",
+      "from": "confirme",
+      "to": "debutant",
+      "note": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-085",
+      "from": "expert",
+      "to": "confirme",
+      "note": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-126",
+      "from": "grandMaitre",
+      "to": "debutant",
+      "note": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-136",
+      "from": "grandMaitre",
+      "to": "debutant",
+      "note": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-153",
+      "from": "confirme",
+      "to": "debutant",
+      "note": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-163",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-170",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-180",
+      "from": "expert",
+      "to": "debutant",
+      "note": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-214",
+      "from": "grandMaitre",
+      "to": "debutant",
+      "note": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-695",
+      "from": "grandMaitre",
+      "to": "confirme",
+      "note": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-705",
+      "from": "grandMaitre",
+      "to": "confirme",
+      "note": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-708",
+      "from": "debutant",
+      "to": "confirme",
+      "note": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-715",
+      "from": "grandMaitre",
+      "to": "confirme",
+      "note": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-732",
+      "from": "debutant",
+      "to": "confirme",
+      "note": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-747",
+      "from": "debutant",
+      "to": "confirme",
+      "note": "was debutant, metrics suggest confirme"
+    }
+  ],
+  "gmJustifications": [],
+  "dd113": {
+    "id": "DD-113",
+    "fen": "6Q1/2q5/8/8/K7/8/3k4/8 b - - 0 1",
+    "oldDifficulty": "expert",
+    "suggestedDifficulty": "confirme",
+    "family": "queen",
+    "concepts": [
+      "king-activity",
+      "perpetual-check"
+    ],
+    "theme": "queen-ending",
+    "materialSignature": "KQ-kq",
+    "objective": "DRAW",
+    "legalMoves": 31,
+    "drawingMoves": 21,
+    "drawingRatio": 0.6774193548387096,
+    "bareHeavySymmetry": true,
+    "trainingStyle": "practical",
+    "quality": {
+      "immediateLiquidation": true,
+      "terminalWithinPlies": 2,
+      "materialReductionWithinPlies": 18,
+      "practicalPressure": 5,
+      "similarityKey": "KQ-kq|queen|b|practical|--------",
+      "qualityScore": 0,
+      "rejectionReasons": [
+        "bare-heavy-symmetry",
+        "immediate-liquidation",
+        "terminal-within-2-plies",
+        "low-practical-pressure",
+        "low-quality-score"
+      ]
+    },
+    "classificationNote": "was expert, metrics suggest confirme"
+  },
+  "softTargets": {
+    "debutant": 30,
+    "confirme": 40,
+    "expert": 25,
+    "grandMaitre": 12
+  },
+  "policy": {
+    "noArtificialQuotaFill": true,
+    "qualityBeforeQuantity": true,
+    "lichessImport": "deferred"
+  },
+  "auditSample": [
+    {
+      "id": "DD-001",
+      "fen": "8/8/3k4/3P4/3K4/8/8/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "opposition",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 3,
+      "drawingMoves": 3,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|---P----",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-002",
+      "fen": "8/8/8/4k3/4P3/4K3/8/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "king-front",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 3,
+      "drawingMoves": 3,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|----P---",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-003",
+      "fen": "8/8/8/P7/4k3/8/8/4K3 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "expert",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "pawn-square",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 8,
+      "drawingMoves": 1,
+      "drawingRatio": 0.125,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 100,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 100,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest expert"
+    },
+    {
+      "id": "DD-005",
+      "fen": "8/8/8/8/7P/6k1/8/6K1 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "rook-pawn",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 3,
+      "drawingRatio": 0.6,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|-------P",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-006",
+      "fen": "8/1p6/8/8/8/8/1P6/k1K5 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "pawn-race",
+      "materialSignature": "KP-kp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 3,
+      "drawingRatio": 0.6,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-kp|pawn|w|technical|-pP------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-007",
+      "fen": "8/8/8/8/8/k7/P7/K7 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "rook-pawn",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 78,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 78,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-010",
+      "fen": "8/8/4k3/8/8/4K3/4Q3/4q3 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "perpetual-check"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 23,
+      "drawingMoves": 11,
+      "drawingRatio": 0.4782608695652174,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-011",
+      "fen": "8/5pk1/5n2/8/5N2/5PK1/8/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "minor-piece",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "minor-pawns",
+      "materialSignature": "KNP-knp",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 9,
+      "drawingRatio": 0.6923076923076923,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 60,
+        "similarityKey": "KNP-knp|minor-piece|b|technical|-----pP--",
+        "qualityScore": 60,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-012",
+      "fen": "8/8/5pk1/5b2/5B2/5PK1/8/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "fortress",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "fortress"
+      ],
+      "theme": "opposite-bishops",
+      "materialSignature": "KBP-kbp",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 10,
+      "drawingRatio": 0.7692307692307693,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KBP-kbp|fortress|w|technical|-----pP--",
+        "qualityScore": 70,
+        "rejectionReasons": [
+          "soft-drawing-ratio"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-013",
+      "fen": "8/8/8/2k5/2p5/2P5/2K5/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "blockade",
+      "materialSignature": "KP-kp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 4,
+      "drawingRatio": 0.8,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 78,
+        "similarityKey": "KP-kp|pawn|w|technical|--pP-----",
+        "qualityScore": 78,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-014",
+      "fen": "8/8/8/3k4/3p4/3P4/3K4/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "pawn",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "blockade",
+      "materialSignature": "KP-kp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 3,
+      "drawingRatio": 0.6,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 93,
+        "similarityKey": "KP-kp|pawn|w|technical|---pP----",
+        "qualityScore": 93,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-015",
+      "fen": "8/8/5pk1/5b2/8/5B2/5PK1/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "fortress",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "fortress"
+      ],
+      "theme": "opposite-bishops",
+      "materialSignature": "KBP-kbp",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": 0.7857142857142857,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KBP-kbp|fortress|w|technical|-----pP--",
+        "qualityScore": 70,
+        "rejectionReasons": [
+          "soft-drawing-ratio"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-018",
+      "fen": "8/8/K7/8/1k6/8/P7/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 4,
+      "drawingRatio": 0.8,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 93,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 93,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-020",
+      "fen": "8/4P1k1/8/8/8/8/4K3/5r2 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity",
+        "accurate-defense"
+      ],
+      "theme": "promotion",
+      "materialSignature": "KP-kr",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 4,
+      "drawingRatio": 0.19047619047619047,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KP-kr|rook|b|technical|----P---",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-021",
+      "fen": "8/8/4pk2/4b3/8/4B3/4PK2/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "fortress",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "fortress"
+      ],
+      "theme": "opposite-bishops",
+      "materialSignature": "KBP-kbp",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": 0.7857142857142857,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KBP-kbp|fortress|w|technical|----pP---",
+        "qualityScore": 70,
+        "rejectionReasons": [
+          "soft-drawing-ratio"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-022",
+      "fen": "8/8/8/8/4k3/8/3KP3/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "pawn",
+      "concepts": [
+        "king-activity",
+        "accurate-defense",
+        "opposition",
+        "zugzwang"
+      ],
+      "theme": "king-front",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 1,
+      "drawingRatio": 0.2,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 93,
+        "similarityKey": "KP-k|pawn|b|technical|----P---",
+        "qualityScore": 93,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-023",
+      "fen": "8/8/5pk1/5n2/8/5N2/5PK1/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "minor-piece",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "minor-pawns",
+      "materialSignature": "KNP-knp",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 9,
+      "drawingRatio": 0.6923076923076923,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 60,
+        "similarityKey": "KNP-knp|minor-piece|w|technical|-----pP--",
+        "qualityScore": 60,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-025",
+      "fen": "8/8/k5R1/8/2K5/8/1r6/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 4,
+      "drawingMoves": 4,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-036",
+      "fen": "5k2/8/8/8/6r1/1K6/4R3/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 15,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-039",
+      "fen": "7k/q2Q4/3K4/8/8/8/8/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "perpetual-check"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 18,
+      "drawingMoves": 13,
+      "drawingRatio": 0.7222222222222222,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 0,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "soft-drawing-ratio",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    }
+  ],
+  "auditAll": [
+    {
+      "id": "DD-001",
+      "fen": "8/8/3k4/3P4/3K4/8/8/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "opposition",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 3,
+      "drawingMoves": 3,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|---P----",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-002",
+      "fen": "8/8/8/4k3/4P3/4K3/8/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "king-front",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 3,
+      "drawingMoves": 3,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|----P---",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-003",
+      "fen": "8/8/8/P7/4k3/8/8/4K3 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "expert",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "pawn-square",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 8,
+      "drawingMoves": 1,
+      "drawingRatio": 0.125,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 100,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 100,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest expert"
+    },
+    {
+      "id": "DD-005",
+      "fen": "8/8/8/8/7P/6k1/8/6K1 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "rook-pawn",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 3,
+      "drawingRatio": 0.6,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|-------P",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-006",
+      "fen": "8/1p6/8/8/8/8/1P6/k1K5 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "pawn-race",
+      "materialSignature": "KP-kp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 3,
+      "drawingRatio": 0.6,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-kp|pawn|w|technical|-pP------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-007",
+      "fen": "8/8/8/8/8/k7/P7/K7 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "rook-pawn",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 78,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 78,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-010",
+      "fen": "8/8/4k3/8/8/4K3/4Q3/4q3 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "perpetual-check"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 23,
+      "drawingMoves": 11,
+      "drawingRatio": 0.4782608695652174,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-011",
+      "fen": "8/5pk1/5n2/8/5N2/5PK1/8/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "minor-piece",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "minor-pawns",
+      "materialSignature": "KNP-knp",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 9,
+      "drawingRatio": 0.6923076923076923,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 60,
+        "similarityKey": "KNP-knp|minor-piece|b|technical|-----pP--",
+        "qualityScore": 60,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-012",
+      "fen": "8/8/5pk1/5b2/5B2/5PK1/8/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "fortress",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "fortress"
+      ],
+      "theme": "opposite-bishops",
+      "materialSignature": "KBP-kbp",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 10,
+      "drawingRatio": 0.7692307692307693,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KBP-kbp|fortress|w|technical|-----pP--",
+        "qualityScore": 70,
+        "rejectionReasons": [
+          "soft-drawing-ratio"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-013",
+      "fen": "8/8/8/2k5/2p5/2P5/2K5/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "blockade",
+      "materialSignature": "KP-kp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 4,
+      "drawingRatio": 0.8,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 78,
+        "similarityKey": "KP-kp|pawn|w|technical|--pP-----",
+        "qualityScore": 78,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-014",
+      "fen": "8/8/8/3k4/3p4/3P4/3K4/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "pawn",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "blockade",
+      "materialSignature": "KP-kp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 3,
+      "drawingRatio": 0.6,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 93,
+        "similarityKey": "KP-kp|pawn|w|technical|---pP----",
+        "qualityScore": 93,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-015",
+      "fen": "8/8/5pk1/5b2/8/5B2/5PK1/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "fortress",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "fortress"
+      ],
+      "theme": "opposite-bishops",
+      "materialSignature": "KBP-kbp",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": 0.7857142857142857,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KBP-kbp|fortress|w|technical|-----pP--",
+        "qualityScore": 70,
+        "rejectionReasons": [
+          "soft-drawing-ratio"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-018",
+      "fen": "8/8/K7/8/1k6/8/P7/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 4,
+      "drawingRatio": 0.8,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 93,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 93,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-020",
+      "fen": "8/4P1k1/8/8/8/8/4K3/5r2 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity",
+        "accurate-defense"
+      ],
+      "theme": "promotion",
+      "materialSignature": "KP-kr",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 4,
+      "drawingRatio": 0.19047619047619047,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KP-kr|rook|b|technical|----P---",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-021",
+      "fen": "8/8/4pk2/4b3/8/4B3/4PK2/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "fortress",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "fortress"
+      ],
+      "theme": "opposite-bishops",
+      "materialSignature": "KBP-kbp",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": 0.7857142857142857,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KBP-kbp|fortress|w|technical|----pP---",
+        "qualityScore": 70,
+        "rejectionReasons": [
+          "soft-drawing-ratio"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-022",
+      "fen": "8/8/8/8/4k3/8/3KP3/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "pawn",
+      "concepts": [
+        "king-activity",
+        "accurate-defense",
+        "opposition",
+        "zugzwang"
+      ],
+      "theme": "king-front",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 1,
+      "drawingRatio": 0.2,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 93,
+        "similarityKey": "KP-k|pawn|b|technical|----P---",
+        "qualityScore": 93,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-023",
+      "fen": "8/8/5pk1/5n2/8/5N2/5PK1/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "minor-piece",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition",
+        "accurate-defense"
+      ],
+      "theme": "minor-pawns",
+      "materialSignature": "KNP-knp",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 9,
+      "drawingRatio": 0.6923076923076923,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 60,
+        "similarityKey": "KNP-knp|minor-piece|w|technical|-----pP--",
+        "qualityScore": 60,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-025",
+      "fen": "8/8/k5R1/8/2K5/8/1r6/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 4,
+      "drawingMoves": 4,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-036",
+      "fen": "5k2/8/8/8/6r1/1K6/4R3/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 15,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-039",
+      "fen": "7k/q2Q4/3K4/8/8/8/8/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "perpetual-check"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 18,
+      "drawingMoves": 13,
+      "drawingRatio": 0.7222222222222222,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 0,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "soft-drawing-ratio",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-041",
+      "fen": "8/8/8/4r3/6k1/1KR5/8/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 14,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-046",
+      "fen": "8/8/7k/8/3b4/7K/8/2R5 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 18,
+      "drawingMoves": 13,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-051",
+      "fen": "4k3/3R4/8/8/8/2Kb4/8/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 1,
+        "materialReductionWithinPlies": 5,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 10,
+        "rejectionReasons": [
+          "immediate-liquidation",
+          "terminal-within-1-plies",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-056",
+      "fen": "8/2r4R/7K/1k6/8/8/8/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 22,
+      "drawingMoves": 10,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-061",
+      "fen": "k4K2/3R4/8/3P4/8/8/1r6/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 15,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|---P----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-062",
+      "fen": "2k5/8/8/8/8/K7/P7/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-066",
+      "fen": "1k6/8/8/8/8/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-085",
+      "fen": "8/6k1/3RP3/8/8/5r2/8/6K1 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 13,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|----P---",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-087",
+      "fen": "8/8/8/2R5/7p/5K2/6r1/k7 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 18,
+      "drawingMoves": 10,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|b|technical|-------p",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-098",
+      "fen": "K7/2R3p1/8/8/1k6/8/8/n7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-knp",
+      "objective": "DRAW",
+      "legalMoves": 16,
+      "drawingMoves": 12,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-knp|rook|w|technical|------p-",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-103",
+      "fen": "1R6/8/8/8/8/1b1K3k/8/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 6,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-113",
+      "fen": "6Q1/2q5/8/8/K7/8/3k4/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "perpetual-check"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 31,
+      "drawingMoves": 21,
+      "drawingRatio": 0.6774193548387096,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-116",
+      "fen": "8/8/8/k7/8/K7/P7/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 3,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-126",
+      "fen": "8/8/8/8/K6k/p7/8/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-136",
+      "fen": "8/8/8/8/1k6/1p6/1P6/1K6 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "promotion-race",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "pawn-race",
+      "materialSignature": "KP-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-kp|pawn|w|technical|-pP------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-148",
+      "fen": "1K6/8/8/8/4R3/r7/1k6/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 17,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-153",
+      "fen": "8/3k4/8/8/8/p7/8/K7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-163",
+      "fen": "8/k7/8/8/8/p7/8/K7 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-170",
+      "fen": "8/8/8/8/8/p7/K7/3k4 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 4,
+      "drawingMoves": 4,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-177",
+      "fen": "8/8/r7/8/4R3/8/3k3K/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 14,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-180",
+      "fen": "8/8/8/8/8/p7/8/K4k2 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 78,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 78,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-190",
+      "fen": "K2n4/8/3k4/5p2/2R5/8/8/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-knp",
+      "objective": "DRAW",
+      "legalMoves": 16,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-knp|rook|w|technical|-----p--",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-201",
+      "fen": "8/8/8/8/6k1/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 8,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-203",
+      "fen": "8/6r1/8/5p1K/2R5/8/3k4/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 16,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|-----p--",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-214",
+      "fen": "8/8/8/8/8/pk6/8/K7 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 1,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-228",
+      "fen": "8/1K6/8/5k2/6b1/8/5R2/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 6,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-234",
+      "fen": "6K1/8/r7/R7/7p/5k2/8/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 17,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 5,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|-------p",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-238",
+      "fen": "8/8/7k/8/8/p7/8/K7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-250",
+      "fen": "8/8/7b/8/8/6R1/8/2k2K2 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 11,
+      "drawingMoves": 8,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-254",
+      "fen": "8/1r1R4/8/8/4K3/8/k6p/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 5,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|-------p",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-260",
+      "fen": "8/8/8/8/1k6/p7/8/K7 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 78,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 78,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest debutant"
+    },
+    {
+      "id": "DD-261",
+      "fen": "8/4q3/8/5k2/8/7K/8/6Q1 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "accurate-defense"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 28,
+      "drawingMoves": 19,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-266",
+      "fen": "8/8/2K5/4R3/8/2kr4/5P2/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 18,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|-----P--",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-282",
+      "fen": "8/8/8/5R1k/7r/1K6/3p4/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 3,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|b|technical|---p----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-288",
+      "fen": "8/8/8/8/2k5/R7/4b3/4K3 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 11,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-293",
+      "fen": "8/8/n7/8/3R2K1/8/1p6/1k6 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-knp",
+      "objective": "DRAW",
+      "legalMoves": 20,
+      "drawingMoves": 9,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-knp|rook|w|technical|-p------",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-294",
+      "fen": "5k2/1K6/2R5/8/8/8/1p6/7n w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-knp",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-knp|rook|w|technical|-p------",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-307",
+      "fen": "4R3/8/7K/1k6/8/3b4/8/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 17,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-321",
+      "fen": "8/1k5K/2R5/8/6r1/8/8/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 16,
+      "drawingMoves": 9,
+      "drawingRatio": 0.5625,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-328",
+      "fen": "1k6/2q5/8/8/8/1KQ5/8/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "perpetual-check"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 24,
+      "drawingMoves": 16,
+      "drawingRatio": 0.6666666666666666,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-332",
+      "fen": "3k4/8/r7/8/1P6/6RK/8/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 15,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|-P------",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-340",
+      "fen": "8/8/8/8/K7/8/P7/1k6 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-350",
+      "fen": "2k5/8/8/8/8/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-356",
+      "fen": "2K5/8/1r6/8/5pR1/2k5/8/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 12,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|-----p--",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-359",
+      "fen": "8/8/6k1/8/8/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 8,
+      "drawingMoves": 3,
+      "drawingRatio": 0.375,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-367",
+      "fen": "7k/b6R/8/8/8/8/8/5K2 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 1,
+        "materialReductionWithinPlies": 5,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 10,
+        "rejectionReasons": [
+          "immediate-liquidation",
+          "terminal-within-1-plies",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-372",
+      "fen": "8/Q7/8/8/8/k7/4q3/6K1 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "accurate-defense"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 4,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-382",
+      "fen": "8/8/7r/6p1/3k2K1/8/2R5/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 18,
+      "drawingMoves": 13,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|------p-",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-399",
+      "fen": "8/8/8/3p4/2K5/2R5/3k1r2/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 6,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|---p----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-407",
+      "fen": "8/2r5/8/6R1/8/1K6/8/2k5 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 16,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-412",
+      "fen": "8/8/8/8/5k2/8/4KP2/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "opposition",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|-----P--",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest debutant"
+    },
+    {
+      "id": "DD-417",
+      "fen": "8/3Q4/8/6K1/8/3k4/4q3/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "accurate-defense"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-426",
+      "fen": "2K5/6r1/8/8/5R2/2k5/8/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 16,
+      "drawingMoves": 11,
+      "drawingRatio": 0.6875,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-435",
+      "fen": "8/5k2/8/8/8/p7/8/K7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-438",
+      "fen": "3k4/8/8/8/8/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-459",
+      "fen": "8/8/3K4/8/k3R3/8/8/3b4 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 4,
+      "drawingMoves": 4,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-465",
+      "fen": "8/2k5/8/8/8/b2R4/8/5K2 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 12,
+      "drawingMoves": 6,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-476",
+      "fen": "8/5K2/6R1/2P5/2r5/8/8/5k2 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|--P-----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-487",
+      "fen": "8/1k6/r7/8/8/6R1/8/2K5 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 16,
+      "drawingRatio": 0.8421052631578947,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 0,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "soft-drawing-ratio",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-501",
+      "fen": "8/2R5/5b2/8/8/3k4/8/3K4 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-506",
+      "fen": "3k4/4r3/8/8/4RK2/2p5/8/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 16,
+      "drawingMoves": 4,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|--p-----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-512",
+      "fen": "8/2K5/2b2R2/4k3/8/8/8/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 15,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 1,
+        "materialReductionWithinPlies": 5,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 10,
+        "rejectionReasons": [
+          "immediate-liquidation",
+          "terminal-within-1-plies",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-523",
+      "fen": "8/4b3/8/8/8/3k4/6RK/8 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-525",
+      "fen": "8/8/1r1P4/8/2R5/k7/3K4/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|---P----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-527",
+      "fen": "8/7K/8/5k2/5r2/8/4R3/8 w - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 18,
+      "drawingMoves": 14,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|w|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-537",
+      "fen": "8/8/8/6k1/8/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 8,
+      "drawingMoves": 3,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-542",
+      "fen": "6K1/3R4/5k2/8/1b6/8/8/8 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-551",
+      "fen": "1k6/8/4p3/5K2/r7/2R5/8/8 w - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|----p---",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-554",
+      "fen": "2K5/4k3/8/8/1r6/8/3R4/8 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 15,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-575",
+      "fen": "8/R7/6K1/4r3/8/5k2/8/8 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 22,
+      "drawingMoves": 17,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-580",
+      "fen": "7b/5k2/8/8/7K/8/8/6R1 b - - 0 1",
+      "oldDifficulty": "expert",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 12,
+      "drawingMoves": 10,
+      "drawingRatio": 0.8333333333333334,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": [
+          "soft-drawing-ratio"
+        ]
+      },
+      "classificationNote": "was expert, metrics suggest confirme"
+    },
+    {
+      "id": "DD-588",
+      "fen": "8/8/8/8/3k4/p7/8/K7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-596",
+      "fen": "2k5/8/4K3/8/1r6/5p2/6R1/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 10,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|-----p--",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-601",
+      "fen": "4K3/8/8/k7/3r4/4R3/8/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 15,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-607",
+      "fen": "8/8/8/8/b7/4K3/3R4/5k2 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 9,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-625",
+      "fen": "8/8/8/8/8/p3k3/8/K7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 78,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 78,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-626",
+      "fen": "8/8/k7/8/8/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-631",
+      "fen": "8/4k3/8/3r4/8/8/P2R4/3K4 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 21,
+      "drawingMoves": 13,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|P-------",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-632",
+      "fen": "8/1k6/6R1/8/8/4K3/5r2/8 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-kr",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 8,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 5,
+        "similarityKey": "KR-kr|rook|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-637",
+      "fen": "8/3r4/6k1/2KRP3/8/8/8/8 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 17,
+      "drawingMoves": 7,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|----P---",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-643",
+      "fen": "8/8/4p3/8/1n6/8/2RK3k/8 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-knp",
+      "objective": "DRAW",
+      "legalMoves": 15,
+      "drawingMoves": 7,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-knp|rook|w|technical|----p---",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-655",
+      "fen": "4R3/8/8/4b3/5k2/8/4K3/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 15,
+      "drawingMoves": 10,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    },
+    {
+      "id": "DD-661",
+      "fen": "8/k7/8/8/8/K7/P7/8 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 5,
+      "drawingRatio": 1,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-672",
+      "fen": "8/8/3R4/K6k/8/8/8/b7 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 10,
+      "drawingMoves": 7,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-676",
+      "fen": "8/8/8/8/8/p7/3k4/K7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-693",
+      "fen": "8/8/2K5/1r6/2P5/1R6/4k3/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KRP-kr",
+      "objective": "DRAW",
+      "legalMoves": 17,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 5,
+        "practicalPressure": 70,
+        "similarityKey": "KRP-kr|rook|b|technical|--P-----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-695",
+      "fen": "8/8/8/8/8/K1k5/P7/8 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "accurate-defense",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 1,
+      "drawingRatio": 0.2,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 93,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 93,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-705",
+      "fen": "6k1/3K1R2/2r5/8/7p/8/8/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 10,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|-------p",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-708",
+      "fen": "3k4/6b1/8/8/5K2/8/8/3R4 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 5,
+      "drawingMoves": 4,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-714",
+      "fen": "8/8/8/5k2/8/8/P7/K7 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "KP-k",
+      "objective": "DRAW",
+      "legalMoves": 8,
+      "drawingMoves": 5,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "KP-k|pawn|b|technical|P-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion debutant"
+    },
+    {
+      "id": "DD-715",
+      "fen": "7k/4K3/8/8/6pr/8/3R4/8 w - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity",
+        "accurate-defense"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 22,
+      "drawingMoves": 6,
+      "drawingRatio": 0.2727272727272727,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|w|technical|------p-",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-732",
+      "fen": "8/2r1k3/8/8/3p4/1R6/8/3K4 b - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "rook-ending",
+      "materialSignature": "KR-krp",
+      "objective": "DRAW",
+      "legalMoves": 19,
+      "drawingMoves": 16,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-krp|rook|b|technical|---p----",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-735",
+      "fen": "8/8/8/8/2k5/p7/8/K7 w - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was confirme, metrics suggest debutant"
+    },
+    {
+      "id": "DD-747",
+      "fen": "8/8/8/5n2/3k4/1p6/8/1KR5 w - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "king-activity",
+        "opposition",
+        "rook-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-knp",
+      "objective": "DRAW",
+      "legalMoves": 14,
+      "drawingMoves": 11,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 70,
+        "similarityKey": "KR-knp|rook|w|technical|-p------",
+        "qualityScore": 70,
+        "rejectionReasons": []
+      },
+      "classificationNote": "was debutant, metrics suggest confirme"
+    },
+    {
+      "id": "DD-774",
+      "fen": "8/4k3/8/8/8/3KQ3/8/6q1 b - - 0 1",
+      "oldDifficulty": "grandMaitre",
+      "suggestedDifficulty": "confirme",
+      "family": "queen",
+      "concepts": [
+        "king-activity",
+        "accurate-defense"
+      ],
+      "theme": "queen-ending",
+      "materialSignature": "KQ-kq",
+      "objective": "DRAW",
+      "legalMoves": 7,
+      "drawingMoves": 1,
+      "drawingRatio": null,
+      "bareHeavySymmetry": true,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": true,
+        "terminalWithinPlies": 2,
+        "materialReductionWithinPlies": 18,
+        "practicalPressure": 5,
+        "similarityKey": "KQ-kq|queen|b|practical|--------",
+        "qualityScore": 0,
+        "rejectionReasons": [
+          "bare-heavy-symmetry",
+          "immediate-liquidation",
+          "terminal-within-2-plies",
+          "low-practical-pressure",
+          "low-quality-score"
+        ]
+      },
+      "classificationNote": "was grandMaitre, metrics suggest confirme"
+    },
+    {
+      "id": "DD-789",
+      "fen": "8/8/8/8/8/p6k/8/K7 w - - 0 1",
+      "oldDifficulty": "debutant",
+      "suggestedDifficulty": "debutant",
+      "family": "pawn",
+      "concepts": [
+        "square-of-pawn",
+        "king-activity",
+        "opposition"
+      ],
+      "theme": "kpvk",
+      "materialSignature": "K-kp",
+      "objective": "DRAW",
+      "legalMoves": 2,
+      "drawingMoves": 2,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "technical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 68,
+        "similarityKey": "K-kp|pawn|w|technical|p-------",
+        "qualityScore": 68,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion debutant"
+    },
+    {
+      "id": "DD-809",
+      "fen": "8/8/8/8/8/6k1/8/R1K1b3 b - - 0 1",
+      "oldDifficulty": "confirme",
+      "suggestedDifficulty": "confirme",
+      "family": "rook",
+      "concepts": [
+        "rook-activity",
+        "king-activity"
+      ],
+      "theme": "imbalanced",
+      "materialSignature": "KR-kb",
+      "objective": "DRAW",
+      "legalMoves": 13,
+      "drawingMoves": 10,
+      "drawingRatio": null,
+      "bareHeavySymmetry": false,
+      "trainingStyle": "practical",
+      "quality": {
+        "immediateLiquidation": false,
+        "terminalWithinPlies": null,
+        "materialReductionWithinPlies": 0,
+        "practicalPressure": 45,
+        "similarityKey": "KR-kb|rook|b|practical|--------",
+        "qualityScore": 45,
+        "rejectionReasons": []
+      },
+      "classificationNote": "kept suggestion confirme"
+    }
+  ]
+}

@@ -1,5 +1,8 @@
 import * as Speech from 'expo-speech';
 import { audioSettings } from './AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
+import { speechLocaleForLanguage } from '@/lib/i18n';
+import { DEFAULT_TTS_RATE } from '@/lib/preferences/dictationPace';
 
 /**
  * Centralised text-to-speech service.
@@ -9,6 +12,8 @@ import { audioSettings } from './AudioSettings';
  *  - Expose a single `isSpeaking` signal for the mic layer
  *  - Honour voice-mute (TTS only) via AudioSettings — SFX are independent
  *  - Cancel obsolete multi-step sequences when the user acts or navigates away
+ *  - Use a fixed comfortable TTS rate (rhythm is preferences.dictationPace)
+ *  - speakAndWait resolves on real utterance end (onDone / onError)
  *
  * Rule: live user action always has priority over queued speech.
  */
@@ -16,9 +21,12 @@ import { audioSettings } from './AudioSettings';
 export interface SpeakOptions {
   /** Clear the queue and stop current speech before speaking this text. */
   flush?: boolean;
-  /** Language override (defaults to French). */
+  /** Language override (defaults to app language preference). */
   language?: string;
-  /** Rate override. */
+  /**
+   * Rate override for THIS utterance only.
+   * When omitted, uses DEFAULT_TTS_RATE (not a second user-facing control).
+   */
   rate?: number;
   /**
    * Optional owner id. When a newer cancel() targets another owner or a global
@@ -27,14 +35,22 @@ export interface SpeakOptions {
   ownerId?: string;
 }
 
+type QueueItem = {
+  text: string;
+  ownerId?: string;
+  language: string;
+  rate: number;
+  /** Resolve when this utterance finishes (speakAndWait). */
+  onSettled?: (result: 'done' | 'error' | 'cancelled') => void;
+};
+
 type SpeakingListener = (speaking: boolean) => void;
 type CancelListener = () => void;
 
-const DEFAULT_LANGUAGE = 'fr-FR';
-const DEFAULT_RATE = 0.95;
+const FALLBACK_LANGUAGE = 'fr-FR';
 
 class SpeechService {
-  private queue: Array<{ text: string; ownerId?: string }> = [];
+  private queue: QueueItem[] = [];
   private speaking = false;
   private listeners = new Set<SpeakingListener>();
   private cancelListeners = new Set<CancelListener>();
@@ -46,9 +62,11 @@ class SpeechService {
    */
   private token = 0;
 
-  private currentLanguage = DEFAULT_LANGUAGE;
-  private currentRate = DEFAULT_RATE;
   private activeOwnerId: string | undefined;
+
+  /** Settler for the utterance currently being spoken (speakAndWait). */
+  private activeSettler: ((result: 'done' | 'error' | 'cancelled') => void) | null =
+    null;
 
   /** Subscribe to speaking-state changes. Returns an unsubscribe function. */
   onSpeakingChange(listener: SpeakingListener): () => void {
@@ -83,6 +101,20 @@ class SpeechService {
     this.listeners.forEach((l) => l(value));
   }
 
+  private resolveLanguage(override?: string): string {
+    if (override) return override;
+    try {
+      return speechLocaleForLanguage(preferencesStore.getPreferences().language);
+    } catch {
+      return FALLBACK_LANGUAGE;
+    }
+  }
+
+  private resolveRate(override?: number): number {
+    if (override != null && Number.isFinite(override)) return override;
+    return DEFAULT_TTS_RATE;
+  }
+
   /**
    * Enqueue text to be spoken. Utterances play sequentially. Pass
    * `{ flush: true }` to interrupt whatever is playing and speak now.
@@ -100,14 +132,56 @@ class SpeechService {
       this.hardStop({ notify: true });
     }
 
-    if (options.language) this.currentLanguage = options.language;
-    if (options.rate != null) this.currentRate = options.rate;
     if (options.ownerId) this.activeOwnerId = options.ownerId;
 
-    this.queue.push({ text, ownerId: options.ownerId ?? this.activeOwnerId });
+    this.queue.push({
+      text,
+      ownerId: options.ownerId ?? this.activeOwnerId,
+      language: this.resolveLanguage(options.language),
+      rate: this.resolveRate(options.rate),
+    });
     if (!this.speaking) {
       this.startLoop();
     }
+  }
+
+  /**
+   * Speak text and resolve when the utterance truly finishes (onDone / onError).
+   * Resolves immediately when voice is muted or text is empty.
+   * Rejects with Error('cancelled') if stop/cancel runs before completion.
+   */
+  speakAndWait(text: string, options: SpeakOptions = {}): Promise<void> {
+    if (!text) return Promise.resolve();
+
+    if (!audioSettings.isVoiceEnabled()) {
+      if (options.flush) this.hardStop({ notify: true });
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      if (options.flush) {
+        this.hardStop({ notify: true });
+      }
+
+      if (options.ownerId) this.activeOwnerId = options.ownerId;
+
+      this.queue.push({
+        text,
+        ownerId: options.ownerId ?? this.activeOwnerId,
+        language: this.resolveLanguage(options.language),
+        rate: this.resolveRate(options.rate),
+        onSettled: (result) => {
+          if (result === 'cancelled') {
+            reject(new Error('cancelled'));
+            return;
+          }
+          resolve();
+        },
+      });
+      if (!this.speaking) {
+        this.startLoop();
+      }
+    });
   }
 
   /**
@@ -160,7 +234,9 @@ class SpeechService {
 
   private hardStop(opts: { notify: boolean }): void {
     this.token += 1;
-    this.queue = [];
+    const pending = this.queue.splice(0, this.queue.length);
+    const activeSettler = this.activeSettler;
+    this.activeSettler = null;
     this.activeOwnerId = undefined;
     try {
       Speech.stop();
@@ -168,6 +244,20 @@ class SpeechService {
       /* ignore */
     }
     this.setSpeaking(false);
+    if (activeSettler) {
+      try {
+        activeSettler('cancelled');
+      } catch {
+        /* ignore */
+      }
+    }
+    for (const item of pending) {
+      try {
+        item.onSettled?.('cancelled');
+      } catch {
+        /* ignore */
+      }
+    }
     if (opts.notify) {
       this.cancelListeners.forEach((l) => {
         try {
@@ -194,22 +284,40 @@ class SpeechService {
       return;
     }
 
-    const advance = () => {
-      if (myToken === this.token) this.step(myToken);
+    this.activeSettler = next.onSettled ?? null;
+
+    const settle = (result: 'done' | 'error' | 'cancelled') => {
+      if (this.activeSettler === (next.onSettled ?? null)) {
+        this.activeSettler = null;
+      }
+      try {
+        next.onSettled?.(result);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const advance = (result: 'done' | 'error') => {
+      if (myToken !== this.token) {
+        settle('cancelled');
+        return;
+      }
+      settle(result);
+      this.step(myToken);
     };
 
     try {
       Speech.speak(next.text, {
-        language: this.currentLanguage,
-        rate: this.currentRate,
-        onDone: advance,
+        language: next.language,
+        rate: next.rate,
+        onDone: () => advance('done'),
         onStopped: () => {
-          /* Stops are driven by hardStop(), which bumps the token; ignore. */
+          /* Stops are driven by hardStop(), which settles activeSettler. */
         },
-        onError: advance,
+        onError: () => advance('error'),
       });
     } catch {
-      advance();
+      advance('error');
     }
   }
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 
 interface Props {
@@ -26,7 +27,8 @@ export function BackButton({
   testID = 'back-btn',
 }: Props) {
   const colors = useColors();
-  const a11y = accessibilityLabel ?? label ?? 'Retour';
+  const { t } = useTranslation();
+  const a11y = accessibilityLabel ?? label ?? t('a11y.back');
   return (
     <Pressable
       onPress={onPress}

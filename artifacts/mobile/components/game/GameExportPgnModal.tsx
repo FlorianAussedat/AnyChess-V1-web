@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 
@@ -9,6 +9,8 @@ type Props = {
   exportPgn: () => string;
   downloadPgn: () => void;
   onClose: () => void;
+  /** Save into Game Library and open the unified analyzer. */
+  onOpenInAnalyzer?: () => void | Promise<void>;
 };
 
 export function GameExportPgnModal({
@@ -18,49 +20,103 @@ export function GameExportPgnModal({
   exportPgn,
   downloadPgn,
   onClose,
+  onOpenInAnalyzer,
 }: Props) {
   const colors = useColors();
   const isWeb = Platform.OS === 'web';
+  const [opening, setOpening] = useState(false);
+
+  const exportOnly = () => {
+    if (isWeb) downloadPgn();
+    else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(exportedText || exportPgn()).catch(() => {});
+    }
+    onClose();
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            Exporter la partie en PGN ?
+            {onOpenInAnalyzer
+              ? 'Exporter ou analyser la partie ?'
+              : 'Exporter la partie en PGN ?'}
           </Text>
           <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>{body}</Text>
           <View style={styles.modalActions}>
             <Pressable
               onPress={onClose}
+              disabled={opening}
               style={({ pressed }) => [
                 styles.modalBtn,
-                { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
+                { borderColor: colors.border, opacity: pressed || opening ? 0.6 : 1 },
               ]}
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Non</Text>
             </Pressable>
-            <Pressable
-              onPress={() => {
-                if (isWeb) downloadPgn();
-                else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                  navigator.clipboard.writeText(exportedText || exportPgn()).catch(() => {});
-                }
-                onClose();
-              }}
-              style={({ pressed }) => [
-                styles.modalBtn,
-                {
-                  backgroundColor: colors.primary,
-                  borderColor: colors.primary,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                Oui
-              </Text>
-            </Pressable>
+            {onOpenInAnalyzer ? (
+              <>
+                <Pressable
+                  onPress={exportOnly}
+                  disabled={opening}
+                  style={({ pressed }) => [
+                    styles.modalBtn,
+                    {
+                      borderColor: colors.border,
+                      opacity: pressed || opening ? 0.6 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                    Exporter
+                  </Text>
+                </Pressable>
+                <Pressable
+                  testID="game-export-open-analyzer"
+                  disabled={opening}
+                  onPress={() => {
+                    setOpening(true);
+                    void Promise.resolve(onOpenInAnalyzer())
+                      .catch(() => {})
+                      .finally(() => {
+                        setOpening(false);
+                        onClose();
+                      });
+                  }}
+                  style={({ pressed }) => [
+                    styles.modalBtn,
+                    {
+                      backgroundColor: colors.primary,
+                      borderColor: colors.primary,
+                      opacity: pressed || opening ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}
+                  >
+                    {opening ? 'Ouverture…' : 'Analyser'}
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                onPress={exportOnly}
+                style={({ pressed }) => [
+                  styles.modalBtn,
+                  {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+                  Oui
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </View>
@@ -78,7 +134,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 400,
     borderRadius: 16,
     borderWidth: 1,
     padding: 18,
@@ -86,7 +142,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   modalBody: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19 },
-  modalActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
+  modalActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' },
   modalBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,

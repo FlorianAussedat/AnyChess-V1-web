@@ -2,15 +2,25 @@ import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { ChessBoard } from '@/components/ChessBoard';
 import { PuzzleStatRow } from '@/components/puzzles/PuzzleStatRow';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
-import { formatHelpsUsed } from '@/lib/puzzles';
+import { useBoardSize } from '@/hooks/useBoardSize';
+import { usePreferences } from '@/hooks/usePreferences';
+import { formatSanLineForDisplay } from '@/lib/chess/notation';
+import {
+  countPuzzleIndices,
+  puzzleResultState,
+} from '@/lib/puzzles';
 
 export function PuzzleResultsPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
+  const boardSize = useBoardSize('wide');
+  const { chessNotation } = usePreferences();
   const {
     stats,
     solutionLine,
@@ -26,45 +36,94 @@ export function PuzzleResultsPhase() {
   } = usePuzzle();
   const router = useRouter();
 
+  const state = stats ? puzzleResultState(stats) : 'unsolved';
+  const title =
+    state === 'solved'
+      ? t('puzzle.solved')
+      : state === 'solved-with-help'
+        ? t('puzzle.solvedWithHelp')
+        : t('puzzle.unsolved');
+  const indices = stats
+    ? countPuzzleIndices(stats.helps, stats.nextMoveUses)
+    : 0;
+
   return (
-    <ModeScreenShell title="Résultat" onBack={() => router.push('/' as Href)}>
+    <ModeScreenShell title={t('puzzle.result')} onBack={() => router.push('/' as Href)}>
       <ScrollView contentContainerStyle={puzzleStyles.body}>
-        <Text style={[puzzleStyles.scoreHero, { color: colors.primary }]}>
-          {stats?.solutionRequested && !stats.solved ? 'Solution affichée' : 'Problème résolu'}
+        <Text
+          style={[
+            puzzleStyles.scoreHero,
+            { color: state === 'unsolved' ? colors.mutedForeground : colors.primary },
+          ]}
+          testID="puzzle-result-title"
+        >
+          {title}
         </Text>
-        <Text style={[puzzleStyles.meta, { color: colors.mutedForeground, textAlign: 'center' }]}>
-          Série : {currentStreak}
+
+        {state === 'unsolved' && (
+          <Text
+            style={[
+              puzzleStyles.meta,
+              { color: colors.mutedForeground, textAlign: 'center' },
+            ]}
+            testID="puzzle-solution-consulted"
+          >
+            {t('puzzle.solutionConsulted')}
+          </Text>
+        )}
+
+        <Text
+          style={[
+            puzzleStyles.meta,
+            { color: colors.mutedForeground, textAlign: 'center' },
+          ]}
+        >
+          {t('puzzle.streak', { count: currentStreak })}
         </Text>
+
         {!!stats && (
-          <View style={[puzzleStyles.listCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <PuzzleStatRow
-              label="Précision au premier essai"
-              value={`${stats.accuracyPercent} %`}
-            />
-            <PuzzleStatRow label="Erreurs de coup" value={String(stats.wrongChessMoves)} />
-            <PuzzleStatRow
-              label="Erreurs de reconnaissance"
-              value={String(stats.recognitionFailures)}
-            />
-            <PuzzleStatRow
-              label="Aides utilisées"
-              value={formatHelpsUsed(stats.helps)}
-            />
+          <View
+            style={[
+              puzzleStyles.listCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            {state !== 'unsolved' && (
+              <>
+                <PuzzleStatRow
+                  label={t('puzzle.wrongMoves')}
+                  value={String(stats.wrongChessMoves)}
+                />
+                <PuzzleStatRow
+                  label={t('puzzle.recognitionErrors')}
+                  value={String(stats.recognitionFailures)}
+                />
+              </>
+            )}
+            <PuzzleStatRow label={t('puzzle.hintsUsed')} value={String(indices)} />
           </View>
         )}
 
         {!!solutionLine && (
           <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
-            {solutionLine}
+            {formatSanLineForDisplay(solutionLine, chessNotation)}
           </Text>
         )}
 
-        <View style={{ alignItems: 'center' }}>
+        <View
+          style={{
+            alignItems: 'center',
+            alignSelf: 'center',
+            width: boardSize,
+          }}
+        >
           <ChessBoard
             board={displayBoard}
             lastMove={lastMove}
             isFlipped={orientation === 'b'}
             onSquarePress={() => {}}
+            sizeMode="wide"
+            size={boardSize}
           />
         </View>
 
@@ -77,7 +136,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={[puzzleStyles.ctaLabel, { color: colors.primaryForeground }]}>
-            Problème suivant
+            {t('puzzle.nextPuzzle')}
           </Text>
         </Pressable>
 
@@ -94,7 +153,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Refaire ce problème
+            {t('puzzle.retryPuzzle')}
           </Text>
         </Pressable>
 
@@ -111,7 +170,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Rejouer la solution
+            {t('puzzle.replaySolution')}
           </Text>
         </Pressable>
 
@@ -123,7 +182,7 @@ export function PuzzleResultsPhase() {
           ]}
         >
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Menu des problèmes
+            {t('puzzle.menu')}
           </Text>
         </Pressable>
       </ScrollView>

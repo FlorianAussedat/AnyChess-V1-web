@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface NameModalProps {
   visible: boolean;
@@ -35,6 +36,7 @@ export function NameModal({
   submitLabel,
 }: NameModalProps) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.modalBackdrop}>
@@ -70,7 +72,7 @@ export function NameModal({
               ]}
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                Annuler
+                {t('common.cancel')}
               </Text>
             </Pressable>
             <Pressable

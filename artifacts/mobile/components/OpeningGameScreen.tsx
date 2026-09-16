@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -13,35 +12,66 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   useBoardTouchSelection,
   useMoveEventFeedback,
 } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessBoardSection } from '@/components/game/ChessBoardSection';
+import { ChessKeyboardToggle } from '@/components/game/ChessKeyboardToggle';
+import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
+import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
+import { OpeningVariationLabel } from '@/components/game/OpeningVariationLabel';
 import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { BoardToolbar } from '@/components/BoardToolbar';
 import { BackButton } from '@/components/BackButton';
+import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
+import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { TheoryContinuationViewer } from '@/components/TheoryContinuationViewer';
+import { TheoryDecisionPanel } from '@/components/openings/TheoryDecisionPanel';
 import { GameActionRow } from '@/components/game/GameActionRow';
 import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
-import { pairMoveHistory } from '@/lib/game';
+import { flagsFromPlayTurn, pairMoveHistory } from '@/lib/game';
+import {
+  computeBoardSize,
+  fitBoardSizeToViewport,
+} from '@/lib/game/boardSize';
+import { openPgnInAnalyzer } from '@/lib/gameLibrary';
+import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
+import { useChessInputMode } from '@/hooks/useChessInputMode';
+import { fenFromSanHistory } from '@/lib/moveInput/keypadPromotion';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
+
+/** Same reserved chrome budget as Classic so board width/margins match. */
+const OPENING_BOARD_RESERVED_CHROME = 340;
 
 export function OpeningGameScreen() {
   const colors = useColors();
   const { contentTop, contentBottom } = useAppSafeInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const { chessNotation } = usePreferences();
+  const { t } = useTranslation();
   useCancelSpeechOnLeave('/openings/play');
+
+  const boardSize = useMemo(() => {
+    const wide = computeBoardSize(windowWidth, 'wide');
+    return fitBoardSizeToViewport(
+      wide,
+      windowHeight,
+      OPENING_BOARD_RESERVED_CHROME + contentTop + contentBottom,
+    );
+  }, [windowWidth, windowHeight, contentTop, contentBottom]);
 
   const {
     board,
@@ -50,14 +80,15 @@ export function OpeningGameScreen() {
     heardText,
     lastMove,
     isGameOver,
-    waitingForUser,
-    isOpponentThinking,
+    playTurn,
     playerColor,
     moveEvent,
     isSpeaking,
-    phase,
+    trainingState,
     theoryExit,
     repertoireName,
+    openingLabel,
+    strengthBandLabel,
     ready,
     loadError,
     applyUserMove,
@@ -67,6 +98,12 @@ export function OpeningGameScreen() {
     repeatLast,
     summarizeGame,
     undoMove,
+    retryOpponentMove,
+    continueVsEngine,
+    undoAndThinkAgain,
+    showExpectedMove,
+    restartLine,
+    nextLine,
     exportPgn,
     downloadPgn,
   } = useOpeningGame();
@@ -77,12 +114,20 @@ export function OpeningGameScreen() {
     applyRef.current = applyUserMove;
   }, [applyUserMove]);
 
-  const canAct = waitingForUser && !isOpponentThinking && !isGameOver;
+  const turnFlags = flagsFromPlayTurn(playTurn, isGameOver);
+  const deciding = turnFlags.deciding;
+  const canAct = turnFlags.canAct;
+  const { inputMode, setChessInputMode, keypadActive } = useChessInputMode();
   const [boardVisible, setBoardVisible] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
   const [theoryOpen, setTheoryOpen] = useState(false);
   const [exportedText, setExportedText] = useState('');
+  const [draftMove, setDraftMove] = useState('');
   const prevGameOver = useRef(false);
+
+  useEffect(() => {
+    setDraftMove('');
+  }, [chessNotation]);
 
   useEffect(() => {
     if (isGameOver && !prevGameOver.current) {
@@ -99,7 +144,7 @@ export function OpeningGameScreen() {
     toggleMic,
   } = useSpeechInput({
     isSpeaking,
-    forceOff: isGameOver,
+    forceOff: isGameOver || deciding,
     onTranscript: (text) => applyRef.current(text),
   });
 
@@ -111,15 +156,56 @@ export function OpeningGameScreen() {
   });
 
   const moveRows = pairMoveHistory(history);
-  const campLabel = playerColor === 'w' ? 'Blancs' : 'Noirs';
-  const phaseLabel = phase === 'book' ? 'Théorie' : 'Stockfish';
-  const headerTitle = repertoireName || 'Répertoire';
-  const headerSubtitle = `${campLabel} · ${phaseLabel}`;
+  const keypadFen = useMemo(() => fenFromSanHistory(history), [history]);
+  const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
+  const phaseLabel =
+    trainingState === 'engineContinuation'
+      ? t('openings.stockfish')
+      : trainingState === 'lineComplete'
+        ? t('openings.endOfTheoreticalLine')
+        : trainingState === 'outOfTheory'
+          ? t('openings.leftTheory')
+          : t('openings.theory');
+  const headerTitle = repertoireName || t('openings.repertoire');
+  const headerSubtitle = `${campLabel} · ${phaseLabel}${
+    trainingState === 'engineContinuation' ? ` · ${strengthBandLabel}` : ''
+  }`;
+
+  const statusText =
+    trainingState === 'lineComplete'
+      ? t('openings.endOfTheoreticalLine')
+      : trainingState === 'outOfTheory'
+        ? t('openings.leftTheory')
+        : trainingState === 'engineContinuation'
+          ? status || t('openings.theoryCompleteContinuing')
+          : status;
+
+  const commitTypedMove = useCallback(
+    (raw: string, source: 'text' | 'voice' = 'text'): boolean => {
+      const trimmed = raw.trim();
+      if (!trimmed || !canAct) return false;
+      applyRef.current(trimmed, source);
+      return true;
+    },
+    [canAct],
+  );
+
+  const onKeypadAutoSubmit = useCallback(
+    (raw: string) => {
+      const played = commitTypedMove(raw, 'text');
+      if (played) setDraftMove('');
+    },
+    [commitTypedMove],
+  );
+
+  const toggleInputMode = useCallback(() => {
+    void setChessInputMode(inputMode === 'classic' ? 'keypad' : 'classic');
+  }, [inputMode, setChessInputMode]);
 
   if (loadError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title="Répertoire" />
+        <ScreenHeader onBack={() => router.back()} title={t('openings.repertoire')} />
         <Text style={[styles.errorText, { color: colors.destructive }]}>{loadError}</Text>
       </View>
     );
@@ -140,7 +226,7 @@ export function OpeningGameScreen() {
         <View style={styles.loadingBody}>
           <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.mutedForeground, marginTop: 12, fontFamily: 'Inter_400Regular' }}>
-            Chargement du répertoire…
+            {t('openings.loadingRepertoire')}
           </Text>
         </View>
       </View>
@@ -148,27 +234,20 @@ export function OpeningGameScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ backgroundColor: colors.background }}
-      contentContainerStyle={[
-        styles.root,
-        {
-          paddingTop: contentTop,
-          paddingBottom: contentBottom,
-        },
-      ]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <ScreenHeader
+    <>
+      <ChessScreenScaffold
         onBack={() => router.back()}
         title={headerTitle}
         subtitle={headerSubtitle}
         showSound
+        gap={DesignTokens.chessScreen.sectionGap}
         trailing={
           !boardVisible ? (
             <View
               style={styles.sideIndicator}
-              accessibilityLabel={playerColor === 'w' ? 'Blancs' : 'Noirs'}
+              accessibilityLabel={
+                playerColor === 'w' ? t('common.whites') : t('common.blacks')
+              }
               testID="opening-side-indicator"
             >
               <Image
@@ -187,56 +266,52 @@ export function OpeningGameScreen() {
             </View>
           ) : null
         }
-      />
+        testID="opening-game-scroll"
+      >
+        {!deciding && (
+          <GameActionRow
+            onRepeat={repeatLast}
+            onUndo={undoMove}
+            onSummarize={summarizeGame}
+            onNewGame={newGame}
+          />
+        )}
 
-      {theoryExit && (
-        <View
-          style={[
-            styles.theoryBanner,
-            {
-              backgroundColor: theoryExit.kind === 'player-deviation' ? '#3A2A10' : colors.card,
-              borderColor: theoryExit.kind === 'player-deviation' ? '#F5A623' : colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.theoryText, { color: colors.foreground }]} numberOfLines={2}>
-            {theoryExit.message}
-          </Text>
-          {theoryExit.kind === 'player-deviation' && theoryExit.analysis && (
-            <Pressable onPress={() => setTheoryOpen(true)} hitSlop={6}>
-              <Text
-                style={{
-                  color: colors.primary,
-                  fontFamily: 'Inter_600SemiBold',
-                  fontSize: 12,
-                  marginTop: 4,
-                }}
-              >
-                Voir la ligne théorique
-              </Text>
-            </Pressable>
-          )}
+        <OpeningVariationLabel label={openingLabel} />
+
+        <View style={styles.statusRow} testID="opening-status-row">
+          <View style={styles.statusGrow}>
+            <GameStatusCard
+              status={statusText}
+              heardText={heardText}
+              isGameOver={isGameOver}
+              isOpponentThinking={turnFlags.isOpponentThinking}
+              thinkingLabel={
+                trainingState === 'playingTheory'
+                  ? t('openings.repertoireThinking')
+                  : t('game.opponentThinking')
+              }
+              composeText={keypadActive && !deciding ? draftMove : null}
+              compact
+              onRetryOpponent={retryOpponentMove}
+              testID="opening-coup-banner"
+            />
+          </View>
+          <View style={styles.boardToggles}>
+            <BoardCoordinatesToggle
+              visible={showCoordinates}
+              onToggle={() => {
+                void toggleCoordinates();
+              }}
+            />
+            <BoardVisibilityToggle
+              visible={boardVisible}
+              onToggle={() => setBoardVisible((v) => !v)}
+            />
+          </View>
         </View>
-      )}
 
-      <GameActionRow
-        onRepeat={repeatLast}
-        onUndo={undoMove}
-        onSummarize={summarizeGame}
-        onNewGame={newGame}
-      />
-
-      <View style={styles.boardBlock}>
-        <BoardToolbar
-          showCoordinates={showCoordinates}
-          onToggleCoordinates={() => {
-            void toggleCoordinates();
-          }}
-          boardVisible={boardVisible}
-          onToggleBoardVisible={() => setBoardVisible((v) => !v)}
-        />
-
-        <View style={styles.boardRow}>
+        <ChessBoardSection boardSize={boardSize} testID="opening-board-block">
           {boardVisible ? (
             <ChessBoard
               board={board}
@@ -246,51 +321,85 @@ export function OpeningGameScreen() {
               legalDots={legalDests}
               onSquarePress={onSquarePress}
               showCoordinates={showCoordinates}
+              sizeMode="wide"
+              size={boardSize}
             />
           ) : (
-            <HiddenBoardPlaceholder onReveal={() => setBoardVisible(true)} />
+            <HiddenBoardPlaceholder
+              onReveal={() => setBoardVisible(true)}
+              sizeMode="wide"
+              size={boardSize}
+            />
           )}
-        </View>
-      </View>
+        </ChessBoardSection>
 
-      <GameStatusCard
-        status={status}
-        heardText={heardText}
-        isGameOver={isGameOver}
-        isOpponentThinking={isOpponentThinking}
-        thinkingLabel={phase === 'book' ? 'Répertoire…' : "L'adversaire réfléchit…"}
-      />
+        <TheoryDecisionPanel
+          trainingState={trainingState}
+          strengthBandLabel={strengthBandLabel}
+          onRestartLine={restartLine}
+          onNextLine={nextLine}
+          onContinueVsEngine={continueVsEngine}
+          onUndoThinkAgain={undoAndThinkAgain}
+          onShowExpected={() => {
+            const san = showExpectedMove();
+            if (san) {
+              void formatSanForDisplay(san, chessNotation);
+            }
+          }}
+          onShowFullLine={() => setTheoryOpen(true)}
+        />
 
-      <GameMicButton
-        showRecognized={showRecognized}
-        isListening={isListening}
-        micActive={micActive}
-        micMessage={micStatus.message}
-        onToggle={toggleMic}
-      />
+        {!deciding && (
+          <>
+            {keypadActive ? (
+              <ChessMoveKeypad
+                value={draftMove}
+                onChangeText={setDraftMove}
+                onSubmit={onKeypadAutoSubmit}
+                autoSubmit
+                fen={keypadFen}
+                compact
+                enabled={canAct}
+                testID="opening-move-keypad"
+              />
+            ) : null}
 
-      <ChessAnswerInput
-        onSubmit={(text) => applyRef.current(text)}
-        enabled={canAct}
-        persistFocus={canAct}
-        placeholder="Ex. e4, Cf3, petit roque…"
-        testID="opening-manual-input"
-      />
+            <View style={styles.commandRow} testID="opening-command-row">
+              <GameMicButton
+                showRecognized={showRecognized}
+                isListening={isListening}
+                micActive={micActive}
+                micMessage={micStatus.message}
+                onToggle={toggleMic}
+                testID="opening-mic"
+                variant="compact"
+              />
+              <ChessKeyboardToggle
+                active={keypadActive}
+                onToggle={toggleInputMode}
+                variant="classic"
+                testID="opening-input-mode-toggle"
+              />
+            </View>
+          </>
+        )}
 
-      <GameMoveHistoryCard
-        moveRows={moveRows}
-        opening={openingIdentity}
-        emptyMessage="L’adversaire suit ton répertoire"
-        onExportPress={() => {
-          setExportedText(exportPgn());
-          setExportOpen(true);
-        }}
-        exportMode="text"
-      />
+        <GameMoveHistoryCard
+          moveRows={moveRows}
+          opening={openingIdentity}
+          emptyMessage={t('openings.followsRepertoire')}
+          onExportPress={() => {
+            setExportedText(exportPgn());
+            setExportOpen(true);
+          }}
+          exportMode="icon"
+        />
+      </ChessScreenScaffold>
 
       <TheoryContinuationViewer
         visible={theoryOpen}
         analysis={theoryExit?.analysis ?? null}
+        openingLabel={openingLabel}
         onClose={() => setTheoryOpen(false)}
       />
 
@@ -298,21 +407,42 @@ export function OpeningGameScreen() {
         visible={exportOpen}
         body={`Inclut les coups, le résultat, ta couleur, le répertoire${
           theoryExit ? ' et le commentaire de sortie de théorie' : ''
-        }.`}
+        }. Analyse ouvre la partie dans le Lecteur + Analyseur.`}
         exportedText={exportedText}
         exportPgn={exportPgn}
         downloadPgn={downloadPgn}
         onClose={() => setExportOpen(false)}
+        onOpenInAnalyzer={async () => {
+          const opened = await openPgnInAnalyzer({
+            pgnText: exportedText || exportPgn(),
+            fileName: 'ouverture.pgn',
+            displayName: openingLabel || repertoireName || 'Ouverture',
+            flipped: playerColor === 'b',
+            tab: 'analysis',
+          });
+          if (!opened) return;
+          router.push(opened.href);
+        }}
       />
-    </ScrollView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexGrow: 1, paddingHorizontal: 10, gap: 8 },
+  root: { flex: 1, flexGrow: 1, paddingHorizontal: DesignTokens.chessScreen.paddingHorizontal, gap: DesignTokens.chessScreen.sectionGap },
   loadingBody: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  boardBlock: { gap: 4 },
-  boardRow: { alignItems: 'center' },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusGrow: { flex: 1, minWidth: 0 },
+  boardToggles: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  commandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DesignTokens.spacing.sm,
+  },
   sideIndicator: {
     width: 32,
     height: 32,
@@ -334,12 +464,5 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-  theoryBanner: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  theoryText: { fontSize: 12, fontFamily: 'Inter_500Medium', lineHeight: 17 },
   errorText: { marginTop: 24, fontFamily: 'Inter_500Medium', fontSize: 14, paddingHorizontal: 8 },
 });

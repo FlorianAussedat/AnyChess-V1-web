@@ -17,6 +17,12 @@ import { parseChessVoice } from '@/lib/voice';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
+import { preferencesStore } from '@/lib/preferences';
+import {
+  formatSanForDisplay,
+  formatSanLineForDisplay,
+} from '@/lib/chess/notation';
+import { tMsg } from '@/lib/i18n';
 import {
   DEFAULT_PUZZLE_FILTERS,
   DEFAULT_PUZZLE_RATING_BAND_ID,
@@ -42,6 +48,7 @@ import {
   type PuzzleReplayMove,
   type PuzzleSubmode,
   type PieceRevealFilter,
+  isCleanPuzzleSolve,
 } from '@/lib/puzzles';
 import { puzzleStreakBandId } from '@/lib/puzzles/streakBand';
 
@@ -68,8 +75,13 @@ interface PuzzleContextValue {
   lastMove: LastMove | null;
   orientation: PuzzleOrientation;
   sideToMove: 'w' | 'b';
+  /** Live FEN for chess-move keypad promotion detection. */
+  currentFen: string;
   boardVisible: boolean;
   pieceRevealFilter: PieceRevealFilter;
+  /** Blind toggles — board is mounted only when at least one is true. */
+  whitePiecesShown: boolean;
+  blackPiecesShown: boolean;
   isPreviewing: boolean;
   isReplaying: boolean;
   isSpeaking: boolean;
@@ -83,6 +95,7 @@ interface PuzzleContextValue {
   setPieceCountBand: (bandId: string) => void;
   selectSubmode: (m: PuzzleSubmode) => void;
   backToHub: () => void;
+  backToSettings: () => void;
   startPuzzle: () => Promise<void>;
   nextPuzzle: () => Promise<void>;
   retry: () => void;
@@ -99,7 +112,6 @@ interface PuzzleContextValue {
 const PuzzleContext = createContext<PuzzleContextValue | null>(null);
 
 const PREVIEW_WRONG_MS = 1000;
-const PIECE_REVEAL_MS = 5000;
 
 function filtersFromBands(
   ratingBandId: string,
@@ -136,7 +148,6 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const streakBandRef = useRef(DEFAULT_RATING_BAND_ID);
   const streakRecordedRef = useRef(false);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [phase, setPhase] = useState<PuzzlePhase>('hub');
   const [submode, setSubmode] = useState<PuzzleSubmode | null>(null);
@@ -154,8 +165,11 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [orientation, setOrientation] = useState<PuzzleOrientation>('w');
   const [sideToMove, setSideToMove] = useState<'w' | 'b'>('w');
+  const [currentFen, setCurrentFen] = useState(() => new Chess().fen());
   const [boardVisible, setBoardVisible] = useState(true);
   const [pieceRevealFilter, setPieceRevealFilter] = useState<PieceRevealFilter>('all');
+  const [whitePiecesShown, setWhitePiecesShown] = useState(false);
+  const [blackPiecesShown, setBlackPiecesShown] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -181,38 +195,48 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const clearRevealTimer = useCallback(() => {
-    if (revealTimerRef.current != null) {
-      clearTimeout(revealTimerRef.current);
-      revealTimerRef.current = null;
-    }
-  }, []);
-
   const resetPresentation = useCallback(() => {
     clearPreviewTimer();
-    clearRevealTimer();
     setIsPreviewing(false);
+    setWhitePiecesShown(false);
+    setBlackPiecesShown(false);
     setPieceRevealFilter('all');
-  }, [clearPreviewTimer, clearRevealTimer]);
+  }, [clearPreviewTimer]);
+
+  useEffect(() => {
+    if (submode !== 'blind') return;
+    if (whitePiecesShown && blackPiecesShown) {
+      setPieceRevealFilter('all');
+      setBoardVisible(true);
+    } else if (whitePiecesShown) {
+      setPieceRevealFilter('white');
+      setBoardVisible(true);
+    } else if (blackPiecesShown) {
+      setPieceRevealFilter('black');
+      setBoardVisible(true);
+    } else {
+      setPieceRevealFilter('hidden');
+      setBoardVisible(false);
+    }
+  }, [submode, whitePiecesShown, blackPiecesShown]);
 
   const syncFromSession = useCallback(() => {
     const session = sessionRef.current;
     if (!session.isLoaded) return;
     setBoard(session.getChess().board() as (BoardPiece | null)[][]);
+    setCurrentFen(session.getFen());
     setSideToMove(session.getSideToMove());
     setOrientation(session.getOrientation());
     setStats(session.getStats());
   }, []);
 
   const displayBoard = useMemo(() => {
-    if (submode === 'blind' && !boardVisible && pieceRevealFilter === 'all') {
-      return filterBoardPieces(board, 'hidden');
-    }
-    if (submode === 'blind' && pieceRevealFilter !== 'all') {
-      return filterBoardPieces(board, pieceRevealFilter);
-    }
-    return board;
-  }, [board, submode, boardVisible, pieceRevealFilter]);
+    if (submode !== 'blind') return board;
+    if (whitePiecesShown && blackPiecesShown) return board;
+    if (whitePiecesShown) return filterBoardPieces(board, 'white');
+    if (blackPiecesShown) return filterBoardPieces(board, 'black');
+    return filterBoardPieces(board, 'hidden');
+  }, [board, submode, whitePiecesShown, blackPiecesShown]);
 
   useEffect(() => {
     submodeRef.current = submode;
@@ -232,9 +256,8 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       speechService.stop();
       replayRef.current.cancel();
       clearPreviewTimer();
-      clearRevealTimer();
     };
-  }, [clearPreviewTimer, clearRevealTimer]);
+  }, [clearPreviewTimer]);
 
   useEffect(() => {
     puzzleStreakStore
@@ -276,6 +299,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         clearPreviewTimer();
         setIsPreviewing(true);
         setBoard(clone.board() as (BoardPiece | null)[][]);
+        setCurrentFen(clone.fen());
         setLastMove({ from: played.from, to: played.to });
         previewTimerRef.current = setTimeout(() => {
           previewTimerRef.current = null;
@@ -314,15 +338,43 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
   const selectSubmode = useCallback(
     (m: PuzzleSubmode) => {
+      const prefs = preferencesStore.getPreferences();
+      const defaultBand =
+        m === 'visual'
+          ? prefs.visualProblemDifficulty
+          : prefs.blindProblemDifficulty;
+      const bandId =
+        PUZZLE_RATING_BANDS.some((b) => b.id === defaultBand)
+          ? defaultBand
+          : DEFAULT_PUZZLE_RATING_BAND_ID;
+
       submodeRef.current = m;
       setSubmode(m);
+      setRatingBandId(bandId);
       setBoardVisible(m === 'visual');
       setLastFeedback(null);
       setLoadError(null);
-      setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, m));
+      setFiltersState(filtersFromBands(bandId, pieceCountBandId, m));
+      setPhase('settings');
     },
-    [ratingBandId, pieceCountBandId],
+    [pieceCountBandId],
   );
+
+  const backToSettings = useCallback(() => {
+    speechService.stop();
+    replayRef.current.cancel();
+    resetPresentation();
+    setIsReplaying(false);
+    setPhase('settings');
+    setPuzzle(null);
+    setStats(null);
+    setLastMove(null);
+    setLastFeedback(null);
+    setSolutionLine(null);
+    setNextMoveHint(null);
+    setPositionNarration(null);
+    setLoadError(null);
+  }, [resetPresentation]);
 
   const backToHub = useCallback(() => {
     if (phase === 'playing' && sessionRef.current.isLoaded && !streakRecordedRef.current) {
@@ -345,25 +397,42 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setLoadError(null);
     setBoardVisible(true);
     setBoard(new Chess().board() as (BoardPiece | null)[][]);
+    setCurrentFen(new Chess().fen());
     setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
   }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
 
-  const announceBlindPosition = useCallback((fen: string) => {
+  const announceBlindPosition = useCallback((fen: string, opts?: { flush?: boolean }) => {
     const text = narratePosition(fen);
     setPositionNarration(text);
-    speechService.speak(narratePositionSpoken(fen), { flush: true, rate: 0.92 });
+    speechService.speak(narratePositionSpoken(fen), {
+      flush: opts?.flush ?? true,
+    });
+  }, []);
+
+  const refreshBlindNarrationSilent = useCallback((fen: string) => {
+    if (submodeRef.current !== 'blind') return;
+    setPositionNarration(narratePosition(fen));
   }, []);
 
   const finishSolved = useCallback(() => {
     const finalStats = sessionRef.current.getFinalStats();
     setStats(finalStats);
+    // Results always show the full current position for review.
+    setWhitePiecesShown(true);
+    setBlackPiecesShown(true);
+    setBoardVisible(true);
+    setPieceRevealFilter('all');
     setPhase('results');
-    setLastFeedback('Problème résolu');
-    speechService.speak(
-      `Problème résolu. Précision au premier essai : ${finalStats.accuracyPercent} pour cent.`,
-      { flush: true },
-    );
-    void recordStreak(true);
+    const clean = isCleanPuzzleSolve(finalStats);
+    const title = clean ? tMsg('puzzle.solved') : tMsg('puzzle.solvedWithHelp');
+    setLastFeedback(title);
+    speechService.speak(title, { flush: true });
+    if (clean) {
+      void recordStreak(true);
+    } else {
+      // Assisted solve: keep current streak (neither increment nor reset).
+      streakRecordedRef.current = true;
+    }
 
     const p = sessionRef.current.currentPuzzle;
     if (p) {
@@ -389,13 +458,13 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       const { result, userMove, opponentMove } = outcome;
 
       if (result === 'illegal') {
-        const msg = 'Coup illégal.';
+        const msg = tMsg('puzzle.illegal');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         return;
       }
       if (result === 'wrong-legal') {
-        const msg = 'Coup incorrect. Réessaie.';
+        const msg = tMsg('puzzle.incorrect');
         setLastFeedback(msg);
         speechService.speak(msg, { flush: true });
         if (preview && submodeRef.current === 'visual' && !isPreviewing) {
@@ -409,16 +478,62 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       syncFromSession();
       if (result === 'correct' || result === 'complete') {
         setNextMoveHint(null);
+        const notation = preferencesStore.getPreferences().chessNotation;
+        const userSan = userMove
+          ? formatSanForDisplay(userMove.san, notation)
+          : null;
+        const opponentSan = opponentMove
+          ? formatSanForDisplay(opponentMove.san, notation)
+          : null;
+
         if (userMove) setLastMove({ from: userMove.from, to: userMove.to });
-        setLastFeedback(result === 'complete' ? 'Problème résolu' : 'Correct.');
-        if (opponentMove) {
+
+        if (opponentMove && userMove && userSan && opponentSan) {
           setLastMove({ from: opponentMove.from, to: opponentMove.to });
-          speechService.speak(verbalMove(opponentMove), { flush: false });
+          const announce = tMsg('puzzle.plyAnnounce', {
+            user: userSan,
+            opponent: opponentSan,
+          });
+          setLastFeedback(announce);
+          speechService.speak(
+            tMsg('puzzle.plyAnnounce', {
+              user: verbalMove(userMove),
+              opponent: verbalMove(opponentMove),
+            }),
+            { flush: true },
+          );
+        } else if (userMove && userSan) {
+          const announce = tMsg('puzzle.plyAnnounceNoReply', { user: userSan });
+          setLastFeedback(
+            result === 'complete' ? tMsg('puzzle.solved') : announce,
+          );
+          if (userMove) {
+            speechService.speak(
+              tMsg('puzzle.plyAnnounceNoReply', {
+                user: verbalMove(userMove),
+              }),
+              { flush: true },
+            );
+          }
+        } else {
+          setLastFeedback(
+            result === 'complete' ? tMsg('puzzle.solved') : tMsg('puzzle.correct'),
+          );
         }
+
+        // Blind narration always mirrors the live session FEN (single source of truth).
+        refreshBlindNarrationSilent(sessionRef.current.getFen());
+
         if (result === 'complete') finishSolved();
       }
     },
-    [finishSolved, isPreviewing, showWrongMovePreview, syncFromSession],
+    [
+      finishSolved,
+      isPreviewing,
+      showWrongMovePreview,
+      syncFromSession,
+      refreshBlindNarrationSilent,
+    ],
   );
 
   const beginPuzzle = useCallback(
@@ -442,15 +557,28 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
         const mode = submodeRef.current;
         if (mode === 'blind') {
+          setWhitePiecesShown(false);
+          setBlackPiecesShown(false);
           setBoardVisible(false);
           setPieceRevealFilter('hidden');
-          announceBlindPosition(snap.startFen);
+          const camp =
+            snap.orientation === 'w'
+              ? tMsg('puzzle.youPlayWhite')
+              : tMsg('puzzle.youPlayBlack');
+          setLastFeedback(camp);
+          speechService.speak(camp, { flush: true });
+          // Queue position after camp so both are heard (no second flush).
+          announceBlindPosition(snap.startFen, { flush: false });
         } else {
+          setWhitePiecesShown(false);
+          setBlackPiecesShown(false);
           setBoardVisible(true);
           setPieceRevealFilter('all');
           setPositionNarration(null);
           const turn =
-            snap.sideToMove === 'w' ? 'Trait aux Blancs.' : 'Trait aux Noirs.';
+            snap.sideToMove === 'w'
+              ? tMsg('puzzle.sideWhite')
+              : tMsg('puzzle.sideBlack');
           setLastFeedback(turn);
           speechService.speak(turn, { flush: true });
         }
@@ -474,7 +602,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       repository: puzzleRepository,
     });
     if (!chosen) {
-      setLoadError('Aucun problème ne correspond à ces filtres.');
+      setLoadError(tMsg('puzzle.noMatch'));
       return;
     }
     await beginPuzzle(chosen);
@@ -501,45 +629,48 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   const repeatPosition = useCallback(() => {
     const session = sessionRef.current;
     if (!session.isLoaded || phase !== 'playing') return;
+    // Free action — tracked for analytics only; never an index / streak penalty.
     markHelp('positionRepeat');
     announceBlindPosition(session.getFen());
-    setLastFeedback('Position répétée.');
+    setLastFeedback(tMsg('puzzle.repeated'));
   }, [announceBlindPosition, markHelp, phase]);
 
-  const startPieceReveal = useCallback(
+  const togglePieceReveal = useCallback(
     (color: 'white' | 'black') => {
       if (submodeRef.current !== 'blind' || phase !== 'playing') return;
-      const key = color === 'white' ? 'whiteReveal' : 'blackReveal';
       const session = sessionRef.current;
       if (!session.isLoaded) return;
-      const current = session.getStats();
-      if (current.helps[key]) return;
-
+      const key = color === 'white' ? 'whiteReveal' : 'blackReveal';
+      // First activation counts as one index; re-toggles do not.
       markHelp(key);
-      clearRevealTimer();
-      setPieceRevealFilter(color);
-      revealTimerRef.current = setTimeout(() => {
-        revealTimerRef.current = null;
-        setPieceRevealFilter('hidden');
-      }, PIECE_REVEAL_MS);
+      if (color === 'white') setWhitePiecesShown((prev) => !prev);
+      else setBlackPiecesShown((prev) => !prev);
     },
-    [clearRevealTimer, markHelp, phase],
+    [markHelp, phase],
   );
 
-  const revealWhitePieces = useCallback(() => startPieceReveal('white'), [startPieceReveal]);
-  const revealBlackPieces = useCallback(() => startPieceReveal('black'), [startPieceReveal]);
+  const revealWhitePieces = useCallback(() => togglePieceReveal('white'), [togglePieceReveal]);
+  const revealBlackPieces = useCallback(() => togglePieceReveal('black'), [togglePieceReveal]);
 
   const revealNextMove = useCallback(() => {
     const session = sessionRef.current;
     if (!session.isLoaded || phase !== 'playing') return;
     const next = session.peekNextMove();
     if (!next) return;
-    markHelp('nextMove');
-    const hint = `Coup suivant : ${next.san}`;
+    const current = session.getStats();
+    current.helps.nextMove = true;
+    current.nextMoveUses = (current.nextMoveUses ?? 0) + 1;
+    session.setStats(current);
+    setStats(session.getStats());
+    const { chessNotation } = preferencesStore.getPreferences();
+    const displaySan = formatSanForDisplay(next.san, chessNotation);
+    const hint = tMsg('puzzle.nextMove', { san: displaySan });
     setNextMoveHint(hint);
     setLastFeedback(hint);
-    speechService.speak(`Coup suivant : ${next.verbal}`, { flush: true });
-  }, [markHelp, phase]);
+    speechService.speak(tMsg('puzzle.nextMove', { san: next.verbal }), {
+      flush: true,
+    });
+  }, [phase]);
 
   const revealSolution = useCallback(() => {
     const session = sessionRef.current;
@@ -554,13 +685,18 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
 
     const line = session.requestSolution();
     const fullLine = session.getUserFacingSolutionLine();
-    setSolutionLine(fullLine || line);
+    const solutionText = fullLine || line;
+    setSolutionLine(solutionText);
     setStats(session.getStats());
-    setLastFeedback(`Solution :\n${fullLine || line}`);
+    const { chessNotation } = preferencesStore.getPreferences();
+    const displayLine = formatSanLineForDisplay(solutionText, chessNotation);
+    setLastFeedback(`${tMsg('puzzle.solution')}:\n${displayLine}`);
 
     session.resetToStart();
     setLastMove(null);
     syncFromSession();
+    setWhitePiecesShown(true);
+    setBlackPiecesShown(true);
     setBoardVisible(true);
     setPieceRevealFilter('all');
     setPhase('solution-replay');
@@ -579,6 +715,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
           }) as Move;
           setLastMove({ from: played.from, to: played.to });
           setBoard(game.board() as (BoardPiece | null)[][]);
+          setCurrentFen(game.fen());
           setSideToMove(game.turn());
           speechService.speak(m.verbal, { flush: false });
         } catch {
@@ -589,7 +726,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         setIsReplaying(false);
         setPhase('results');
         setStats(session.getFinalStats());
-        setLastFeedback('Solution affichée.');
+        setLastFeedback(tMsg('puzzle.unsolved'));
         void recordStreak(false);
         const p = session.currentPuzzle;
         if (p) {
@@ -713,8 +850,11 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         lastMove,
         orientation,
         sideToMove,
+        currentFen,
         boardVisible,
         pieceRevealFilter,
+        whitePiecesShown,
+        blackPiecesShown,
         isPreviewing,
         isReplaying,
         isSpeaking,
@@ -728,6 +868,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         setPieceCountBand,
         selectSubmode,
         backToHub,
+        backToSettings,
         startPuzzle,
         nextPuzzle,
         retry,

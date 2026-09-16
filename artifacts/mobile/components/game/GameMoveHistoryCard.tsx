@@ -3,6 +3,9 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { OpeningIdentityBadge } from '@/components/OpeningIdentityBadge';
 import { useColors } from '@/hooks/useColors';
+import { usePreferences } from '@/hooks/usePreferences';
+import { useTranslation } from '@/hooks/useTranslation';
+import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { MoveRow } from '@/lib/game/types';
 import type { OpeningIdentity } from '@/lib/openings';
 
@@ -23,6 +26,8 @@ export function GameMoveHistoryCard({
   exportMode = 'icon',
 }: Props) {
   const colors = useColors();
+  const { chessNotation } = usePreferences();
+  const { t } = useTranslation();
   const historyListRef = useRef<FlatList<MoveRow>>(null);
 
   useEffect(() => {
@@ -37,21 +42,23 @@ export function GameMoveHistoryCard({
     >
       <View style={styles.historyHeader}>
         <View style={{ flex: 1, gap: 2, paddingRight: 8 }}>
-          <Text style={[styles.historyTitle, { color: colors.mutedForeground }]}>Coups joués</Text>
+          <Text style={[styles.historyTitle, { color: colors.mutedForeground }]}>
+            {t('game.movesPlayed')}
+          </Text>
           <OpeningIdentityBadge opening={opening} />
         </View>
         {moveRows.length > 0 && onExportPress ? (
           exportMode === 'text' ? (
             <Pressable onPress={onExportPress} hitSlop={8}>
               <Text style={{ color: colors.primary, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
-                Exporter
+                {t('game.export')}
               </Text>
             </Pressable>
           ) : (
             <Pressable
               onPress={onExportPress}
               hitSlop={8}
-              accessibilityLabel="Exporter en PGN"
+              accessibilityLabel={t('game.exportPgn')}
               style={({ pressed }) => [
                 styles.exportIconBtn,
                 { borderColor: colors.border, opacity: pressed ? 0.6 : 1 },
@@ -74,8 +81,12 @@ export function GameMoveHistoryCard({
           renderItem={({ item }) => (
             <View style={[styles.moveRow, { borderBottomColor: colors.border }]}>
               <Text style={[styles.moveNum, { color: colors.mutedForeground }]}>{item.num}.</Text>
-              <Text style={[styles.moveCell, { color: colors.foreground }]}>{item.white}</Text>
-              <Text style={[styles.moveCell, { color: colors.mutedForeground }]}>{item.black}</Text>
+              <Text style={[styles.moveCell, { color: colors.foreground }]}>
+                {item.white ? formatSanForDisplay(item.white, chessNotation) : ''}
+              </Text>
+              <Text style={[styles.moveCell, { color: colors.mutedForeground }]}>
+                {item.black ? formatSanForDisplay(item.black, chessNotation) : ''}
+              </Text>
             </View>
           )}
         />

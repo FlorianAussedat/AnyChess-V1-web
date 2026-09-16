@@ -2,6 +2,7 @@ import React from 'react';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { PuzzleProvider, usePuzzle } from '@/contexts/PuzzleContext';
 import { PuzzleHubPhase } from '@/components/puzzles/PuzzleHubPhase';
+import { PuzzleSettingsPhase } from '@/components/puzzles/PuzzleSettingsPhase';
 import { PuzzlePlayingPhase } from '@/components/puzzles/PuzzlePlayingPhase';
 import { PuzzleResultsPhase } from '@/components/puzzles/PuzzleResultsPhase';
 
@@ -19,6 +20,8 @@ function PuzzlesScreen() {
   switch (phase) {
     case 'hub':
       return <PuzzleHubPhase />;
+    case 'settings':
+      return <PuzzleSettingsPhase />;
     case 'playing':
     case 'solution-replay':
       return <PuzzlePlayingPhase />;

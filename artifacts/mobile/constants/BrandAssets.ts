@@ -26,7 +26,30 @@ export const BrandAssets = {
     puzzles: require('@/assets/brand/modes/tactics.png'),
     visualisation: require('@/assets/brand/modes/visualisation.png'),
     'quiz-ouverture': require('@/assets/brand/modes/quiz-ouverture.png'),
+    parties: require('@/assets/brand/mascots/mascot-player-knight-dj.png'),
     target: require('@/assets/brand/modes/target.png'),
+  },
+  /**
+   * HubModeCard exercise mascots — lightweight display WebPs (192px).
+   * Sources: assets/brand/modes/*.png (originals untouched).
+   * Regenerate with: `pnpm run optimize:brand-display`
+   * HubModeCard renders these at 80×80 (contain).
+   */
+  exercises: {
+    construisOuverture: require('@/assets/brand/display/modes/construis-ouverture.webp'),
+    /** Défends la nulle — reuses fortress/endgame-adjacent mascot until dedicated art. */
+    defendsNulle: require('@/assets/brand/display/modes/construis-ouverture.webp'),
+    /** Finales théoriques — placeholder until dedicated art is provided. */
+    finalesTheoriques: require('@/assets/brand/display/modes/jouer-le-coup.webp'),
+    ecouterPuisReconstruire: require('@/assets/brand/display/modes/ecouter-puis-reconstruire.webp'),
+    problemesVisuels: require('@/assets/brand/display/modes/problemes-visuels.webp'),
+    quiz: require('@/assets/brand/display/modes/quiz.webp'),
+    suiviMental: require('@/assets/brand/display/modes/suivi-mental-de-position.webp'),
+    jouerLeCoup: require('@/assets/brand/display/modes/jouer-le-coup.webp'),
+    regarderPuisReciter: require('@/assets/brand/display/modes/regarder-puis-reciter.webp'),
+    problemesAveugle: require('@/assets/brand/display/modes/problemes-a-l-aveugle.webp'),
+    nommerLeCoup: require('@/assets/brand/display/modes/nommer-le-coup.webp'),
+    quelleOuverture: require('@/assets/brand/display/modes/quelle-ouverture.webp'),
   },
   /**
    * Home ModeCard mascots — optimized display WebPs from user v1 originals.
@@ -39,21 +62,41 @@ export const BrandAssets = {
     puzzles: require('@/assets/brand/display/mascots/v1-mascot-tactics-knight-calculator.webp'),
     visualisation: require('@/assets/brand/display/mascots/v1-mascot-visualisation-knight-binoculars.webp'),
     'quiz-ouverture': require('@/assets/brand/display/mascots/V1-mascot-quiz-knight-detective.webp'),
+    parties: require('@/assets/brand/display/mascots/mascot-player-knight-dj.webp'),
   } as Partial<Record<MainModeId, ImageSourcePropType>>,
   sides: {
     white: require('@/assets/brand/sides/white.png'),
     black: require('@/assets/brand/sides/black.png'),
     random: require('@/assets/brand/sides/random.png'),
   },
+  /**
+   * Shared difficulty mascots (Débutant → Grand-Maître).
+   * Sources: assets/brand/mascots/difficulty/{debutant,confirme,expert,GM}.png
+   */
+  difficulty: {
+    debutant: require('@/assets/brand/mascots/difficulty/debutant.png'),
+    confirme: require('@/assets/brand/mascots/difficulty/confirme.png'),
+    expert: require('@/assets/brand/mascots/difficulty/expert.png'),
+    grandMaitre: require('@/assets/brand/mascots/difficulty/GM.png'),
+  },
   toggles: {
-    boardOn: require('@/assets/brand/toggles/board-on.png'),
-    boardOff: require('@/assets/brand/toggles/board-off.png'),
-    micOn: require('@/assets/brand/toggles/mic-on.png'),
-    micOff: require('@/assets/brand/toggles/mic-off.png'),
-    coordsOn: require('@/assets/brand/toggles/coords-on.png'),
-    coordsOff: require('@/assets/brand/toggles/coords-off.png'),
-    soundOn: require('@/assets/brand/toggles/sound-on.png'),
-    soundOff: require('@/assets/brand/toggles/sound-off.png'),
+    board: {
+      on: require('@/assets/brand/toggles/Board-ON.png'),
+      off: require('@/assets/brand/toggles/Board-OFF.png'),
+    },
+    coordinates: {
+      on: require('@/assets/brand/toggles/Coordonnee-ON.png'),
+      off: require('@/assets/brand/toggles/Coordonnee-OFF.png'),
+    },
+    speaker: {
+      on: require('@/assets/brand/toggles/VoixApp-On.png'),
+      off: require('@/assets/brand/toggles/VoixApp-Off.png'),
+    },
+    /** Player mic (Parler) — not the app voice toggle. */
+    mic: {
+      on: require('@/assets/brand/toggles/mic-on.png'),
+      off: require('@/assets/brand/toggles/mic-off.png'),
+    },
   },
 } as const;
 

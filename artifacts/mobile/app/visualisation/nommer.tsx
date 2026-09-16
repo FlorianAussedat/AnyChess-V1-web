@@ -1,17 +1,26 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { BoardToolbar } from '@/components/BoardToolbar';
-import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
-import { AppButton } from '@/components/ui/AppButton';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
+import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
 import { ChessBoard } from '@/components/ChessBoard';
+import { GameMicButton } from '@/components/game/GameMicButton';
+import { MoveFeedbackBanner } from '@/components/feedback/MoveFeedbackBanner';
+import {
+  TimedVisionHud,
+  TimedVisionResults,
+  TimedVisionSideToMove,
+  TimedVisionStart,
+  timedVisionStyles,
+} from '@/components/visualisation/TimedVisionChrome';
 import type { BoardPiece } from '@/contexts/GameContext';
-import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useBoardSize } from '@/hooks/useBoardSize';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
+import { useMoveFeedback } from '@/hooks/useMoveFeedback';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage } from '@/lib/storage';
@@ -23,17 +32,25 @@ import {
   isFlippedForPerspective,
   type MoveNamingSnapshot,
 } from '@/lib/moveNaming';
+import { sideToMoveLabel } from '@/lib/playMove';
 
 const records = new MoveNamingRecordsStore(defaultKeyValueStorage);
+const styles = timedVisionStyles;
 
 export default function NommerLeCoupScreen() {
   const colors = useColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
-  const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const boardSize = useBoardSize('wide');
   const sessionRef = useRef(new MoveNamingSession({ pickChallenge: pickMoveNamingChallenge }));
   const micPrimedRef = useRef(false);
   const [snap, setSnap] = useState<MoveNamingSnapshot>(() => sessionRef.current.snapshot());
+  const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [keypadVisible, setKeypadVisible] = useState(true);
+  const feedback = useMoveFeedback();
+  const submittingRef = useRef(false);
 
   const sync = useCallback(() => {
     setSnap(sessionRef.current.snapshot());
@@ -45,13 +62,12 @@ export default function NommerLeCoupScreen() {
     records
       .loadBest()
       .then((best) => {
-        sessionRef.current.configure({ previousRecord: best });
+        sessionRef.current.configure({ previousRecord: best, voiceEnabled: true });
         sync();
       })
       .catch(() => undefined);
   }, [sync]);
 
-  // Poll during countdown (3-2-1-GO labels) and play (session clock).
   useEffect(() => {
     if (snap.phase !== 'countdown' && snap.phase !== 'playing') return;
     const id = setInterval(sync, snap.phase === 'countdown' ? 100 : 250);
@@ -71,33 +87,69 @@ export default function NommerLeCoupScreen() {
 
   const beginSession = useCallback(async () => {
     micPrimedRef.current = false;
+    feedback.clear();
+    setDraft('');
     const best = await records.loadBest().catch(() => 0);
-    sessionRef.current.configure({ previousRecord: best });
+    sessionRef.current.configure({ previousRecord: best, voiceEnabled: true });
     sessionRef.current.startCountdown();
     sync();
-  }, [sync]);
+  }, [sync, feedback]);
 
-  const { micActive, status, toggleMic, stopListening } = useSpeechInput({
+  const goRecords = useCallback(() => {
+    router.push('/visualisation/records');
+  }, [router]);
+
+  const handleAnswer = useCallback(
+    (raw: string) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      try {
+        feedback.onNextAttempt();
+        const before = sessionRef.current.snapshot();
+        sessionRef.current.answer(raw);
+        const after = sessionRef.current.snapshot();
+        if (after.lastFeedback === 'correct') {
+          feedback.signalCorrect();
+        } else if (after.lastFeedback === 'recognition-failure') {
+          feedback.signalInvalid(t('vision.unrecognizedRetry'));
+        } else if (after.lastFeedback === 'wrong') {
+          feedback.signalIncorrect(t('vision.incorrectRetry'));
+        } else if (after.score.correct > before.score.correct) {
+          feedback.signalCorrect();
+        }
+        setDraft('');
+        sync();
+      } finally {
+        submittingRef.current = false;
+      }
+    },
+    [feedback, sync, t],
+  );
+
+  const { micActive, isListening, status, toggleMic, stopListening } = useSpeechInput({
     forceOff: snap.phase !== 'playing',
-    enabled: snap.voiceEnabled,
+    enabled: true,
     isSpeaking: false,
     onTranscript: (raw) => {
-      sessionRef.current.answer(raw);
-      sync();
+      setShowRecognizedFlash(true);
+      setTimeout(() => setShowRecognizedFlash(false), 900);
+      handleAnswer(raw);
     },
   });
 
   useEffect(() => {
-    if (snap.phase !== 'playing' || !snap.voiceEnabled || micPrimedRef.current) return;
+    if (snap.phase !== 'playing' || micPrimedRef.current) return;
     micPrimedRef.current = true;
     if (!micActive) toggleMic();
-  }, [snap.phase, snap.voiceEnabled, micActive, toggleMic]);
+  }, [snap.phase, micActive, toggleMic]);
 
   const display =
     snap.phase === 'playing' && snap.challenge ? new Chess(snap.challenge.positionFen) : null;
   const perspective = snap.challenge?.boardPerspective ?? 'w';
   const perspectiveLabel = boardPerspectiveLabel(perspective);
   const boardFlipped = isFlippedForPerspective(perspective);
+  const turnLabel = display ? sideToMoveLabel(display.turn()) : null;
+  const fen = snap.challenge?.positionFen ?? new Chess().fen();
 
   return (
     <ScrollView
@@ -118,39 +170,18 @@ export default function NommerLeCoupScreen() {
           sync();
           router.back();
         }}
-        title="Nommer le coup"
+        title={t('vision.nommer')}
         showSound
       />
 
       {snap.phase === 'idle' && (
-        <View style={styles.gap}>
-          <Text style={{ color: colors.mutedForeground }}>
-            Identifie autant de coups que possible en 60 secondes. Pas de limite de temps par
-            question.
-          </Text>
-          <Text style={{ color: colors.foreground }}>
-            Record actuel : {snap.previousRecord}
-          </Text>
-          <BooleanSettingRow
-            label="Réponse vocale"
-            value={snap.voiceEnabled}
-            onToggle={() => {
-              sessionRef.current.configure({ voiceEnabled: !snap.voiceEnabled });
-              sync();
-            }}
-            activeIcon="mic"
-            inactiveIcon="mic-off-outline"
-            testID="nommer-voice-toggle"
-          />
-          <AppButton
-            label="Commencer"
-            onPress={() => void beginSession()}
-            testID="nommer-start"
-          />
-          <Pressable onPress={() => router.push('/visualisation/records')}>
-            <Text style={{ color: colors.primary }}>Voir les records</Text>
-          </Pressable>
-        </View>
+        <TimedVisionStart
+          description={t('vision.nommerIntro')}
+          record={snap.previousRecord}
+          onStart={() => void beginSession()}
+          onRecords={goRecords}
+          startTestID="nommer-start"
+        />
       )}
 
       {snap.phase === 'countdown' && (
@@ -163,149 +194,111 @@ export default function NommerLeCoupScreen() {
 
       {snap.phase === 'playing' && (
         <View style={styles.gap}>
-          <View style={styles.hudRow}>
-            <Text style={[styles.hudValue, { color: colors.foreground }]} testID="nommer-timer">
-              {snap.remainingSeconds}s
-            </Text>
-            <Text style={[styles.hudValue, { color: colors.foreground }]} testID="nommer-score">
-              Score : {snap.score.score}
-            </Text>
-          </View>
-          <BoardToolbar
-            label={perspectiveLabel}
-            showCoordinates={showCoordinates}
-            onToggleCoordinates={() => {
-              void toggleCoordinates();
-            }}
+          <TimedVisionHud
+            remainingSeconds={snap.remainingSeconds}
+            score={snap.score.score}
+            timerTestID="nommer-timer"
+            scoreTestID="nommer-score"
           />
-          {display && (
-            <ChessBoard
-              board={display.board() as (BoardPiece | null)[][]}
-              lastMove={snap.challenge?.setupMove ?? null}
-              showCoordinates={showCoordinates}
-              isFlipped={boardFlipped}
-            />
-          )}
-          <Text style={{ color: colors.mutedForeground }}>Quel était le dernier coup ?</Text>
-          {snap.lastFeedback === 'wrong' ? (
-            <Text style={{ color: '#BE3030' }}>Incorrect — réessaie</Text>
-          ) : null}
-          {snap.lastFeedback === 'recognition-failure' ? (
-            <Text style={{ color: colors.mutedForeground }}>Coup non reconnu — réessaie</Text>
-          ) : null}
-          <ChessAnswerInput
-            onSubmit={(raw) => {
-              sessionRef.current.answer(raw);
-              sync();
+          <Text
+            style={[styles.perspective, { color: colors.mutedForeground }]}
+            testID="nommer-perspective"
+          >
+            {perspectiveLabel}
+          </Text>
+          <Text style={{ color: colors.mutedForeground }}>{t('vision.lastMovePrompt')}</Text>
+          <MoveFeedbackBanner state={feedback.state} testID="nommer-correct" />
+
+          {/* 1. Field above board */}
+          <ChessMoveInput
+            inputType="chess-move"
+            value={draft}
+            onChangeText={(text) => {
+              feedback.onNextAttempt();
+              setDraft(text);
             }}
+            onSubmit={handleAnswer}
+            fen={fen}
             enabled
             persistFocus
-            placeholder="ex. Cavalier prend e5"
+            autoSubmit
+            showSendButton={false}
+            attachKeypad={false}
+            keypadVisible={keypadVisible}
+            onKeypadVisibleChange={setKeypadVisible}
+            placeholder={t('vision.nommerPlaceholder')}
+            testID="nommer-move-input"
           />
-          {snap.voiceEnabled && (
-            <>
-              <Pressable
-                onPress={toggleMic}
-                style={[
-                  styles.button,
-                  {
-                    backgroundColor: micActive ? '#b33' : colors.card,
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <Text style={{ color: colors.foreground }}>
-                  {micActive ? 'Écoute…' : 'Répondre à voix haute'}
-                </Text>
-              </Pressable>
-              {status.message ? (
-                <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{status.message}</Text>
+
+          {/* 2. Board */}
+          {display && (
+            <View style={[styles.boardWrap, { width: boardSize }]}>
+              <ChessBoard
+                board={display.board() as (BoardPiece | null)[][]}
+                lastMove={snap.challenge?.setupMove ?? null}
+                showCoordinates={false}
+                isFlipped={boardFlipped}
+                sizeMode="wide"
+                size={boardSize}
+              />
+              {turnLabel ? (
+                <TimedVisionSideToMove label={turnLabel} testID="nommer-side-to-move" />
               ) : null}
-            </>
+            </View>
           )}
+
+          {/* 3. Keypad below board (hideable) */}
+          {keypadVisible ? (
+            <ChessMoveKeypad
+              value={draft}
+              onChangeText={(text) => {
+                feedback.onNextAttempt();
+                setDraft(text);
+              }}
+              onSubmit={handleAnswer}
+              autoSubmit
+              fen={fen}
+              enabled
+              compact
+              testID="nommer-move-input-keypad"
+            />
+          ) : null}
+
+          {/* 4. Mic under keypad */}
+          <GameMicButton
+            showRecognized={showRecognizedFlash}
+            isListening={isListening}
+            micActive={micActive}
+            micMessage={status.message}
+            onToggle={toggleMic}
+            testID="nommer-mic"
+          />
         </View>
       )}
 
       {snap.phase === 'completed' && (
-        <View style={styles.gap} testID="nommer-results">
-          <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>SCORE</Text>
-          <Text style={[styles.scoreValue, { color: colors.foreground }]}>{snap.score.score}</Text>
-          {snap.isNewRecord ? (
-            <Text style={[styles.newRecord, { color: colors.primary }]} testID="nommer-new-record">
-              Nouveau record !
-            </Text>
-          ) : null}
-          <Text style={{ color: colors.foreground }}>
-            Coups correctement nommés : {snap.score.correct}
-          </Text>
-          <Text style={{ color: colors.foreground }}>Incorrect : {snap.score.wrong}</Text>
-          <Text style={{ color: colors.mutedForeground }}>
-            Record : {Math.max(snap.previousRecord, snap.score.score)}
-          </Text>
-          <AppButton
-            label="Retour"
-            onPress={() => {
-              sessionRef.current.returnToIdle();
-              sync();
-              router.back();
-            }}
-          />
-          <AppButton
-            label="Voir les records"
-            variant="secondary"
-            onPress={() => router.push('/visualisation/records')}
-          />
-          <AppButton
-            label="Rejouer"
-            variant="secondary"
-            onPress={() => {
-              stopListening();
-              sessionRef.current.replay();
-              void beginSession();
-            }}
-          />
-        </View>
+        <TimedVisionResults
+          score={snap.score.score}
+          isNewRecord={snap.isNewRecord}
+          correctLabel={t('vision.namedCorrect')}
+          correctCount={snap.score.correct}
+          wrongCount={snap.score.wrong}
+          record={Math.max(snap.previousRecord, snap.score.score)}
+          newRecordTestID="nommer-new-record"
+          resultsTestID="nommer-results"
+          onRestart={() => {
+            stopListening();
+            sessionRef.current.replay();
+            void beginSession();
+          }}
+          onRecords={goRecords}
+          onBack={() => {
+            sessionRef.current.returnToIdle();
+            sync();
+            router.back();
+          }}
+        />
       )}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  page: {
-    flexGrow: 1,
-    paddingHorizontal: DesignTokens.spacing.xl,
-    gap: DesignTokens.spacing.lg,
-  },
-  gap: { gap: DesignTokens.spacing.md },
-  button: {
-    padding: DesignTokens.spacing.md,
-    borderRadius: DesignTokens.radius.sm,
-    alignItems: 'center',
-    minHeight: DesignTokens.minTouchTarget,
-  },
-  countdownWrap: { alignItems: 'center', justifyContent: 'center', minHeight: 220 },
-  countdown: { fontSize: 96, fontFamily: DesignTokens.typography.weightBold },
-  hudRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  hudValue: { fontSize: 22, fontFamily: DesignTokens.typography.weightBold },
-  scoreLabel: {
-    fontSize: 14,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    letterSpacing: 2,
-    textAlign: 'center',
-  },
-  scoreValue: {
-    fontSize: 64,
-    fontFamily: DesignTokens.typography.weightBold,
-    textAlign: 'center',
-  },
-  newRecord: {
-    fontSize: 20,
-    fontFamily: DesignTokens.typography.weightBold,
-    textAlign: 'center',
-  },
-});

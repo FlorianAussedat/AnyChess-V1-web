@@ -3,10 +3,13 @@ import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
 import {
   BoardReplayController,
-  blindSpeedToDelayMs,
   type BlindPhase,
   type BlindSequenceMove,
 } from '@/lib/blind';
+import {
+  dictationPaceToGapMs,
+  preferencesStore,
+} from '@/lib/preferences';
 import { replayLine, type ReplayLineHandle } from '@/lib/replay';
 import type { LastMove } from '@/contexts/GameContext';
 
@@ -14,11 +17,10 @@ type SyncBoard = () => void;
 
 /**
  * Internal Blind mode visual replay (observation + results).
- * Composed inside BlindSequenceProvider — not a public API.
+ * Uses global dictationPace for inter-move delay.
  */
 export function useBlindVisualReplay(opts: {
   gameRef: React.MutableRefObject<Chess>;
-  speedRef: React.MutableRefObject<number>;
   syncBoard: SyncBoard;
   setLastMove: (m: LastMove | null) => void;
   setObservationIndex: (n: number) => void;
@@ -28,7 +30,6 @@ export function useBlindVisualReplay(opts: {
 }) {
   const {
     gameRef,
-    speedRef,
     syncBoard,
     setLastMove,
     setObservationIndex,
@@ -53,7 +54,11 @@ export function useBlindVisualReplay(opts: {
       syncBoard();
       setIsReplaying(true);
 
-      replayRef.current.start(moves, blindSpeedToDelayMs(speedRef.current), {
+      const gapMs = dictationPaceToGapMs(
+        preferencesStore.getPreferences().dictationPace,
+      );
+
+      replayRef.current.start(moves, gapMs, {
         onMove: (m, index) => {
           try {
             const played = gameRef.current.move({
@@ -78,13 +83,11 @@ export function useBlindVisualReplay(opts: {
             setPhase('recitation');
             setLastFeedback('Récite la séquence à voix haute, coup par coup.');
           }
-          // keep-final: leave the board on the last position (observation or results)
         },
       });
     },
     [
       gameRef,
-      speedRef,
       syncBoard,
       setLastMove,
       setObservationIndex,
@@ -115,7 +118,9 @@ export function useBlindVisualReplay(opts: {
           promotion: m.promotion,
           san: m.san,
         })),
-        intervalMs: 1000,
+        intervalMs: dictationPaceToGapMs(
+          preferencesStore.getPreferences().dictationPace,
+        ),
         onMove: (m, index) => {
           try {
             const played = gameRef.current.move({

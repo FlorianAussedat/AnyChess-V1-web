@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { RepertoireSide } from '@/lib/repertoire';
 import { RepertoireSidePicker } from '@/components/RepertoireSidePicker';
 
@@ -26,6 +27,7 @@ export function SideMigrationModal({
   onRequestClose,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
 
   return (
     <Modal
@@ -37,10 +39,10 @@ export function SideMigrationModal({
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            Côté du répertoire
+            {t('openings.sideTitle')}
           </Text>
           <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
-            De quel côté travaillez-vous « {folderName} » ?
+            {t('openings.sidePrompt', { name: folderName })}
           </Text>
           <RepertoireSidePicker
             value={migrationSide}
@@ -57,7 +59,7 @@ export function SideMigrationModal({
               ]}
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                Annuler
+                {t('common.cancel')}
               </Text>
             </Pressable>
             <Pressable
@@ -73,7 +75,7 @@ export function SideMigrationModal({
               ]}
             >
               <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                Enregistrer
+                {t('common.save')}
               </Text>
             </Pressable>
           </View>

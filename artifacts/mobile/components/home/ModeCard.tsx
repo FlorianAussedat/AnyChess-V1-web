@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
-import { MASCOT_ART, artHeight } from '@/constants/brandArtBounds';
+import { MASCOT_ART, artHeight, mascotCanvasAspect } from '@/constants/brandArtBounds';
 import type { ModeIconName } from '@/lib/app/mainModeCards';
 import type { MainModeId } from '@/lib/app/modes';
 
@@ -54,7 +54,7 @@ export function ModeCard({
   const targetArtH = Math.round(cardH * 0.92);
   const bottomCrop = 10;
   const imgHeight = Math.round(targetArtH / aH);
-  const imgWidth = Math.round(imgHeight * (1024 / 1536));
+  const imgWidth = Math.round(imgHeight * mascotCanvasAspect(modeId));
 
   // Anchor artwork bottom-right inside the card (not the raw PNG canvas).
   const imageBottom = -Math.round((1 - art.bottom) * imgHeight) - bottomCrop;

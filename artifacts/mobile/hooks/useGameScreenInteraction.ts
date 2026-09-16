@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import * as Haptics from 'expo-haptics';
 import type { MoveEvent } from '@/lib/game/types';
 import { sfxService } from '@/services/SfxService';
+import { triggerHaptic } from '@/lib/feedback/haptics';
 
 /** Haptics + SFX + brief "recognized" mic flash on moveEvent. */
 export function useMoveEventFeedback(moveEvent: MoveEvent | null) {
@@ -11,13 +11,13 @@ export function useMoveEventFeedback(moveEvent: MoveEvent | null) {
   useEffect(() => {
     if (!moveEvent) return;
     if (moveEvent.kind === 'success') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void triggerHaptic('success');
       void sfxService.playSuccess();
       setShowRecognized(true);
       if (recognizedTimerRef.current) clearTimeout(recognizedTimerRef.current);
       recognizedTimerRef.current = setTimeout(() => setShowRecognized(false), 1500);
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      void triggerHaptic('incorrect');
       void sfxService.playError();
     }
   }, [moveEvent?.id]);

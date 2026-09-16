@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { RepertoireFolder } from '@/lib/repertoire';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 
@@ -25,16 +26,17 @@ export function MixedTrainingModal({
   onStart,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            Répertoires à mélanger
+            {t('openings.mixedTitle')}
           </Text>
           <Pressable onPress={onSelectAll} hitSlop={8}>
             <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
-              Tout sélectionner
+              {t('common.selectAll')}
             </Text>
           </Pressable>
           <View style={{ gap: 8, maxHeight: 280 }}>
@@ -76,7 +78,7 @@ export function MixedTrainingModal({
               ]}
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                Annuler
+                {t('common.cancel')}
               </Text>
             </Pressable>
             <Pressable
@@ -92,7 +94,7 @@ export function MixedTrainingModal({
               ]}
             >
               <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                Commencer
+                {t('common.start')}
               </Text>
             </Pressable>
           </View>

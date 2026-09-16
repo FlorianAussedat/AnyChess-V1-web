@@ -1,4 +1,5 @@
 import { Chess, type Square } from 'chess.js';
+import { tMsg } from '../i18n/tMsg.ts';
 import { parseChessVoice } from '../voice/parseChessVoice.ts';
 import type { OpeningTarget } from './OpeningLineBuilder.ts';
 import { matchOpeningMove } from './OpeningTargetMatcher.ts';
@@ -38,8 +39,8 @@ export class OpeningConstructionSession {
     if (parsed.type !== 'move') {
       this.feedback =
         parsed.type === 'ambiguous'
-          ? 'Ambigu — reformule le coup (non compté comme erreur).'
-          : 'Coup non reconnu.';
+          ? tMsg('quiz.ambiguous')
+          : tMsg('quiz.unrecognized');
       return this.snapshot();
     }
 
@@ -55,12 +56,12 @@ export class OpeningConstructionSession {
       const probe = new Chess(this.game.fen());
       const played = probe.move(san);
       if (!played) {
-        this.feedback = 'Coup non reconnu.';
+        this.feedback = tMsg('quiz.unrecognized');
         return this.snapshot();
       }
       moveSan = played.san;
     } catch {
-      this.feedback = 'Coup non reconnu.';
+      this.feedback = tMsg('quiz.unrecognized');
       return this.snapshot();
     }
 
@@ -80,12 +81,12 @@ export class OpeningConstructionSession {
         promotion: coords.promotion ?? 'q',
       });
       if (!played) {
-        this.feedback = 'Coup non reconnu.';
+        this.feedback = tMsg('quiz.unrecognized');
         return this.snapshot();
       }
       moveSan = played.san;
     } catch {
-      this.feedback = 'Coup non reconnu.';
+      this.feedback = tMsg('quiz.unrecognized');
       return this.snapshot();
     }
 
@@ -109,8 +110,9 @@ export class OpeningConstructionSession {
     if (!verdict.correct) {
       this.phase = 'wrong';
       this.lastAttemptedSan = san;
-      const expected = verdict.expectedSan ?? '?';
-      this.feedback = `Incorrect : ${san}. Attendu : ${expected}. Ligne complète : ${this.target.sans.join(' ')}`;
+      // Keep feedback short — expected SAN is exposed via snapshot.expectedSan.
+      // Full-line teaching is done by the board replay, not dumped as text.
+      this.feedback = tMsg('common.incorrect');
       return this.snapshot();
     }
 
@@ -119,10 +121,20 @@ export class OpeningConstructionSession {
     this.playedSans.push(san);
     if (verdict.complete) {
       this.phase = 'complete';
-      this.feedback = 'Ouverture construite !';
+      this.feedback = tMsg('quiz.constructed');
     } else {
-      this.feedback = 'Correct.';
+      this.feedback = tMsg('quiz.correct');
     }
+    return this.snapshot();
+  }
+
+  /** Reset to the start of the same target line after a wrong attempt / review. */
+  restart(): ConstructionSnapshot {
+    this.game.reset();
+    this.playedSans = [];
+    this.phase = 'playing';
+    this.feedback = null;
+    this.lastAttemptedSan = null;
     return this.snapshot();
   }
 

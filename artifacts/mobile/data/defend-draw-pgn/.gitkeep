@@ -1,0 +1,3 @@
+# Optional local PGN files for master-game defend-draw candidates.
+# Place .pgn files here; the offline builder imports late endgame positions.
+# No files are downloaded at runtime.

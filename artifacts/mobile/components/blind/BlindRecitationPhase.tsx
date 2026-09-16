@@ -1,9 +1,11 @@
-import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { useTranslation } from '@/hooks/useTranslation';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
+import { GameMicButton } from '@/components/game/GameMicButton';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { blindStyles } from '@/components/blind/blindStyles';
 import { useBlindSequence } from '@/contexts/BlindSequenceContext';
@@ -11,6 +13,7 @@ import { useSpeechInput } from '@/services/SpeechRecognitionService';
 
 export function BlindRecitationPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const {
     sequence,
     expectedIndex,
@@ -18,37 +21,73 @@ export function BlindRecitationPhase() {
     revealedHint,
     recognizedText,
     isSpeaking,
+    recordIneligibleNotice,
     attemptSpoken,
     useHelp,
     skipExpectedMove,
     backToSettings,
   } = useBlindSequence();
 
-  const {
-    micActive,
-    isListening,
-    status: micStatus,
-    toggleMic,
-  } = useSpeechInput({
+  const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+  const answerFen = useMemo(() => {
+    const probe = new Chess();
+    for (let i = 0; i < expectedIndex; i++) {
+      const m = sequence[i];
+      if (!m) break;
+      try {
+        probe.move({ from: m.from, to: m.to, promotion: m.promotion || undefined });
+      } catch {
+        break;
+      }
+    }
+    return probe.fen();
+  }, [sequence, expectedIndex]);
+  const attemptSpokenRef = useRef(attemptSpoken);
+  useEffect(() => {
+    attemptSpokenRef.current = attemptSpoken;
+  }, [attemptSpoken]);
+
+  useEffect(() => {
+    if (!recognizedText) {
+      setShowRecognizedFlash(false);
+      return;
+    }
+    setShowRecognizedFlash(true);
+    const timer = setTimeout(() => setShowRecognizedFlash(false), 900);
+    return () => clearTimeout(timer);
+  }, [recognizedText]);
+
+  const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
     isSpeaking,
     onTranscript: (text) => {
-      attemptSpoken(text);
+      attemptSpokenRef.current(text);
     },
   });
 
   return (
-    <ModeScreenShell title="Récitation" onBack={backToSettings}>
-      <View style={blindStyles.phaseBody}>
-        <View style={[blindStyles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <ModeScreenShell title={t('blind.recitation')} onBack={backToSettings}>
+      <ScrollView
+        contentContainerStyle={blindStyles.phaseBody}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View
+          style={[
+            blindStyles.statusCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
           <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-            Coup {Math.min(expectedIndex + 1, sequence.length)} / {sequence.length}
+            {t('blind.moveProgress', {
+              current: Math.min(expectedIndex + 1, sequence.length),
+              total: sequence.length,
+            })}
           </Text>
           <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
-            {lastFeedback ?? 'Dis le prochain coup à voix haute.'}
+            {lastFeedback ?? t('blind.recitePrompt')}
           </Text>
           {!!recognizedText && (
             <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 13 }}>
-              Reconnu : {recognizedText}
+              {t('blind.recognized', { san: recognizedText })}
             </Text>
           )}
           {!!revealedHint && (
@@ -58,68 +97,76 @@ export function BlindRecitationPhase() {
           )}
         </View>
 
-        <View style={[blindStyles.hiddenCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="mic-outline" size={40} color={colors.mutedForeground} />
-          <Text style={[blindStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-            Ex. « e4 », « Cavalier f3 », « petit roque »
-          </Text>
-        </View>
-
-        <ChessAnswerInput
-          onSubmit={(text) => attemptSpoken(text)}
-          enabled
-          persistFocus
-          placeholder="Ex. e4, Cf3, petit roque…"
-        />
-
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            toggleMic();
-          }}
-          style={({ pressed }) => [
-            blindStyles.cta,
-            {
-              backgroundColor: isListening ? '#C0392B' : micActive ? '#D4880A' : colors.primary,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <Ionicons name={isListening ? 'mic' : 'mic-outline'} size={20} color="#fff" />
-          <Text style={[blindStyles.ctaLabel, { color: '#fff' }]}>
-            {isListening ? "J'écoute…" : micActive ? 'Micro actif' : 'Activer le micro'}
-          </Text>
-        </Pressable>
-        {!!micStatus.message && (
-          <Text style={{ color: '#F5A623', fontSize: 12, textAlign: 'center' }}>{micStatus.message}</Text>
+        {!!recordIneligibleNotice && (
+          <View
+            style={[
+              blindStyles.ineligibleBanner,
+              { borderColor: colors.border, backgroundColor: colors.card },
+            ]}
+            testID="blind-record-ineligible"
+          >
+            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_500Medium', fontSize: 13 }}>
+              {recordIneligibleNotice}
+            </Text>
+          </View>
         )}
 
-        <Pressable
-          onPress={skipExpectedMove}
-          style={({ pressed }) => [
-            blindStyles.secondaryCta,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Ionicons name="play-skip-forward-outline" size={18} color={colors.foreground} />
-          <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Passer ce coup
-          </Text>
-        </Pressable>
+        <GameMicButton
+          showRecognized={showRecognizedFlash}
+          isListening={isListening}
+          micActive={micActive}
+          micMessage={micStatus.message}
+          onToggle={toggleMic}
+          testID="blind-recitation-mic"
+        />
 
-        <Pressable
-          onPress={useHelp}
-          style={({ pressed }) => [
-            blindStyles.secondaryCta,
-            { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Ionicons name="help-circle-outline" size={18} color={colors.foreground} />
-          <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-            Aide — révéler le coup
-          </Text>
-        </Pressable>
-      </View>
+        <ChessMoveInput
+          inputType="chess-move"
+          onSubmit={(text) => attemptSpoken(text)}
+          fen={answerFen}
+          enabled
+          persistFocus
+          placeholder={t('blind.movePlaceholder')}
+          testID="blind-recitation-move-input"
+        />
+
+        <View style={blindStyles.compactActionRow}>
+          <Pressable
+            onPress={skipExpectedMove}
+            style={({ pressed }) => [
+              blindStyles.compactAction,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+            testID="blind-recitation-skip"
+          >
+            <Ionicons name="play-skip-forward-outline" size={16} color={colors.mutedForeground} />
+            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+              {t('blind.skip')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={useHelp}
+            style={({ pressed }) => [
+              blindStyles.compactAction,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+            testID="blind-recitation-help"
+          >
+            <Ionicons name="help-circle-outline" size={16} color={colors.mutedForeground} />
+            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+              {t('blind.hint')}
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     </ModeScreenShell>
   );
 }

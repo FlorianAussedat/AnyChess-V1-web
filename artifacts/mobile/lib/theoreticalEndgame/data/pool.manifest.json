@@ -1,0 +1,387 @@
+{
+  "generatedAt": "2026-08-23T13:37:33.434Z",
+  "datasetVersion": "2.0.0",
+  "contentVersion": "canonical-10-v1",
+  "contentHash": "db9fa54d3eb875f2",
+  "expectedActiveCount": 10,
+  "activeCount": 10,
+  "themes": [
+    "queen-mate",
+    "rook-mate",
+    "two-bishops-mate",
+    "pawn-square",
+    "opposition",
+    "kp-vs-k",
+    "pawn-race",
+    "pawn-breakthrough",
+    "lucena",
+    "philidor"
+  ],
+  "removedThemes": [
+    "three-pawns"
+  ],
+  "legacyIdsBanned": 44,
+  "positions": [
+    {
+      "id": "TE-CANON-QUEEN-MATE",
+      "themeId": "queen-mate",
+      "initialFen": "8/8/8/4k3/8/8/8/4K2Q w - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "pieces": "White: K Q · Black: k",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 13,
+        "dtm": 13
+      },
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2Q_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "KQK is a forced win; reduce the box then mate with king support",
+          "method": "syzygy-wdl"
+        },
+        {
+          "name": "Chess Programming Wiki — Mating with Queen",
+          "url": "https://www.chessprogramming.org/Mate_with_Queen",
+          "consultedAt": "2026-08-23",
+          "principle": "Restrict the opposing king then bring own king",
+          "method": "theoretical-reference"
+        }
+      ],
+      "choiceRationale": "Open board with Black king centralized and White queen on h1 — teaches gradual restriction without an initial check."
+    },
+    {
+      "id": "TE-CANON-ROOK-MATE",
+      "themeId": "rook-mate",
+      "initialFen": "8/8/8/4k3/8/8/8/4K2R w - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "pieces": "White: K R · Black: k",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 27,
+        "dtm": 27
+      },
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2R_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "KRK is a forced win by cutting the king and mating on the edge",
+          "method": "syzygy-wdl"
+        },
+        {
+          "name": "Chess Programming Wiki — Mating with Rook",
+          "url": "https://www.chessprogramming.org/Mate_with_Rook",
+          "consultedAt": "2026-08-23",
+          "principle": "Cut ranks/files then coordinate king and rook",
+          "method": "theoretical-reference"
+        }
+      ],
+      "choiceRationale": "Standard KRK start with kings facing and rook on h1 — illustrates cutting the king before mating on the edge."
+    },
+    {
+      "id": "TE-CANON-TWO-BISHOPS-MATE",
+      "themeId": "two-bishops-mate",
+      "initialFen": "8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "pieces": "White: K 2×B · Black: k",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 33,
+        "dtm": 33
+      },
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/2B1KB2_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "KBBK with opposite-colored bishops is a forced win",
+          "method": "syzygy-wdl"
+        },
+        {
+          "name": "Chess Programming Wiki — Mating with Two Bishops",
+          "url": "https://www.chessprogramming.org/Mate_with_Two_Bishops",
+          "consultedAt": "2026-08-23",
+          "principle": "Drive the king to a corner of the right color complex",
+          "method": "theoretical-reference"
+        }
+      ],
+      "choiceRationale": "Opposite-colored bishops on c1 and f1 with centralized black king — teaches coordination without an initial check."
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE",
+      "themeId": "pawn-square",
+      "initialFen": "8/8/8/3P4/8/8/8/k6K w - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "pieces": "White: K P · Black: k",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 1,
+        "dtm": 21
+      },
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/3P4/8/8/8/k6K_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "Black king is outside the pawn's square; white promotes",
+          "method": "syzygy-wdl"
+        },
+        {
+          "name": "Wikipedia — Square of the pawn",
+          "url": "https://en.wikipedia.org/wiki/Passed_pawn#The_square_of_the_pawn",
+          "consultedAt": "2026-08-23",
+          "principle": "If the defending king cannot enter the square, the pawn queens",
+          "method": "theoretical-reference"
+        }
+      ],
+      "choiceRationale": "Pawn on d5, black king on a1 outside the square, white king on h1 — pure illustration of the square rule."
+    },
+    {
+      "id": "TE-CANON-OPPOSITION",
+      "themeId": "opposition",
+      "initialFen": "8/8/4k3/8/4K3/8/4P3/8 b - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "black",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "pieces": "White: K P · Black: k",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 4,
+        "dtm": 36
+      },
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/4k3/8/4K3/8/4P3/8_b_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "With Black to move, White has the opposition and wins KPK",
+          "method": "syzygy-wdl"
+        },
+        {
+          "name": "Wikipedia — Opposition (chess)",
+          "url": "https://en.wikipedia.org/wiki/Opposition_(chess)",
+          "consultedAt": "2026-08-23",
+          "principle": "The player who does not have to move holds the opposition",
+          "method": "theoretical-reference"
+        }
+      ],
+      "choiceRationale": "Kings face on the e-file with Black to move — White holds the opposition. Stockfish plays Black’s first move; the trainee then exploits opposition."
+    },
+    {
+      "id": "TE-CANON-KPK",
+      "themeId": "kp-vs-k",
+      "initialFen": "8/8/8/4k3/8/3K4/4P3/8 w - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "pieces": "White: K P · Black: k",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 9,
+        "dtm": 41
+      },
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/3K4/4P3/8_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "King ahead of the pawn with access to key squares is winning",
+          "method": "syzygy-wdl"
+        },
+        {
+          "name": "Chess Programming Wiki — King and Pawn vs King",
+          "url": "https://www.chessprogramming.org/King_and_Pawn_versus_King",
+          "consultedAt": "2026-08-23",
+          "principle": "Key squares and opposition decide KPK",
+          "method": "theoretical-reference"
+        }
+      ],
+      "choiceRationale": "White king on d3 supports the e2-pawn against black king on e5 — classic key-square technique."
+    },
+    {
+      "id": "TE-CANON-PAWN-RACE",
+      "themeId": "pawn-race",
+      "initialFen": "8/k7/8/1p6/8/8/6P1/4K3 w - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "pieces": "White: K P · Black: k p",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 1,
+        "dtm": 31
+      },
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8/k7/8/1p6/8/8/6P1/4K3_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "White promotes first with a decisive tempo",
+          "method": "syzygy-wdl"
+        },
+        {
+          "name": "Chess Programming Wiki — Pawn Race",
+          "url": "https://www.chessprogramming.org/Pawn_Race",
+          "consultedAt": "2026-08-23",
+          "principle": "Count tempi to promotion and check after queening",
+          "method": "theoretical-reference"
+        }
+      ],
+      "choiceRationale": "Split pawns on b5 and g2 — White queens first; calculation of promotion order is the lesson."
+    },
+    {
+      "id": "TE-CANON-PAWN-BREAKTHROUGH",
+      "themeId": "pawn-breakthrough",
+      "initialFen": "7k/ppp5/8/PPP5/8/8/8/4K3 w - - 0 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 8,
+      "pieces": "White: K 3×P · Black: k 3×p",
+      "certification": {
+        "type": "ENGINE",
+        "engine": "stockfish",
+        "depth": 30,
+        "result": "WIN",
+        "concept": "Classic 3-vs-3 breakthrough: b6! creates an unstoppable passer"
+      },
+      "sourceReferences": [
+        {
+          "name": "Chess Programming Wiki — Pawn Breakthrough",
+          "url": "https://www.chessprogramming.org/Pawn_Breakthrough",
+          "consultedAt": "2026-08-23",
+          "principle": "Sacrificial pawn push creates a distant passer",
+          "method": "theoretical-reference"
+        },
+        {
+          "name": "Wikipedia — Pawn breakthrough",
+          "url": "https://en.wikipedia.org/wiki/Pawn_breakthrough",
+          "consultedAt": "2026-08-23",
+          "principle": "b6 creates a passed pawn that the enemy king cannot catch",
+          "method": "theoretical-reference"
+        },
+        {
+          "name": "Lichess tablebase (partial, 8 pieces)",
+          "url": "https://tablebase.lichess.ovh/standard?fen=7k/ppp5/8/PPP5/8/8/8/4K3_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "Category maybe-win / dtc hint consistent with forced breakthrough win",
+          "method": "tablebase-hint"
+        }
+      ],
+      "choiceRationale": "Textbook three-versus-three breakthrough on the queenside. Not a separate « three pawns » theme — the lesson is the sacrificial break b6."
+    },
+    {
+      "id": "TE-CANON-LUCENA",
+      "themeId": "lucena",
+      "initialFen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 4 1",
+      "playerColor": "white",
+      "sideToMove": "white",
+      "objective": "WIN",
+      "pieceCount": 5,
+      "pieces": "White: K R P · Black: k r",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN",
+        "category": "win",
+        "dtz": 15,
+        "dtm": 41
+      },
+      "sourceReferences": [
+        {
+          "name": "Wikipedia — Lucena position",
+          "url": "https://en.wikipedia.org/wiki/Lucena_position",
+          "consultedAt": "2026-08-23",
+          "principle": "Attacking king on promotion square, pawn on 7th, build the bridge",
+          "method": "theoretical-reference"
+        },
+        {
+          "name": "Chess Programming Wiki — Rook Endgame",
+          "url": "https://www.chessprogramming.org/Rook_Endgame",
+          "consultedAt": "2026-08-23",
+          "principle": "Bridge-building shields the king from rear checks",
+          "method": "theoretical-reference"
+        },
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=1K1k4/1P6/8/8/8/8/r7/2R5_w_-_-_4_1",
+          "consultedAt": "2026-08-23",
+          "principle": "KRPKR Lucena structure is a tablebase win",
+          "method": "syzygy-wdl"
+        }
+      ],
+      "choiceRationale": "Verified candidate FEN: Kb8, Pb7, Rc1 vs Kd8, Ra2. Non-rook pawn on 7th, attacking king on promotion square, defending king cut off, defending rook on the far side — classic bridge-building win."
+    },
+    {
+      "id": "TE-CANON-PHILIDOR",
+      "themeId": "philidor",
+      "initialFen": "4k3/R7/1r6/4PK2/8/8/8/8 w - - 0 1",
+      "playerColor": "black",
+      "sideToMove": "white",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "pieces": "White: K R P · Black: k r",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW",
+        "category": "draw",
+        "dtz": 0,
+        "dtm": 0
+      },
+      "sourceReferences": [
+        {
+          "name": "Wikipedia — Philidor position",
+          "url": "https://en.wikipedia.org/wiki/Philidor_position",
+          "consultedAt": "2026-08-23",
+          "principle": "Defending king in front of pawn, rook on the third rank holds the draw",
+          "method": "theoretical-reference"
+        },
+        {
+          "name": "Exeter Chess Club — Rook endings theory",
+          "url": "https://www.exeterchessclub.org.uk/content/rook-endings-theory",
+          "consultedAt": "2026-08-23",
+          "principle": "Third-rank barrier until the pawn reaches the 6th, then checks from behind",
+          "method": "theoretical-reference"
+        },
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=4k3/R7/1r6/4PK2/8/8/8/8_w_-_-_0_1",
+          "consultedAt": "2026-08-23",
+          "principle": "KRPKR Philidor structure is a tablebase draw with correct defence",
+          "method": "syzygy-wdl"
+        }
+      ],
+      "choiceRationale": "Mission candidate FEN verified: Kf5, Pe5, Ra7 vs Ke8, Rb6. White to move; trainee plays Black. Stockfish moves first, then Black holds the third-rank defence."
+    }
+  ]
+}

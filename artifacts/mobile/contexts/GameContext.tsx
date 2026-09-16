@@ -38,7 +38,9 @@ import {
   type MoveEvent,
   type PlayerColor,
 } from '@/lib/game';
+import { tMsg } from '@/lib/i18n';
 import { useSharedPlayState } from '@/hooks/useSharedPlayState';
+import { preferencesStore } from '@/lib/preferences';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
@@ -56,7 +58,8 @@ interface GameContextValue {
   isSpeaking: boolean;
   strengthBandId: string;
   setStrengthBandId: (id: string) => void;
-  applyUserMove: (raw: string, source?: MoveInputSource) => void;
+  /** Returns true only when a legal move was played. */
+  applyUserMove: (raw: string, source?: MoveInputSource) => boolean;
   movePieceBySquare: (from: string, to: string) => boolean;
   getLegalDestinations: (square: string) => string[];
   newGame: () => void;
@@ -64,6 +67,8 @@ interface GameContextValue {
   repeatLast: () => void;
   summarizeGame: () => void;
   undoMove: () => void;
+  /** Re-kick opponent search after a failed engine move. */
+  retryOpponentMove: () => void;
   exportPgn: () => string;
   downloadPgn: () => void;
 }
@@ -71,9 +76,12 @@ interface GameContextValue {
 const GameContext = createContext<GameContextValue | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
-  const strengthBandIdRef = useRef(DEFAULT_STRENGTH_BAND_ID);
+  const initialBand =
+    preferencesStore.getPreferences().stockfishStrengthBandId ||
+    DEFAULT_STRENGTH_BAND_ID;
+  const strengthBandIdRef = useRef(initialBand);
   const engineRef = useRef<ChessEngine | null>(null);
-  const [strengthBandId, setStrengthBandIdState] = useState(DEFAULT_STRENGTH_BAND_ID);
+  const [strengthBandId, setStrengthBandIdState] = useState(initialBand);
 
   const play = useSharedPlayState();
   const {
@@ -147,9 +155,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const setStrengthBandId = useCallback(
     (id: string) => {
-      strengthBandIdRef.current = id;
-      setStrengthBandIdState(id);
-      recreateEngine(id);
+      const normalized = getStrengthBand(id).id;
+      strengthBandIdRef.current = normalized;
+      setStrengthBandIdState(normalized);
+      recreateEngine(normalized);
+      void preferencesStore.update({ stockfishStrengthBandId: normalized });
     },
     [recreateEngine],
   );
@@ -176,11 +186,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       selected = null;
     }
 
-    if (myGen !== moveGenerationRef.current) return;
+    if (myGen !== moveGenerationRef.current) {
+      setIsOpponentThinking(false);
+      return;
+    }
 
     if (!selected) {
       setIsOpponentThinking(false);
       setWaitingForUser(true);
+      setStatus(tMsg('game.opponentFailed'));
       return;
     }
 
@@ -261,20 +275,31 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (result.kind === 'noop') return;
 
     syncState();
-    setIsOpponentThinking(false);
     setHeardText('');
-    setWaitingForUser(true);
+
+    const kickoff = () => {
+      if (result.needsOpponentKickoff) {
+        setWaitingForUser(false);
+        setIsOpponentThinking(false);
+        opponentMoveRef.current();
+      } else {
+        setIsOpponentThinking(false);
+        setWaitingForUser(true);
+      }
+    };
 
     if (result.kind === 'undone-to-start') {
       setLastMove(null);
       setStatus(result.status);
       speak(result.speak);
+      kickoff();
       return;
     }
 
     setLastMove(result.lastMove);
     setStatus(result.status);
     speak(result.speak);
+    kickoff();
   }, [
     cancelPending,
     gameRef,
@@ -286,10 +311,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setLastMove,
     setStatus,
     speak,
+    opponentMoveRef,
   ]);
 
   const applyUserMove = useCallback(
-    (raw: string, source: MoveInputSource = 'voice') => {
+    (raw: string, source: MoveInputSource = 'voice'): boolean => {
       const result = applyUserMoveInput({
         raw,
         game: gameRef.current,
@@ -303,31 +329,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (result.command === 'repeat') repeatLast();
         else if (result.command === 'summarize') summarizeGameHistory();
         else if (result.command === 'undo') undoMove();
-        return;
+        return false;
       }
 
       speechService.cancel('move');
-      if (result.kind === 'ignored-busy') return;
+      if (result.kind === 'ignored-busy') return false;
 
       setHeardText(result.heardText);
 
       if (result.kind === 'unrecognized') {
-        setStatus('Coup non reconnu. Répète.');
+        setStatus(tMsg('game.unrecognized'));
         if (result.emitError) emitEvent('error', source);
-        return;
+        return false;
       }
       if (result.kind === 'ambiguous') {
-        setStatus('Coup ambigu. Précise la case de départ.');
+        setStatus(tMsg('game.ambiguous'));
         emitEvent('error', source);
-        return;
+        return false;
       }
       if (result.kind === 'illegal') {
-        setStatus('Coup illégal. Répète.');
+        setStatus(tMsg('game.illegal'));
         emitEvent('error', source);
-        return;
+        return false;
       }
 
       finishPlayerMove(result.played, source);
+      return true;
     },
     [
       gameRef,
@@ -377,11 +404,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       if (color === 'b') {
         setWaitingForUser(false);
-        setStatus("L'adversaire prépare son coup…");
+        setStatus(tMsg('game.opponentPreparing'));
         scheduleOpponentKickoff(1200);
       } else {
         setWaitingForUser(true);
-        setStatus('À toi de jouer.');
+        setStatus(tMsg('game.yourTurn'));
       }
     },
     [
@@ -442,6 +469,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     downloadPgnFile(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
 
+  const retryOpponentMove = useCallback(() => {
+    if (gameRef.current.isGameOver()) return;
+    setWaitingForUser(false);
+    opponentMoveRef.current();
+  }, [gameRef, setWaitingForUser, opponentMoveRef]);
+
   return (
     <GameContext.Provider
       value={{
@@ -466,6 +499,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         repeatLast,
         summarizeGame: summarizeGameHistory,
         undoMove,
+        retryOpponentMove,
         exportPgn,
         downloadPgn,
       }}

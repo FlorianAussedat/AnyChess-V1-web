@@ -5,39 +5,32 @@ import {
   Text,
   View,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { OptionChip } from '@/components/ui/OptionChip';
 import { AppButton } from '@/components/ui/AppButton';
+import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import { blindStyles } from '@/components/blind/blindStyles';
 import { useBlindSequence } from '@/contexts/BlindSequenceContext';
 import { halfMoveCount } from '@/lib/blind';
-import {
-  BLIND_SPEED_MAX,
-  BLIND_SPEED_MIN,
-  DEFAULT_BLIND_SPEED,
-  type BlindPerspective,
-} from '@/lib/blind';
-
-const FULL_MOVE_OPTIONS = Array.from({ length: 20 }, (_, i) => i + 1);
-
-const PERSPECTIVE_OPTIONS: { id: BlindPerspective; label: string }[] = [
-  { id: 'white', label: 'Blancs' },
-  { id: 'black', label: 'Noirs' },
-  { id: 'random', label: 'Aléatoire' },
-];
+import type { BlindPerspective } from '@/lib/blind';
 
 export function BlindSettingsPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
+  const perspectiveOptions: { id: BlindPerspective; label: string }[] = [
+    { id: 'white', label: t('common.whites') },
+    { id: 'black', label: t('common.blacks') },
+    { id: 'random', label: t('common.random') },
+  ];
   const {
     submode,
     perspective,
     fullMoves,
-    speed,
+    modeRecordBest,
     setPerspective,
     setFullMoves,
-    setSpeed,
     startSession,
     isGenerating,
     generateError,
@@ -45,16 +38,25 @@ export function BlindSettingsPhase() {
   } = useBlindSequence();
 
   const title =
-    submode === 'watch-recite' ? 'Regarder puis réciter' : 'Écouter puis reconstruire';
+    submode === 'watch-recite' ? t('blind.watchRecite') : t('blind.listenReconstruct');
 
   return (
     <ModeScreenShell title={title} onBack={backToHub}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
+        <Text
+          style={[blindStyles.recordLine, { color: colors.mutedForeground }]}
+          testID="blind-mode-record"
+        >
+          {modeRecordBest > 0
+            ? t('blind.record', { count: modeRecordBest })
+            : t('blind.recordZero')}
+        </Text>
+
         <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          PERSPECTIVE
+          {t('blind.perspective')}
         </Text>
         <View style={blindStyles.row}>
-          {PERSPECTIVE_OPTIONS.map((opt) => (
+          {perspectiveOptions.map((opt) => (
             <OptionChip
               key={opt.id}
               label={opt.label}
@@ -64,64 +66,35 @@ export function BlindSettingsPhase() {
           ))}
         </View>
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-          Les Blancs jouent toujours en premier. 1 coup complet = 1 coup Blanc + 1 coup Noir.
+          {t('blind.perspectiveHint')}
         </Text>
 
-        <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          COUPS COMPLETS
-        </Text>
-        <View style={blindStyles.chipRow}>
-          {FULL_MOVE_OPTIONS.map((n) => (
-            <OptionChip
-              key={n}
-              label={String(n)}
-              active={fullMoves === n}
-              onPress={() => setFullMoves(n)}
-            />
-          ))}
-        </View>
+        <DiscreteSlider
+          testID="blind-full-moves-slider"
+          label={t('blind.fullMoves')}
+          valueLabel={String(fullMoves)}
+          minimumValue={1}
+          maximumValue={20}
+          step={1}
+          value={fullMoves}
+          onValueChange={setFullMoves}
+          leftHint="1"
+          rightHint="20"
+          accessibilityLabel={t('a11y.fullMoves')}
+        />
         <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-          {fullMoves} coups complets = {halfMoveCount(fullMoves)} demi-coups
-          {fullMoves === 20 ? ' (maximum)' : ''}
+          {t('blind.fullMovesEq', {
+            full: fullMoves,
+            half: halfMoveCount(fullMoves),
+            max: fullMoves === 20 ? t('blind.maximum') : '',
+          })}
         </Text>
 
-        <Text style={[blindStyles.sectionLabel, { color: colors.mutedForeground }]}>
-          VITESSE ({BLIND_SPEED_MIN}–{BLIND_SPEED_MAX})
-        </Text>
-        <View style={blindStyles.sliderBlock}>
-          <View style={blindStyles.sliderLabels}>
-            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-              Lent
-            </Text>
-            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
-              {speed}
-            </Text>
-            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12 }}>
-              Rapide
-            </Text>
-          </View>
-          <Slider
-            style={{ width: '100%', height: 40 }}
-            minimumValue={BLIND_SPEED_MIN}
-            maximumValue={BLIND_SPEED_MAX}
-            step={1}
-            value={speed}
-            onValueChange={(v) => setSpeed(v)}
-            minimumTrackTintColor={colors.primary}
-            maximumTrackTintColor={colors.border}
-            thumbTintColor={colors.primary}
-            accessibilityLabel="Vitesse"
-          />
-        </View>
-        <Text style={[blindStyles.hint, { color: colors.mutedForeground }]}>
-          {speed <= 3
-            ? 'Lent — plus de temps entre les coups'
-            : speed >= 8
-              ? 'Rapide — enchaînement serré'
-              : `Vitesse ${speed} (défaut ${DEFAULT_BLIND_SPEED})`}
-          {submode === 'listen-reconstruct'
-            ? ' · dictée orale'
-            : ' · observation visuelle'}
+        <Text
+          style={[blindStyles.hint, { color: colors.mutedForeground }]}
+          testID="blind-pace-hint"
+        >
+          {t('settings.dictationPaceHint')}
         </Text>
 
         {!!generateError && (
@@ -131,11 +104,12 @@ export function BlindSettingsPhase() {
         )}
 
         {isGenerating ? <ActivityIndicator color={colors.primary} /> : null}
+
         <AppButton
-          label="Générer la séquence"
-          onPress={() => startSession()}
+          label={t('common.start')}
+          onPress={() => void startSession()}
           disabled={isGenerating}
-          testID="blind-generate"
+          testID="blind-start"
         />
       </ScrollView>
     </ModeScreenShell>

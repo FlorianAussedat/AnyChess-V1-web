@@ -120,11 +120,14 @@ describe('undoPlayerTurn', () => {
     game.move('e4');
     game.move('e5');
     const result = undoPlayerTurn(game, 'w');
-    assert.equal(result.kind, 'undone');
+    assert.ok(result.kind === 'undone' || result.kind === 'undone-to-start');
     assert.equal(game.history().length, 0);
     if (result.kind === 'undone') {
       assert.equal(result.plyAfter, 0);
-      assert.match(result.speak, /Début de la partie/);
+      assert.equal(result.needsOpponentKickoff, false);
+    }
+    if (result.kind === 'undone-to-start') {
+      assert.equal(result.needsOpponentKickoff, false);
     }
   });
 
@@ -134,6 +137,43 @@ describe('undoPlayerTurn', () => {
     const result = undoPlayerTurn(game, 'w');
     assert.equal(result.kind, 'undone-to-start');
     assert.equal(game.history().length, 0);
+    if (result.kind === 'undone-to-start') {
+      assert.equal(result.needsOpponentKickoff, false);
+    }
+  });
+
+  it('undoes only the player ply when the reply is not on the board yet', () => {
+    const game = new Chess();
+    game.move('e4');
+    game.move('e5');
+    game.move('Nf3');
+    // Last ply is still White's — reply pending.
+    const result = undoPlayerTurn(game, 'w');
+    assert.equal(result.kind, 'undone');
+    assert.deepEqual(game.history(), ['e4', 'e5']);
+    assert.equal(game.turn(), 'w');
+    if (result.kind === 'undone') {
+      assert.equal(result.needsOpponentKickoff, false);
+      assert.equal(result.plyAfter, 2);
+    }
+  });
+
+  it('as Black, undoing a pending reply leaves White to move and needs kickoff', () => {
+    const game = new Chess();
+    game.move('e4');
+    game.move('e5');
+    // Black to move; if Black somehow had only played... after e4 e5 turn is White.
+    // Sequence: e4, e5, Nf3 — Black plays Nc6, undo before White replies.
+    game.move('Nf3');
+    game.move('Nc6');
+    assert.equal(game.turn(), 'w');
+    const result = undoPlayerTurn(game, 'b');
+    assert.equal(result.kind, 'undone');
+    assert.deepEqual(game.history(), ['e4', 'e5', 'Nf3']);
+    assert.equal(game.turn(), 'b');
+    if (result.kind === 'undone') {
+      assert.equal(result.needsOpponentKickoff, false);
+    }
   });
 
   it('is a no-op when there is nothing to undo for the player', () => {

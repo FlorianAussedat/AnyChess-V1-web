@@ -37,8 +37,8 @@ export type MoveNamingSnapshot = {
   countdownLabel: string | null;
   previousRecord: number;
   isNewRecord: boolean;
-  /** Brief feedback after a wrong / recognition failure (cleared on next correct). */
-  lastFeedback: 'wrong' | 'recognition-failure' | null;
+  /** Brief feedback after an attempt (correct is non-blocking / short-lived in UI). */
+  lastFeedback: 'correct' | 'wrong' | 'recognition-failure' | null;
 };
 
 export type MoveNamingScheduler = TimedChallengeScheduler;
@@ -58,7 +58,7 @@ export class MoveNamingSession {
   private countdownHandle: ReturnType<typeof setTimeout> | null = null;
   private previousRecord = 0;
   private isNewRecord = false;
-  private lastFeedback: 'wrong' | 'recognition-failure' | null = null;
+  private lastFeedback: 'correct' | 'wrong' | 'recognition-failure' | null = null;
   private sessionSeconds = SESSION_SECONDS;
   private readonly timer: TimedChallengeTimer;
   private readonly scheduler: MoveNamingScheduler;
@@ -140,7 +140,7 @@ export class MoveNamingSession {
     this.score = scoreMoveNamingAttempt(this.score, outcome);
 
     if (outcome === 'correct') {
-      this.lastFeedback = null;
+      this.lastFeedback = 'correct';
       const previousId = this.challenge.puzzleId;
       this.loadNextChallenge(previousId);
       return this.snapshot();

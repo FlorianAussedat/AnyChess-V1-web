@@ -36,12 +36,13 @@ describe('puzzle board display filter', () => {
 });
 
 describe('puzzle help tracking', () => {
-  it('formats used helps for results', () => {
+  it('formats used helps for legacy/internal display (no repeat, no type on results)', () => {
     const helps = emptyPuzzleStats().helps;
     helps.whiteReveal = true;
     helps.positionRepeat = true;
     assert.match(formatHelpsUsed(helps), /blanches/);
-    assert.match(formatHelpsUsed(helps), /répétition/);
+    // Position repeat is free — not listed as a help type.
+    assert.doesNotMatch(formatHelpsUsed(helps), /répétition/);
     assert.equal(formatHelpsUsed(emptyPuzzleStats().helps), 'aucune');
   });
 

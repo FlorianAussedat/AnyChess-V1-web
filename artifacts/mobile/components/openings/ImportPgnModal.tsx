@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { RepertoireSide, StoredPgnFile } from '@/lib/repertoire';
 import { RepertoireSidePicker } from '@/components/RepertoireSidePicker';
 
@@ -50,6 +51,7 @@ export function ImportPgnModal({
   onRequestClose,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
 
   return (
     <Modal
@@ -66,11 +68,11 @@ export function ImportPgnModal({
           ]}
         >
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            {replaceTarget ? 'Remplacer le PGN' : 'Importer un PGN'}
+            {replaceTarget ? t('openings.replaceModalTitle') : t('openings.importModalTitle')}
           </Text>
 
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-            Nom du fichier
+            {t('openings.filename')}
           </Text>
           <TextInput
             value={filename}
@@ -90,11 +92,11 @@ export function ImportPgnModal({
 
           <View style={styles.pgnHeaderRow}>
             <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
-              Contenu PGN
+              {t('openings.pgnContent')}
             </Text>
             <Pressable onPress={onPickFile} hitSlop={6} testID="pick-pgn-file-btn">
               <Text style={{ color: colors.primary, fontFamily: 'Inter_500Medium', fontSize: 12 }}>
-                Choisir un fichier…
+                {t('openings.pickFile')}
               </Text>
             </Pressable>
           </View>
@@ -123,7 +125,7 @@ export function ImportPgnModal({
           {showSidePicker && (
             <>
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground, marginTop: 4 }]}>
-                De quel côté jouez-vous ce répertoire ?
+                {t('openings.sidePickerTitle')}
               </Text>
               <RepertoireSidePicker
                 value={importSide}
@@ -146,8 +148,11 @@ export function ImportPgnModal({
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 13 }}>
                 {lastImportResult.summary.parseSucceeded
-                  ? `Importé : ${lastImportResult.summary.gameCount} partie(s), ${lastImportResult.summary.positionCount} position(s)`
-                  : 'Aucune position valide importée'}
+                  ? t('openings.importedSummary', {
+                      games: lastImportResult.summary.gameCount,
+                      positions: lastImportResult.summary.positionCount,
+                    })
+                  : t('openings.noValidPositions')}
               </Text>
               {lastImportResult.summary.errors.slice(0, 3).map((err, i) => (
                 <Text
@@ -170,7 +175,7 @@ export function ImportPgnModal({
               ]}
             >
               <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                Annuler
+                {t('common.cancel')}
               </Text>
             </Pressable>
             <Pressable
@@ -197,7 +202,7 @@ export function ImportPgnModal({
               testID="confirm-import-btn"
             >
               <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                {busy ? 'Analyse…' : replaceTarget ? 'Remplacer' : 'Importer'}
+                {busy ? t('openings.analyzing') : replaceTarget ? t('openings.replace') : t('openings.import')}
               </Text>
             </Pressable>
           </View>

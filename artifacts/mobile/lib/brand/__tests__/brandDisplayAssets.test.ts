@@ -16,6 +16,7 @@ const HOME_DISPLAY = [
   'mascots/v1-mascot-tactics-knight-calculator.webp',
   'mascots/v1-mascot-visualisation-knight-binoculars.webp',
   'mascots/V1-mascot-quiz-knight-detective.webp',
+  'mascots/mascot-player-knight-dj.webp',
 ];
 
 describe('optimized home brand display assets', () => {

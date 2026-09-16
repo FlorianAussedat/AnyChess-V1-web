@@ -1,33 +1,45 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
 import { ChessBoard } from '@/components/ChessBoard';
-import { ChessAnswerInput } from '@/components/ChessAnswerInput';
+import { ChessBoardSection } from '@/components/game/ChessBoardSection';
+import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { BoardToolbar } from '@/components/BoardToolbar';
-import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
+import { GameMicButton } from '@/components/game/GameMicButton';
+import { MoveFeedbackBanner } from '@/components/feedback/MoveFeedbackBanner';
 import { puzzleStyles } from '@/components/puzzles/puzzleStyles';
 import { usePuzzle } from '@/contexts/PuzzleContext';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useBoardSize } from '@/hooks/useBoardSize';
+import { useMoveFeedback } from '@/hooks/useMoveFeedback';
+import { usePreferences } from '@/hooks/usePreferences';
+import { triggerHaptic } from '@/lib/feedback/haptics';
+import { formatSanLineForDisplay } from '@/lib/chess/notation';
 
 export function PuzzlePlayingPhase() {
   const colors = useColors();
+  const { t } = useTranslation();
   const { soundEnabled } = useAudioSettings();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
+  const { chessNotation } = usePreferences();
+  const wideBoardSize = useBoardSize('wide');
+  const feedback = useMoveFeedback();
+  const submittingRef = useRef(false);
   const {
     phase,
     submode,
     puzzle,
-    stats,
     displayBoard,
     lastMove,
     orientation,
     boardVisible,
-    pieceRevealFilter,
+    whitePiecesShown,
+    blackPiecesShown,
     isPreviewing,
     isReplaying,
     isSpeaking,
@@ -36,6 +48,7 @@ export function PuzzlePlayingPhase() {
     nextMoveHint,
     positionNarration,
     sideToMove,
+    currentFen,
     currentStreak,
     getLegalDestinations,
     attemptBoardMove,
@@ -50,17 +63,38 @@ export function PuzzlePlayingPhase() {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [legalDests, setLegalDests] = useState<string[]>([]);
+  const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+
+  const applyResultFeedback = useCallback(
+    (r: string) => {
+      if (r === 'correct' || r === 'complete') {
+        feedback.signalCorrect(
+          r === 'complete' ? t('puzzle.solved') : t('common.correct'),
+        );
+      } else if (r === 'wrong-legal' || r === 'illegal') {
+        feedback.signalIncorrect(t('puzzle.incorrect'));
+      } else if (r === 'recognition-failure') {
+        feedback.signalInvalid();
+      }
+    },
+    [feedback, t],
+  );
 
   const submitSpoken = useCallback(
     (text: string) => {
-      const r = applySpokenMove(text);
-      if (r === 'correct' || r === 'complete') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else if (r === 'wrong-legal' || r === 'illegal') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      try {
+        setShowRecognizedFlash(true);
+        setTimeout(() => setShowRecognizedFlash(false), 900);
+        feedback.onNextAttempt();
+        const r = applySpokenMove(text);
+        applyResultFeedback(r);
+      } finally {
+        submittingRef.current = false;
       }
     },
-    [applySpokenMove],
+    [applySpokenMove, applyResultFeedback, feedback],
   );
 
   const {
@@ -78,11 +112,21 @@ export function PuzzlePlayingPhase() {
   useEffect(() => {
     setSelected(null);
     setLegalDests([]);
-  }, [puzzle?.id, lastMove?.from, lastMove?.to]);
+    feedback.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset on puzzle change only
+  }, [puzzle?.id]);
 
   const onSquarePress = useCallback(
     (square: string) => {
-      if (isReplaying || isPreviewing || submode !== 'visual' || !boardVisible) return;
+      if (
+        isReplaying ||
+        isPreviewing ||
+        submode !== 'visual' ||
+        !boardVisible ||
+        submittingRef.current
+      ) {
+        return;
+      }
       if (selected === null) {
         const dests = getLegalDestinations(square);
         if (dests.length > 0) {
@@ -93,14 +137,16 @@ export function PuzzlePlayingPhase() {
         setSelected(null);
         setLegalDests([]);
       } else if (legalDests.includes(square)) {
-        const r = attemptBoardMove(selected, square);
-        if (r === 'correct' || r === 'complete') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } else if (r === 'wrong-legal' || r === 'illegal') {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        submittingRef.current = true;
+        try {
+          feedback.onNextAttempt();
+          const r = attemptBoardMove(selected, square);
+          applyResultFeedback(r);
+          setSelected(null);
+          setLegalDests([]);
+        } finally {
+          submittingRef.current = false;
         }
-        setSelected(null);
-        setLegalDests([]);
       } else {
         const dests = getLegalDestinations(square);
         if (dests.length > 0) {
@@ -121,59 +167,185 @@ export function PuzzlePlayingPhase() {
       legalDests,
       getLegalDestinations,
       attemptBoardMove,
+      applyResultFeedback,
+      feedback,
     ],
   );
 
   const title =
     phase === 'solution-replay'
-      ? 'Solution'
+      ? t('puzzle.solution')
       : submode === 'blind'
-        ? 'À l’aveugle'
-        : 'Visuel';
+        ? t('puzzle.blind')
+        : t('puzzle.visual');
+
+  const showBoard =
+    submode === 'visual' ||
+    phase === 'solution-replay' ||
+    whitePiecesShown ||
+    blackPiecesShown;
+
+  const useWide = submode === 'visual' || phase === 'solution-replay';
 
   return (
     <ModeScreenShell title={title} onBack={backToHub}>
-      <ScrollView contentContainerStyle={puzzleStyles.body}>
+      <ScrollView
+        contentContainerStyle={puzzleStyles.body}
+        keyboardShouldPersistTaps="handled"
+      >
         {!!puzzle && (
           <Text style={[puzzleStyles.meta, { color: colors.mutedForeground }]}>
-            {puzzle.id} · cote {puzzle.rating} (Lichess) ·{' '}
-            {sideToMove === 'w' ? 'Trait aux Blancs' : 'Trait aux Noirs'}
-            {' · '}
-            Série : {currentStreak}
+            {t('puzzle.meta', {
+              id: puzzle.id,
+              rating: puzzle.rating,
+              side:
+                submode === 'blind'
+                  ? orientation === 'w'
+                    ? t('puzzle.youPlayWhite')
+                    : t('puzzle.youPlayBlack')
+                  : sideToMove === 'w'
+                    ? t('puzzle.sideWhite')
+                    : t('puzzle.sideBlack'),
+              streak: currentStreak,
+            })}
           </Text>
         )}
 
-        <View style={[puzzleStyles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
-            {lastFeedback ?? (isReplaying ? 'Relecture…' : 'À toi de trouver le coup.')}
-          </Text>
-          {!!nextMoveHint && !solutionLine && (
-            <Text style={{ color: colors.primary, fontFamily: 'Inter_400Regular', fontSize: 13, marginTop: 6 }}>
-              {nextMoveHint}
+        {submode === 'blind' && !!positionNarration && phase === 'playing' && (
+          <View
+            style={[
+              puzzleStyles.statusCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            testID="puzzle-blind-narration"
+          >
+            <Text
+              style={{
+                color: colors.foreground,
+                fontFamily: 'Inter_500Medium',
+                fontSize: 14,
+                lineHeight: 20,
+              }}
+            >
+              {positionNarration}
             </Text>
-          )}
-          {!!solutionLine && (
-            <Text style={{ color: colors.primary, fontFamily: 'Inter_400Regular', fontSize: 13, marginTop: 6 }}>
-              {solutionLine}
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: 'Inter_600SemiBold',
+                fontSize: 13,
+                marginTop: 6,
+              }}
+              testID="puzzle-blind-side-to-move"
+            >
+              {sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack')}
             </Text>
-          )}
-        </View>
+          </View>
+        )}
 
-        {boardVisible || pieceRevealFilter !== 'hidden' ? (
-          <View style={{ alignItems: 'center', gap: 8, width: '100%' }}>
-            {boardVisible ? (
+        {/* Shared Correct / incorrect banner (visual); blind uses ply card below. */}
+        {submode !== 'blind' && (
+          <MoveFeedbackBanner state={feedback.state} testID="puzzle-move-feedback" />
+        )}
+
+        {(submode === 'visual' || phase === 'solution-replay') && (
+          <View
+            style={[
+              puzzleStyles.statusCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium', fontSize: 14 }}>
+              {feedback.state.kind === 'idle'
+                ? (lastFeedback ?? (isReplaying ? t('puzzle.replaying') : t('puzzle.findMove')))
+                : (feedback.state.message ??
+                  (feedback.state.kind === 'correct'
+                    ? t('common.correct')
+                    : t('common.incorrect')))}
+            </Text>
+            {!!nextMoveHint && !solutionLine && (
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontFamily: 'Inter_400Regular',
+                  fontSize: 13,
+                  marginTop: 6,
+                }}
+              >
+                {nextMoveHint}
+              </Text>
+            )}
+            {!!solutionLine && (
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontFamily: 'Inter_400Regular',
+                  fontSize: 13,
+                  marginTop: 6,
+                }}
+              >
+                {formatSanLineForDisplay(solutionLine, chessNotation)}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {submode === 'blind' &&
+          phase === 'playing' &&
+          (!!lastFeedback || !!nextMoveHint || feedback.state.kind !== 'idle') && (
+          <View
+            style={[
+              puzzleStyles.statusCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            testID="puzzle-blind-ply-feedback"
+          >
+            <Text
+              style={{
+                color: colors.foreground,
+                fontFamily: 'Inter_500Medium',
+                fontSize: 14,
+              }}
+            >
+              {feedback.state.kind !== 'idle'
+                ? (feedback.state.message ??
+                  (feedback.state.kind === 'correct'
+                    ? t('common.correct')
+                    : t('common.incorrect')))
+                : (nextMoveHint ?? lastFeedback)}
+            </Text>
+            {feedback.state.kind !== 'idle' && !!(nextMoveHint ?? lastFeedback) && (
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontFamily: 'Inter_600SemiBold',
+                  fontSize: 13,
+                  marginTop: 6,
+                }}
+              >
+                {nextMoveHint ?? lastFeedback}
+              </Text>
+            )}
+          </View>
+        )}
+
+        {showBoard && submode === 'visual' && phase === 'playing' && (
+          <ChessBoardSection
+            boardSize={wideBoardSize}
+            style={{ gap: 8 }}
+            toolbar={
               <View style={{ width: '100%' }}>
                 <BoardToolbar
-                  label={
-                    sideToMove === 'w' ? 'Trait aux Blancs' : 'Trait aux Noirs'
-                  }
+                  label={sideToMove === 'w' ? t('puzzle.sideWhite') : t('puzzle.sideBlack')}
                   showCoordinates={showCoordinates}
                   onToggleCoordinates={() => {
                     void toggleCoordinates();
                   }}
                 />
               </View>
-            ) : null}
+            }
+            testID="puzzle-board-block"
+          >
             <ChessBoard
               board={displayBoard}
               lastMove={lastMove}
@@ -181,133 +353,299 @@ export function PuzzlePlayingPhase() {
               selectedSquare={selected}
               legalDots={legalDests}
               onSquarePress={onSquarePress}
-              showCoordinates={boardVisible && showCoordinates}
+              showCoordinates={showCoordinates}
+              sizeMode="wide"
+              size={wideBoardSize}
             />
-          </View>
-        ) : (
-          <HiddenBoardPlaceholder />
-        )}
-
-        {submode === 'blind' && !!positionNarration && pieceRevealFilter === 'hidden' && (
-          <View style={[puzzleStyles.statusCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18 }}>
-              {positionNarration}
-            </Text>
-          </View>
+          </ChessBoardSection>
         )}
 
         {!isReplaying && !isPreviewing && (
           <>
-            <ChessAnswerInput
+            <ChessMoveInput
+              inputType="chess-move"
               onSubmit={submitSpoken}
+              fen={currentFen}
               enabled={!isReplaying && !isPreviewing}
               persistFocus
-              placeholder="Ex. Cf3, Fou prend e5, petit roque…"
+              autoSubmit
+              showSendButton={false}
+              placeholder={t('puzzle.movePlaceholder')}
+              testID="puzzle-move-input"
             />
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+            <GameMicButton
+              showRecognized={showRecognizedFlash}
+              isListening={isListening}
+              micActive={micActive}
+              micMessage={micStatus.message}
+              onToggle={() => {
+                void triggerHaptic('keyTap');
                 toggleMic();
               }}
-              style={({ pressed }) => [
-                puzzleStyles.cta,
-                {
-                  backgroundColor: isListening ? '#C0392B' : micActive ? '#D4880A' : colors.primary,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <Ionicons name={isListening ? 'mic' : 'mic-outline'} size={20} color="#fff" />
-              <Text style={[puzzleStyles.ctaLabel, { color: '#fff' }]}>
-                {isListening ? "J'écoute…" : micActive ? 'Micro actif' : 'Activer le micro'}
-              </Text>
-            </Pressable>
-            {!!micStatus.message && (
-              <Text style={{ color: '#F5A623', fontSize: 12, textAlign: 'center' }}>{micStatus.message}</Text>
-            )}
+              testID={
+                submode === 'blind' ? 'puzzle-blind-mic' : 'puzzle-visual-mic'
+              }
+            />
 
             {submode === 'blind' && (
               <>
-                <Pressable
-                  onPress={revealWhitePieces}
-                  disabled={!!stats?.helps.whiteReveal}
-                  style={({ pressed }) => [
-                    puzzleStyles.secondaryCta,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.card,
-                      opacity: stats?.helps.whiteReveal ? 0.45 : pressed ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  <Ionicons name="eye-outline" size={18} color={colors.foreground} />
-                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                    Afficher les pièces blanches
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={revealBlackPieces}
-                  disabled={!!stats?.helps.blackReveal}
-                  style={({ pressed }) => [
-                    puzzleStyles.secondaryCta,
-                    {
-                      borderColor: colors.border,
-                      backgroundColor: colors.card,
-                      opacity: stats?.helps.blackReveal ? 0.45 : pressed ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  <Ionicons name="eye-outline" size={18} color={colors.foreground} />
-                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                    Afficher les pièces noires
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={repeatPosition}
-                  style={({ pressed }) => [
-                    puzzleStyles.secondaryCta,
-                    { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-                  ]}
-                >
-                  <Ionicons name="volume-medium-outline" size={18} color={colors.foreground} />
-                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                    Répéter la position
-                  </Text>
-                </Pressable>
+                <View style={puzzleStyles.compactActionRow}>
+                  <Pressable
+                    onPress={revealWhitePieces}
+                    style={({ pressed }) => [
+                      puzzleStyles.compactAction,
+                      {
+                        borderColor: whitePiecesShown ? colors.primary : colors.border,
+                        backgroundColor: colors.card,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                    testID="puzzle-reveal-white"
+                  >
+                    <Ionicons
+                      name="eye-outline"
+                      size={16}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 12,
+                      }}
+                    >
+                      {t('puzzle.whitePieces')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={revealBlackPieces}
+                    style={({ pressed }) => [
+                      puzzleStyles.compactAction,
+                      {
+                        borderColor: blackPiecesShown ? colors.primary : colors.border,
+                        backgroundColor: colors.card,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                    testID="puzzle-reveal-black"
+                  >
+                    <Ionicons
+                      name="eye-outline"
+                      size={16}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 12,
+                      }}
+                    >
+                      {t('puzzle.blackPieces')}
+                    </Text>
+                  </Pressable>
+                </View>
+                <View style={puzzleStyles.compactActionRow}>
+                  <Pressable
+                    onPress={repeatPosition}
+                    style={({ pressed }) => [
+                      puzzleStyles.compactAction,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: colors.card,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                    testID="puzzle-repeat-position"
+                  >
+                    <Ionicons
+                      name="volume-medium-outline"
+                      size={16}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 12,
+                      }}
+                    >
+                      {t('puzzle.repeat')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={revealNextMove}
+                    style={({ pressed }) => [
+                      puzzleStyles.compactAction,
+                      {
+                        borderColor: colors.border,
+                        backgroundColor: colors.card,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                    testID="puzzle-next-move"
+                  >
+                    <Ionicons
+                      name="arrow-forward-outline"
+                      size={16}
+                      color={colors.mutedForeground}
+                    />
+                    <Text
+                      style={{
+                        color: colors.mutedForeground,
+                        fontFamily: 'Inter_600SemiBold',
+                        fontSize: 12,
+                      }}
+                    >
+                      {t('puzzle.nextMoveLabel')}
+                    </Text>
+                  </Pressable>
+                </View>
               </>
             )}
 
-            <Pressable
-              onPress={revealNextMove}
-              style={({ pressed }) => [
-                puzzleStyles.secondaryCta,
-                { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Ionicons name="arrow-forward-outline" size={18} color={colors.foreground} />
-              <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                Coup suivant
-              </Text>
-            </Pressable>
+            {submode === 'visual' && (
+              <View style={puzzleStyles.compactActionRow}>
+                <Pressable
+                  onPress={revealNextMove}
+                  style={({ pressed }) => [
+                    puzzleStyles.compactAction,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                  testID="puzzle-next-move"
+                >
+                  <Ionicons
+                    name="arrow-forward-outline"
+                    size={16}
+                    color={colors.mutedForeground}
+                  />
+                  <Text
+                    style={{
+                      color: colors.mutedForeground,
+                      fontFamily: 'Inter_600SemiBold',
+                      fontSize: 13,
+                    }}
+                  >
+                    {t('puzzle.nextMoveLabel')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={revealSolution}
+                  style={({ pressed }) => [
+                    puzzleStyles.compactAction,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                  testID="puzzle-solution"
+                >
+                  <Ionicons
+                    name="bulb-outline"
+                    size={16}
+                    color={colors.mutedForeground}
+                  />
+                  <Text
+                    style={{
+                      color: colors.mutedForeground,
+                      fontFamily: 'Inter_600SemiBold',
+                      fontSize: 13,
+                    }}
+                  >
+                    {t('puzzle.solution')}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
 
-            <Pressable
-              onPress={revealSolution}
-              style={({ pressed }) => [
-                puzzleStyles.secondaryCta,
-                { borderColor: colors.border, backgroundColor: colors.card, opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Ionicons name="bulb-outline" size={18} color={colors.foreground} />
-              <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
-                Solution
-              </Text>
-            </Pressable>
+            {submode === 'blind' && (
+              <Pressable
+                onPress={revealSolution}
+                style={({ pressed }) => [
+                  puzzleStyles.compactAction,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                    opacity: pressed ? 0.7 : 1,
+                    alignSelf: 'stretch',
+                  },
+                ]}
+                testID="puzzle-solution"
+              >
+                <Ionicons name="bulb-outline" size={16} color={colors.mutedForeground} />
+                <Text
+                  style={{
+                    color: colors.mutedForeground,
+                    fontFamily: 'Inter_600SemiBold',
+                    fontSize: 13,
+                  }}
+                >
+                  {t('puzzle.solution')}
+                </Text>
+              </Pressable>
+            )}
           </>
+        )}
+
+        {/* Blind board: only during playing (never alongside solution-replay board). */}
+        {showBoard && submode === 'blind' && phase === 'playing' && (
+          <View
+            style={{
+              alignItems: 'center',
+              gap: 8,
+              alignSelf: 'center',
+              width: useWide ? wideBoardSize : undefined,
+            }}
+            testID="puzzle-blind-board"
+          >
+            <ChessBoard
+              board={displayBoard}
+              lastMove={lastMove}
+              isFlipped={orientation === 'b'}
+              selectedSquare={null}
+              legalDots={[]}
+              onSquarePress={() => {}}
+              showCoordinates={false}
+              sizeMode={useWide ? 'wide' : 'default'}
+              size={useWide ? wideBoardSize : undefined}
+            />
+          </View>
+        )}
+
+        {/* Single board for solution replay (visual or blind). */}
+        {phase === 'solution-replay' && (
+          <View
+            style={{
+              alignItems: 'center',
+              gap: 8,
+              alignSelf: 'center',
+              width: wideBoardSize,
+            }}
+            testID="puzzle-solution-board"
+          >
+            <ChessBoard
+              board={displayBoard}
+              lastMove={lastMove}
+              isFlipped={orientation === 'b'}
+              selectedSquare={null}
+              legalDots={[]}
+              onSquarePress={() => {}}
+              showCoordinates={showCoordinates}
+              sizeMode="wide"
+              size={wideBoardSize}
+            />
+          </View>
         )}
 
         {!soundEnabled && (
           <Text style={[puzzleStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
-            Son coupé — relecture visuelle uniquement.
+            {t('puzzle.soundOff')}
           </Text>
         )}
       </ScrollView>
