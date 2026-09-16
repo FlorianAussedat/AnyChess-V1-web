@@ -22,6 +22,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePreferences } from '@/hooks/usePreferences';
 import { DesignTokens } from '@/constants/designTokens';
+import { sideToMoveLabel } from '@/lib/playMove';
 import {
   CHESS_CULTURE_QUESTIONS,
   DEFAULT_CHESS_CULTURE_SESSION_SIZE,
@@ -31,6 +32,7 @@ import {
   getEligibleChessCultureQuestions,
   localizeChessCultureQuestions,
   questionFeedbackStore,
+  quizHistoryStore,
   type ChessCultureFeedbackSnapshot,
   type ChessCultureFeedbackVote,
   type ChessCultureSessionQuestion,
@@ -50,7 +52,9 @@ export default function CultureGeneraleQuizScreen() {
   const [session, setSession] = useState<ChessCultureSessionQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [selectedDisplayIndex, setSelectedDisplayIndex] = useState<number | null>(null);
+  const [selectedDisplayIndex, setSelectedDisplayIndex] = useState<
+    number | null
+  >(null);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [feedbackSnapshot, setFeedbackSnapshot] =
     useState<ChessCultureFeedbackSnapshot | null>(null);
@@ -58,16 +62,25 @@ export default function CultureGeneraleQuizScreen() {
     useState<ChessCultureFeedbackVote | null>(null);
 
   /** Snapshot before any vote on the current question presentation. */
-  const snapshotBeforePresentation = useRef<ChessCultureFeedbackSnapshot | null>(null);
+  const snapshotBeforePresentation =
+    useRef<ChessCultureFeedbackSnapshot | null>(null);
 
   const startSession = useCallback(async () => {
     setPhase('loading');
-    const snapshot = await questionFeedbackStore.getSnapshot();
-    const localized = localizeChessCultureQuestions(CHESS_CULTURE_QUESTIONS, language);
+    const [snapshot, seenKeys] = await Promise.all([
+      questionFeedbackStore.getSnapshot(),
+      quizHistoryStore.getSeenKeys(),
+    ]);
+    const localized = localizeChessCultureQuestions(
+      CHESS_CULTURE_QUESTIONS,
+      language,
+    );
     const eligible = getEligibleChessCultureQuestions(localized, snapshot);
     const next = createChessCultureQuizSession(
       eligible,
       DEFAULT_CHESS_CULTURE_SESSION_SIZE,
+      Math.random,
+      seenKeys,
     );
     setFeedbackSnapshot(snapshot);
     snapshotBeforePresentation.current = snapshot;
@@ -85,6 +98,13 @@ export default function CultureGeneraleQuizScreen() {
   }, [startSession]);
 
   const current = session[index];
+  useEffect(() => {
+    if (phase === 'playing' && current) {
+      void quizHistoryStore.markSeen(current.question).catch(() => {
+        // A storage failure must not prevent answering the quiz.
+      });
+    }
+  }, [phase, current]);
   const total = session.length;
   const isLast = index >= total - 1;
   const scoreSummary = calculateChessCultureScore(score, total);
@@ -125,6 +145,8 @@ export default function CultureGeneraleQuizScreen() {
   };
 
   const boardFen = current?.question.presentation?.boardFen;
+  const boardTurn = boardFen?.split(' ')[1];
+  const boardSideToMove = boardTurn === 'w' || boardTurn === 'b' ? boardTurn : null;
   let board = null;
   if (boardFen) {
     try {
@@ -185,7 +207,12 @@ export default function CultureGeneraleQuizScreen() {
           <ChessCultureVisual presentation={current.question.presentation} />
 
           {board ? (
-            <View style={[styles.boardWrap, { width: boardSize, alignSelf: 'center' }]}>
+            <View
+              style={[
+                styles.boardWrap,
+                { width: boardSize, alignSelf: 'center' },
+              ]}
+            >
               <ChessBoard
                 board={board}
                 lastMove={null}
@@ -197,6 +224,14 @@ export default function CultureGeneraleQuizScreen() {
                 sizeMode="wide"
                 size={boardSize}
               />
+              {boardSideToMove ? (
+                <Text
+                  style={[styles.sideToMove, { color: colors.primary }]}
+                  testID="culture-side-to-move"
+                >
+                  {sideToMoveLabel(boardSideToMove)}
+                </Text>
+              ) : null}
             </View>
           ) : null}
 
@@ -233,7 +268,9 @@ export default function CultureGeneraleQuizScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.answerText, { color: textColor }]}>{answer}</Text>
+                  <Text style={[styles.answerText, { color: textColor }]}>
+                    {answer}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -256,18 +293,30 @@ export default function CultureGeneraleQuizScreen() {
                   : t('quiz.badAnswer')}
               </Text>
               {selectedDisplayIndex !== current.correctDisplayIndex ? (
-                <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                <Text
+                  style={{
+                    color: colors.foreground,
+                    fontFamily: 'Inter_500Medium',
+                  }}
+                >
                   {t('quiz.correctWas', {
                     answer: current.displayAnswers[current.correctDisplayIndex],
                   })}
                 </Text>
               ) : null}
-              <Text style={[styles.explanation, { color: colors.mutedForeground }]}>
+              <Text
+                style={[styles.explanation, { color: colors.mutedForeground }]}
+              >
                 {current.question.explanation}
               </Text>
 
               <View style={styles.qualityBlock}>
-                <Text style={[styles.qualityLabel, { color: colors.mutedForeground }]}>
+                <Text
+                  style={[
+                    styles.qualityLabel,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
                   {t('quiz.wasQuestionCorrect')}
                 </Text>
                 <View style={styles.qualityRow}>
@@ -279,16 +328,26 @@ export default function CultureGeneraleQuizScreen() {
                       styles.qualityBtn,
                       {
                         borderColor:
-                          presentationVote === 'up' ? colors.primary : colors.border,
+                          presentationVote === 'up'
+                            ? colors.primary
+                            : colors.border,
                         backgroundColor: colors.card,
                         opacity: pressed ? 0.7 : 1,
                       },
                     ]}
                   >
                     <Ionicons
-                      name={presentationVote === 'up' ? 'thumbs-up' : 'thumbs-up-outline'}
+                      name={
+                        presentationVote === 'up'
+                          ? 'thumbs-up'
+                          : 'thumbs-up-outline'
+                      }
                       size={18}
-                      color={presentationVote === 'up' ? colors.primary : colors.foreground}
+                      color={
+                        presentationVote === 'up'
+                          ? colors.primary
+                          : colors.foreground
+                      }
                     />
                   </Pressable>
                   <Pressable
@@ -307,10 +366,14 @@ export default function CultureGeneraleQuizScreen() {
                   >
                     <Ionicons
                       name={
-                        presentationVote === 'down' ? 'thumbs-down' : 'thumbs-down-outline'
+                        presentationVote === 'down'
+                          ? 'thumbs-down'
+                          : 'thumbs-down-outline'
                       }
                       size={18}
-                      color={presentationVote === 'down' ? '#c44' : colors.foreground}
+                      color={
+                        presentationVote === 'down' ? '#c44' : colors.foreground
+                      }
                     />
                   </Pressable>
                 </View>
@@ -327,7 +390,12 @@ export default function CultureGeneraleQuizScreen() {
                   },
                 ]}
               >
-                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+                <Text
+                  style={{
+                    color: colors.primaryForeground,
+                    fontFamily: 'Inter_600SemiBold',
+                  }}
+                >
                   {isLast ? t('quiz.seeResults') : t('quiz.nextQuestion')}
                 </Text>
               </Pressable>
@@ -369,7 +437,12 @@ export default function CultureGeneraleQuizScreen() {
               },
             ]}
           >
-            <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+            <Text
+              style={{
+                color: colors.primaryForeground,
+                fontFamily: 'Inter_600SemiBold',
+              }}
+            >
               {t('quiz.replay')}
             </Text>
           </Pressable>
@@ -385,7 +458,12 @@ export default function CultureGeneraleQuizScreen() {
               },
             ]}
           >
-            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold' }}>
+            <Text
+              style={{
+                color: colors.foreground,
+                fontFamily: 'Inter_600SemiBold',
+              }}
+            >
               {t('quiz.backToHub')}
             </Text>
           </Pressable>
@@ -439,6 +517,11 @@ const styles = StyleSheet.create({
   boardWrap: {
     alignItems: 'center',
     marginVertical: 4,
+  },
+  sideToMove: {
+    marginTop: 8,
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
   },
   answers: {
     gap: 8,
@@ -518,3 +601,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
   },
 });
+

@@ -22,6 +22,7 @@ export type {
 } from './types.ts';
 
 export { CHESS_CULTURE_QUESTIONS } from './questions.ts';
+export { QuizHistoryStore, quizHistoryStore } from './QuizHistoryStore.ts';
 
 export {
   localizeChessCultureQuestion,
@@ -40,6 +41,7 @@ export {
   getEligibleChessCultureQuestions,
   hasResolvableChessCulturePresentation,
   createChessCultureQuizSession,
+  chessCultureQuestionKey,
   calculateChessCultureScore,
   shouldBlacklistQuestion,
   reconcileFeedbackWithQuestionRevision,
@@ -93,3 +95,4 @@ export {
   getBlacklistedChessCultureQuestionIds,
   getChessCultureFeedbackSnapshot,
 } from './QuestionFeedbackStore.ts';
+

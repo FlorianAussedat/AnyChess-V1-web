@@ -135,6 +135,17 @@ export const StorageKeys = {
     shape: "'0' | '1' | 'true' | 'false' (legacy)",
     documentVersion: 1,
   },
+  /**
+   * Local Culture générale quiz presentation history (id@revision).
+   * Oldest-first, max 2000 keys; only questions actually displayed.
+   */
+  chessCultureHistory: {
+    key: 'anychess.chessCulture.history.v1',
+    feature: 'chess-culture',
+    shape:
+      '{ version: 1, seen: string[] } question id@revision, oldest first (max 2000)',
+    documentVersion: 1,
+  },
   /** Local device quality feedback for Culture générale quiz questions. */
   chessCultureFeedback: {
     key: 'anychess.chess-culture.feedback.v1',

@@ -17,14 +17,12 @@ export type ChessCultureCategory =
   | 'openings'
   | 'tactics'
   | 'strategy'
+  | 'endgames'
   | 'modern-chess'
   | 'visual'
   | 'other';
 
-export type ChessCultureSourceType =
-  | 'stable-fact'
-  | 'historical-fact'
-  | 'rule';
+export type ChessCultureSourceType = 'stable-fact' | 'historical-fact' | 'rule';
 
 export type ChessCultureDifficulty = 1 | 2 | 3 | 4 | 5;
 
@@ -67,6 +65,18 @@ export type ChessCultureQuestion = {
   presentation?: ChessCulturePresentation;
   /** English localization for UI when app language is `en`. */
   i18nEn?: ChessCultureQuestionI18nEn;
+  /** Offline editorial provenance; not a runtime network dependency. */
+  sources?: string[];
+  /** Reproducible checks for authored diagrams and forced-mate choices. */
+  verification?:
+    | { kind: 'opening'; moves: string[] }
+    | {
+        kind: 'mate';
+        movesToMate: 1 | 2;
+        answerMoves: [string, string, string, string];
+        principalLine: string[];
+        puzzleId: string;
+      };
 };
 
 export type ChessCultureFeedbackStatus = 'normal' | 'validated' | 'blacklisted';
@@ -107,3 +117,4 @@ export type ChessCultureScore = {
   total: number;
   percentage: number;
 };
+
