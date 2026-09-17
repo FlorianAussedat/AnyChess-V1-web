@@ -113,6 +113,7 @@ export class OpeningOpponent {
   newGame(): void {
     this.phase = 'book';
     this.theoryExit = null;
+    this.book.newGame();
     this.engine.newGame?.();
   }
 
@@ -211,3 +212,4 @@ export class OpeningOpponent {
     return { move: await this.engine.pickMove(game), theoryMessage: null };
   }
 }
+

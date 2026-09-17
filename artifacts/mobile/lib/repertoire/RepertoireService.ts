@@ -5,6 +5,7 @@
  * can rebuild a merged position-keyed tree for a folder. The UI never talks
  * to AsyncStorage or the PGN parser directly.
  */
+import { indexPgnGamesLight, extractPgnSlice } from '../gameLibrary/indexPgnGamesLight';
 import { tMsg } from '@/lib/i18n';
 import { buildRepertoire } from './repertoireTree';
 import type { ParsedRepertoire, RepertoireIssue } from './types';
@@ -332,13 +333,17 @@ export class RepertoireService {
    * Duplicate moves from the same position are de-duplicated by buildRepertoire;
    * transpositions are matched by position key (not move order).
    */
-  async buildFolderRepertoire(folderId: string): Promise<{
+  async buildFolderRepertoire(folderId: string, fileId?: string, gameIndex?: number): Promise<{
     repertoire: ParsedRepertoire;
     fileCount: number;
     issues: RepertoireIssue[];
   }> {
     await this.ensureLoaded();
-    const files = this.getFiles(folderId).filter((f) => f.enabled !== false);
+    const files = this.getFiles(folderId).filter((f) => f.enabled !== false && (!fileId || f.id === fileId)).map(file => {
+      if (!fileId || gameIndex === undefined) return file;
+      const entry = indexPgnGamesLight(file.pgnText).entries.find(e => e.index === gameIndex);
+      return { ...file, pgnText: entry ? extractPgnSlice(file.pgnText, entry) : '' };
+    });
     if (files.length === 0) {
       return {
         repertoire: {
@@ -357,7 +362,7 @@ export class RepertoireService {
     const fingerprints = files.map(
       (f) => `${f.id}:${f.importedAt}:${f.pgnText.length}:${f.summary.positionCount}`,
     );
-    const cacheKey = makeFolderRepertoireCacheKey(folderId, fingerprints);
+    const cacheKey = makeFolderRepertoireCacheKey(folderId, [`scope:${fileId ?? "all"}:${gameIndex ?? "all"}`, ...fingerprints]);
     const cached = getFolderRepertoireCache(cacheKey);
     if (cached) {
       repertoireCacheDevLog('HIT', `${folderId} (${cached.buildMs}ms cached)`);
@@ -413,3 +418,4 @@ export class RepertoireService {
 
 /** Shared singleton for the app. */
 export const repertoireService = new RepertoireService();
+

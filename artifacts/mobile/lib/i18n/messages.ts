@@ -358,6 +358,7 @@ export type MessageKey =
   | 'openings.undoThinkAgain'
   | 'openings.showExpectedMove'
   | 'openings.showFullLine'
+  | 'openings.moveOr'
   | 'openings.expectedMove'
   | 'openings.theoryCompleteContinuing'
   | 'openings.theoryLineTitle'
@@ -979,7 +980,7 @@ const fr: Dict = {
     'Fichier « {{file}} » importé.\nRenommer ?',
   'parties.multiSelectTitle': 'Sélectionne jusqu’à 10 fichiers PGN à importer.',
   'parties.multiSelectCount': '{{selected}} / {{max}} sélectionnées',
-  'parties.gameSelectTitle': 'Sélectionne jusqu’à 10 parties à importer.',
+  'parties.gameSelectTitle': 'Sélectionne jusqu’à {{count}} parties à importer.',
   'parties.gameSelectFound': '{{count}} parties trouvées',
   'parties.gameSelectSearch': 'Rechercher (joueur, événement, date…)',
   'parties.gameSelectMax': 'Maximum 10 parties par import.',
@@ -1199,6 +1200,7 @@ const fr: Dict = {
   'openings.undoThinkAgain': 'Annuler mon dernier coup et réfléchir',
   'openings.showExpectedMove': 'Voir le coup attendu',
   'openings.showFullLine': 'Voir la ligne complète',
+  'openings.moveOr': ' ou ',
   'openings.expectedMove': 'Coup attendu : {{move}}',
   'openings.theoryCompleteContinuing': 'Théorie terminée · Suite vs Stockfish',
   'openings.theoryLineTitle': 'Ligne théorique',
@@ -1886,7 +1888,7 @@ const en: Dict = {
   'parties.importRenameOffer': 'File “{{file}}” imported.\nRename?',
   'parties.multiSelectTitle': 'Select up to 10 PGN files to import.',
   'parties.multiSelectCount': '{{selected}} / {{max}} selected',
-  'parties.gameSelectTitle': 'Select up to 10 games to import.',
+  'parties.gameSelectTitle': 'Select up to {{count}} games to import.',
   'parties.gameSelectFound': '{{count}} games found',
   'parties.gameSelectSearch': 'Search (player, event, date…)',
   'parties.gameSelectMax': 'Maximum 10 games per import.',
@@ -2105,6 +2107,7 @@ const en: Dict = {
   'openings.undoThinkAgain': 'Undo my last move and think again',
   'openings.showExpectedMove': 'Show expected move',
   'openings.showFullLine': 'Show full line',
+  'openings.moveOr': ' or ',
   'openings.expectedMove': 'Expected move: {{move}}',
   'openings.theoryCompleteContinuing': 'Theory complete · Continuing vs Stockfish',
   'openings.theoryLineTitle': 'Theory line',
@@ -2667,3 +2670,4 @@ export function translate(
 export function speechLocaleForLanguage(language: AppLanguage): string {
   return language === 'en' ? 'en-US' : 'fr-FR';
 }
+

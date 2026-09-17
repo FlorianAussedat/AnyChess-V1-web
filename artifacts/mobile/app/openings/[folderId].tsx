@@ -16,7 +16,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import {
-  joinSelectedPgnSlices,
+  selectedPgnImports,
   pgnFileDisplayName,
   type StoredPgnFile,
   type RepertoireSide,
@@ -27,7 +27,6 @@ import {
   MAX_OPENINGS_PGN_IMPORT_BATCH,
   type PgnGameIndexEntry,
 } from '@/lib/gameLibrary';
-import { displayNameFromFilename } from '@/lib/gameLibrary/displayNameFromFilename';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import type { PlayerColor } from '@/contexts/GameContext';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -89,6 +88,7 @@ export default function FolderDetailScreen() {
   );
 
   const [detailFile, setDetailFile] = useState<StoredPgnFile | null>(null);
+  const [trainingScope, setTrainingScope] = useState('');
   const [playOpen, setPlayOpen] = useState(false);
   const [sideMigrationOpen, setSideMigrationOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<'play' | 'continue' | null>(null);
@@ -110,12 +110,13 @@ export default function FolderDetailScreen() {
   const canPlay = files.some((f) => f.summary.parseSucceeded);
 
   const ensureSideThen = useCallback(
-    (action: 'play' | 'continue') => {
+    (action: 'play' | 'continue', scope = '') => {
+      setTrainingScope(scope);
       if (!folderId || !canPlay) return;
       if (folder?.side) {
         if (action === 'play') setPlayOpen(true);
         else {
-          router.push(`/openings/continue?folderId=${encodeURIComponent(folderId)}` as Href);
+          router.push(`/openings/continue?folderId=${encodeURIComponent(folderId)}${scope}` as Href);
         }
         return;
       }
@@ -123,7 +124,7 @@ export default function FolderDetailScreen() {
       setPendingAction(action);
       setSideMigrationOpen(true);
     },
-    [folderId, canPlay, folder?.side, router],
+    [folderId, canPlay, folder?.side, router, trainingScope],
   );
 
   const saveMigrationSide = useCallback(async () => {
@@ -136,14 +137,14 @@ export default function FolderDetailScreen() {
       setPendingAction(null);
       if (action === 'play') setPlayOpen(true);
       else if (action === 'continue') {
-        router.push(`/openings/continue?folderId=${encodeURIComponent(folderId)}` as Href);
+        router.push(`/openings/continue?folderId=${encodeURIComponent(folderId)}${trainingScope}` as Href);
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
-  }, [folderId, migrationSide, pendingAction, setFolderSide, router]);
+  }, [folderId, migrationSide, pendingAction, setFolderSide, router, trainingScope]);
 
   const startPlay = useCallback(
     (strengthBandId: string) => {
@@ -153,10 +154,10 @@ export default function FolderDetailScreen() {
       setPlayOpen(false);
       const color: PlayerColor = folder.side === 'white' ? 'w' : 'b';
       router.push(
-        `/openings/play?folderId=${encodeURIComponent(folderId)}&color=${color}&band=${encodeURIComponent(normalized)}` as Href,
+        `/openings/play?folderId=${encodeURIComponent(folderId)}${trainingScope}&color=${color}&band=${encodeURIComponent(normalized)}` as Href,
       );
     },
-    [folderId, canPlay, folder?.side, router],
+    [folderId, canPlay, folder?.side, router, trainingScope],
   );
 
   const clearImportSelect = useCallback(() => {
@@ -172,18 +173,10 @@ export default function FolderDetailScreen() {
       setBusy(true);
       setFormError(null);
       try {
-        const pgnText = joinSelectedPgnSlices(
-          pending.sourceText,
-          pending.entries,
-          pending.selectedIndices,
-        );
-        if (!pgnText.trim()) {
-          setStatusMsg(t('openings.noValidPositions'));
-          clearImportSelect();
-          return;
+        const imports = selectedPgnImports(pending.sourceText, pending.entries, pending.selectedIndices, pending.filename);
+        for (const item of imports) {
+          await importPgn(folderId, item.filename, item.pgnText, item.displayName);
         }
-        const displayName = displayNameFromFilename(pending.filename);
-        await importPgn(folderId, pending.filename, pgnText, displayName);
         clearImportSelect();
         setStatusMsg(null);
       } catch (err) {
@@ -448,6 +441,7 @@ export default function FolderDetailScreen() {
           renderItem={({ item }) => (
             <PgnFileRow
               file={item}
+              onTrain={(file, mode, gameIndex) => ensureSideThen(mode, `&fileId=${encodeURIComponent(file.id)}${gameIndex === undefined ? '' : `&gameIndex=${gameIndex}`}`)}
               onOpenDetail={setDetailFile}
               onToggleEnabled={onToggleEnabled}
               onRename={openRenameFile}
@@ -607,3 +601,4 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 });
+

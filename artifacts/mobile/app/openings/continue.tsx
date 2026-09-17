@@ -74,8 +74,10 @@ export default function ContinueLineScreen() {
   const { soundEnabled } = useAudioSettings();
   const { chessNotation } = usePreferences();
 
-  const { folderId, folderIds, side: sideParam } = useLocalSearchParams<{
+  const { folderId, folderIds, fileId, gameIndex, side: sideParam } = useLocalSearchParams<{
     folderId?: string;
+    fileId?: string;
+    gameIndex?: string;
     folderIds?: string;
     side?: string;
   }>();
@@ -91,9 +93,9 @@ export default function ContinueLineScreen() {
       ? [folderId]
       : [];
   const isMixed = mixedFolderIds.length > 1 || reviewSide === 'all';
-  const recentKey = isMixed
+  const recentKey = `${fileId ?? 'all'}:${gameIndex ?? 'all'}:` + (isMixed
     ? mixedTrainingKey(mixedFolderIds.length > 0 ? mixedFolderIds : [reviewSide ?? 'all'])
-    : mixedFolderIds[0] ?? '';
+    : mixedFolderIds[0] ?? '');
 
   const sessionRef = useRef(new ContinueLineSession());
   const [snap, setSnap] = useState<ContinueLineSessionSnapshot>(
@@ -108,7 +110,7 @@ export default function ContinueLineScreen() {
 
   useEffect(() => {
     folderIdRef.current = mixedFolderIds[0];
-  }, [mixedFolderIds.join(',')]);
+  }, [mixedFolderIds.join(','), fileId, gameIndex]);
 
   useEffect(() => {
     const unsub = speechService.onSpeakingChange(setIsSpeaking);
@@ -159,7 +161,7 @@ export default function ContinueLineScreen() {
           return;
         }
         const { repertoire: rep, fileCount, issues } =
-          await repertoireService.buildFolderRepertoire(id);
+          await repertoireService.buildFolderRepertoire(id, fileId, gameIndex === undefined ? undefined : Number(gameIndex));
         if (fileCount === 0 || rep.positionCount === 0) {
           setLoadError(
             issues[0]?.message ??
@@ -252,7 +254,7 @@ export default function ContinueLineScreen() {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak, t]);
+  }, [fileId, gameIndex, mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak, t]);
 
   // Dedicated retry that keeps the current path if still available
   const retrySame = useCallback(async () => {
@@ -271,7 +273,7 @@ export default function ContinueLineScreen() {
         setLoading(false);
         return;
       }
-      const { repertoire: rep } = await repertoireService.buildFolderRepertoire(activeId);
+      const { repertoire: rep } = await repertoireService.buildFolderRepertoire(activeId, fileId, gameIndex === undefined ? undefined : Number(gameIndex));
       if (!path) {
         await startExercise();
         return;
@@ -300,7 +302,7 @@ export default function ContinueLineScreen() {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [mixedFolderIds, soundEnabled, speak, startExercise, t]);
+  }, [fileId, gameIndex, mixedFolderIds, soundEnabled, speak, startExercise, t]);
 
   useEffect(() => {
     startExercise();
@@ -308,7 +310,7 @@ export default function ContinueLineScreen() {
       speechService.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mixedFolderIds.join(',')]);
+  }, [mixedFolderIds.join(','), fileId, gameIndex]);
 
   const applyRaw = useCallback(
     (raw: string) => {
@@ -651,3 +653,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 });
+

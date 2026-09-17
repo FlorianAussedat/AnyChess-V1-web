@@ -100,7 +100,7 @@ export function PgnGameSelectModal({
           testID="parties-game-select"
         >
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            {t('parties.gameSelectTitle')}
+            {t('parties.gameSelectTitle', { count: maxSelection })}
           </Text>
           <Text
             style={{ color: colors.mutedForeground, marginBottom: 6 }}
@@ -330,3 +330,4 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
 });
+

@@ -18,7 +18,7 @@ import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import type { RepertoireFolder, ReviewSideFilter } from '@/lib/repertoire';
 import {
   filterFoldersByReviewSide,
-  joinSelectedPgnSlices,
+  selectedPgnImports,
 } from '@/lib/repertoire';
 import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
 import {
@@ -26,7 +26,6 @@ import {
   MAX_OPENINGS_PGN_IMPORT_BATCH,
   type PgnGameIndexEntry,
 } from '@/lib/gameLibrary';
-import { displayNameFromFilename } from '@/lib/gameLibrary/displayNameFromFilename';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { FolderListRow } from '@/components/openings/FolderListRow';
 import { NameModal } from '@/components/openings/NameModal';
@@ -181,18 +180,10 @@ export default function OpeningsFolderList() {
       setBusy(true);
       setFormError(null);
       try {
-        const pgnText = joinSelectedPgnSlices(
-          pendingImport.sourceText,
-          pendingImport.entries,
-          pendingImport.selectedIndices,
-        );
-        if (!pgnText.trim()) {
-          setStatusMsg(t('openings.noValidPositions'));
-          clearImportFlow();
-          return;
+        const imports = selectedPgnImports(pendingImport.sourceText, pendingImport.entries, pendingImport.selectedIndices, pendingImport.filename);
+        for (const item of imports) {
+          await importPgn(folderId, item.filename, item.pgnText, item.displayName);
         }
-        const displayName = displayNameFromFilename(pendingImport.filename);
-        await importPgn(folderId, pendingImport.filename, pgnText, displayName);
         clearImportFlow();
         router.push(`/openings/${folderId}` as Href);
       } catch (err) {
@@ -564,3 +555,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

@@ -6,7 +6,8 @@ import { StorageKeys } from '../storage/StorageKeys.ts';
 import { loadStoredJson } from '../storage/safeParse.ts';
 
 const KEY = StorageKeys.continueLineRecent.key;
-const MAX_RECENT = 20;
+// Keep a complete rotation even for repertoires with hundreds of branches.
+const MAX_RECENT = 10000;
 
 type StoreShape = Record<string, string[]>;
 
@@ -46,3 +47,4 @@ export function createContinueLineRecentStorage(
 ): ContinueLineRecentStorage {
   return new ContinueLineRecentStorage(storage);
 }
+

@@ -33,8 +33,10 @@ export default function OpeningPlayRoute() {
   const { contentTop } = useAppSafeInsets();
   const router = useRouter();
 
-  const { folderId, color, band } = useLocalSearchParams<{
+  const { folderId, color, band, fileId, gameIndex } = useLocalSearchParams<{
     folderId: string;
+    fileId?: string;
+    gameIndex?: string;
     color?: string;
     band?: string;
   }>();
@@ -70,7 +72,7 @@ export default function OpeningPlayRoute() {
           return;
         }
         const { repertoire: rep, fileCount, issues } =
-          await repertoireService.buildFolderRepertoire(folderId);
+          await repertoireService.buildFolderRepertoire(folderId, fileId, gameIndex === undefined ? undefined : Number(gameIndex));
         if (fileCount === 0 || rep.positionCount === 0) {
           setError(
             issues[0]?.message ?? t('openings.playEmpty'),
@@ -95,7 +97,7 @@ export default function OpeningPlayRoute() {
     return () => {
       cancelled = true;
     };
-  }, [folderId, t]);
+  }, [folderId, fileId, gameIndex, t]);
 
   if (loading) {
     return (
@@ -170,3 +172,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+
