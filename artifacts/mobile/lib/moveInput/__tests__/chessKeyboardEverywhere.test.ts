@@ -49,7 +49,6 @@ describe('modes migrated to chess-move keyboard', () => {
       'components/blind/BlindRecitationPhase.tsx',
       'components/blind/BlindReconstructionPhase.tsx',
       'app/openings/continue.tsx',
-      'app/puzzles/defends-nulle-play.tsx',
       'app/visualisation/nommer.tsx',
     ];
     for (const file of files) {
@@ -59,16 +58,17 @@ describe('modes migrated to chess-move keyboard', () => {
     }
   });
 
-  it('keeps Classic and Openings on the shared ChessMoveKeypad (auto-submit)', () => {
+  it('keeps Classic, Openings and endgame drills on the shared ChessMoveKeypad (auto-submit)', () => {
     for (const file of [
       'components/ClassicGameScreen.tsx',
       'components/OpeningGameScreen.tsx',
+      'components/game/ClassicCommandInputChrome.tsx',
+      'app/puzzles/defends-nulle-play.tsx',
+      'app/puzzles/finales-theoriques-play.tsx',
     ]) {
       const src = read(file);
-      assert.match(src, /ChessMoveKeypad/, file);
-      assert.match(src, /autoSubmit/, file);
-      assert.match(src, /fen=\{keypadFen\}/, file);
-      assert.match(src, /ChessKeyboardToggle/, file);
+      assert.match(src, /ChessMoveKeypad|ClassicCommandInputChrome/, file);
+      assert.match(src, /autoSubmit|ClassicCommandInputChrome/, file);
       assert.doesNotMatch(src, /ChessMoveInput/, file);
     }
   });

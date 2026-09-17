@@ -28,6 +28,14 @@ describe('pairMoveHistory', () => {
       { key: '2', num: 2, white: 'Nf3', black: '' },
     ]);
   });
+
+  it('places the first SAN on Black when the custom FEN is Black to move', () => {
+    const fen = '4k3/8/8/8/8/8/4K3/4Q3 b - - 0 1';
+    assert.deepEqual(pairMoveHistory(['Ke7', 'Kd1', 'Kd6'], fen), [
+      { key: '0', num: 1, white: '', black: 'Ke7' },
+      { key: '1', num: 2, white: 'Kd1', black: 'Kd6' },
+    ]);
+  });
 });
 
 describe('resolveSideChoice', () => {

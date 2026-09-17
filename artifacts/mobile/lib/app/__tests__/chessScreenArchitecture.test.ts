@@ -42,6 +42,24 @@ describe('shared chess screen scaffold', () => {
     assert.match(opening, /opening-status-row/);
     assert.doesNotMatch(opening, /ChessMoveInput/);
   });
+
+  it('theoretical and defend-draw reuse Classic command row + notation', () => {
+    const theoretical = read('app/puzzles/finales-theoriques-play.tsx');
+    const defend = read('app/puzzles/defends-nulle-play.tsx');
+    for (const src of [theoretical, defend]) {
+      assert.match(src, /ChessScreenScaffold/);
+      assert.match(src, /ChessBoardSection/);
+      assert.match(src, /ClassicCommandInputChrome/);
+      assert.match(src, /GameMoveHistoryCard/);
+      assert.match(src, /GameStatusCard/);
+      assert.match(src, /fitBoardSizeToViewport/);
+      assert.doesNotMatch(src, /ChessMoveInput/);
+    }
+    assert.match(theoretical, /theoretical-command-row/);
+    assert.match(theoretical, /theoretical-input-mode-toggle/);
+    assert.match(defend, /endgame-command-row/);
+    assert.match(defend, /endgame-input-mode-toggle/);
+  });
 });
 
 describe('ChessMoveInput keypad visibility toggle', () => {

@@ -30,6 +30,7 @@ export function useExerciseBoardTouch(opts: Options) {
 
 export function useExerciseSpeechInput(opts: {
   enabled: boolean;
+  forceOff?: boolean;
   onSan: (san: string) => void | Promise<void>;
 }) {
   const applyRef = useRef(opts.onSan);
@@ -39,6 +40,7 @@ export function useExerciseSpeechInput(opts: {
 
   const speech = useSpeechInput({
     enabled: opts.enabled,
+    forceOff: opts.forceOff,
     isSpeaking: false,
     onTranscript: (text) => {
       void applyRef.current(text);
