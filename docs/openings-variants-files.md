@@ -13,5 +13,5 @@ Chaque partie sélectionnée à l'import devient une entrée distincte avec son 
 
 Le sélecteur affiche maintenant la limite réellement configurée (100 dans Ouvertures).
 
-Validation : 57 tests ciblés réussis. Suite complète : 1 033/1 034, seul échec connu préexistant mentalPresentation.test.ts (« shows Trait aux under boards with primary accent »). TypeScript passe avec les types Node installés explicitement exposés via --typeRoots. Pas de recette visuelle sur téléphone dans cet environnement.
+Validation : 66 tests ciblés réussis (répertoire, continueLine, import PGN, trainingLines). Suite complète : 1 033/1 034, seul échec connu préexistant mentalPresentation.test.ts (« shows Trait aux under boards with primary accent »). Pas de recette visuelle dans cet environnement.
 
