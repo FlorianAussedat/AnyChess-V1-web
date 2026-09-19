@@ -54,8 +54,8 @@ function sampleQuestion(
 }
 
 describe('chessCulture question bank', () => {
-  it('contains at least 180 questions with unique ids', () => {
-    assert.ok(CHESS_CULTURE_QUESTIONS.length >= 180);
+  it('contains exactly 500 active questions with unique ids', () => {
+    assert.equal(CHESS_CULTURE_QUESTIONS.length, 500);
     const ids = CHESS_CULTURE_QUESTIONS.map((q) => q.id);
     assert.equal(new Set(ids).size, ids.length);
   });
@@ -63,24 +63,22 @@ describe('chessCulture question bank', () => {
   it('has a large active bank with practical category coverage', () => {
     const active = CHESS_CULTURE_QUESTIONS.filter((q) => q.active === true);
     assert.equal(active.length, CHESS_CULTURE_QUESTIONS.length);
-    assert.ok(active.length >= 180);
+    assert.equal(active.length, 500);
     const categories = new Set(active.map((q) => q.category));
     for (const required of [
       'checkmates',
       'terminology',
-      'visual',
+      'endgames',
+      'strategy',
       'modern-chess',
       'openings',
       'rules',
     ] as const) {
       assert.ok(categories.has(required), `missing category ${required}`);
     }
-    assert.ok(active.filter((q) => q.category === 'checkmates').length >= 10);
-    assert.ok(active.filter((q) => q.id.startsWith('terminology-new-')).length >= 20);
-    assert.ok(active.filter((q) => q.category === 'visual').length >= 15);
-    assert.ok(active.filter((q) => q.category === 'modern-chess').length >= 20);
-    assert.ok(active.filter((q) => q.id.startsWith('openings-new-')).length >= 10);
-    assert.ok(active.filter((q) => q.id.startsWith('rules-new-')).length >= 10);
+    assert.ok(active.filter((q) => q.category === 'endgames').length >= 70);
+    assert.ok(active.filter((q) => q.presentation?.boardFen).length === 130);
+    assert.ok(active.filter((q) => q.category === 'terminology').length === 60);
   });
 
   it('passes schema validation including FEN questions', () => {
@@ -91,7 +89,9 @@ describe('chessCulture question bank', () => {
   });
 
   it('keeps FEN presentation questions valid', () => {
-    const fenQs = CHESS_CULTURE_QUESTIONS.filter((q) => q.presentation?.boardFen);
+    const fenQs = CHESS_CULTURE_QUESTIONS.filter(
+      (q) => q.presentation?.boardFen,
+    );
     assert.ok(fenQs.length >= 15);
     for (const q of fenQs) {
       assert.deepEqual(validateChessCultureQuestion(q), []);
@@ -111,24 +111,15 @@ describe('chessCulture question bank', () => {
     assert.deepEqual(validateChessCultureQuestion(textOnly[0]!), []);
   });
 
-  it('provides bilingual copy for the practical expansion modules', () => {
-    const expansion = CHESS_CULTURE_QUESTIONS.filter(
+  it('preserves bilingual portraits and provides bilingual tactical diagrams', () => {
+    const bilingual = CHESS_CULTURE_QUESTIONS.filter(
       (q) =>
-        q.id.startsWith('checkmates-') ||
-        q.id.startsWith('terminology-new-') ||
-        q.id.startsWith('visual-') ||
-        q.id.startsWith('modern-') ||
-        q.id.startsWith('player-photo-') ||
-        q.id.startsWith('player-clue-') ||
-        q.id.startsWith('openings-new-') ||
-        q.id.startsWith('rules-new-'),
+        q.id.startsWith('player-photo-') || q.verification?.kind === 'mate',
     );
-    assert.ok(expansion.length >= 90);
-    for (const q of expansion) {
-      assert.ok(q.i18nEn, `missing i18nEn for ${q.id}`);
-      assert.ok(q.i18nEn!.question.trim().length > 0);
-      assert.equal(q.i18nEn!.answers.length, 4);
-      assert.ok(q.i18nEn!.explanation.trim().length > 0);
+    assert.equal(bilingual.length, 91);
+    for (const q of bilingual) {
+      assert.ok(q.i18nEn, q.id);
+      assert.equal(q.i18nEn.answers.length, 4);
     }
   });
 
@@ -148,7 +139,9 @@ describe('chessCulture question bank', () => {
 
 describe('chessCulture localization', () => {
   it('returns French canonical text when language is fr', () => {
-    const q = CHESS_CULTURE_QUESTIONS.find((item) => item.id === 'checkmates-001');
+    const q = CHESS_CULTURE_QUESTIONS.find(
+      (item) => item.id === 'player-photo-001',
+    );
     assert.ok(q?.i18nEn);
     const localized = localizeChessCultureQuestion(q!, 'fr');
     assert.equal(localized.question, q!.question);
@@ -156,7 +149,9 @@ describe('chessCulture localization', () => {
   });
 
   it('swaps EN copy without mutating the source question', () => {
-    const q = CHESS_CULTURE_QUESTIONS.find((item) => item.id === 'checkmates-001');
+    const q = CHESS_CULTURE_QUESTIONS.find(
+      (item) => item.id === 'player-photo-001',
+    );
     assert.ok(q?.i18nEn);
     const before = JSON.stringify(q);
     const localized = localizeChessCultureQuestion(q!, 'en');
@@ -375,7 +370,12 @@ describe('chessCulture feedback storage', () => {
     const store = new QuestionFeedbackStore(storage);
     const q = sampleQuestion({ id: 'store-1', revision: 1 });
     const base = emptyChessCultureFeedbackSnapshot();
-    await store.submitPresentationVote(q, 'down', base, '2024-01-01T00:00:00.000Z');
+    await store.submitPresentationVote(
+      q,
+      'down',
+      base,
+      '2024-01-01T00:00:00.000Z',
+    );
     const loaded = await store.getSnapshot();
     assert.equal(loaded.version, 1);
     assert.equal(loaded.questions['store-1']!.downVotes, 1);
@@ -488,7 +488,10 @@ describe('chessCulture optional visuals', () => {
     };
     const [sessionQ] = createChessCultureQuizSession([q], 1, random);
     assert.ok(sessionQ);
-    assert.equal(sessionQ.displayAnswers[sessionQ.correctDisplayIndex], 'Right');
+    assert.equal(
+      sessionQ.displayAnswers[sessionQ.correctDisplayIndex],
+      'Right',
+    );
     assert.equal(JSON.stringify(q), before);
     assert.equal(q.presentation?.imageId, 'player-bobby-fischer');
   });
@@ -512,7 +515,10 @@ describe('chessCulture optional visuals', () => {
     const lookup = () => null;
     assert.equal(resolveChessCultureImageSource(undefined, lookup), null);
     assert.equal(resolveChessCultureImageSource('', lookup), null);
-    assert.equal(resolveChessCultureImageSource('does-not-exist', lookup), null);
+    assert.equal(
+      resolveChessCultureImageSource('does-not-exist', lookup),
+      null,
+    );
     assert.equal(
       resolveChessCultureImageSource('x', () => {
         throw new Error('boom');
@@ -521,3 +527,4 @@ describe('chessCulture optional visuals', () => {
     );
   });
 });
+

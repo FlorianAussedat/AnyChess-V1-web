@@ -1,27 +1,24 @@
-/**
- * Canonical Culture générale chess-culture question bank.
- *
- * Modular sources under ./questions/ — do not embed questions in React screens.
- * Stable IDs must not change when only wording is corrected — bump `revision`.
- */
+/** Curated offline bank: 500 questions; see docs/chess-quiz-500.md for review and provenance. */
 import type { ChessCultureQuestion } from './types.ts';
-import { CHECKMATE_QUESTIONS } from './questions/checkmates.ts';
-import { LEGACY_CHESS_CULTURE_QUESTIONS } from './questions/legacyBank.ts';
-import { MODERN_CHESS_QUESTIONS } from './questions/modernChess.ts';
-import { OPENINGS_QUESTIONS } from './questions/openings.ts';
-import { PLAYER_PHOTO_QUESTIONS } from './questions/playerPhotos.ts';
-import { RULES_QUESTIONS } from './questions/rules.ts';
-import { TERMINOLOGY_QUESTIONS } from './questions/terminology.ts';
-import { VISUAL_QUESTIONS } from './questions/visual.ts';
+import { RETAINED_QUESTIONS as bank0 } from './questions/retained.ts';
+import { QUESTIONS as bank1 } from './questions/terminologyReviewed.ts';
+import { QUESTIONS as bank2 } from './questions/strategyReviewed.ts';
+import { QUESTIONS as bank3 } from './questions/endgamesReviewed.ts';
+import { QUESTIONS as bank4 } from './questions/rulesReviewed.ts';
+import { QUESTIONS as bank5 } from './questions/historyExtraReviewed.ts';
+import { QUESTIONS as bank6 } from './questions/openingPlansReviewed.ts';
+import { QUESTIONS as bank7 } from './questions/openingBoards.ts';
+import { QUESTIONS as bank8 } from './questions/tacticalBoards.ts';
 
-/** Full active bank: legacy FR set + practical/modern expansion modules. */
 export const CHESS_CULTURE_QUESTIONS: ChessCultureQuestion[] = [
-  ...LEGACY_CHESS_CULTURE_QUESTIONS,
-  ...CHECKMATE_QUESTIONS,
-  ...TERMINOLOGY_QUESTIONS,
-  ...VISUAL_QUESTIONS,
-  ...MODERN_CHESS_QUESTIONS,
-  ...PLAYER_PHOTO_QUESTIONS,
-  ...OPENINGS_QUESTIONS,
-  ...RULES_QUESTIONS,
+  ...bank0,
+  ...bank1,
+  ...bank2,
+  ...bank3,
+  ...bank4,
+  ...bank5,
+  ...bank6,
+  ...bank7,
+  ...bank8,
 ];
+

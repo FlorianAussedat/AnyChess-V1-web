@@ -35,6 +35,7 @@ const CATEGORIES: ReadonlySet<string> = new Set([
   'openings',
   'tactics',
   'strategy',
+  'endgames',
   'modern-chess',
   'visual',
   'other',
@@ -115,7 +116,11 @@ export function getEligibleChessCultureQuestions(
   return getActiveChessCultureQuestions(questions).filter((q) => {
     if (!hasResolvableChessCulturePresentation(q)) return false;
     const fb = feedback.questions[q.id];
-    if (fb && fb.status === 'blacklisted' && fb.questionRevision === q.revision) {
+    if (
+      fb &&
+      fb.status === 'blacklisted' &&
+      fb.questionRevision === q.revision
+    ) {
       return false;
     }
     return matchesFilters(q, filters);
@@ -126,7 +131,10 @@ function defaultRandom(): number {
   return Math.random();
 }
 
-function shuffleInPlace<T>(items: T[], random: () => number = defaultRandom): T[] {
+function shuffleInPlace<T>(
+  items: T[],
+  random: () => number = defaultRandom,
+): T[] {
   for (let i = items.length - 1; i > 0; i -= 1) {
     const j = Math.floor(random() * (i + 1));
     const tmp = items[i]!;
@@ -144,14 +152,49 @@ export function createChessCultureQuizSession(
   eligibleQuestions: readonly ChessCultureQuestion[],
   questionCount: number = DEFAULT_CHESS_CULTURE_SESSION_SIZE,
   random: () => number = defaultRandom,
+  seenQuestionKeys: readonly string[] = [],
 ): ChessCultureSessionQuestion[] {
   const count = Math.max(0, Math.floor(questionCount));
   if (count === 0 || eligibleQuestions.length === 0) return [];
 
-  const pool = shuffleInPlace([...eligibleQuestions], random);
-  const selected = pool.slice(0, Math.min(count, pool.length));
+  const pool = shuffleInPlace(
+    [...new Map(eligibleQuestions.map((q) => [q.id, q])).values()],
+    random,
+  );
+  const seen = new Map(seenQuestionKeys.map((key, index) => [key, index]));
+  const selected: ChessCultureQuestion[] = [];
+  const categoryCounts = new Map<string, number>();
+  while (pool.length && selected.length < count) {
+    // Exhaust unseen content before repeating. Within unseen content, spread topics.
+    const unseen = pool.filter((q) => !seen.has(chessCultureQuestionKey(q)));
+    const candidates = unseen.length ? unseen : pool;
+    const chosen = [...candidates].sort((a, b) => {
+      if (!unseen.length) {
+        return (
+          seen.get(chessCultureQuestionKey(a))! -
+          seen.get(chessCultureQuestionKey(b))!
+        );
+      }
+      return (
+        (categoryCounts.get(a.category) ?? 0) -
+        (categoryCounts.get(b.category) ?? 0)
+      );
+    })[0]!;
+    selected.push(chosen);
+    categoryCounts.set(
+      chosen.category,
+      (categoryCounts.get(chosen.category) ?? 0) + 1,
+    );
+    pool.splice(pool.indexOf(chosen), 1);
+  }
 
   return selected.map((question) => toSessionQuestion(question, random));
+}
+
+export function chessCultureQuestionKey(
+  question: Pick<ChessCultureQuestion, 'id' | 'revision'>,
+): string {
+  return `${question.id}@${question.revision}`;
 }
 
 function toSessionQuestion(
@@ -166,7 +209,8 @@ function toSessionQuestion(
     string,
     string,
   ];
-  const correctDisplayIndex = indices.indexOf(question.correctAnswer) as 0 | 1 | 2 | 3;
+  const correctDisplayIndex = indices.indexOf(question.correctAnswer) as
+    0 | 1 | 2 | 3;
   return {
     question,
     displayAnswers,
@@ -270,7 +314,12 @@ export function replacePresentationFeedback(
   vote: ChessCultureFeedbackVote,
   nowIso: string = new Date().toISOString(),
 ): ChessCultureFeedbackSnapshot {
-  return applyQuestionFeedback(snapshotBeforePresentation, question, vote, nowIso);
+  return applyQuestionFeedback(
+    snapshotBeforePresentation,
+    question,
+    vote,
+    nowIso,
+  );
 }
 
 export type ChessCultureQuestionValidationError = {
@@ -305,18 +354,40 @@ export function validateChessCultureQuestion(
   const id = typeof q.id === 'string' && q.id.length > 0 ? q.id : null;
 
   if (!id) errors.push({ id: null, message: `${label}: id is required` });
-  if (typeof q.revision !== 'number' || !Number.isInteger(q.revision) || q.revision < 1) {
-    errors.push({ id, message: `${id ?? label}: revision must be an integer >= 1` });
+  if (
+    typeof q.revision !== 'number' ||
+    !Number.isInteger(q.revision) ||
+    q.revision < 1
+  ) {
+    errors.push({
+      id,
+      message: `${id ?? label}: revision must be an integer >= 1`,
+    });
   }
   if (typeof q.question !== 'string' || q.question.trim().length === 0) {
-    errors.push({ id, message: `${id ?? label}: question text must be non-empty` });
+    errors.push({
+      id,
+      message: `${id ?? label}: question text must be non-empty`,
+    });
   }
   if (
     !Array.isArray(q.answers) ||
     q.answers.length !== 4 ||
     q.answers.some((a) => typeof a !== 'string' || a.trim().length === 0)
   ) {
-    errors.push({ id, message: `${id ?? label}: answers must be exactly 4 non-empty strings` });
+    errors.push({
+      id,
+      message: `${id ?? label}: answers must be exactly 4 non-empty strings`,
+    });
+  }
+  if (
+    Array.isArray(q.answers) &&
+    q.answers.every((a) => typeof a === 'string')
+  ) {
+    const normalized = q.answers.map((a) => a.trim().toLocaleLowerCase());
+    if (new Set(normalized).size !== normalized.length) {
+      errors.push({ id, message: `${id ?? label}: answers must be distinct` });
+    }
   }
   if (
     q.correctAnswer !== 0 &&
@@ -324,10 +395,16 @@ export function validateChessCultureQuestion(
     q.correctAnswer !== 2 &&
     q.correctAnswer !== 3
   ) {
-    errors.push({ id, message: `${id ?? label}: correctAnswer must be 0|1|2|3` });
+    errors.push({
+      id,
+      message: `${id ?? label}: correctAnswer must be 0|1|2|3`,
+    });
   }
   if (typeof q.explanation !== 'string' || q.explanation.trim().length === 0) {
-    errors.push({ id, message: `${id ?? label}: explanation must be non-empty` });
+    errors.push({
+      id,
+      message: `${id ?? label}: explanation must be non-empty`,
+    });
   }
   if (typeof q.category !== 'string' || !CATEGORIES.has(q.category)) {
     errors.push({ id, message: `${id ?? label}: invalid category` });
@@ -342,7 +419,10 @@ export function validateChessCultureQuestion(
     errors.push({ id, message: `${id ?? label}: difficulty must be 1..5` });
   }
   if (!Array.isArray(q.tags) || q.tags.some((t) => typeof t !== 'string')) {
-    errors.push({ id, message: `${id ?? label}: tags must be an array of strings` });
+    errors.push({
+      id,
+      message: `${id ?? label}: tags must be an array of strings`,
+    });
   }
   if (typeof q.sourceType !== 'string' || !SOURCE_TYPES.has(q.sourceType)) {
     errors.push({ id, message: `${id ?? label}: invalid sourceType` });
@@ -356,7 +436,10 @@ export function validateChessCultureQuestion(
       errors.push({ id, message: `${id ?? label}: i18nEn must be an object` });
     } else {
       if (typeof en.question !== 'string' || en.question.trim().length === 0) {
-        errors.push({ id, message: `${id ?? label}: i18nEn.question must be non-empty` });
+        errors.push({
+          id,
+          message: `${id ?? label}: i18nEn.question must be non-empty`,
+        });
       }
       if (
         !Array.isArray(en.answers) ||
@@ -368,7 +451,10 @@ export function validateChessCultureQuestion(
           message: `${id ?? label}: i18nEn.answers must be exactly 4 non-empty strings`,
         });
       }
-      if (typeof en.explanation !== 'string' || en.explanation.trim().length === 0) {
+      if (
+        typeof en.explanation !== 'string' ||
+        en.explanation.trim().length === 0
+      ) {
         errors.push({
           id,
           message: `${id ?? label}: i18nEn.explanation must be non-empty`,
@@ -382,7 +468,10 @@ export function validateChessCultureQuestion(
       typeof q.presentation !== 'object' ||
       Array.isArray(q.presentation)
     ) {
-      errors.push({ id, message: `${id ?? label}: presentation must be an object` });
+      errors.push({
+        id,
+        message: `${id ?? label}: presentation must be an object`,
+      });
     } else {
       const presentation = q.presentation;
       if (presentation.boardFen !== undefined) {
@@ -390,11 +479,17 @@ export function validateChessCultureQuestion(
           typeof presentation.boardFen !== 'string' ||
           !isValidChessFen(presentation.boardFen)
         ) {
-          errors.push({ id, message: `${id ?? label}: presentation.boardFen is invalid` });
+          errors.push({
+            id,
+            message: `${id ?? label}: presentation.boardFen is invalid`,
+          });
         }
       }
       if (presentation.imageId !== undefined) {
-        if (typeof presentation.imageId !== 'string' || presentation.imageId.trim().length === 0) {
+        if (
+          typeof presentation.imageId !== 'string' ||
+          presentation.imageId.trim().length === 0
+        ) {
           errors.push({
             id,
             message: `${id ?? label}: presentation.imageId must be a non-empty string`,
@@ -409,8 +504,14 @@ export function validateChessCultureQuestion(
           });
         }
       }
-      if (presentation.imageAlt !== undefined && typeof presentation.imageAlt !== 'string') {
-        errors.push({ id, message: `${id ?? label}: presentation.imageAlt must be a string` });
+      if (
+        presentation.imageAlt !== undefined &&
+        typeof presentation.imageAlt !== 'string'
+      ) {
+        errors.push({
+          id,
+          message: `${id ?? label}: presentation.imageAlt must be a string`,
+        });
       }
       if (
         presentation.imageCaption !== undefined &&
@@ -421,7 +522,10 @@ export function validateChessCultureQuestion(
           message: `${id ?? label}: presentation.imageCaption must be a string`,
         });
       }
-      if (presentation.imageFit !== undefined && !IMAGE_FITS.has(presentation.imageFit)) {
+      if (
+        presentation.imageFit !== undefined &&
+        !IMAGE_FITS.has(presentation.imageFit)
+      ) {
         errors.push({
           id,
           message: `${id ?? label}: presentation.imageFit must be 'cover' | 'contain'`,
@@ -476,14 +580,23 @@ export function validateChessCultureQuestionBank(
 }
 
 /** Type-narrow helpers for filters (future UI). */
-export function isChessCultureCategory(value: string): value is ChessCultureCategory {
+export function isChessCultureCategory(
+  value: string,
+): value is ChessCultureCategory {
   return CATEGORIES.has(value);
 }
 
-export function isChessCultureDifficulty(value: number): value is ChessCultureDifficulty {
-  return value === 1 || value === 2 || value === 3 || value === 4 || value === 5;
+export function isChessCultureDifficulty(
+  value: number,
+): value is ChessCultureDifficulty {
+  return (
+    value === 1 || value === 2 || value === 3 || value === 4 || value === 5
+  );
 }
 
-export function isChessCultureSourceType(value: string): value is ChessCultureSourceType {
+export function isChessCultureSourceType(
+  value: string,
+): value is ChessCultureSourceType {
   return SOURCE_TYPES.has(value);
 }
+
