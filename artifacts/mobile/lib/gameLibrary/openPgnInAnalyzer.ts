@@ -11,6 +11,7 @@ export type AnalyzerRouteParams = {
   tab?: string;
   flipped?: string;
   nodeId?: string;
+  source?: string;
 };
 
 export type AnalyzerHref = {
@@ -24,12 +25,14 @@ export function buildAnalyzerHref(
     flipped?: boolean;
     tab?: string;
     nodeId?: string;
+    source?: string;
   },
 ): AnalyzerHref {
   const params: AnalyzerRouteParams = { gameId };
   if (options?.tab) params.tab = options.tab;
   if (options?.flipped) params.flipped = '1';
   if (options?.nodeId) params.nodeId = options.nodeId;
+  if (options?.source) params.source = options.source;
   return { pathname: '/parties/analyzer', params };
 }
 

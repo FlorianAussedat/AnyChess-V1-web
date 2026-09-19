@@ -48,6 +48,7 @@ describe('buildAnalyzerHref', () => {
       flipped: true,
       tab: 'analysis',
       nodeId: 'n1',
+      source: 'opening-editor',
     });
     assert.equal(href.pathname, '/parties/analyzer');
     assert.deepEqual(href.params, {
@@ -55,6 +56,7 @@ describe('buildAnalyzerHref', () => {
       tab: 'analysis',
       flipped: '1',
       nodeId: 'n1',
+      source: 'opening-editor',
     });
   });
 });

@@ -98,6 +98,15 @@ export type MessageKey =
   | 'openings.newStudyDefault'
   | 'openings.undoEdit'
   | 'openings.redoEdit'
+  | 'openings.analyzeThisPosition'
+  | 'openings.returnToEditor'
+  | 'openings.addAnalyzedLine'
+  | 'openings.createStudyFromHere'
+  | 'openings.createStudyScopeTitle'
+  | 'openings.createStudyScopeBody'
+  | 'openings.createStudyFromStart'
+  | 'openings.createStudyFromPosition'
+  | 'openings.createStudyNameTitle'
   | 'openings.branchPickerTitle'
   | 'openings.mainLine'
   | 'openings.variation'
@@ -997,6 +1006,16 @@ const fr: Dict = {
   'openings.newStudyDefault': 'Nouvelle étude',
   'openings.undoEdit': 'Annuler',
   'openings.redoEdit': 'Rétablir',
+  'openings.analyzeThisPosition': 'Analyser cette position',
+  'openings.returnToEditor': 'Retourner à l’éditeur',
+  'openings.addAnalyzedLine': 'Ajouter la ligne analysée au PGN',
+  'openings.createStudyFromHere': 'Créer une étude d’ouverture depuis ici',
+  'openings.createStudyScopeTitle': 'Contenu de l’étude',
+  'openings.createStudyScopeBody':
+    'Conserver les coups joués depuis le début de la partie, ou démarrer l’étude depuis la position actuelle ?',
+  'openings.createStudyFromStart': 'Depuis le début de la partie',
+  'openings.createStudyFromPosition': 'Depuis la position actuelle',
+  'openings.createStudyNameTitle': 'Nom de l’étude',
   'openings.branchPickerTitle': 'Quelle continuation ?',
   'openings.mainLine': 'ligne principale',
   'openings.variation': 'variante',
@@ -1974,6 +1993,16 @@ const en: Dict = {
   'openings.newStudyDefault': 'New study',
   'openings.undoEdit': 'Undo',
   'openings.redoEdit': 'Redo',
+  'openings.analyzeThisPosition': 'Analyse this position',
+  'openings.returnToEditor': 'Back to the editor',
+  'openings.addAnalyzedLine': 'Add the analysed line to the PGN',
+  'openings.createStudyFromHere': 'Create an opening study from here',
+  'openings.createStudyScopeTitle': 'Study contents',
+  'openings.createStudyScopeBody':
+    'Keep the moves played from the start of the game, or start the study from the current position?',
+  'openings.createStudyFromStart': 'From the start of the game',
+  'openings.createStudyFromPosition': 'From the current position',
+  'openings.createStudyNameTitle': 'Study name',
   'openings.branchPickerTitle': 'Which continuation?',
   'openings.mainLine': 'main line',
   'openings.variation': 'variation',

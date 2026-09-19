@@ -69,6 +69,7 @@ export {
   editorCanGoForward,
   editorNodeComment,
   editorTrySan,
+  editorGraftSans,
   preferredStudyTab,
 } from './openingEditorState.ts';
 export type {
@@ -76,3 +77,21 @@ export type {
   OpeningEditorSession,
   PlayEditorMoveResult,
 } from './openingEditorState.ts';
+export {
+  setParkedOpeningEditor,
+  peekParkedOpeningEditor,
+  takeParkedOpeningEditor,
+  clearParkedOpeningEditor,
+} from './parkedOpeningEditor.ts';
+export type {
+  ParkedOpeningEditor,
+  ParkedOpeningEditorKind,
+} from './parkedOpeningEditor.ts';
+export {
+  OPENING_EDITOR_ANALYZER_SOURCE,
+  nodePathSans,
+  analyzedLineSans,
+  openEditorPositionInAnalyzer,
+  graftAnalyzedLineOntoParkedEditor,
+  createOpeningStudySession,
+} from './openingEditorAnalyzer.ts';

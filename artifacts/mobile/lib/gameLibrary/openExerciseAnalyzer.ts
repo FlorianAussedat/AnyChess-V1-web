@@ -34,6 +34,7 @@ async function persistSession(input: {
   game: ReaderGame;
   currentNodeId: string | null;
   boardFlipped: boolean;
+  explorationOriginNodeId?: string | null;
 }): Promise<SharedGameSession> {
   const activeLineNodeIds = buildActiveLine(input.game, input.currentNodeId);
   return saveSharedGameSession({
@@ -42,7 +43,10 @@ async function persistSession(input: {
     currentNodeId: input.currentNodeId,
     activeLineNodeIds,
     boardFlipped: input.boardFlipped,
-    explorationOriginNodeId: null,
+    explorationOriginNodeId:
+      input.explorationOriginNodeId === undefined
+        ? null
+        : input.explorationOriginNodeId,
   });
 }
 
@@ -121,6 +125,8 @@ export async function openExerciseGameInAnalyzer(input: {
 export async function openExercisePositionInAnalyzer(input: {
   fen: string;
   flipped?: boolean;
+  source?: string;
+  explorationOriginNodeId?: string | null;
 }): Promise<ExerciseAnalyzerOpen | null> {
   const fen = input.fen.trim();
   if (!fen) return null;
@@ -131,6 +137,7 @@ export async function openExercisePositionInAnalyzer(input: {
     game,
     currentNodeId: null,
     boardFlipped: Boolean(input.flipped),
+    explorationOriginNodeId: input.explorationOriginNodeId,
   });
 
   return {
@@ -138,6 +145,7 @@ export async function openExercisePositionInAnalyzer(input: {
     href: buildAnalyzerHref(game.id, {
       flipped: input.flipped,
       tab: 'analysis',
+      source: input.source,
     }),
     game,
     session,

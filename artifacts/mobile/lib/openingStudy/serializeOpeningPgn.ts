@@ -3,6 +3,7 @@
  * Preserves main line, variations, comments before/after, and NAGs.
  */
 import type { ReaderGame, ReaderNode } from '../gameReader/types.ts';
+import { STANDARD_START_FEN } from '../gameReader/parseReaderPgn.ts';
 
 function escapeHeader(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -29,6 +30,8 @@ const HEADER_ORDER = [
   'ECO',
   'Opening',
   'Variation',
+  'SetUp',
+  'FEN',
 ];
 
 export function serializeOpeningPgn(
@@ -42,6 +45,10 @@ export function serializeOpeningPgn(
     ...headers,
   };
   if (!merged.Result) merged.Result = '*';
+  if (game.initialFen && game.initialFen !== STANDARD_START_FEN) {
+    if (!merged.FEN) merged.FEN = game.initialFen;
+    if (!merged.SetUp) merged.SetUp = '1';
+  }
 
   const lines: string[] = [];
   const seen = new Set<string>();

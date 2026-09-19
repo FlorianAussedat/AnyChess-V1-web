@@ -163,6 +163,23 @@ describe('openExercisePositionInAnalyzer', () => {
     assert.equal(parts[4], '5');
     assert.equal(parts[5], '22');
   });
+
+  it('can tag the handoff as opening-editor with exploration origin at start', async () => {
+    const fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+    const opened = await openExercisePositionInAnalyzer({
+      fen,
+      flipped: true,
+      source: 'opening-editor',
+      explorationOriginNodeId: '',
+    });
+    assert.ok(opened);
+    assert.equal(opened!.href.params.source, 'opening-editor');
+    assert.equal(opened!.href.params.flipped, '1');
+    assert.equal(opened!.session.explorationOriginNodeId, '');
+    const state = createGameReaderState(opened!.game, opened!.session.currentNodeId);
+    assert.equal(state.currentFen, fen);
+    assert.equal(state.sideToMove, 'black');
+  });
 });
 
 describe('mode adapters', () => {

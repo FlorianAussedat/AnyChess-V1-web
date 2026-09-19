@@ -30,6 +30,7 @@ import {
   editorUndo,
   loadEditorSessionFromPgn,
   preferredStudyTab,
+  editorGraftSans,
   type OpeningEditorSession,
   type PlayEditorMoveResult,
 } from '../openingEditorState.ts';
@@ -345,5 +346,50 @@ describe('legal move helper', () => {
     assert.equal(editorTrySan(session, 'Qxh8'), null);
     const chess = new Chess();
     assert.equal(chess.move('e4')?.san, 'e4');
+  });
+});
+
+describe('editorGraftSans', () => {
+  it('reuses existing nodes and only adds missing forks', () => {
+    let session = createEmptyEditorSession({ folderId: 'f1', displayName: 'X' });
+    session = play(session, 'e4').session;
+    session = play(session, 'e5').session;
+    session = play(session, 'Nf3').session;
+    session = editorGoPrev(session);
+    session = play(session, 'Nc3').session;
+    const before = allLines(session);
+
+    session = editorSelectNode(session, null);
+    session = editorGraftSans(session, ['e4', 'e5', 'Nf3']);
+    assert.deepEqual(allLines(session).sort(), before.sort());
+    assert.equal(editorCurrentNode(session)?.san, 'Nf3');
+
+    session = editorSelectNode(session, null);
+    session = editorGraftSans(session, ['e4', 'e5', 'Nc3']);
+    assert.equal(allLines(session).filter((line) => line === 'e4 e5 Nc3').length, 1);
+
+    session = editorSelectNode(session, null);
+    session = editorGraftSans(session, ['e4', 'c5']);
+    assert.ok(allLines(session).includes('e4 c5'));
+    assert.equal(allLines(session).filter((line) => line === 'e4 c5').length, 1);
+    assert.ok(allLines(session).includes('e4 e5 Nf3'));
+  });
+});
+
+describe('FEN studies', () => {
+  it('serializes SetUp/FEN when the study does not start from the initial position', () => {
+    const fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
+    let session = createEmptyEditorSession({
+      folderId: 'f1',
+      displayName: 'After e4',
+      initialFen: fen,
+    });
+    session = play(session, 'e5').session;
+    const pgn = editorExportPgn(session);
+    assert.match(pgn, /\[SetUp "1"\]/);
+    assert.match(pgn, /\[FEN "rnbqkbnr\/pppppppp\/8\/8\/4P3\/8\/PPPP1PPP\/RNBQKBNR b KQkq e3 0 1"\]/);
+    assert.match(pgn, /1\.\.\. e5/);
+    const chess = new Chess(fen);
+    assert.equal(chess.turn(), 'b');
   });
 });

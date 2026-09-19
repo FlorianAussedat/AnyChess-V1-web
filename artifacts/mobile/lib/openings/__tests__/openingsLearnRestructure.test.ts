@@ -125,6 +125,21 @@ describe('opening PGN editor', () => {
     assert.match(annotate, /replacePgn/);
     assert.match(annotate, /importPgn/);
     assert.match(annotate, /editorAppendMove/);
+    assert.match(annotate, /opening-annotate-analyze/);
+    assert.match(annotate, /openEditorPositionInAnalyzer/);
+    assert.match(annotate, /setParkedOpeningEditor/);
+    assert.match(annotate, /takeParkedOpeningEditor/);
     assert.doesNotMatch(annotate, /textarea.*pgn/i);
+  });
+
+  it('analyzer offers return/add-line from the editor and create-study otherwise', () => {
+    const analyzer = read('app/parties/analyzer.tsx');
+    assert.match(analyzer, /OPENING_EDITOR_ANALYZER_SOURCE/);
+    assert.match(analyzer, /anyliseur-return-editor/);
+    assert.match(analyzer, /anyliseur-add-analyzed-line/);
+    assert.match(analyzer, /graftAnalyzedLineOntoParkedEditor/);
+    assert.match(analyzer, /anyliseur-create-opening-study/);
+    assert.match(analyzer, /CreateOpeningStudyModal/);
+    assert.match(analyzer, /createStudyFromHere/);
   });
 });

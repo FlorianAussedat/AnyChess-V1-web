@@ -76,10 +76,17 @@ export function createEmptyEditorSession(options: {
   folderId: string;
   displayName: string;
   fileId?: string | null;
+  initialFen?: string;
+  extraHeaders?: Record<string, string>;
 }): OpeningEditorSession {
-  const game = emptyReaderGame();
+  const game = emptyReaderGame(options.initialFen);
+  const headers = { ...defaultOpeningHeaders(), ...options.extraHeaders };
+  if (game.initialFen !== STANDARD_START_FEN) {
+    headers.SetUp = headers.SetUp || '1';
+    headers.FEN = headers.FEN || game.initialFen;
+  }
   const snapshot: OpeningEditorSnapshot = {
-    headers: defaultOpeningHeaders(),
+    headers,
     game,
     currentNodeId: null,
     displayName: options.displayName,
@@ -559,6 +566,27 @@ export function editorTrySan(
   }
   if (!played) return null;
   return editorPlaySan(session, played);
+}
+
+/**
+ * Follow existing children or append new ones. Used when grafting an analysed
+ * line — never asks for variation confirmation, never duplicates a SAN.
+ */
+export function editorGraftSans(
+  session: OpeningEditorSession,
+  sans: readonly string[],
+): OpeningEditorSession {
+  let current = session;
+  for (const san of sans) {
+    const result = editorTrySan(current, san);
+    if (!result) break;
+    if (result.kind === 'confirm-variation') {
+      current = editorAppendMove(current, result.move);
+    } else {
+      current = result.session;
+    }
+  }
+  return current;
 }
 
 export function editorGoParent(session: OpeningEditorSession): OpeningEditorSession {

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
@@ -60,6 +60,9 @@ import {
   editorUndo,
   formatNags,
   loadEditorSessionFromPgn,
+  openEditorPositionInAnalyzer,
+  setParkedOpeningEditor,
+  takeParkedOpeningEditor,
   type OpeningEditorSession,
 } from '@/lib/openingStudy';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
@@ -113,11 +116,28 @@ export default function OpeningAnnotateScreen() {
     );
   }, [windowWidth, windowHeight, contentTop, contentBottom]);
 
+  const restoreParked = useCallback((): boolean => {
+    const parked = takeParkedOpeningEditor({
+      fileId: fileIdParam,
+      folderId: folderIdParam,
+    });
+    if (!parked) return false;
+    setSession(parked.session);
+    setCommentDraft(parked.commentDraft || editorNodeComment(parked.session));
+    setSide(parked.side);
+    setError(null);
+    setLoading(false);
+    return true;
+  }, [fileIdParam, folderIdParam]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
+        if (restoreParked()) return;
         await repertoireService.ensureLoaded();
+        if (cancelled) return;
+        if (restoreParked()) return;
         if (fileIdParam) {
           const file = repertoireService.getFile(fileIdParam);
           if (!file) {
@@ -174,7 +194,14 @@ export default function OpeningAnnotateScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileIdParam, folderIdParam, nameParam, nodeIdParam, t]);
+  }, [fileIdParam, folderIdParam, nameParam, nodeIdParam, restoreParked, t]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (loading) return;
+      restoreParked();
+    }, [loading, restoreParked]),
+  );
 
   const applySession = useCallback((next: OpeningEditorSession) => {
     setSession(next);
@@ -286,6 +313,25 @@ export default function OpeningAnnotateScreen() {
     downloadPgnFile(name.endsWith('.pgn') ? name : `${name}.pgn`, editorExportPgn(flushed));
   }, [applySession, flushComment, session]);
 
+  const analyzePosition = useCallback(async () => {
+    if (!session) return;
+    const flushed = flushComment(session);
+    applySession(flushed);
+    setParkedOpeningEditor({
+      session: flushed,
+      commentDraft: editorNodeComment(flushed) || commentDraft,
+      side,
+      originNodeId: flushed.snapshot.currentNodeId,
+      kind: 'analyze-return',
+    });
+    const opened = await openEditorPositionInAnalyzer({
+      fen: editorCurrentFen(flushed),
+      flipped: side === 'black',
+    });
+    if (!opened) return;
+    router.push(opened.href as Href);
+  }, [applySession, commentDraft, flushComment, router, session, side]);
+
   const requestLeave = useCallback(() => {
     if (!session) {
       router.back();
@@ -383,6 +429,22 @@ export default function OpeningAnnotateScreen() {
         }}
         testID="opening-annotate-nav"
       />
+
+      <Pressable
+        onPress={() => {
+          void analyzePosition();
+        }}
+        disabled={busy}
+        style={[
+          styles.primaryBtn,
+          { backgroundColor: colors.primary, marginBottom: 8, opacity: busy ? 0.6 : 1 },
+        ]}
+        testID="opening-annotate-analyze"
+      >
+        <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+          {t('openings.analyzeThisPosition')}
+        </Text>
+      </Pressable>
 
       <ScrollView
         style={styles.scrollFlex}
