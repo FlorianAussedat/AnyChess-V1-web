@@ -771,8 +771,6 @@ export default function GameWorkspaceScreen() {
               ) : null
             }
           />
-          {showEngineUi ? analysisPanel : null}
-
           {fromOpeningEditor ? (
             <View style={styles.openingActions} testID="anyliseur-opening-editor-actions">
               <Pressable
@@ -829,6 +827,7 @@ export default function GameWorkspaceScreen() {
               </Pressable>
             </View>
           )}
+          {showEngineUi ? analysisPanel : null}
         </View>
       ) : null}
 

@@ -382,6 +382,30 @@ export default function OpeningAnnotateScreen() {
         title={session.snapshot.displayName}
         subtitle={t('openings.annotatePgn')}
         backTestID="opening-annotate-back"
+        trailing={
+          <Pressable
+            onPress={() => {
+              void analyzePosition();
+            }}
+            disabled={busy}
+            style={[
+              styles.headerAnalyze,
+              { borderColor: colors.primary, backgroundColor: colors.secondary, opacity: busy ? 0.6 : 1 },
+            ]}
+            testID="opening-annotate-analyze"
+          >
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: 'Inter_600SemiBold',
+                fontSize: 12,
+                textAlign: 'center',
+              }}
+            >
+              {t('openings.analyzeThisPosition')}
+            </Text>
+          </Pressable>
+        }
       />
 
       <TextInput
@@ -429,22 +453,6 @@ export default function OpeningAnnotateScreen() {
         }}
         testID="opening-annotate-nav"
       />
-
-      <Pressable
-        onPress={() => {
-          void analyzePosition();
-        }}
-        disabled={busy}
-        style={[
-          styles.primaryBtn,
-          { backgroundColor: colors.primary, marginBottom: 8, opacity: busy ? 0.6 : 1 },
-        ]}
-        testID="opening-annotate-analyze"
-      >
-        <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-          {t('openings.analyzeThisPosition')}
-        </Text>
-      </Pressable>
 
       <ScrollView
         style={styles.scrollFlex}
@@ -727,6 +735,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   actions: { gap: 8, paddingTop: 4 },
+  headerAnalyze: {
+    maxWidth: 150,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
   primaryBtn: {
     alignItems: 'center',
     borderRadius: 10,
