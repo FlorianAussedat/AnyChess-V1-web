@@ -165,5 +165,11 @@ describe('opening PGN editor', () => {
     assert.match(analyzer, /anyliseur-create-opening-study/);
     assert.match(analyzer, /CreateOpeningStudyModal/);
     assert.match(analyzer, /createStudyFromHere/);
+    const clickStart = analyzer.indexOf('getLegalDestinations');
+    const clickEnd = analyzer.indexOf('canReturnToOrigin');
+    const clickBlock = analyzer.slice(clickStart, clickEnd);
+    assert.match(clickBlock, /useBoardTouchSelection/);
+    assert.doesNotMatch(clickBlock, /fromOpeningEditor/);
+    assert.doesNotMatch(clickBlock, /OPENING_EDITOR_ANALYZER_SOURCE/);
   });
 });

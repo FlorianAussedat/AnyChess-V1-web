@@ -62,6 +62,19 @@ describe('shared chess screen scaffold', () => {
   });
 });
 
+describe('ChessBoard square hits', () => {
+  it('puts a full-cell Pressable above pieces so SVG cannot steal web clicks', () => {
+    const board = read('components/ChessBoard.tsx');
+    assert.match(board, /testID=\{`board-square-\$\{sqName\}`\}/);
+    assert.match(board, /pointerEvents="none"/);
+    assert.match(board, /StyleSheet\.absoluteFill/);
+    assert.match(board, /displayCellToSquare|squareFromBoardIndices/);
+    assert.doesNotMatch(board, /PanResponder|onPan|drag/);
+    const piece = read('components/PieceSvg.tsx');
+    assert.match(piece, /pointerEvents="none"/);
+  });
+});
+
 describe('ChessMoveInput keypad visibility toggle', () => {
   it('embeds ChessKeyboardToggle and can hide the keypad', () => {
     const input = read('components/game/ChessMoveInput.tsx');

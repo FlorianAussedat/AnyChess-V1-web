@@ -88,6 +88,7 @@ export default function GameWorkspaceScreen() {
       ? params.nodeId
       : null;
   const paramFlipped = params.flipped === '1';
+  // Extra UI only — must not change click / legality / coordinates / selection.
   const fromOpeningEditor = params.source === OPENING_EDITOR_ANALYZER_SOURCE;
   const initialTab: TabId =
     params.tab === 'analysis' ? 'analysis' : 'game';
@@ -455,6 +456,7 @@ export default function GameWorkspaceScreen() {
     [reader],
   );
 
+  // Same selection hook as Classic / editor — opening-editor source is not an input.
   const { touchSelected, legalDests, onSquarePress } = useBoardTouchSelection({
     canAct: Boolean(reader),
     getLegalDestinations,
