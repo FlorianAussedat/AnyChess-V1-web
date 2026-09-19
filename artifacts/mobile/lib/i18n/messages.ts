@@ -74,6 +74,30 @@ export type MessageKey =
   | 'openings.noComment'
   | 'openings.tabComments'
   | 'openings.tabNotation'
+  | 'openings.annotatePgn'
+  | 'openings.annotateThisPgn'
+  | 'openings.createPgn'
+  | 'openings.saveToAnyChess'
+  | 'openings.exportPgn'
+  | 'openings.addComment'
+  | 'openings.editComment'
+  | 'openings.deleteComment'
+  | 'openings.deleteVariation'
+  | 'openings.goParentLine'
+  | 'openings.addAnnotation'
+  | 'openings.createVariationHint'
+  | 'openings.confirmVariationTitle'
+  | 'openings.confirmVariationBody'
+  | 'openings.unsavedTitle'
+  | 'openings.unsavedBody'
+  | 'openings.leaveWithoutSaving'
+  | 'openings.commentPlaceholder'
+  | 'openings.commentNeedMove'
+  | 'openings.newPgnName'
+  | 'openings.newPgnNamePlaceholder'
+  | 'openings.newStudyDefault'
+  | 'openings.undoEdit'
+  | 'openings.redoEdit'
   | 'openings.branchPickerTitle'
   | 'openings.mainLine'
   | 'openings.variation'
@@ -939,13 +963,40 @@ const fr: Dict = {
     'Aucun PGN actif. Active un dossier et au moins un PGN dans la gestion.',
   'openings.folderActive': 'Actif pour la Révision',
   'openings.folderInactive': 'Inactif pour la Révision',
-  'openings.viewPgn': 'Voir',
+  'openings.viewPgn': 'Voir / Étudier',
   'openings.changeSideConfirmTitle': 'Changer de camp ?',
   'openings.changeSideConfirmBody':
     'Ce PGN passera d’un dossier {{from}} à un dossier {{to}}. L’orientation d’entraînement suivra le nouveau dossier.',
   'openings.noComment': 'Aucun commentaire pour ce coup.',
   'openings.tabComments': 'Commentaires',
   'openings.tabNotation': 'Notation',
+  'openings.annotatePgn': 'Annoter / éditer',
+  'openings.annotateThisPgn': 'Annoter ce PGN',
+  'openings.createPgn': 'Créer un PGN',
+  'openings.saveToAnyChess': 'Sauvegarder dans AnyChess',
+  'openings.exportPgn': 'Exporter en PGN',
+  'openings.addComment': 'Ajouter un commentaire',
+  'openings.editComment': 'Modifier le commentaire',
+  'openings.deleteComment': 'Supprimer le commentaire',
+  'openings.deleteVariation': 'Supprimer cette variante',
+  'openings.goParentLine': 'Revenir à la ligne parente',
+  'openings.addAnnotation': 'Ajouter une annotation',
+  'openings.createVariationHint':
+    'Joue un autre coup depuis cette position pour proposer une nouvelle variante.',
+  'openings.confirmVariationTitle': 'Créer une variante ?',
+  'openings.confirmVariationBody':
+    'Le coup {{move}} n’est pas encore dans l’arbre. L’ajouter comme nouvelle variante ?',
+  'openings.unsavedTitle': 'Des modifications ne sont pas sauvegardées.',
+  'openings.unsavedBody':
+    'Sauvegarder dans AnyChess, quitter sans sauvegarder, ou rester dans l’éditeur.',
+  'openings.leaveWithoutSaving': 'Quitter sans sauvegarder',
+  'openings.commentPlaceholder': 'Commentaire de ce coup',
+  'openings.commentNeedMove': 'Joue un coup pour pouvoir le commenter.',
+  'openings.newPgnName': 'Nom du PGN',
+  'openings.newPgnNamePlaceholder': 'Nom affiché dans la bibliothèque',
+  'openings.newStudyDefault': 'Nouvelle étude',
+  'openings.undoEdit': 'Annuler',
+  'openings.redoEdit': 'Rétablir',
   'openings.branchPickerTitle': 'Quelle continuation ?',
   'openings.mainLine': 'ligne principale',
   'openings.variation': 'variante',
@@ -1889,13 +1940,40 @@ const en: Dict = {
     'No active PGN. Enable a folder and at least one PGN in the library.',
   'openings.folderActive': 'Active for Review',
   'openings.folderInactive': 'Inactive for Review',
-  'openings.viewPgn': 'View',
+  'openings.viewPgn': 'View / Study',
   'openings.changeSideConfirmTitle': 'Change side?',
   'openings.changeSideConfirmBody':
     'This PGN will move from a {{from}} folder to a {{to}} folder. Training orientation will follow the new folder.',
   'openings.noComment': 'No comment for this move.',
   'openings.tabComments': 'Comments',
   'openings.tabNotation': 'Notation',
+  'openings.annotatePgn': 'Annotate / edit',
+  'openings.annotateThisPgn': 'Annotate this PGN',
+  'openings.createPgn': 'Create a PGN',
+  'openings.saveToAnyChess': 'Save to AnyChess',
+  'openings.exportPgn': 'Export PGN',
+  'openings.addComment': 'Add a comment',
+  'openings.editComment': 'Edit the comment',
+  'openings.deleteComment': 'Delete the comment',
+  'openings.deleteVariation': 'Delete this variation',
+  'openings.goParentLine': 'Back to the parent line',
+  'openings.addAnnotation': 'Add an annotation',
+  'openings.createVariationHint':
+    'Play a different move from this position to propose a new variation.',
+  'openings.confirmVariationTitle': 'Create a variation?',
+  'openings.confirmVariationBody':
+    '{{move}} is not in the tree yet. Add it as a new variation?',
+  'openings.unsavedTitle': 'Some changes are not saved.',
+  'openings.unsavedBody':
+    'Save to AnyChess, leave without saving, or stay in the editor.',
+  'openings.leaveWithoutSaving': 'Leave without saving',
+  'openings.commentPlaceholder': 'Comment for this move',
+  'openings.commentNeedMove': 'Play a move before adding a comment.',
+  'openings.newPgnName': 'PGN name',
+  'openings.newPgnNamePlaceholder': 'Name shown in the library',
+  'openings.newStudyDefault': 'New study',
+  'openings.undoEdit': 'Undo',
+  'openings.redoEdit': 'Redo',
   'openings.branchPickerTitle': 'Which continuation?',
   'openings.mainLine': 'main line',
   'openings.variation': 'variation',

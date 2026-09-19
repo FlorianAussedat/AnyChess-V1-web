@@ -27,3 +27,13 @@ export function formatNags(nags: readonly string[] | undefined): string {
   if (!nags || nags.length === 0) return '';
   return nags.map(nagLabel).join('');
 }
+
+/** Common pedagogical glyphs offered in the visual PGN editor. */
+export const EDITOR_NAG_CHOICES: { nag: string; glyph: string }[] = [
+  { nag: '$1', glyph: '!' },
+  { nag: '$2', glyph: '?' },
+  { nag: '$3', glyph: '!!' },
+  { nag: '$4', glyph: '??' },
+  { nag: '$5', glyph: '!?' },
+  { nag: '$6', glyph: '?!' },
+];

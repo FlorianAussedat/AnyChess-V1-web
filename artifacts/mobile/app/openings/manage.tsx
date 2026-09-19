@@ -29,6 +29,7 @@ import {
   type PgnGameIndexEntry,
 } from '@/lib/gameLibrary';
 import { confirmAction } from '@/lib/openings/confirmAction';
+import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { NameModal } from '@/components/openings/NameModal';
 import { FolderPickModal } from '@/components/openings/FolderPickModal';
@@ -84,6 +85,9 @@ export default function OpeningsManageScreen() {
   const [gameCandidates, setGameCandidates] = useState<PgnGameSelectCandidate[]>([]);
   const [gameSelected, setGameSelected] = useState<Set<string>>(new Set());
   const [folderPickOpen, setFolderPickOpen] = useState(false);
+  const [createPgn, setCreatePgn] = useState(false);
+  const [createPgnFolderId, setCreatePgnFolderId] = useState<string | null>(null);
+  const [createPgnNameOpen, setCreatePgnNameOpen] = useState(false);
 
   const whiteFolders = useMemo(
     () => folders.filter((f) => f.side === 'white'),
@@ -105,6 +109,15 @@ export default function OpeningsManageScreen() {
       else next.add(id);
       return next;
     });
+  }, []);
+
+  const openCreatePgn = useCallback(() => {
+    setFormError(null);
+    setStatusMsg(null);
+    setMoveFile(null);
+    setPendingImport(null);
+    setCreatePgn(true);
+    setFolderPickOpen(true);
   }, []);
 
   const openCreate = useCallback(() => {
@@ -221,13 +234,20 @@ export default function OpeningsManageScreen() {
         await importIntoFolder(folder.id);
         return;
       }
+      if (createPgn) {
+        setCreatePgnFolderId(folder.id);
+        setCreatePgn(false);
+        setNameDraft(t('openings.newStudyDefault'));
+        setCreatePgnNameOpen(true);
+        return;
+      }
       setExpanded((prev) => new Set(prev).add(folder.id));
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
-  }, [createFolder, createSide, importIntoFolder, nameDraft, pendingImport, t]);
+  }, [createFolder, createPgn, createSide, importIntoFolder, nameDraft, pendingImport, t]);
 
   const submitRenameFolder = useCallback(async () => {
     if (!renameTarget) return;
@@ -305,68 +325,91 @@ export default function OpeningsManageScreen() {
         style={[styles.pgnRow, { borderColor: colors.border, backgroundColor: colors.secondary }]}
         testID={`manage-pgn-${file.id}`}
       >
-        <View style={styles.pgnMain}>
-          <Text style={[styles.pgnName, { color: colors.foreground }]} numberOfLines={1}>
-            {name}
-          </Text>
-          <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-            {active ? t('openings.folderActive') : t('openings.folderInactive')}
-            {' · '}
-            {t('openings.linesShort', { count: file.summary.branchCount })}
-          </Text>
+        <View style={styles.pgnTop}>
+          <View style={styles.pgnMain}>
+            <Text style={[styles.pgnName, { color: colors.foreground }]} numberOfLines={1}>
+              {name}
+            </Text>
+            <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+              {active ? t('openings.folderActive') : t('openings.folderInactive')}
+              {' · '}
+              {t('openings.linesShort', { count: file.summary.branchCount })}
+            </Text>
+          </View>
+          <Switch
+            value={file.enabled !== false}
+            onValueChange={(v) => {
+              void setFileEnabled(file.id, v);
+            }}
+            testID={`toggle-pgn-${file.id}`}
+          />
         </View>
-        <Pressable
-          onPress={() => router.push(`/openings/study?fileId=${encodeURIComponent(file.id)}` as Href)}
-          hitSlop={8}
-          testID={`view-pgn-${file.id}`}
-          accessibilityLabel={t('openings.viewPgn')}
-        >
-          <Ionicons name="eye-outline" size={18} color={colors.primary} />
-        </Pressable>
-        <Switch
-          value={file.enabled !== false}
-          onValueChange={(v) => {
-            void setFileEnabled(file.id, v);
-          }}
-          testID={`toggle-pgn-${file.id}`}
-        />
-        <Pressable
-          onPress={() => {
-            setRenameFile(file);
-            setNameDraft(name);
-            setFormError(null);
-          }}
-          hitSlop={8}
-          testID={`rename-pgn-${file.id}`}
-        >
-          <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            setMoveFile(file);
-            setFolderPickOpen(true);
-          }}
-          hitSlop={8}
-          testID={`move-pgn-${file.id}`}
-        >
-          <Ionicons name="folder-outline" size={18} color={colors.mutedForeground} />
-        </Pressable>
-        <Pressable
-          onPress={() =>
-            confirmAction(
-              t('openings.deleteFileTitle'),
-              t('openings.deleteFileBody', { name }),
-              () => {
-                void deletePgn(file.id);
-              },
-              { destructive: true, confirmLabel: t('openings.delete') },
-            )
-          }
-          hitSlop={8}
-          testID={`delete-pgn-${file.id}`}
-        >
-          <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-        </Pressable>
+        <View style={styles.pgnActions}>
+          <Pressable
+            onPress={() => router.push(`/openings/study?fileId=${encodeURIComponent(file.id)}` as Href)}
+            hitSlop={8}
+            testID={`view-pgn-${file.id}`}
+            accessibilityLabel={t('openings.viewPgn')}
+          >
+            <Ionicons name="eye-outline" size={18} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={() =>
+              router.push(`/openings/annotate?fileId=${encodeURIComponent(file.id)}` as Href)
+            }
+            hitSlop={8}
+            testID={`annotate-pgn-${file.id}`}
+            accessibilityLabel={t('openings.annotatePgn')}
+          >
+            <Ionicons name="create-outline" size={18} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setRenameFile(file);
+              setNameDraft(name);
+              setFormError(null);
+            }}
+            hitSlop={8}
+            testID={`rename-pgn-${file.id}`}
+          >
+            <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setMoveFile(file);
+              setCreatePgn(false);
+              setFolderPickOpen(true);
+            }}
+            hitSlop={8}
+            testID={`move-pgn-${file.id}`}
+          >
+            <Ionicons name="folder-outline" size={18} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            onPress={() => downloadPgnFile(file.filename, file.pgnText)}
+            hitSlop={8}
+            testID={`export-pgn-${file.id}`}
+            accessibilityLabel={t('openings.exportPgn')}
+          >
+            <Ionicons name="download-outline" size={18} color={colors.mutedForeground} />
+          </Pressable>
+          <Pressable
+            onPress={() =>
+              confirmAction(
+                t('openings.deleteFileTitle'),
+                t('openings.deleteFileBody', { name }),
+                () => {
+                  void deletePgn(file.id);
+                },
+                { destructive: true, confirmLabel: t('openings.delete') },
+              )
+            }
+            hitSlop={8}
+            testID={`delete-pgn-${file.id}`}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.destructive} />
+          </Pressable>
+        </View>
       </View>
     );
   };
@@ -520,6 +563,24 @@ export default function OpeningsManageScreen() {
         <Text style={[styles.status, { color: colors.mutedForeground }]}>{statusMsg}</Text>
       ) : null}
 
+      <Pressable
+        onPress={openCreatePgn}
+        style={({ pressed }) => [
+          styles.createPgnBtn,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: pressed ? 0.75 : 1,
+          },
+        ]}
+        testID="create-pgn-btn"
+      >
+        <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+        <Text style={[styles.btnLabel, { color: colors.foreground }]}>
+          {t('openings.createPgn')}
+        </Text>
+      </Pressable>
+
       {!ready ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
@@ -568,7 +629,7 @@ export default function OpeningsManageScreen() {
         onChangeText={setNameDraft}
         onCancel={() => {
           setCreateOpen(false);
-          if (pendingImport) setFolderPickOpen(true);
+          if (pendingImport || createPgn) setFolderPickOpen(true);
         }}
         onSubmit={() => {
           void submitCreate();
@@ -598,6 +659,30 @@ export default function OpeningsManageScreen() {
         busy={busy}
         error={formError}
         submitLabel={t('common.save')}
+      />
+      <NameModal
+        visible={createPgnNameOpen}
+        title={t('openings.newPgnName')}
+        placeholder={t('openings.newPgnNamePlaceholder')}
+        value={nameDraft}
+        onChangeText={setNameDraft}
+        onCancel={() => {
+          setCreatePgnNameOpen(false);
+          setCreatePgnFolderId(null);
+        }}
+        onSubmit={() => {
+          if (!createPgnFolderId) return;
+          const title = nameDraft.trim() || t('openings.newStudyDefault');
+          const folderId = createPgnFolderId;
+          setCreatePgnNameOpen(false);
+          setCreatePgnFolderId(null);
+          router.push(
+            `/openings/annotate?folderId=${encodeURIComponent(folderId)}&name=${encodeURIComponent(title)}` as Href,
+          );
+        }}
+        busy={busy}
+        error={formError}
+        submitLabel={t('openings.annotatePgn')}
       />
       <NameModal
         visible={renameFile != null}
@@ -632,7 +717,13 @@ export default function OpeningsManageScreen() {
         excludeFolderId={moveFile?.folderId}
         onSelect={(folderId) => {
           if (moveFile) onPickMoveFolder(folderId);
-          else void importIntoFolder(folderId);
+          else if (createPgn) {
+            setCreatePgnFolderId(folderId);
+            setCreatePgn(false);
+            setFolderPickOpen(false);
+            setNameDraft(t('openings.newStudyDefault'));
+            setCreatePgnNameOpen(true);
+          } else void importIntoFolder(folderId);
         }}
         onCreateFolder={() => {
           setFolderPickOpen(false);
@@ -641,6 +732,11 @@ export default function OpeningsManageScreen() {
         onCancel={() => {
           if (moveFile) {
             setMoveFile(null);
+            setFolderPickOpen(false);
+            return;
+          }
+          if (createPgn) {
+            setCreatePgn(false);
             setFolderPickOpen(false);
             return;
           }
@@ -696,15 +792,24 @@ const styles = StyleSheet.create({
   toolRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pgnList: { gap: 8 },
   pgnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     borderRadius: 10,
     borderWidth: 1,
     padding: 10,
+    gap: 8,
   },
+  pgnTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pgnMain: { flex: 1, gap: 2 },
   pgnName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  pgnActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  createPgnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   status: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

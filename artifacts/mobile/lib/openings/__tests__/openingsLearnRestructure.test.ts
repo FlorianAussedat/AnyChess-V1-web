@@ -88,3 +88,43 @@ describe('pedagogical reader is openings-specific', () => {
     assert.match(manage, /needsOppositeSideMoveConfirm/);
   });
 });
+
+describe('opening PGN editor', () => {
+  it('keeps both study tabs and auto-switches on node change', () => {
+    const study = read('app/openings/study.tsx');
+    assert.match(study, /opening-study-tab-comments/);
+    assert.match(study, /opening-study-tab-notation/);
+    assert.match(study, /preferredStudyTab/);
+    assert.match(study, /lastAutoTabNodeId/);
+    assert.match(study, /opening-study-annotate/);
+    assert.match(study, /openings\.annotateThisPgn/);
+  });
+
+  it('manage offers create, annotate and export without hiding other actions', () => {
+    const manage = read('app/openings/manage.tsx');
+    assert.match(manage, /create-pgn-btn/);
+    assert.match(manage, /annotate-pgn-/);
+    assert.match(manage, /export-pgn-/);
+    assert.match(manage, /view-pgn-/);
+    assert.match(manage, /rename-pgn-/);
+    assert.match(manage, /move-pgn-/);
+    assert.match(manage, /toggle-pgn-/);
+    assert.match(manage, /delete-pgn-/);
+    assert.match(manage, /\/openings\/annotate\?fileId=/);
+  });
+
+  it('annotate screen saves to AnyChess, exports PGN and warns on unsaved leave', () => {
+    const annotate = read('app/openings/annotate.tsx');
+    assert.match(annotate, /createEmptyEditorSession/);
+    assert.match(annotate, /loadEditorSessionFromPgn/);
+    assert.match(annotate, /opening-annotate-save/);
+    assert.match(annotate, /opening-annotate-export/);
+    assert.match(annotate, /opening-unsaved-modal/);
+    assert.match(annotate, /opening-confirm-variation/);
+    assert.match(annotate, /opening-annotate-comment/);
+    assert.match(annotate, /replacePgn/);
+    assert.match(annotate, /importPgn/);
+    assert.match(annotate, /editorAppendMove/);
+    assert.doesNotMatch(annotate, /textarea.*pgn/i);
+  });
+});

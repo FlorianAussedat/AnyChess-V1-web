@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -34,6 +34,7 @@ import {
   formatNags,
   lastMoveFromSans,
   lineSansToLeaf,
+  preferredStudyTab,
   returnToCourse,
   selectStudyBranch,
   studyCanGoBack,
@@ -79,7 +80,8 @@ export default function OpeningStudyScreen() {
   const [side, setSide] = useState<'white' | 'black'>('white');
   const [sourcePgn, setSourcePgn] = useState('');
   const [state, setState] = useState<OpeningStudyState | null>(null);
-  const [tab, setTab] = useState<'comments' | 'notation'>('comments');
+  const [tab, setTab] = useState<'comments' | 'notation'>('notation');
+  const lastAutoTabNodeId = useRef<string | null>(null);
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
@@ -136,6 +138,18 @@ export default function OpeningStudyScreen() {
       cancelled = true;
     };
   }, [fileId, t]);
+
+  useEffect(() => {
+    lastAutoTabNodeId.current = null;
+  }, [fileId]);
+
+  useEffect(() => {
+    if (!state || state.exploringSans) return;
+    const id = state.currentNodeId ?? '__start__';
+    if (lastAutoTabNodeId.current === id) return;
+    lastAutoTabNodeId.current = id;
+    setTab(preferredStudyTab(combinedCommentText(state)));
+  }, [state]);
 
   const fen = state ? currentStudyFen(state) : null;
   const board = useMemo(() => (fen ? boardFromFen(fen) : []), [fen]);
@@ -362,6 +376,21 @@ export default function OpeningStudyScreen() {
           </Text>
         </Pressable>
       </View>
+      <Pressable
+        onPress={() => {
+          if (!fileId) return;
+          const nodeId = state.currentNodeId ? `&nodeId=${encodeURIComponent(state.currentNodeId)}` : '';
+          router.push(
+            `/openings/annotate?fileId=${encodeURIComponent(fileId)}${nodeId}` as Href,
+          );
+        }}
+        style={[styles.annotateBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+        testID="opening-study-annotate"
+      >
+        <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+          {t('openings.annotateThisPgn')}
+        </Text>
+      </Pressable>
 
       <OpeningStudyBranchPicker
         visible={Boolean(pending)}
@@ -403,5 +432,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 10,
+  },
+  annotateBtn: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingBottom: 4,
   },
 });
