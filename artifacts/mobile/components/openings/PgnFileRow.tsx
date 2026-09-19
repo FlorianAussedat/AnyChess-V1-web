@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { indexPgnGamesLight, formatPgnGameIndexTitle } from '@/lib/gameLibrary/indexPgnGamesLight';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
@@ -8,6 +9,7 @@ import { formatDate } from '@/components/openings/formatDate';
 
 type Props = {
   file: StoredPgnFile;
+  onTrain?: (file: StoredPgnFile, mode: 'play' | 'continue', gameIndex?: number) => void;
   onOpenDetail: (file: StoredPgnFile) => void;
   onToggleEnabled: (file: StoredPgnFile) => void;
   onRename: (file: StoredPgnFile) => void;
@@ -18,6 +20,7 @@ type Props = {
 export function PgnFileRow({
   file,
   onOpenDetail,
+  onTrain,
   onToggleEnabled,
   onRename,
   onMove,
@@ -25,12 +28,14 @@ export function PgnFileRow({
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
+  const entries = useMemo(() => indexPgnGamesLight(file.pgnText).entries, [file.pgnText]);
   const name = pgnFileDisplayName(file);
 
   return (
     <View
       style={[styles.fileCard, { backgroundColor: colors.card, borderColor: colors.border }]}
     >
+      <View style={styles.fileMain}>
       <Pressable
         onPress={() => onOpenDetail(file)}
         style={styles.fileMain}
@@ -47,6 +52,7 @@ export function PgnFileRow({
             {file.enabled === false ? ` ${t('openings.disabled')}` : ''}
           </Text>
         </View>
+        {file.displayName && <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>{file.filename}</Text>}
         <Text style={[styles.fileMeta, { color: colors.mutedForeground }]}>
           {t('openings.gamesCount', { count: file.summary.gameCount })}
           {' · '}
@@ -75,6 +81,22 @@ export function PgnFileRow({
             : t('openings.importFailed')}
         </Text>
       </Pressable>
+      {onTrain && file.enabled !== false && file.summary.parseSucceeded && (
+        <View style={{ gap: 12, marginTop: 8 }}>
+          {(entries.length > 1 ? entries : [undefined]).map(entry => (
+            <View key={entry?.index ?? 'file'} style={{ gap: 6 }}>
+              {entry && <Text style={{ color: colors.foreground }}>{formatPgnGameIndexTitle(entry)}</Text>}
+              <Pressable onPress={() => onTrain(file, 'continue', entry?.index)} accessibilityRole="button">
+                <Text style={{ color: colors.primary }}>{t('openings.continueLine')}</Text>
+              </Pressable>
+              <Pressable onPress={() => onTrain(file, 'play', entry?.index)} accessibilityRole="button">
+                <Text style={{ color: colors.primary }}>{t('openings.playVsRepertoire')}</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+      </View>
       <View style={styles.fileActions}>
         <Pressable
           onPress={() => onToggleEnabled(file)}
@@ -164,3 +186,4 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
+

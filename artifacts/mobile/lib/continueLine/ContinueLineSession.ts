@@ -133,7 +133,7 @@ export class ContinueLineSession {
     this.startPly = startPly;
     this.preambleSans = path.sans.slice(0, startPly);
     this.branchTail = path.sans.slice(startPly);
-    this.startFen = fenAfterSans(DEFAULT_FEN, this.preambleSans);
+    this.startFen = fenAfterSans(path.fensBefore[0] ?? DEFAULT_FEN, this.preambleSans);
     this.board = new Chess(this.startFen);
     this.phase = 'ready';
     return this.snapshot();
@@ -253,3 +253,4 @@ export class ContinueLineSession {
     return this.startPly;
   }
 }
+

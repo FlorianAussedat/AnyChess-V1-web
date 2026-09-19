@@ -171,6 +171,9 @@ export function OpeningGameScreen() {
     trainingState === 'engineContinuation' ? ` · ${strengthBandLabel}` : ''
   }`;
 
+  const [expectedHint, setExpectedHint] = useState<string | null>(null);
+  useEffect(() => { setExpectedHint(null); }, [history.length, trainingState]);
+
   const statusText =
     trainingState === 'lineComplete'
       ? t('openings.endOfTheoreticalLine')
@@ -343,11 +346,13 @@ export function OpeningGameScreen() {
           onShowExpected={() => {
             const san = showExpectedMove();
             if (san) {
-              void formatSanForDisplay(san, chessNotation);
+              setExpectedHint(san);
             }
           }}
           onShowFullLine={() => setTheoryOpen(true)}
         />
+
+        {expectedHint && <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>{t('openings.expectedMove', { move: expectedHint })}</Text>}
 
         {!deciding && (
           <>
@@ -466,3 +471,4 @@ const styles = StyleSheet.create({
   },
   errorText: { marginTop: 24, fontFamily: 'Inter_500Medium', fontSize: 14, paddingHorizontal: 8 },
 });
+

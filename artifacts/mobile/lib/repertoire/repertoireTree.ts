@@ -39,6 +39,7 @@ interface BuildContext {
   warnings: RepertoireIssue[];
   gameIndex: number;
   branchCount: number;
+  trainingPaths: NonNullable<ParsedRepertoire["trainingPaths"]>;
 }
 
 function addChoice(
@@ -85,7 +86,9 @@ function addChoice(
  * Recursively ingest a line starting from `startFen`. `chess` is a throwaway
  * working board for this line; variations branch off a fresh clone.
  */
-function ingestLine(ctx: BuildContext, node: PgnMoveNode | null, startFen: string): void {
+function ingestLine(ctx: BuildContext, node: PgnMoveNode | null, startFen: string, prefix: RepertoireMoveChoice[] = [], prefixFens: string[] = []): void {
+  const choices = [...prefix];
+  const fensBefore = [...prefixFens];
   const chess = new Chess(startFen);
   let cur: PgnMoveNode | null = node;
 
@@ -94,7 +97,7 @@ function ingestLine(ctx: BuildContext, node: PgnMoveNode | null, startFen: strin
 
     // Variations are alternatives to `cur`, so they start from `beforeFen`.
     for (const variation of cur.variations) {
-      ingestLine(ctx, variation, beforeFen);
+      ingestLine(ctx, variation, beforeFen, choices, fensBefore);
     }
 
     let move: Move | null = null;
@@ -115,7 +118,13 @@ function ingestLine(ctx: BuildContext, node: PgnMoveNode | null, startFen: strin
     }
 
     addChoice(ctx, beforeFen, move, cur);
+    choices.push(ctx.index.get(positionKey(beforeFen))!.moves.find(c => c.uci === `${move.from}${move.to}${move.promotion ?? ''}`)!);
+    fensBefore.push(beforeFen);
     cur = cur.next;
+  }
+  if (choices.length) {
+    const sans = choices.map(c => c.san);
+    ctx.trainingPaths.push({ id: `${fensBefore[0]}|${sans.join(' ')}`, sans, choices, fensBefore });
   }
 }
 
@@ -127,6 +136,7 @@ export function buildRepertoire(pgn: string): ParsedRepertoire {
     warnings: [],
     gameIndex: 0,
     branchCount: 0,
+    trainingPaths: [],
   };
   const headers: ParsedRepertoire['headers'] = [];
 
@@ -175,6 +185,7 @@ export function buildRepertoire(pgn: string): ParsedRepertoire {
     warnings: ctx.warnings,
     branchCount: ctx.branchCount,
     positionCount: ctx.index.size,
+    trainingPaths: [...new Map(ctx.trainingPaths.map(p => [p.id, p])).values()],
   };
 }
 
@@ -242,3 +253,4 @@ function pickWeighted(
   }
   return moves[moves.length - 1];
 }
+

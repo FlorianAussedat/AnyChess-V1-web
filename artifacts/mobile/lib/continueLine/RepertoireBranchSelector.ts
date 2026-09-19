@@ -4,12 +4,11 @@
  */
 import { Chess } from 'chess.js';
 import {
-  DEFAULT_FEN,
   chooseRepertoireMove,
   movesForPosition,
   positionKey,
 } from '../repertoire/repertoireTree.ts';
-import type { ParsedRepertoire, RepertoireMoveChoice } from '../repertoire/types.ts';
+import type { ParsedRepertoire } from '../repertoire/types.ts';
 import type { ContinueLinePath } from './types.ts';
 
 export type PathSampleOptions = {
@@ -20,65 +19,23 @@ export type PathSampleOptions = {
   maxAttempts?: number;
 };
 
-function pathId(sans: string[]): string {
-  return sans.join(' ');
+/** Every imported root-to-leaf branch has one slot, regardless of depth. */
+export function trainingPaths(rep: ParsedRepertoire): ContinueLinePath[] {
+  return rep.trainingPaths ?? [];
 }
 
-/**
- * Walk the repertoire with uniform-random edge choice until a leaf.
- */
-export function sampleRandomPath(
-  rep: ParsedRepertoire,
-  options: PathSampleOptions = {},
-): ContinueLinePath | null {
-  const startFen = options.startFen ?? DEFAULT_FEN;
-  const rng = options.rng ?? Math.random;
-  const recent = new Set(options.recentPathIds ?? []);
-  const maxAttempts = options.maxAttempts ?? 12;
+/** Recent ids are newest first. Exhaust unseen lines, then take the oldest. */
+export function pickBalanced<T>(items: T[], key: (item: T) => string, recent: string[], rng: () => number): T | null {
+  if (!items.length) return null;
+  const seen = new Map(recent.map((id, i) => [id, i]));
+  const unseen = items.filter(item => !seen.has(key(item)));
+  if (unseen.length) return unseen[Math.min(unseen.length - 1, Math.floor(rng() * unseen.length))]!;
+  return items.reduce((oldest, item) => seen.get(key(item))! > seen.get(key(oldest))! ? item : oldest);
+}
 
-  let best: ContinueLinePath | null = null;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    // Diversify stuck RNGs across attempts so recent-path avoidance can explore forks.
-    const attemptRng = () => (rng() + attempt * 0.6180339887) % 1;
-    const chess = new Chess(startFen);
-    const sans: string[] = [];
-    const fensBefore: string[] = [];
-    const choices: RepertoireMoveChoice[] = [];
-    const seen = new Set<string>();
-
-    while (true) {
-      const fen = chess.fen();
-      const key = positionKey(fen);
-      if (seen.has(key)) break;
-      seen.add(key);
-
-      const choice = chooseRepertoireMove(rep, fen, { mode: 'uniform-random', rng: attemptRng });
-      if (!choice) break;
-
-      fensBefore.push(fen);
-      choices.push(choice);
-      sans.push(choice.san);
-      const played = chess.move({
-        from: choice.from,
-        to: choice.to,
-        promotion: choice.promotion || 'q',
-      });
-      if (!played) break;
-    }
-
-    if (sans.length === 0) continue;
-    const candidate: ContinueLinePath = {
-      id: pathId(sans),
-      sans,
-      fensBefore,
-      choices,
-    };
-    if (!recent.has(candidate.id)) return candidate;
-    best = candidate;
-  }
-
-  return best;
+export function sampleRandomPath(rep: ParsedRepertoire, options: PathSampleOptions = {}): ContinueLinePath | null {
+  const paths = trainingPaths(rep).filter(p => !options.startFen || positionKey(p.fensBefore[0]!) === positionKey(options.startFen));
+  return pickBalanced(paths, p => p.id, options.recentPathIds ?? [], options.rng ?? Math.random);
 }
 
 /**
@@ -148,3 +105,4 @@ export function proposedContinuationSans(
   }
   return out;
 }
+

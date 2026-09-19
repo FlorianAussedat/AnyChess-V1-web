@@ -1,3 +1,4 @@
+import { formatSanForDisplay } from '@/lib/chess/notation';
 import React, {
   createContext,
   useCallback,
@@ -17,7 +18,6 @@ import {
 } from '@/lib/difficulty/StockfishStrengthBands';
 import { OpeningOpponent, type TheoryExit, type OpeningTrainingState, type OpeningPhase } from '@/lib/moves/OpeningOpponent';
 import type { ParsedRepertoire } from '@/lib/repertoire';
-import { movesForPosition } from '@/lib/repertoire';
 import {
   anyChessPgnFilename,
   downloadPgnFile,
@@ -87,7 +87,7 @@ interface OpeningGameContextValue {
   continueVsEngine: () => void;
   /** Undo off-book move and return to theory without revealing. */
   undoAndThinkAgain: () => void;
-  /** Undo off-book move, play/show the expected book move, continue theory. */
+  /** Show all expected book moves without changing board or turn state. */
   showExpectedMove: () => string | null;
   /** Restart exact training from the initial position (same side/settings). */
   restartLine: () => void;
@@ -636,69 +636,14 @@ export function OpeningGameProvider({
     const opp = opponentRef.current;
     const exit = opp?.getTheoryExit();
     if (!opp || !exit || exit.kind !== 'player-deviation') return null;
-    const expected = exit.analysis?.availableMoves[0];
-    if (!expected) return null;
-
-    cancelPending();
-    speechService.cancel('hint');
-
-    // Undo the off-book move first.
-    const undoResult = undoPlayerTurn(gameRef.current, playerColorRef.current);
-    if (undoResult.kind === 'noop') return null;
-
-    opp.returnToTheory();
-    const game = gameRef.current;
-    const beforeFen = game.fen();
-    const choices = movesForPosition(opp.getRepertoire(), beforeFen);
-    const choice = choices.find((c) => c.uci === expected.uci) ?? choices[0];
-    if (!choice) {
-      syncTheoryUi();
-      syncState();
-      setPlayTurn('waitingForUser');
-      setStatus(tMsg('game.yourTurn'));
-      return null;
-    }
-
-    try {
-      const played = game.move({
-        from: choice.from,
-        to: choice.to,
-        promotion: choice.promotion || 'q',
-      }) as Move;
-      setLastMove({ from: played.from, to: played.to });
-      syncTheoryUi();
-      syncState();
-      const expectedLabel = expected.san;
-      setStatus(tMsg('openings.expectedMove', { move: expectedLabel }));
-      speak(tMsg('openings.expectedMove', { move: verbalMove(played) }));
-      setHeardText('');
-      if (game.isGameOver()) {
-        setPlayTurn('finished', true);
-      } else {
-        setPlayTurn('playingRepertoireReply');
-        opponentMoveRef.current();
-      }
-      return expectedLabel;
-    } catch {
-      syncTheoryUi();
-      syncState();
-      setPlayTurn('waitingForUser');
-      setStatus(tMsg('game.yourTurn'));
-      return null;
-    }
-  }, [
-    cancelPending,
-    gameRef,
-    playerColorRef,
-    syncTheoryUi,
-    syncState,
-    setLastMove,
-    setStatus,
-    speak,
-    setHeardText,
-    setPlayTurn,
-    opponentMoveRef,
-  ]);
+    const expected = exit.analysis?.availableMoves ?? [];
+    if (!expected.length) return null;
+    // A hint is read-only: keep the board, history and decision state unchanged.
+    const notation = preferencesStore.getPreferences().chessNotation;
+    const label = expected.map(move => formatSanForDisplay(move.san, notation)).join(tMsg('openings.moveOr'));
+    setStatus(tMsg('openings.expectedMove', { move: label }));
+    return label;
+  }, [setStatus]);
 
   const changeColor = useCallback(
     (color: PlayerColor) => {
@@ -803,3 +748,4 @@ export function useOpeningGame(): OpeningGameContextValue {
   if (!ctx) throw new Error('useOpeningGame must be used within OpeningGameProvider');
   return ctx;
 }
+

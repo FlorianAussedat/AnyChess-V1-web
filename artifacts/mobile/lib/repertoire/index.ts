@@ -45,7 +45,7 @@ export type {
   RepertoireSide,
 } from './storage/types';
 export { pgnFileDisplayName } from './storage/types';
-export { joinSelectedPgnSlices } from './joinSelectedPgnSlices';
+export { joinSelectedPgnSlices, selectedPgnImports } from './joinSelectedPgnSlices';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
 export {
@@ -73,4 +73,5 @@ export type {
   GameTreeLine,
   GameTreeStats,
 } from './trainingLines';
+
 

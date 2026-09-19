@@ -61,6 +61,8 @@ export interface RepertoireIssue {
 
 /** Result of importing one or more PGN games into a repertoire. */
 export interface ParsedRepertoire {
+  /** Actual PGN root-to-leaf lines, before transposition merging. */
+  trainingPaths?: import("../continueLine/types.ts").ContinueLinePath[];
   /** Position-keyed index enabling O(1) lookup and transposition matching. */
   index: Map<string, RepertoireNode>;
   /** Headers for each game encountered, in order. */
@@ -95,3 +97,4 @@ export interface RepertoireSelectionSettings {
   /** Injectable RNG for deterministic tests. Defaults to Math.random. */
   rng?: () => number;
 }
+

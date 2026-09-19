@@ -57,7 +57,7 @@ describe('openings index empty vs populated', () => {
     assert.match(index, /PgnGameSelectModal/);
     assert.match(index, /MAX_OPENINGS_PGN_IMPORT_BATCH/);
     assert.match(index, /FolderPickModal/);
-    assert.match(index, /joinSelectedPgnSlices/);
+    assert.match(index, /selectedPgnImports/);
     assert.doesNotMatch(index, /folderNameFromPgnFilename/);
     assert.doesNotMatch(index, /createFolderUnique/);
     assert.doesNotMatch(index, /Non classées/);
@@ -107,3 +107,4 @@ describe('openings empty-state i18n', () => {
     assert.doesNotMatch(src, /Importer un PGN/);
   });
 });
+
