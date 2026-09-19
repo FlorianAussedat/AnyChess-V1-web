@@ -181,6 +181,30 @@ describe('createOpeningStudySession', () => {
 });
 
 describe('playMoveOnReader knight + side to move', () => {
+  it('opens from start FEN (White to move), plays Nf3, then grafts that ply into an empty editor', () => {
+    let analyzer = createGameReaderState(emptyReaderGame(), null);
+    assert.equal(analyzer.currentFen.split(' ')[1], 'w');
+    analyzer = playUci(analyzer, 'g1', 'f3');
+    assert.equal(analyzer.currentSan, 'Nf3');
+
+    let session = createEmptyEditorSession({ folderId: 'f1', displayName: 'Start' });
+    setParkedOpeningEditor({
+      session,
+      commentDraft: '',
+      side: 'white',
+      originNodeId: null,
+      kind: 'analyze-return',
+    });
+    const parked = graftAnalyzedLineOntoParkedEditor(
+      analyzer.game,
+      EXPLORATION_ORIGIN_START,
+      analyzer.currentNodeId,
+    );
+    assert.ok(parked);
+    assert.equal(editorCurrentNode(parked!.session)?.san, 'Nf3');
+    assert.match(editorExportPgn(parked!.session), /1\. Nf3/);
+  });
+
   it('plays g1-f3 from the start position (White to move) and records Nf3', () => {
     let state = createGameReaderState(emptyReaderGame(), null);
     state = playUci(state, 'g1', 'f3');
@@ -197,6 +221,30 @@ describe('playMoveOnReader knight + side to move', () => {
     state = playUci(state, 'g8', 'f6');
     assert.equal(state.currentSan, 'Nf6');
     assert.equal(state.currentFen.split(' ')[1], 'w');
+  });
+
+  it('opens from a FEN with Black to move, plays Nf6, then grafts onto the editor node after e4', () => {
+    let session = createEmptyEditorSession({ folderId: 'f1', displayName: 'Alekhine' });
+    session = editorGraftSans(session, ['e4']);
+    setParkedOpeningEditor({
+      session,
+      commentDraft: '',
+      side: 'black',
+      originNodeId: session.snapshot.currentNodeId,
+      kind: 'analyze-return',
+    });
+    let analyzer = createGameReaderState(emptyReaderGame(AFTER_E4), null);
+    assert.equal(analyzer.currentFen.split(' ')[1], 'b');
+    analyzer = playUci(analyzer, 'g8', 'f6');
+    assert.equal(analyzer.currentSan, 'Nf6');
+    const parked = graftAnalyzedLineOntoParkedEditor(
+      analyzer.game,
+      EXPLORATION_ORIGIN_START,
+      analyzer.currentNodeId,
+    );
+    assert.ok(parked);
+    assert.equal(editorCurrentNode(parked!.session)?.san, 'Nf6');
+    assert.match(editorExportPgn(parked!.session), /1\. e4 Nf6/);
   });
 });
 

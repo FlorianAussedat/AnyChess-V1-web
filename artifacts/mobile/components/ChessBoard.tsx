@@ -48,7 +48,11 @@ interface Props {
   selectedSquare?: string | null;
   /** Legal destination squares to mark (dots / rings). */
   legalDots?: string[];
-  /** Called when the user taps a square. Drag-and-drop is not supported. */
+  /**
+   * Called when the user taps a square. Drag-and-drop is not supported.
+   * Hit targets live in a flex overlay *above* analysis arrows so SVG strokes
+   * cannot steal destination clicks (e.g. engine arrow g1→f3 / Cf3).
+   */
   onSquarePress?: (square: string) => void;
   /** Hide rank/file labels for recognition exercises. */
   showCoordinates?: boolean;
@@ -89,7 +93,7 @@ export function ChessBoard({
   return (
     <View style={[styles.wrapper, { width: boardSize, height: boardSize }]}>
       {rows.map((boardRow, displayR) => (
-        <View key={boardRow} style={{ flexDirection: 'row' }}>
+        <View key={boardRow} pointerEvents="none" style={{ flexDirection: 'row' }}>
           {cols.map((boardCol, displayC) => {
             const piece = board[boardRow]?.[boardCol] ?? null;
             const sqName = squareFromBoardIndices(boardCol, boardRow);
@@ -123,82 +127,64 @@ export function ChessBoard({
                   width: cellSize,
                   height: cellSize,
                   backgroundColor: bg,
-                  position: 'relative',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <View
-                  pointerEvents="none"
-                  style={{
-                    width: cellSize,
-                    height: cellSize,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {piece != null && (
-                    <PieceSvg
-                      type={piece.type as PType}
-                      color={piece.color as PColor}
-                      size={pieceSize}
-                    />
-                  )}
-
-                  {isLegal && !isCapture && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        width: dotSize,
-                        height: dotSize,
-                        borderRadius: dotSize / 2,
-                        backgroundColor: 'rgba(0,0,0,0.30)',
-                      }}
-                    />
-                  )}
-
-                  {isCapture && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        width: ringSize,
-                        height: ringSize,
-                        borderRadius: ringSize / 2,
-                        borderWidth: ringBorder,
-                        borderColor: 'rgba(0,0,0,0.32)',
-                      }}
-                    />
-                  )}
-
-                  {showCoordinates && showFile && (
-                    <Text
-                      style={[
-                        styles.coord,
-                        { fontSize: coordSize, color: coordColor, bottom: 1, right: 2 },
-                      ]}
-                    >
-                      {fileLabel}
-                    </Text>
-                  )}
-
-                  {showCoordinates && showRank && (
-                    <Text
-                      style={[
-                        styles.coord,
-                        { fontSize: coordSize, color: coordColor, top: 1, left: 2 },
-                      ]}
-                    >
-                      {rankLabel}
-                    </Text>
-                  )}
-                </View>
-                {onSquarePress ? (
-                  <Pressable
-                    testID={`board-square-${sqName}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={sqName}
-                    onPress={() => onSquarePress(sqName)}
-                    style={[StyleSheet.absoluteFill, { cursor: 'pointer' as const }]}
+                {piece != null && (
+                  <PieceSvg
+                    type={piece.type as PType}
+                    color={piece.color as PColor}
+                    size={pieceSize}
                   />
-                ) : null}
+                )}
+
+                {isLegal && !isCapture && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      width: dotSize,
+                      height: dotSize,
+                      borderRadius: dotSize / 2,
+                      backgroundColor: 'rgba(0,0,0,0.30)',
+                    }}
+                  />
+                )}
+
+                {isCapture && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      width: ringSize,
+                      height: ringSize,
+                      borderRadius: ringSize / 2,
+                      borderWidth: ringBorder,
+                      borderColor: 'rgba(0,0,0,0.32)',
+                    }}
+                  />
+                )}
+
+                {showCoordinates && showFile && (
+                  <Text
+                    style={[
+                      styles.coord,
+                      { fontSize: coordSize, color: coordColor, bottom: 1, right: 2 },
+                    ]}
+                  >
+                    {fileLabel}
+                  </Text>
+                )}
+
+                {showCoordinates && showRank && (
+                  <Text
+                    style={[
+                      styles.coord,
+                      { fontSize: coordSize, color: coordColor, top: 1, left: 2 },
+                    ]}
+                  >
+                    {rankLabel}
+                  </Text>
+                )}
               </View>
             );
           })}
@@ -206,53 +192,85 @@ export function ChessBoard({
       ))}
 
       {arrows.length > 0 ? (
-        <Svg
+        <View
           pointerEvents="none"
-          style={StyleSheet.absoluteFill}
-          width={boardSize}
-          height={boardSize}
+          style={[StyleSheet.absoluteFill, styles.arrowLayer]}
+          testID="board-arrow-layer"
         >
-          <Defs>
-            <Marker
-              id="anyliseur-arrow"
-              markerWidth="6"
-              markerHeight="6"
-              refX="5"
-              refY="3"
-              orient="auto"
-            >
-              <Path d="M0,0 L6,3 L0,6 Z" fill={arrows[0]?.color ?? '#F5A623'} />
-            </Marker>
-          </Defs>
-          {arrows.map((arrow, idx) => {
-            const fromFile = arrow.from.charCodeAt(0) - 97;
-            const fromRank = parseInt(arrow.from[1]!, 10);
-            const toFile = arrow.to.charCodeAt(0) - 97;
-            const toRank = parseInt(arrow.to[1]!, 10);
-            const fromCol = isFlipped ? 7 - fromFile : fromFile;
-            const fromRow = isFlipped ? fromRank - 1 : 8 - fromRank;
-            const toCol = isFlipped ? 7 - toFile : toFile;
-            const toRow = isFlipped ? toRank - 1 : 8 - toRank;
-            const x1 = (fromCol + 0.5) * cellSize;
-            const y1 = (fromRow + 0.5) * cellSize;
-            const x2 = (toCol + 0.5) * cellSize;
-            const y2 = (toRow + 0.5) * cellSize;
-            return (
-              <Line
-                key={`${arrow.from}${arrow.to}-${idx}`}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke={arrow.color ?? '#F5A623'}
-                strokeWidth={Math.max(3, cellSize * 0.08)}
-                strokeLinecap="round"
-                markerEnd="url(#anyliseur-arrow)"
-                opacity={0.9}
-              />
-            );
-          })}
-        </Svg>
+          <Svg
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, styles.arrowLayer]}
+            width={boardSize}
+            height={boardSize}
+          >
+            <Defs>
+              <Marker
+                id="anyliseur-arrow"
+                markerWidth="6"
+                markerHeight="6"
+                refX="5"
+                refY="3"
+                orient="auto"
+              >
+                <Path d="M0,0 L6,3 L0,6 Z" fill={arrows[0]?.color ?? '#F5A623'} />
+              </Marker>
+            </Defs>
+            {arrows.map((arrow, idx) => {
+              const fromFile = arrow.from.charCodeAt(0) - 97;
+              const fromRank = parseInt(arrow.from[1]!, 10);
+              const toFile = arrow.to.charCodeAt(0) - 97;
+              const toRank = parseInt(arrow.to[1]!, 10);
+              const fromCol = isFlipped ? 7 - fromFile : fromFile;
+              const fromRow = isFlipped ? fromRank - 1 : 8 - fromRank;
+              const toCol = isFlipped ? 7 - toFile : toFile;
+              const toRow = isFlipped ? toRank - 1 : 8 - toRank;
+              const x1 = (fromCol + 0.5) * cellSize;
+              const y1 = (fromRow + 0.5) * cellSize;
+              const x2 = (toCol + 0.5) * cellSize;
+              const y2 = (toRow + 0.5) * cellSize;
+              return (
+                <Line
+                  key={`${arrow.from}${arrow.to}-${idx}`}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke={arrow.color ?? '#F5A623'}
+                  strokeWidth={Math.max(3, cellSize * 0.08)}
+                  strokeLinecap="round"
+                  markerEnd="url(#anyliseur-arrow)"
+                  opacity={0.9}
+                  pointerEvents="none"
+                />
+              );
+            })}
+          </Svg>
+        </View>
+      ) : null}
+
+      {onSquarePress ? (
+        <View
+          testID="board-hit-overlay"
+          style={[StyleSheet.absoluteFill, styles.hitOverlay]}
+        >
+          {rows.map((boardRow) => (
+            <View key={`hit-r-${boardRow}`} style={styles.hitRow}>
+              {cols.map((boardCol) => {
+                const sqName = squareFromBoardIndices(boardCol, boardRow);
+                return (
+                  <Pressable
+                    key={`hit-${sqName}`}
+                    testID={`board-square-${sqName}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={sqName}
+                    onPress={() => onSquarePress(sqName)}
+                    style={[styles.hitCell, { cursor: 'pointer' as const }]}
+                  />
+                );
+              })}
+            </View>
+          ))}
+        </View>
       ) : null}
     </View>
   );
@@ -265,9 +283,25 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: BORDER_COLOR,
     alignSelf: 'center',
+    position: 'relative',
   },
   coord: {
     position: 'absolute',
     fontWeight: '700',
+  },
+  arrowLayer: {
+    zIndex: 1,
+    pointerEvents: 'none',
+  },
+  hitOverlay: {
+    zIndex: 2,
+  },
+  hitRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  hitCell: {
+    flex: 1,
+    backgroundColor: 'transparent',
   },
 });
