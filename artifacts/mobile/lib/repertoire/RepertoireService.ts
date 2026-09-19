@@ -7,6 +7,7 @@
  */
 import { indexPgnGamesLight, extractPgnSlice } from '../gameLibrary/indexPgnGamesLight';
 import { tMsg } from '@/lib/i18n';
+import { combineFolderPgnTexts } from './combineFolderPgnTexts';
 import { buildRepertoire } from './repertoireTree';
 import type { ParsedRepertoire, RepertoireIssue } from './types';
 import type { RepertoireStorage } from './storage/RepertoireStorage';
@@ -328,6 +329,22 @@ export class RepertoireService {
 
   // ── Merged repertoire tree ────────────────────────────────────────────────
 
+  private scopedFolderFiles(
+    folderId: string,
+    fileId?: string,
+    gameIndex?: number,
+  ): StoredPgnFile[] {
+    return this.getFiles(folderId)
+      .filter((f) => f.enabled !== false && (!fileId || f.id === fileId))
+      .map((file) => {
+        if (!fileId || gameIndex === undefined) return file;
+        const entry = indexPgnGamesLight(file.pgnText).entries.find(
+          (e) => e.index === gameIndex,
+        );
+        return { ...file, pgnText: entry ? extractPgnSlice(file.pgnText, entry) : '' };
+      });
+  }
+
   /**
    * Merge every PGN in a folder into one position-keyed repertoire tree.
    * Duplicate moves from the same position are de-duplicated by buildRepertoire;
@@ -339,11 +356,7 @@ export class RepertoireService {
     issues: RepertoireIssue[];
   }> {
     await this.ensureLoaded();
-    const files = this.getFiles(folderId).filter((f) => f.enabled !== false && (!fileId || f.id === fileId)).map(file => {
-      if (!fileId || gameIndex === undefined) return file;
-      const entry = indexPgnGamesLight(file.pgnText).entries.find(e => e.index === gameIndex);
-      return { ...file, pgnText: entry ? extractPgnSlice(file.pgnText, entry) : '' };
-    });
+    const files = this.scopedFolderFiles(folderId, fileId, gameIndex);
     if (files.length === 0) {
       return {
         repertoire: {
@@ -375,13 +388,7 @@ export class RepertoireService {
 
     const t0 =
       typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const combined = files
-      .map((f) => {
-        const hasHeaders = /^\s*\[/.test(f.pgnText);
-        const sourceTag = `[Source "${f.filename.replace(/"/g, '')}"]\n`;
-        return hasHeaders ? `${sourceTag}${f.pgnText}` : `${sourceTag}\n${f.pgnText}`;
-      })
-      .join('\n\n');
+    const combined = combineFolderPgnTexts(files);
     const repertoire = buildRepertoire(combined);
 
     const issues: RepertoireIssue[] = [];
@@ -413,6 +420,16 @@ export class RepertoireService {
     });
 
     return { repertoire, fileCount: files.length, issues };
+  }
+
+  /**
+   * Combined source PGN of enabled files in a folder (same text used to build
+   * the repertoire tree). Optional `fileId` / `gameIndex` match the scoped
+   * repertoire used during training so analyzer comments stay on that branch.
+   */
+  getFolderCombinedPgn(folderId: string, fileId?: string, gameIndex?: number): string {
+    if (!this.snapshot) return '';
+    return combineFolderPgnTexts(this.scopedFolderFiles(folderId, fileId, gameIndex));
   }
 }
 

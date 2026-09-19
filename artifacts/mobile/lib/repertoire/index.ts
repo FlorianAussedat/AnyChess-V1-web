@@ -46,6 +46,13 @@ export type {
 } from './storage/types';
 export { pgnFileDisplayName } from './storage/types';
 export { joinSelectedPgnSlices, selectedPgnImports } from './joinSelectedPgnSlices';
+export { combineFolderPgnTexts } from './combineFolderPgnTexts';
+export {
+  annotationsForPlayedLine,
+  matchPlayedLine,
+  exportOpeningPlayedPgn,
+} from './playedLineAnnotations';
+export type { PlyAnnotation } from './playedLineAnnotations';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
 export {
