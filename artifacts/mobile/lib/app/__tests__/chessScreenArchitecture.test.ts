@@ -63,16 +63,36 @@ describe('shared chess screen scaffold', () => {
 });
 
 describe('ChessBoard square hits', () => {
-  it('puts a full-cell Pressable above pieces so SVG cannot steal web clicks', () => {
+  it('puts a flex hit overlay above pieces AND arrows so SVG cannot steal destination clicks', () => {
     const board = read('components/ChessBoard.tsx');
     assert.match(board, /testID=\{`board-square-\$\{sqName\}`\}/);
+    assert.match(board, /board-hit-overlay/);
+    assert.match(board, /board-arrow-layer/);
     assert.match(board, /pointerEvents="none"/);
-    assert.match(board, /position: 'relative'/);
-    assert.match(board, /StyleSheet\.absoluteFill/);
+    assert.match(board, /styles\.hitOverlay/);
     assert.match(board, /displayCellToSquare|squareFromBoardIndices/);
     assert.doesNotMatch(board, /PanResponder|onPan|drag/);
+    const overlayIdx = board.indexOf('board-hit-overlay');
+    const arrowIdx = board.indexOf('board-arrow-layer');
+    assert.ok(arrowIdx > 0 && overlayIdx > arrowIdx);
     const piece = read('components/PieceSvg.tsx');
     assert.match(piece, /pointerEvents="none"/);
+  });
+
+  it('documents mandatory manual tap-tap checks (no drag) on web and mobile', () => {
+    // Hit-testing of empty destination squares is web/native UI, not unit-testable
+    // here. Before shipping, tap on device + web:
+    // AnyLyseur normal AND from editor; White and Black orientation;
+    // piece then square (g1-f3 / g8-f6); pawn e2-e4; capture if available.
+    // Drag is not supported. Opening-editor source must not change clicks.
+    const board = read('components/ChessBoard.tsx');
+    assert.match(board, /Drag-and-drop is not supported/);
+    const analyzer = read('app/parties/analyzer.tsx');
+    assert.match(analyzer, /must not change click/);
+    assert.doesNotMatch(
+      analyzer,
+      /fromOpeningEditor[\s\S]{0,80}onSquarePress|onSquarePress[\s\S]{0,80}fromOpeningEditor/,
+    );
   });
 });
 
