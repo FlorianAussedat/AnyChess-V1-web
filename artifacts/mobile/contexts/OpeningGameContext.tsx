@@ -21,9 +21,9 @@ import { movesForPosition } from '@/lib/repertoire';
 import {
   anyChessPgnFilename,
   downloadPgnFile,
-  exportGamePgn,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
+import { exportOpeningPlayedPgn } from '@/lib/repertoire/playedLineAnnotations';
 import { identifyOpeningFromSans, getOpeningDisplayName } from '@/lib/openings';
 import { speechService } from '@/services/SpeechService';
 import {
@@ -106,6 +106,11 @@ interface ProviderProps {
   loadError?: string | null;
   /** Stockfish strength band after leaving book. */
   strengthBandId?: string;
+  /**
+   * Original annotated PGN(s) for this folder. Required so « Analyser la partie »
+   * can copy comments/NAGs from the played branch into the analyzer PGN.
+   */
+  sourcePgn?: string | null;
 }
 
 function engineOptionsForBand(bandId: string) {
@@ -123,6 +128,7 @@ export function OpeningGameProvider({
   loadError = null,
   strengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
     DEFAULT_STRENGTH_BAND_ID,
+  sourcePgn = null,
 }: ProviderProps) {
   const opponentRef = useRef<OpeningOpponent | null>(null);
   const [phase, setPhase] = React.useState<OpeningPhase>('book');
@@ -724,7 +730,7 @@ export function OpeningGameProvider({
     const whiteName = playerColorRef.current === 'w' ? 'Joueur' : repertoireName;
     const blackName = playerColorRef.current === 'b' ? 'Joueur' : repertoireName;
 
-    return exportGamePgn({
+    return exportOpeningPlayedPgn({
       headers: {
         Event: tMsg('openings.pgnEvent'),
         White: whiteName,
@@ -735,9 +741,10 @@ export function OpeningGameProvider({
         Repertoire: repertoireName,
       },
       moves,
+      sourcePgn,
       commentAfterPly: exit ? { ply: exit.ply, text: exit.pgnComment } : undefined,
     });
-  }, [gameRef, playerColorRef, repertoireName]);
+  }, [gameRef, playerColorRef, repertoireName, sourcePgn]);
 
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
   const downloadPgn = useCallback(() => {

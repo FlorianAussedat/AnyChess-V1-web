@@ -50,6 +50,7 @@ export default function OpeningPlayRoute() {
 
   const [repertoire, setRepertoire] = useState<ParsedRepertoire | null>(null);
   const [repertoireName, setRepertoireName] = useState('');
+  const [sourcePgn, setSourcePgn] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -81,6 +82,7 @@ export default function OpeningPlayRoute() {
         if (!cancelled) {
           setRepertoire(rep);
           setRepertoireName(folder.name);
+          setSourcePgn(repertoireService.getFolderCombinedPgn(folderId));
           setError(null);
           setLoading(false);
         }
@@ -126,6 +128,7 @@ export default function OpeningPlayRoute() {
     <OpeningGameProvider
       repertoire={repertoire}
       repertoireName={repertoireName}
+      sourcePgn={sourcePgn}
       strengthBandId={strengthBandId}
     >
       <ApplyInitialColor initialColor={initialColor}>

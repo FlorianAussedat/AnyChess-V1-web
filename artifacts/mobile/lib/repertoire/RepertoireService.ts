@@ -6,6 +6,7 @@
  * to AsyncStorage or the PGN parser directly.
  */
 import { tMsg } from '@/lib/i18n';
+import { combineFolderPgnTexts } from './combineFolderPgnTexts';
 import { buildRepertoire } from './repertoireTree';
 import type { ParsedRepertoire, RepertoireIssue } from './types';
 import type { RepertoireStorage } from './storage/RepertoireStorage';
@@ -370,13 +371,7 @@ export class RepertoireService {
 
     const t0 =
       typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const combined = files
-      .map((f) => {
-        const hasHeaders = /^\s*\[/.test(f.pgnText);
-        const sourceTag = `[Source "${f.filename.replace(/"/g, '')}"]\n`;
-        return hasHeaders ? `${sourceTag}${f.pgnText}` : `${sourceTag}\n${f.pgnText}`;
-      })
-      .join('\n\n');
+    const combined = this.getFolderCombinedPgn(folderId);
     const repertoire = buildRepertoire(combined);
 
     const issues: RepertoireIssue[] = [];
@@ -408,6 +403,17 @@ export class RepertoireService {
     });
 
     return { repertoire, fileCount: files.length, issues };
+  }
+
+  /**
+   * Combined source PGN of enabled files in a folder (same text used to build
+   * the repertoire tree). Used when exporting a played opening line so comments
+   * can be recovered from the original trees rather than the FEN DAG.
+   */
+  getFolderCombinedPgn(folderId: string): string {
+    if (!this.snapshot) return '';
+    const files = this.getFiles(folderId).filter((f) => f.enabled !== false);
+    return combineFolderPgnTexts(files);
   }
 }
 

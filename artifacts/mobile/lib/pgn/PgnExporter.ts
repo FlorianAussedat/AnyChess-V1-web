@@ -1,9 +1,9 @@
 /**
  * Reusable PGN exporter for finished (or in-progress) games.
  *
- * Independent of UI and engines. Classic and Opening modes both call this;
- * Opening Mode passes an optional theory-exit comment inserted after the
- * move that left the repertoire.
+ * Independent of UI and engines. Classic and Opening modes both call this.
+ * Opening Mode may pass per-ply comments/NAGs copied from the played PGN
+ * branch, plus an optional theory-exit comment after the move that left book.
  */
 import type { Move } from 'chess.js';
 
@@ -22,10 +22,22 @@ export interface PgnExportHeaders {
   [key: string]: string | undefined;
 }
 
+export type PgnPlyAnnotation = {
+  /** 0-based ply in `moves`. */
+  ply: number;
+  comment?: string;
+  nags?: string[];
+};
+
 export interface PgnExportOptions {
   headers: PgnExportHeaders;
   /** Verbose history from chess.js (in order). */
   moves: Move[];
+  /**
+   * Optional comments / NAGs attached to specific plies (Opening Mode copies
+   * these from the played PGN branch so the analyzer can display them).
+   */
+  plyAnnotations?: readonly PgnPlyAnnotation[];
   /**
    * Optional comment inserted AFTER the move at this 0-based ply
    * (e.g. theory exit). Comment text without braces.
@@ -43,6 +55,16 @@ function todayPgnDate(): string {
 
 function escapeHeader(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function sanitizeComment(text: string): string {
+  return text.replace(/}/g, '').trim();
+}
+
+function formatNag(nag: string): string {
+  const trimmed = nag.trim();
+  if (!trimmed) return '';
+  return trimmed.startsWith('$') ? trimmed : `$${trimmed}`;
 }
 
 /**
@@ -74,17 +96,33 @@ export function exportGamePgn(options: PgnExportOptions): string {
   lines.push('');
 
   const parts: string[] = [];
+  const byPly = new Map<number, PgnPlyAnnotation>();
+  for (const ann of options.plyAnnotations ?? []) {
+    byPly.set(ann.ply, ann);
+  }
   options.moves.forEach((move, ply) => {
     if (ply % 2 === 0) {
       parts.push(`${Math.floor(ply / 2) + 1}.`);
     }
     parts.push(move.san);
+    const ann = byPly.get(ply);
+    if (ann?.nags) {
+      for (const nag of ann.nags) {
+        const formatted = formatNag(nag);
+        if (formatted) parts.push(formatted);
+      }
+    }
+    if (ann?.comment) {
+      const body = sanitizeComment(ann.comment);
+      if (body) parts.push(`{${body}}`);
+    }
     if (
       options.commentAfterPly &&
       options.commentAfterPly.ply === ply &&
       options.commentAfterPly.text
     ) {
-      parts.push(`{${options.commentAfterPly.text}}`);
+      const body = sanitizeComment(options.commentAfterPly.text);
+      if (body) parts.push(`{${body}}`);
     }
   });
 
