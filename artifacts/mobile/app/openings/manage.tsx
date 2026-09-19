@@ -437,7 +437,9 @@ export default function OpeningsManageScreen() {
                 ? sideLabel(folder.side)
                 : `${t('openings.toClassify')} · ${t('openings.chooseWhiteOrBlack')}`}
               {' · '}
-              {folderOn ? t('openings.folderActive') : t('openings.folderInactive')}
+              {hasAssignedRepertoireSide(folder.side) && folderOn
+                ? t('openings.folderActive')
+                : t('openings.folderInactive')}
               {' · '}
               {t('openings.pgnFileCount', { count: files.length })}
               {lines > 0 ? ` · ${t('openings.linesShort', { count: lines })}` : ''}
@@ -455,7 +457,7 @@ export default function OpeningsManageScreen() {
             style={[styles.hint, { color: colors.destructive }]}
             testID={`manage-folder-classify-${folder.id}`}
           >
-            {t('openings.toClassify')} — {t('openings.chooseWhiteOrBlack')}. {t('openings.unassignedSideHint')}
+            {t('openings.unassignedSideHint')}
           </Text>
         ) : null}
 
