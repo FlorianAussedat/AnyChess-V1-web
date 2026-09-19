@@ -15,6 +15,7 @@ import {
   editorCurrentFen,
   editorCurrentNode,
   editorExportPgn,
+  editorGoParent,
   editorGraftSans,
 } from '../openingEditorState.ts';
 import {
@@ -176,5 +177,77 @@ describe('createOpeningStudySession', () => {
     assert.equal(chess.turn(), 'b');
     chess.move('c5');
     assert.equal(chess.turn(), 'w');
+  });
+});
+
+describe('playMoveOnReader knight + side to move', () => {
+  it('plays g1-f3 from the start position (White to move) and records Nf3', () => {
+    let state = createGameReaderState(emptyReaderGame(), null);
+    state = playUci(state, 'g1', 'f3');
+    assert.equal(state.currentSan, 'Nf3');
+    assert.equal(state.game.nodesById[state.currentNodeId!]?.from, 'g1');
+    assert.equal(state.game.nodesById[state.currentNodeId!]?.to, 'f3');
+    assert.equal(state.currentFen.split(' ')[1], 'b');
+  });
+
+  it('plays g8-f6 from a FEN with Black to move', () => {
+    let state = createGameReaderState(emptyReaderGame(AFTER_E4), null);
+    const ignored = playUci(state, 'g1', 'f3');
+    assert.equal(ignored.currentNodeId, state.currentNodeId);
+    state = playUci(state, 'g8', 'f6');
+    assert.equal(state.currentSan, 'Nf6');
+    assert.equal(state.currentFen.split(' ')[1], 'w');
+  });
+});
+
+describe('graft several analysed plies onto an existing editor node', () => {
+  it('reuses e5 and only appends the new tail, landing on the last grafted node', () => {
+    let session = createEmptyEditorSession({ folderId: 'f1', displayName: 'Italian' });
+    session = editorGraftSans(session, ['e4', 'e5']);
+    const e5Id = session.snapshot.currentNodeId;
+    session = editorGoParent(session);
+    assert.equal(editorCurrentNode(session)?.san, 'e4');
+
+    let analyzer = createGameReaderState(emptyReaderGame(AFTER_E4), null);
+    analyzer = playUci(analyzer, 'e7', 'e5');
+    analyzer = playUci(analyzer, 'g1', 'f3');
+    analyzer = playUci(analyzer, 'b8', 'c6');
+    analyzer = playUci(analyzer, 'f1', 'b5');
+    analyzer = playUci(analyzer, 'a7', 'a6');
+    assert.deepEqual(
+      analyzedLineSans({
+        game: analyzer.game,
+        explorationOriginNodeId: EXPLORATION_ORIGIN_START,
+        currentNodeId: analyzer.currentNodeId,
+      }),
+      ['e5', 'Nf3', 'Nc6', 'Bb5', 'a6'],
+    );
+
+    setParkedOpeningEditor({
+      session,
+      commentDraft: '',
+      side: 'white',
+      originNodeId: session.snapshot.currentNodeId,
+      kind: 'analyze-return',
+    });
+    const parked = graftAnalyzedLineOntoParkedEditor(
+      analyzer.game,
+      EXPLORATION_ORIGIN_START,
+      analyzer.currentNodeId,
+    );
+    assert.ok(parked);
+    assert.equal(parked!.session.snapshot.game.nodesById[e5Id!]?.id, e5Id);
+    assert.equal(parked!.session.snapshot.game.nodesById[e5Id!]?.san, 'e5');
+    assert.equal(editorCurrentNode(parked!.session)?.san, 'a6');
+    const pgn = editorExportPgn(parked!.session);
+    assert.match(pgn, /1\. e4 e5 2\. Nf3 Nc6 3\. Bb5 a6/);
+    const nf3Count = Object.values(parked!.session.snapshot.game.nodesById).filter(
+      (n) => n.san === 'Nf3',
+    ).length;
+    assert.equal(nf3Count, 1);
+    const e5Count = Object.values(parked!.session.snapshot.game.nodesById).filter(
+      (n) => n.san === 'e5',
+    ).length;
+    assert.equal(e5Count, 1);
   });
 });

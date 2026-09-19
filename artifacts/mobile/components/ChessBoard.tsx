@@ -10,12 +10,9 @@ import Svg, { Line, Defs, Marker, Path } from 'react-native-svg';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { BoardTheme } from '@/constants/boardTheme';
 import { computeBoardSize, type BoardSizeMode } from '@/lib/game/boardSize';
+import { boardDisplayOrder, squareFromBoardIndices } from '@/lib/game/boardSquares';
 import { PieceSvg } from './PieceSvg';
 import type { PType, PColor } from './PieceSvg';
-
-// ── Constants ──────────────────────────────────────────────────────────────
-
-const FILES = 'abcdefgh';
 
 const LIGHT_SQ = BoardTheme.lightSquare;
 const DARK_SQ = BoardTheme.darkSquare;
@@ -51,7 +48,7 @@ interface Props {
   selectedSquare?: string | null;
   /** Legal destination squares to mark (dots / rings). */
   legalDots?: string[];
-  /** Called when the user taps a square. */
+  /** Called when the user taps a square. Drag-and-drop is not supported. */
   onSquarePress?: (square: string) => void;
   /** Hide rank/file labels for recognition exercises. */
   showCoordinates?: boolean;
@@ -87,8 +84,7 @@ export function ChessBoard({
   const ringSize = cellSize * 0.88;
   const ringBorder = Math.ceil(cellSize * 0.09);
 
-  const rows = isFlipped ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
-  const cols = isFlipped ? [7, 6, 5, 4, 3, 2, 1, 0] : [0, 1, 2, 3, 4, 5, 6, 7];
+  const { rows, cols } = boardDisplayOrder(isFlipped);
 
   return (
     <View style={[styles.wrapper, { width: boardSize, height: boardSize }]}>
@@ -96,9 +92,7 @@ export function ChessBoard({
         <View key={boardRow} style={{ flexDirection: 'row' }}>
           {cols.map((boardCol, displayC) => {
             const piece = board[boardRow]?.[boardCol] ?? null;
-
-            // Algebraic square — same formula regardless of flip
-            const sqName = FILES[boardCol] + (8 - boardRow);
+            const sqName = squareFromBoardIndices(boardCol, boardRow);
 
             const isLight = (displayR + displayC) % 2 === 0;
             const isLastMove =
@@ -119,88 +113,92 @@ export function ChessBoard({
             const coordColor = isLight ? COORD_ON_LIGHT : COORD_ON_DARK;
             const showFile = displayR === 7;
             const showRank = displayC === 0;
-            const fileLabel = FILES[boardCol];
+            const fileLabel = squareFromBoardIndices(boardCol, 7)[0];
             const rankLabel = String(8 - boardRow);
 
-            const cell = (
+            return (
               <View
+                key={boardCol}
                 style={{
                   width: cellSize,
                   height: cellSize,
                   backgroundColor: bg,
-                  alignItems: 'center',
-                  justifyContent: 'center',
                 }}
               >
-                {piece != null && (
-                  <PieceSvg
-                    type={piece.type as PType}
-                    color={piece.color as PColor}
-                    size={pieceSize}
+                <View
+                  pointerEvents="none"
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {piece != null && (
+                    <PieceSvg
+                      type={piece.type as PType}
+                      color={piece.color as PColor}
+                      size={pieceSize}
+                    />
+                  )}
+
+                  {isLegal && !isCapture && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        width: dotSize,
+                        height: dotSize,
+                        borderRadius: dotSize / 2,
+                        backgroundColor: 'rgba(0,0,0,0.30)',
+                      }}
+                    />
+                  )}
+
+                  {isCapture && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        width: ringSize,
+                        height: ringSize,
+                        borderRadius: ringSize / 2,
+                        borderWidth: ringBorder,
+                        borderColor: 'rgba(0,0,0,0.32)',
+                      }}
+                    />
+                  )}
+
+                  {showCoordinates && showFile && (
+                    <Text
+                      style={[
+                        styles.coord,
+                        { fontSize: coordSize, color: coordColor, bottom: 1, right: 2 },
+                      ]}
+                    >
+                      {fileLabel}
+                    </Text>
+                  )}
+
+                  {showCoordinates && showRank && (
+                    <Text
+                      style={[
+                        styles.coord,
+                        { fontSize: coordSize, color: coordColor, top: 1, left: 2 },
+                      ]}
+                    >
+                      {rankLabel}
+                    </Text>
+                  )}
+                </View>
+                {onSquarePress ? (
+                  <Pressable
+                    testID={`board-square-${sqName}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={sqName}
+                    onPress={() => onSquarePress(sqName)}
+                    style={[StyleSheet.absoluteFill, { cursor: 'pointer' as const }]}
                   />
-                )}
-
-                {isLegal && !isCapture && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      width: dotSize,
-                      height: dotSize,
-                      borderRadius: dotSize / 2,
-                      backgroundColor: 'rgba(0,0,0,0.30)',
-                    }}
-                  />
-                )}
-
-                {isCapture && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      width: ringSize,
-                      height: ringSize,
-                      borderRadius: ringSize / 2,
-                      borderWidth: ringBorder,
-                      borderColor: 'rgba(0,0,0,0.32)',
-                    }}
-                  />
-                )}
-
-                {showCoordinates && showFile && (
-                  <Text
-                    style={[
-                      styles.coord,
-                      { fontSize: coordSize, color: coordColor, bottom: 1, right: 2 },
-                    ]}
-                  >
-                    {fileLabel}
-                  </Text>
-                )}
-
-                {showCoordinates && showRank && (
-                  <Text
-                    style={[
-                      styles.coord,
-                      { fontSize: coordSize, color: coordColor, top: 1, left: 2 },
-                    ]}
-                  >
-                    {rankLabel}
-                  </Text>
-                )}
+                ) : null}
               </View>
-            );
-
-            if (!onSquarePress) {
-              return <View key={boardCol}>{cell}</View>;
-            }
-
-            return (
-              <Pressable
-                key={boardCol}
-                onPress={() => onSquarePress(sqName)}
-                style={{ width: cellSize, height: cellSize }}
-              >
-                {cell}
-              </Pressable>
             );
           })}
         </View>
