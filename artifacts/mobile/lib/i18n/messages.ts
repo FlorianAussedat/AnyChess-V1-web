@@ -507,6 +507,8 @@ export type MessageKey =
   | 'quiz.endgamePrevAttempt'
   | 'quiz.endgameBestAttempt'
   | 'quiz.endgameAnalyse'
+  | 'quiz.analyseGame'
+  | 'quiz.analysePosition'
   | 'quiz.endgameAddTryAgain'
   | 'quiz.endgameAddedTryAgain'
   | 'quiz.endgameRetry'
@@ -1366,6 +1368,8 @@ const fr: Dict = {
   'quiz.endgamePrevAttempt': 'Tentative précédente : {{count}} coups',
   'quiz.endgameBestAttempt': 'Meilleure tentative : {{count}} coups',
   'quiz.endgameAnalyse': 'Analyse !',
+  'quiz.analyseGame': 'Analyser la partie',
+  'quiz.analysePosition': 'Analyser la position',
   'quiz.endgameAddTryAgain': 'Ajouter à Essaie encore',
   'quiz.endgameAddedTryAgain': 'Ajoutée à Essaie encore',
   'quiz.endgameRetry': 'Retenter',
@@ -2271,6 +2275,8 @@ const en: Dict = {
   'quiz.endgamePrevAttempt': 'Previous attempt: {{count}} moves',
   'quiz.endgameBestAttempt': 'Best attempt: {{count}} moves',
   'quiz.endgameAnalyse': 'Analyse!',
+  'quiz.analyseGame': 'Analyse game',
+  'quiz.analysePosition': 'Analyse position',
   'quiz.endgameAddTryAgain': 'Add to Try again',
   'quiz.endgameAddedTryAgain': 'Added to Try again',
   'quiz.endgameRetry': 'Retry',

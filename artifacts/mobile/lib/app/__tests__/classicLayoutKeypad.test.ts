@@ -75,6 +75,28 @@ describe('Classic keypad placement and Eff removal', () => {
   });
 });
 
+describe('Endgame drills reuse Classic input chrome', () => {
+  it('theoretical and defend-draw place keypad → command row → history', () => {
+    for (const [file, prefix] of [
+      ['app/puzzles/finales-theoriques-play.tsx', 'theoretical'],
+      ['app/puzzles/defends-nulle-play.tsx', 'endgame'],
+    ] as const) {
+      const src = read(file);
+      const boardIdx = src.indexOf(`testID="${prefix}-board"`);
+      const keypadIdx = src.indexOf(`keypadTestID="${prefix}-move-keypad"`);
+      const talkIdx = src.indexOf(`commandRowTestID="${prefix}-command-row"`);
+      const historyIdx = src.indexOf('<GameMoveHistoryCard');
+      assert.ok(boardIdx > 0, file);
+      assert.ok(keypadIdx > boardIdx, `${file} keypad after board`);
+      assert.ok(talkIdx > keypadIdx, `${file} talk after keypad`);
+      assert.ok(historyIdx > talkIdx, `${file} history after talk`);
+      assert.match(src, /ClassicCommandInputChrome/);
+      assert.match(src, /isFlipped=\{snap\.(playerColor|defender) === 'b'\}/);
+      assert.doesNotMatch(src, /ChessMoveInput/);
+    }
+  });
+});
+
 describe('Classic promotion picker wiring', () => {
   it('delegates promotion to the shared keypad + PromotionPicker', () => {
     const classic = read('components/ClassicGameScreen.tsx');

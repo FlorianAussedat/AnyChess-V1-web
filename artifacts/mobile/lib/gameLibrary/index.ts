@@ -86,3 +86,14 @@ export {
   type AnalyzerHref,
   type AnalyzerRouteParams,
 } from './openPgnInAnalyzer.ts';
+
+export {
+  pgnFromFenAndSans,
+  sideToMoveFromFen,
+} from './pgnFromFenAndSans.ts';
+
+export {
+  openExerciseGameInAnalyzer,
+  openExercisePositionInAnalyzer,
+  type ExerciseAnalyzerOpen,
+} from './openExerciseAnalyzer.ts';

@@ -1,7 +1,7 @@
 /**
  * Non-regression: finished real games hand off to /parties/analyzer.
  */
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -22,6 +22,10 @@ import {
 } from '../../theoreticalEndgame/review/TheoreticalAnalysisAdapter.ts';
 import type { AttemptResult } from '../../endgameTraining/domain/types.ts';
 import type { TheoreticalAttemptResult } from '../../theoreticalEndgame/domain/types.ts';
+import {
+  __resetSharedGameSessionForTests,
+  __setSharedGameSessionStorageForTests,
+} from '../../gameReader/sharedReaderPosition.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = join(here, '../../..');
@@ -96,6 +100,15 @@ describe('openPgnInAnalyzer', () => {
 });
 
 describe('endgame / theoretical adapters', () => {
+  beforeEach(() => {
+    __setSharedGameSessionStorageForTests(new MemoryKeyValueStorage(), {
+      debounceMs: 5,
+    });
+  });
+  afterEach(() => {
+    __resetSharedGameSessionForTests();
+  });
+
   it('openEndgameInReader saves + pushes analyzer href with overlay', async () => {
     const store = new GameLibraryStore(new MemoryKeyValueStorage());
     const pushed: unknown[] = [];
@@ -174,19 +187,19 @@ describe('mode handoff wiring (source)', () => {
     assert.match(opening, /opened\.href/);
   });
 
-  it('endgame Analyse CTAs call open*InReader adapters', () => {
+  it('endgame Analyse CTAs call open*InReader adapters for game and position', () => {
     const endgame = read('app/puzzles/defends-nulle-play.tsx');
     const theoretical = read('app/puzzles/finales-theoriques-play.tsx');
     assert.match(endgame, /openEndgameInReader/);
-    assert.doesNotMatch(
-      endgame,
-      /testID="endgame-analyse"[\s\S]{0,120}setOverlay\('analysis'\)/,
-    );
+    assert.match(endgame, /testID="endgame-analyse-game"/);
+    assert.match(endgame, /testID="endgame-analyse-position"/);
+    assert.match(endgame, /mode:\s*'game'/);
+    assert.match(endgame, /mode:\s*'position'/);
+    assert.doesNotMatch(endgame, /setOverlay\('analysis'\)/);
     assert.match(theoretical, /openTheoreticalInReader/);
-    assert.doesNotMatch(
-      theoretical,
-      /testID="theoretical-analyse"[\s\S]{0,120}setOverlay\('analysis'\)/,
-    );
+    assert.match(theoretical, /testID="theoretical-analyse-game"/);
+    assert.match(theoretical, /testID="theoretical-analyse-position"/);
+    assert.doesNotMatch(theoretical, /setOverlay\('analysis'\)/);
   });
 
   it('library and adapters never prefer legacy /parties/[gameId] string routes', () => {

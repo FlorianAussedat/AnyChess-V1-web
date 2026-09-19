@@ -1,11 +1,15 @@
 /**
- * Adapter: push a theoretical attempt into Game Library + open Lecteur.
+ * Adapter: push a theoretical attempt into Game Library + shared session,
+ * then open the unified Lecteur / Analyseur.
  */
 import {
   buildAnalyzerHref,
-  openPgnInAnalyzer,
   type AnalyzerHref,
 } from '../../gameLibrary/openPgnInAnalyzer.ts';
+import {
+  openExerciseGameInAnalyzer,
+  openExercisePositionInAnalyzer,
+} from '../../gameLibrary/openExerciseAnalyzer.ts';
 import type { GameLibraryStore } from '../../gameLibrary/GameLibraryStore.ts';
 import type { EvaluationPoint, FirstMajorTurn } from '../../endgameTraining/domain/types.ts';
 import type { TheoreticalAttemptResult } from '../domain/types.ts';
@@ -33,97 +37,73 @@ export function getTheoreticalAnalysisOverlay(
   return overlayByGameId.get(gameId) ?? null;
 }
 
-function buildPgn(input: {
-  startFen: string;
-  moveSans: string[];
-  playerColor: 'white' | 'black';
-  result: string;
-}): string {
-  const headers = [
-    `[Event "Finales théoriques"]`,
-    `[Site "AnyChess"]`,
-    `[Result "${input.result}"]`,
-    `[FEN "${input.startFen}"]`,
-    `[SetUp "1"]`,
-    `[Orientation "${input.playerColor}"]`,
-  ];
-  const moves: string[] = [];
-  let moveNum = 1;
-  let whiteToMove = input.startFen.split(' ')[1] !== 'b';
-  for (const san of input.moveSans) {
-    if (whiteToMove) {
-      moves.push(`${moveNum}. ${san}`);
-      whiteToMove = false;
-    } else {
-      moves.push(san);
-      whiteToMove = true;
-      moveNum += 1;
-    }
+function resultTag(result: TheoreticalAttemptResult): string {
+  if (result.outcome !== 'success') return '*';
+  if (result.objective === 'WIN') {
+    return result.playerColor === 'white' ? '1-0' : '0-1';
   }
-  return `${headers.join('\n')}\n\n${moves.join(' ')} ${input.result}\n`;
+  return '1/2-1/2';
+}
+
+function stashOverlay(gameId: string, result: TheoreticalAttemptResult): void {
+  overlayByGameId.set(gameId, {
+    positionId: result.positionId,
+    themeId: result.themeId,
+    startFen: result.startFen,
+    orientation: result.playerColor,
+    moveSans: result.moveSans,
+    firstTheoreticalLoss: result.firstTheoreticalLoss,
+    firstMajorTurn: result.firstTheoreticalLoss
+      ? {
+          playerMoveNumber: result.firstTheoreticalLoss.playerMoveNumber,
+          san: result.firstTheoreticalLoss.san,
+          scoreBefore: 0,
+          scoreAfter: 0,
+          delta: 0,
+          message: result.firstTheoreticalLoss.message,
+        }
+      : null,
+    objective: result.objective,
+    userMoves: result.userMoves,
+    targetUserMoves: result.targetUserMoves,
+    outcome: result.outcome,
+    timeline: [],
+  });
 }
 
 export async function openTheoreticalInReader(input: {
   result: TheoreticalAttemptResult;
   routerPush: (href: AnalyzerHref) => void;
   store?: GameLibraryStore;
+  /** `game` = startFen + moves; `position` = terminal FEN only. */
+  mode?: 'game' | 'position';
 }): Promise<string | null> {
-  const resultTag =
-    input.result.outcome === 'success'
-      ? input.result.objective === 'WIN'
-        ? input.result.playerColor === 'white'
-          ? '1-0'
-          : '0-1'
-        : '1/2-1/2'
-      : '*';
+  const flipped = input.result.playerColor === 'black';
+  const mode = input.mode ?? 'game';
 
-  const pgn = buildPgn({
-    startFen: input.result.startFen,
-    moveSans: input.result.moveSans,
-    playerColor: input.result.playerColor,
-    result: resultTag,
-  });
+  const opened =
+    mode === 'position'
+      ? await openExercisePositionInAnalyzer({
+          fen: input.result.endFen,
+          flipped,
+        })
+      : await openExerciseGameInAnalyzer({
+          startFen: input.result.startFen,
+          moveSans: input.result.moveSans,
+          event: 'Finales théoriques',
+          fileName: 'theoretical-endgame.pgn',
+          displayName: 'Finales théoriques',
+          flipped,
+          resultTag: resultTag(input.result),
+          extraHeaders: { Orientation: input.result.playerColor },
+          store: input.store,
+        });
 
-  const opened = await openPgnInAnalyzer({
-    pgnText: pgn,
-    fileName: 'theoretical-endgame.pgn',
-    displayName: 'Finales théoriques',
-    flipped: input.result.playerColor === 'black',
-    tab: 'analysis',
-    store: input.store,
-  });
   if (!opened) return null;
-
-  const payload: TheoreticalAnalysisPayload = {
-    positionId: input.result.positionId,
-    themeId: input.result.themeId,
-    startFen: input.result.startFen,
-    orientation: input.result.playerColor,
-    moveSans: input.result.moveSans,
-    firstTheoreticalLoss: input.result.firstTheoreticalLoss,
-    firstMajorTurn: input.result.firstTheoreticalLoss
-      ? {
-          playerMoveNumber: input.result.firstTheoreticalLoss.playerMoveNumber,
-          san: input.result.firstTheoreticalLoss.san,
-          scoreBefore: 0,
-          scoreAfter: 0,
-          delta: 0,
-          message: input.result.firstTheoreticalLoss.message,
-        }
-      : null,
-    objective: input.result.objective,
-    userMoves: input.result.userMoves,
-    targetUserMoves: input.result.targetUserMoves,
-    outcome: input.result.outcome,
-    timeline: [],
-  };
-  overlayByGameId.set(opened.gameId, payload);
+  if (mode === 'game') stashOverlay(opened.gameId, input.result);
   input.routerPush(
     opened.href ??
-      buildAnalyzerHref(opened.gameId, {
-        flipped: input.result.playerColor === 'black',
-        tab: 'analysis',
-      }),
+      buildAnalyzerHref(opened.gameId, { flipped, tab: 'analysis' }),
   );
   return opened.gameId;
 }

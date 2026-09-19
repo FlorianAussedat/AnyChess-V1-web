@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -16,11 +15,10 @@ import { Chess } from 'chess.js';
 import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ChessBoard } from '@/components/ChessBoard';
-import { ChessMoveInput } from '@/components/game/ChessMoveInput';
-import { ChessMoveKeypad } from '@/components/game/ChessMoveKeypad';
-import { ChessKeyboardToggle } from '@/components/game/ChessKeyboardToggle';
-import { GameMicButton } from '@/components/game/GameMicButton';
-import { BoardToolbar } from '@/components/BoardToolbar';
+import { ClassicCommandInputChrome } from '@/components/game/ClassicCommandInputChrome';
+import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
+import { GameStatusCard } from '@/components/game/GameStatusCard';
+import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { AppButton } from '@/components/ui/AppButton';
 import { PositionReferenceBadge } from '@/components/exercise/PositionReferenceBadge';
 import { TryAgainPromptModal } from '@/components/exercise/TryAgainPromptModal';
@@ -29,6 +27,7 @@ import {
   type ResultOverlayKind,
 } from '@/components/review/ExerciseResultOverlayHost';
 import { useColors } from '@/hooks/useColors';
+import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useChessInputMode } from '@/hooks/useChessInputMode';
@@ -39,6 +38,7 @@ import {
 } from '@/hooks/useExerciseChessInput';
 import { DesignTokens } from '@/constants/designTokens';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
+import { pairMoveHistory } from '@/lib/game';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import {
@@ -81,6 +81,8 @@ import type {
   ReviewLaunchPayload,
 } from '@/lib/review/ReviewSessionRegistry';
 
+const CLASSIC_BOARD_RESERVED_CHROME = 340;
+
 function boardFromFen(fen: string): (BoardPiece | null)[][] {
   return new Chess(fen).board() as (BoardPiece | null)[][];
 }
@@ -94,9 +96,10 @@ export default function EndgameTrainingPlayScreen() {
   const { t } = useTranslation();
   const { chessNotation } = usePreferences();
   const router = useRouter();
+  const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
-  const { inputMode, toggleChessInputMode, keypadActive } = useChessInputMode();
+  const { inputMode, setChessInputMode, keypadActive } = useChessInputMode();
 
   const sessionRef = useRef(new EndgameTrainingSession({}));
   const [snap, setSnap] = useState<SessionSnapshot>(() => sessionRef.current.snapshot());
@@ -123,8 +126,16 @@ export default function EndgameTrainingPlayScreen() {
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
-    return fitBoardSizeToViewport(wide, windowHeight, 360);
-  }, [windowWidth, windowHeight]);
+    return fitBoardSizeToViewport(
+      wide,
+      windowHeight,
+      CLASSIC_BOARD_RESERVED_CHROME + contentTop + contentBottom,
+    );
+  }, [windowWidth, windowHeight, contentTop, contentBottom]);
+
+  useEffect(() => {
+    setDraftMove('');
+  }, [chessNotation]);
 
   useEffect(() => {
     void getShowGauge().then(setShowGaugeState);
@@ -270,9 +281,29 @@ export default function EndgameTrainingPlayScreen() {
   });
 
   const speech = useExerciseSpeechInput({
-    enabled: inputMode === 'classic' && canMove,
+    enabled: true,
+    forceOff: !canMove,
     onSan: submitSan,
   });
+
+  const toggleInputMode = useCallback(() => {
+    void setChessInputMode(inputMode === 'classic' ? 'keypad' : 'classic');
+  }, [inputMode, setChessInputMode]);
+
+  const commitKeypadMove = useCallback(
+    (raw: string) => {
+      const played = raw.trim();
+      if (!played || !canMove) return;
+      setDraftMove('');
+      void submitSan(played);
+    },
+    [canMove],
+  );
+
+  const moveRows = useMemo(
+    () => pairMoveHistory(snap.moveSans, snap.startFen ?? snap.fen),
+    [snap.moveSans, snap.startFen, snap.fen],
+  );
 
   const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
 
@@ -476,298 +507,292 @@ export default function EndgameTrainingPlayScreen() {
     );
   }
 
+  const campLabel =
+    snap.defender === 'w' ? t('puzzle.youPlayWhite') : t('puzzle.youPlayBlack');
+
   return (
     <>
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
+        subtitle={campLabel}
         onBack={() => router.back()}
         testID="endgame-training-play"
       >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-        >
-          {snap.position && (
-            <PositionReferenceBadge
-              id={snap.position.id}
-              sourceId={snap.position.source.sourceId}
-              provider={snap.position.source.provider}
-            />
-          )}
-
-          <View style={styles.topRow}>
-            <Text
-              style={{
-                color: colors.primary,
-                fontFamily: DesignTokens.typography.weightSemiBold,
-              }}
-              testID="endgame-moves-resisted"
-            >
-              {t('quiz.endgameMovesResisted', { count: snap.movesResisted })}
-            </Text>
-            <Pressable
-              onPress={() => void toggleGauge()}
-              hitSlop={8}
-              testID="endgame-gauge-toggle"
-            >
-              <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-                {showGauge ? t('quiz.endgameHideGauge') : t('quiz.endgameShowGauge')}
-              </Text>
-            </Pressable>
-          </View>
-
-          {showGauge ? (
-            <EvalBalanceBar
-              value={liveWhiteEval}
-              testID="endgame-eval-balance"
-            />
-          ) : null}
-
-          {snap.finishGameActive && (
-            <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
-              Finir la partie
-            </Text>
-          )}
-
-          <ChessBoardSection
-            boardSize={boardSize}
-            style={{ gap: 8, alignSelf: 'center' }}
-            toolbar={
-              <BoardToolbar
-                label={
-                  snap.defender === 'w'
-                    ? t('puzzle.youPlayWhite')
-                    : t('puzzle.youPlayBlack')
-                }
-                showCoordinates={showCoordinates}
-                onToggleCoordinates={() => void toggleCoordinates()}
-              />
-            }
-            testID="endgame-board"
-          >
-            <ChessBoard
-              board={board}
-              lastMove={snap.lastMove as LastMove | null}
-              isFlipped={snap.defender === 'b'}
-              selectedSquare={touchSelected}
-              legalDots={legalDests}
-              onSquarePress={onSquarePress}
-              showCoordinates={showCoordinates}
-              sizeMode="wide"
-              size={boardSize}
-            />
-          </ChessBoardSection>
-
-          <EndgameEngineStatusBanner
-            snapshot={engineSnap}
-            onRetry={() => void retryEngine()}
-            onBack={() => router.back()}
+        {snap.position && (
+          <PositionReferenceBadge
+            id={snap.position.id}
+            sourceId={snap.position.source.sourceId}
+            provider={snap.position.source.provider}
           />
+        )}
 
-          {thinking && engineReady && (
-            <View style={styles.busyRow}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={{ color: colors.mutedForeground }}>
-                {snap.phase === 'verifying-loss'
+        <View style={styles.topRow}>
+          <Text
+            style={{
+              color: colors.primary,
+              fontFamily: DesignTokens.typography.weightSemiBold,
+            }}
+            testID="endgame-moves-resisted"
+          >
+            {t('quiz.endgameMovesResisted', { count: snap.movesResisted })}
+          </Text>
+          <Pressable
+            onPress={() => void toggleGauge()}
+            hitSlop={8}
+            testID="endgame-gauge-toggle"
+          >
+            <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+              {showGauge ? t('quiz.endgameHideGauge') : t('quiz.endgameShowGauge')}
+            </Text>
+          </Pressable>
+        </View>
+
+        {showGauge ? (
+          <EvalBalanceBar
+            value={liveWhiteEval}
+            testID="endgame-eval-balance"
+          />
+        ) : null}
+
+        {snap.finishGameActive && (
+          <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
+            Finir la partie
+          </Text>
+        )}
+
+        <View style={styles.statusRow} testID="endgame-status-row">
+          <View style={styles.statusGrow}>
+            <GameStatusCard
+              status={snap.lastFeedback ?? ''}
+              heardText=""
+              isGameOver={showResult}
+              isOpponentThinking={thinking && engineReady}
+              thinkingLabel={
+                snap.phase === 'verifying-loss'
                   ? t('quiz.endgameVerifying')
-                  : t('quiz.defendsNulleReflecting')}
-              </Text>
-            </View>
-          )}
+                  : t('quiz.defendsNulleReflecting')
+              }
+              composeText={keypadActive ? draftMove : null}
+              compact
+              testID="endgame-coup-banner"
+            />
+          </View>
+          <View style={styles.boardToggles}>
+            <BoardCoordinatesToggle
+              visible={showCoordinates}
+              onToggle={() => {
+                void toggleCoordinates();
+              }}
+            />
+          </View>
+        </View>
 
-          {!!snap.lastFeedback && !showResult && (
+        <ChessBoardSection boardSize={boardSize} testID="endgame-board">
+          <ChessBoard
+            board={board}
+            lastMove={snap.lastMove as LastMove | null}
+            isFlipped={snap.defender === 'b'}
+            selectedSquare={touchSelected}
+            legalDots={legalDests}
+            onSquarePress={onSquarePress}
+            showCoordinates={showCoordinates}
+            sizeMode="wide"
+            size={boardSize}
+          />
+        </ChessBoardSection>
+
+        <EndgameEngineStatusBanner
+          snapshot={engineSnap}
+          onRetry={() => void retryEngine()}
+          onBack={() => router.back()}
+        />
+
+        {thinking && engineReady && (
+          <View style={styles.busyRow}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={{ color: colors.mutedForeground }}>
+              {snap.phase === 'verifying-loss'
+                ? t('quiz.endgameVerifying')
+                : t('quiz.defendsNulleReflecting')}
+            </Text>
+          </View>
+        )}
+
+        <ClassicCommandInputChrome
+          keypadActive={keypadActive}
+          draftMove={draftMove}
+          onChangeDraft={setDraftMove}
+          onSubmit={commitKeypadMove}
+          fen={snap.fen}
+          canAct={canMove}
+          speech={speech}
+          onToggleInput={toggleInputMode}
+          keypadTestID="endgame-move-keypad"
+          commandRowTestID="endgame-command-row"
+          micTestID="endgame-mic"
+          toggleTestID="endgame-input-mode-toggle"
+        />
+
+        <GameMoveHistoryCard
+          moveRows={moveRows}
+          opening={null}
+          emptyMessage={t('game.startsHere')}
+        />
+
+        {showResult && snap.result && (
+          <View style={styles.result} testID="endgame-result">
+            {snap.position && (
+              <PositionReferenceBadge
+                id={snap.position.id}
+                sourceId={snap.position.source.sourceId}
+                provider={snap.position.source.provider}
+              />
+            )}
+
             <Text
               style={{
-                color: colors.foreground,
+                color:
+                  snap.phase === 'lost'
+                    ? '#c44'
+                    : '#398a55',
                 fontFamily: DesignTokens.typography.weightSemiBold,
+                textAlign: 'center',
               }}
-              testID="endgame-feedback"
+              testID="endgame-official-result"
             >
-              {snap.lastFeedback}
+              {snap.officialResultMessage ??
+                snap.lastFeedback ??
+                snap.result.officialResultMessage}
             </Text>
-          )}
 
-          {canMove && (
-            <View style={styles.inputBlock}>
-              {inputMode === 'classic' && (
-                <GameMicButton
-                  showRecognized={speech.showRecognized}
-                  isListening={speech.listening}
-                  micActive={speech.micActive}
-                  onToggle={() => speech.toggleListening()}
-                  testID="endgame-mic"
-                />
-              )}
-              <ChessKeyboardToggle
-                variant="classic"
-                active={keypadActive}
-                onToggle={() => void toggleChessInputMode()}
+            {showResultCurve && (
+              <EvalCurve
+                points={resultCurvePoints}
+                activeNodeId={
+                  resultCurvePoints[resultCurvePoints.length - 1]?.nodeId ??
+                  null
+                }
+                onSelectNode={() => {}}
+                testID="endgame-eval-curve"
               />
-              {keypadActive ? (
-                <ChessMoveKeypad
-                  fen={snap.fen}
-                  value={draftMove}
-                  onChangeText={setDraftMove}
-                  onSubmit={(raw) => {
-                    setDraftMove('');
-                    void submitSan(raw);
-                  }}
-                  testID="endgame-move-keypad"
-                />
-              ) : (
-                <ChessMoveInput
-                  inputType="chess-move"
-                  fen={snap.fen}
-                  onSubmit={(raw) => void submitSan(raw)}
-                  enabled
-                  autoSubmit
-                  testID="endgame-move-input"
-                />
-              )}
-            </View>
-          )}
+            )}
 
-          {showResult && snap.result && (
-            <View style={styles.result} testID="endgame-result">
-              {snap.position && (
-                <PositionReferenceBadge
-                  id={snap.position.id}
-                  sourceId={snap.position.source.sourceId}
-                  provider={snap.position.source.provider}
-                />
-              )}
-
-              <Text
-                style={{
-                  color:
-                    snap.phase === 'lost'
-                      ? '#c44'
-                      : '#398a55',
-                  fontFamily: DesignTokens.typography.weightSemiBold,
-                  textAlign: 'center',
-                }}
-                testID="endgame-official-result"
-              >
-                {snap.officialResultMessage ??
-                  snap.lastFeedback ??
-                  snap.result.officialResultMessage}
-              </Text>
-
-              {showResultCurve && (
-                <EvalCurve
-                  points={resultCurvePoints}
-                  activeNodeId={
-                    resultCurvePoints[resultCurvePoints.length - 1]?.nodeId ??
-                    null
-                  }
-                  onSelectNode={() => {}}
-                  testID="endgame-eval-curve"
-                />
-              )}
-
-              {snap.phase === 'lost' && (
-                <>
-                  <Text style={{ color: colors.foreground }}>
-                    {sessionRef.current.getFirstMajorTurnMessage() ||
-                      progressiveDeteriorationMessage()}
+            {snap.phase === 'lost' && (
+              <>
+                <Text style={{ color: colors.foreground }}>
+                  {sessionRef.current.getFirstMajorTurnMessage() ||
+                    progressiveDeteriorationMessage()}
+                </Text>
+                {drawAltMessage && (
+                  <Text style={{ color: colors.foreground }} testID="endgame-draw-alternatives">
+                    {drawAltMessage}
                   </Text>
-                  {drawAltMessage && (
-                    <Text style={{ color: colors.foreground }} testID="endgame-draw-alternatives">
-                      {drawAltMessage}
-                    </Text>
-                  )}
-                </>
-              )}
+                )}
+              </>
+            )}
 
-              {stats && stats.attemptsFinished > 1 && (
-                <View style={styles.statsBox}>
+            {stats && stats.attemptsFinished > 1 && (
+              <View style={styles.statsBox}>
+                <Text style={{ color: colors.mutedForeground }}>
+                  {t('quiz.endgameThisAttempt', { count: snap.movesResisted })}
+                </Text>
+                {stats.recent[1] && (
                   <Text style={{ color: colors.mutedForeground }}>
-                    {t('quiz.endgameThisAttempt', { count: snap.movesResisted })}
+                    {t('quiz.endgamePrevAttempt', {
+                      count: stats.recent[1].movesResisted,
+                    })}
                   </Text>
-                  {stats.recent[1] && (
-                    <Text style={{ color: colors.mutedForeground }}>
-                      {t('quiz.endgamePrevAttempt', {
-                        count: stats.recent[1].movesResisted,
-                      })}
-                    </Text>
-                  )}
-                  {stats.bestResisted != null && (
-                    <Text style={{ color: colors.mutedForeground }}>
-                      {t('quiz.endgameBestAttempt', { count: stats.bestResisted })}
-                    </Text>
-                  )}
-                </View>
-              )}
+                )}
+                {stats.bestResisted != null && (
+                  <Text style={{ color: colors.mutedForeground }}>
+                    {t('quiz.endgameBestAttempt', { count: stats.bestResisted })}
+                  </Text>
+                )}
+              </View>
+            )}
 
-              <AppButton
-                label={t('quiz.endgameAnalyse')}
-                onPress={() => {
-                  if (!snap.result || !snap.position || busy) return;
-                  setBusy(true);
-                  void openEndgameInReader({
-                    result: snap.result,
-                    defender: snap.position.defender,
-                    routerPush: (href) => router.push(href as Href),
-                  }).finally(() => setBusy(false));
-                }}
-                testID="endgame-analyse"
-              />
+            <AppButton
+              label={t('quiz.analyseGame')}
+              onPress={() => {
+                if (!snap.result || !snap.position || busy) return;
+                setBusy(true);
+                void openEndgameInReader({
+                  result: snap.result,
+                  defender: snap.position.defender,
+                  mode: 'game',
+                  routerPush: (href) => router.push(href as Href),
+                }).finally(() => setBusy(false));
+              }}
+              testID="endgame-analyse-game"
+            />
+            <AppButton
+              label={t('quiz.analysePosition')}
+              onPress={() => {
+                if (!snap.result || !snap.position || busy) return;
+                setBusy(true);
+                void openEndgameInReader({
+                  result: snap.result,
+                  defender: snap.position.defender,
+                  mode: 'position',
+                  routerPush: (href) => router.push(href as Href),
+                }).finally(() => setBusy(false));
+              }}
+              testID="endgame-analyse-position"
+            />
 
-              {snap.phase === 'lost' && (
-                <>
-                  {!inTryAgain && !addedTryAgain ? (
-                    <AppButton
-                      label={t('quiz.endgameAddTryAgain')}
-                      onPress={() => void handleAddTryAgain()}
-                      variant="secondary"
-                      testID="endgame-add-try-again"
-                    />
-                  ) : (
-                    <Text style={{ color: '#398a55' }} testID="endgame-added-try-again">
-                      {t('quiz.endgameAddedTryAgain')}
-                    </Text>
-                  )}
+            {snap.phase === 'lost' && (
+              <>
+                {!inTryAgain && !addedTryAgain ? (
                   <AppButton
-                    label={t('quiz.endgameRetry')}
-                    onPress={() => void handleRetry()}
-                    testID="endgame-retry"
+                    label={t('quiz.endgameAddTryAgain')}
+                    onPress={() => void handleAddTryAgain()}
+                    variant="secondary"
+                    testID="endgame-add-try-again"
                   />
-                </>
-              )}
-
-              {showFinishGame && (
-                <AppButton
-                  label="Finir la partie"
-                  onPress={() => setOverlay('finish-game')}
-                  variant="secondary"
-                  testID="endgame-finish-game"
-                />
-              )}
-
-              <AppButton
-                label="Défendre la finale suivante"
-                onPress={() => void handleNextPosition()}
-                testID="endgame-next-position"
-              />
-
-              {source === 'try-again' && inTryAgain && (
-                <Pressable onPress={() => void handleRemoveTryAgain()} style={styles.subtle}>
-                  <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-                    {t('quiz.endgameRemoveTryAgain')}
+                ) : (
+                  <Text style={{ color: '#398a55' }} testID="endgame-added-try-again">
+                    {t('quiz.endgameAddedTryAgain')}
                   </Text>
-                </Pressable>
-              )}
+                )}
+                <AppButton
+                  label={t('quiz.endgameRetry')}
+                  onPress={() => void handleRetry()}
+                  testID="endgame-retry"
+                />
+              </>
+            )}
 
+            {showFinishGame && (
               <AppButton
-                label={t('quiz.endgameBackMenu')}
-                onPress={() => router.replace('/puzzles/defends-nulle' as Href)}
+                label="Finir la partie"
+                onPress={() => setOverlay('finish-game')}
                 variant="secondary"
-                testID="endgame-back-menu"
+                testID="endgame-finish-game"
               />
-            </View>
-          )}
-        </ScrollView>
+            )}
+
+            <AppButton
+              label="Défendre la finale suivante"
+              onPress={() => void handleNextPosition()}
+              testID="endgame-next-position"
+            />
+
+            {source === 'try-again' && inTryAgain && (
+              <Pressable onPress={() => void handleRemoveTryAgain()} style={styles.subtle}>
+                <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                  {t('quiz.endgameRemoveTryAgain')}
+                </Text>
+              </Pressable>
+            )}
+
+            <AppButton
+              label={t('quiz.endgameBackMenu')}
+              onPress={() => router.replace('/puzzles/defends-nulle' as Href)}
+              variant="secondary"
+              testID="endgame-back-menu"
+            />
+          </View>
+        )}
       </ChessScreenScaffold>
 
       <TryAgainPromptModal
@@ -788,18 +813,23 @@ export default function EndgameTrainingPlayScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    gap: DesignTokens.spacing.md,
-    paddingBottom: DesignTokens.spacing.xl,
-    alignItems: 'stretch',
-  },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   busyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  inputBlock: { gap: DesignTokens.spacing.sm, alignItems: 'center' },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusGrow: { flex: 1, minWidth: 0 },
+  boardToggles: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   result: { gap: DesignTokens.spacing.sm },
   statsBox: { gap: 2 },
   subtle: { alignSelf: 'center', paddingVertical: 8 },
