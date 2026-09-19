@@ -44,10 +44,12 @@ import { sessionAnalysisStore } from '@/lib/analysis/sessionAnalysisStore';
 import { PgnGameSelectModal, type PgnGameSelectCandidate } from '@/components/parties/PgnGameSelectModal';
 import { FolderPickModal } from '@/components/openings/FolderPickModal';
 import { NameModal } from '@/components/openings/NameModal';
+import { RepertoireSidePicker } from '@/components/RepertoireSidePicker';
 import type { PickedPgnFile } from '@/lib/repertoire/pickPgnFile';
 import {
   repertoireService,
   type RepertoireFolder,
+  type RepertoireSide,
 } from '@/lib/repertoire';
 
 /** Prefer stored raw PGN; otherwise rebuild a minimal single-game PGN. */
@@ -144,6 +146,9 @@ export default function PartiesLibraryScreen() {
     useState<ImportedChessGame | null>(null);
   const [openingsCreateOpen, setOpeningsCreateOpen] = useState(false);
   const [openingsCreateDraft, setOpeningsCreateDraft] = useState('');
+  const [openingsCreateSide, setOpeningsCreateSide] = useState<RepertoireSide | null>(
+    null,
+  );
   const [openingsBusy, setOpeningsBusy] = useState(false);
   const [openingsFormError, setOpeningsFormError] = useState<string | null>(null);
 
@@ -469,19 +474,27 @@ export default function PartiesLibraryScreen() {
   );
 
   const createOpeningsFolderAndImport = useCallback(async () => {
+    if (!openingsCreateSide) {
+      setOpeningsFormError(t('openings.sideRequired'));
+      return;
+    }
     setOpeningsBusy(true);
     setOpeningsFormError(null);
     try {
-      const folder = await repertoireService.createFolder(openingsCreateDraft);
+      const folder = await repertoireService.createFolder(
+        openingsCreateDraft,
+        openingsCreateSide,
+      );
       setOpeningsFolders(repertoireService.getFolders());
       setOpeningsCreateOpen(false);
+      setOpeningsCreateSide(null);
       await importGameIntoOpeningsFolder(folder.id);
     } catch (e) {
       setOpeningsFormError(e instanceof Error ? e.message : String(e));
     } finally {
       setOpeningsBusy(false);
     }
-  }, [importGameIntoOpeningsFolder, openingsCreateDraft]);
+  }, [importGameIntoOpeningsFolder, openingsCreateDraft, openingsCreateSide, t]);
 
   const openFolder = (folder: GameLibraryFolder) => {
     setFolderStack((s) => [...s, folder]);
@@ -877,6 +890,7 @@ export default function PartiesLibraryScreen() {
         }}
         onCreateFolder={() => {
           setOpeningsCreateDraft('');
+          setOpeningsCreateSide(null);
           setOpeningsFormError(null);
           setOpeningsCreateOpen(true);
         }}
@@ -891,6 +905,7 @@ export default function PartiesLibraryScreen() {
         onChangeText={setOpeningsCreateDraft}
         onCancel={() => {
           setOpeningsCreateOpen(false);
+          setOpeningsCreateSide(null);
           if (!addToOpeningsGame) return;
         }}
         onSubmit={() => {
@@ -899,7 +914,17 @@ export default function PartiesLibraryScreen() {
         busy={openingsBusy}
         error={openingsFormError}
         submitLabel={t('openings.create')}
-      />
+      >
+        <View style={{ gap: 8, marginBottom: 8 }}>
+          <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+            {t('openings.setSide')}
+          </Text>
+          <RepertoireSidePicker
+            value={openingsCreateSide}
+            onChange={setOpeningsCreateSide}
+          />
+        </View>
+      </NameModal>
 
       {/* Multi-select when >10 files */}
       <Modal

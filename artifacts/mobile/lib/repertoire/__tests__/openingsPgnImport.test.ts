@@ -146,6 +146,9 @@ describe('RepertoireService openings APIs (source)', () => {
     assert.match(src, /displayName/);
     // import always requires folderId — no root path
     assert.match(src, /async importPgn\(\s*folderId/);
+    assert.match(src, /async createFolder\(\s*name: string,\s*side: RepertoireSide,/);
+    assert.match(src, /requireRepertoireSide\(side\)/);
+    assert.doesNotMatch(src, /folder\.side\s*=\s*undefined/);
   });
 
   it('PgnGameSelectModal accepts maxSelection for openings cap 100', () => {

@@ -21,6 +21,7 @@ export interface NameModalProps {
   busy: boolean;
   error: string | null;
   submitLabel: string;
+  children?: React.ReactNode;
 }
 
 export function NameModal({
@@ -34,6 +35,7 @@ export function NameModal({
   busy,
   error,
   submitLabel,
+  children,
 }: NameModalProps) {
   const colors = useColors();
   const { t } = useTranslation();
@@ -59,6 +61,7 @@ export function NameModal({
             onSubmitEditing={onSubmit}
             editable={!busy}
           />
+          {children}
           {!!error && (
             <Text style={[styles.modalError, { color: colors.destructive }]}>{error}</Text>
           )}

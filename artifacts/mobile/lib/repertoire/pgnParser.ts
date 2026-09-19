@@ -19,6 +19,9 @@ import type { PgnHeaders } from './types.ts';
 export interface PgnMoveNode {
   /** SAN as written in the PGN (annotation glyphs like !? stripped). */
   san: string;
+  /** `{...}` that appeared before this SAN (start of a line / variation). */
+  commentBefore?: string;
+  /** `{...}` attached after this SAN. */
   comment?: string;
   nags: string[];
   /**
@@ -150,9 +153,28 @@ function isResult(sym: string): boolean {
  * ("!", "?", "!?", "‼", …) from a symbol, returning the bare SAN (may be "").
  */
 function toSan(sym: string): string {
-  let s = sym.replace(/^\d+\.(\.\.)?/, ''); // "12." or "12..."
-  s = s.replace(/[!?]+$/g, '');             // keep + and # (chess.js needs them)
-  return s.trim();
+  return splitSanAndGlyphs(sym).san;
+}
+
+const GLYPH_TO_NAG: Record<string, string> = {
+  '!': '$1',
+  '?': '$2',
+  '!!': '$3',
+  '??': '$4',
+  '!?': '$5',
+  '?!': '$6',
+};
+
+/** Keep ! / ? / !! / ?? / !? / ?! as NAGs instead of dropping them. */
+export function splitSanAndGlyphs(sym: string): { san: string; nags: string[] } {
+  let s = sym.replace(/^\d+\.(\.\.)?/, '');
+  const nags: string[] = [];
+  const glyph = s.match(/([!?]{1,2})$/);
+  if (glyph) {
+    nags.push(GLYPH_TO_NAG[glyph[1]!] ?? glyph[1]!);
+    s = s.slice(0, -glyph[1]!.length);
+  }
+  return { san: s.trim(), nags };
 }
 
 // ── Move-tree parser ────────────────────────────────────────────────────────────
@@ -165,6 +187,7 @@ function toSan(sym: string): string {
 function parseLine(tokens: Token[], start: number): { node: PgnMoveNode | null; pos: number } {
   let first: PgnMoveNode | null = null;
   let last: PgnMoveNode | null = null;
+  let pendingBefore: string | undefined;
   let pos = start;
 
   while (pos < tokens.length) {
@@ -184,6 +207,7 @@ function parseLine(tokens: Token[], start: number): { node: PgnMoveNode | null; 
 
     if (tk.t === 'comment') {
       if (last) last.comment = last.comment ? `${last.comment} ${tk.v}` : tk.v;
+      else pendingBefore = pendingBefore ? `${pendingBefore} ${tk.v}` : tk.v;
       pos++;
       continue;
     }
@@ -196,11 +220,18 @@ function parseLine(tokens: Token[], start: number): { node: PgnMoveNode | null; 
 
     // symbol
     if (isResult(tk.v)) { pos++; continue; }
-    const san = toSan(tk.v);
+    const { san, nags } = splitSanAndGlyphs(tk.v);
     pos++;
     if (san === '') continue; // bare move number
 
-    const node: PgnMoveNode = { san, nags: [], variations: [], next: null };
+    const node: PgnMoveNode = {
+      san,
+      nags: [...nags],
+      variations: [],
+      next: null,
+      commentBefore: pendingBefore,
+    };
+    pendingBefore = undefined;
     if (!first) first = node;
     if (last) last.next = node;
     last = node;

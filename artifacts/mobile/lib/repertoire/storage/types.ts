@@ -6,6 +6,13 @@
  * useful info without re-parsing every render. The raw PGN text is kept so
  * the merged repertoire tree can be rebuilt on demand (e.g. when starting
  * an Opening Game in Stage 3).
+ *
+ * Migration (openings pool):
+ * - Store remains version 2 (folders + files). No new snapshot version.
+ * - Missing `folder.enabled` / `file.enabled` means on (legacy snapshots).
+ * - Missing `folder.side` stays unassigned until the user picks White or Black
+ *   in Gérer les PGN; those folders are excluded from Review until then.
+ * - Folders cannot be “both sides”; each folder is White XOR Black.
  */
 import type { RepertoireIssue } from '../types';
 
@@ -17,6 +24,11 @@ export interface RepertoireFolder {
   name: string;
   /** Side the user studies this repertoire from; required before training modes. */
   side?: RepertoireSide;
+  /**
+   * When false, every PGN in the folder is excluded from Review even if the
+   * file flag is on. Missing (legacy) means enabled.
+   */
+  enabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
