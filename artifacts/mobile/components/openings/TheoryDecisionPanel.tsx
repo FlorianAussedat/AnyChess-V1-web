@@ -14,6 +14,8 @@ type Props = {
   onUndoThinkAgain: () => void;
   onShowExpected: () => void;
   onShowFullLine: () => void;
+  onAnalyzeGame?: () => void;
+  onStudyOpening?: () => void;
 };
 
 export function TheoryDecisionPanel({
@@ -25,9 +27,12 @@ export function TheoryDecisionPanel({
   onUndoThinkAgain,
   onShowExpected,
   onShowFullLine,
+  onAnalyzeGame,
+  onStudyOpening,
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
+  void onRestartLine;
 
   if (trainingState !== 'lineComplete' && trainingState !== 'outOfTheory') {
     return null;
@@ -38,9 +43,29 @@ export function TheoryDecisionPanel({
   if (trainingState === 'lineComplete') {
     return (
       <View style={styles.wrap} testID="theory-line-complete-actions">
-        <ActionBtn label={t('openings.restartLine')} onPress={onRestartLine} testID="theory-restart-line" primary={false} />
+        <ActionBtn
+          label={t('openings.continueVsEngineShort')}
+          onPress={onContinueVsEngine}
+          testID="theory-continue-engine"
+          primary
+        />
+        {onAnalyzeGame ? (
+          <ActionBtn
+            label={t('openings.analyzeGame')}
+            onPress={onAnalyzeGame}
+            testID="theory-analyze-game"
+            primary={false}
+          />
+        ) : null}
+        {onStudyOpening ? (
+          <ActionBtn
+            label={t('openings.studyThisOpening')}
+            onPress={onStudyOpening}
+            testID="theory-study-opening"
+            primary={false}
+          />
+        ) : null}
         <ActionBtn label={t('openings.nextLine')} onPress={onNextLine} testID="theory-next-line" primary={false} />
-        <ActionBtn label={continueLabel} onPress={onContinueVsEngine} testID="theory-continue-engine" primary />
       </View>
     );
   }

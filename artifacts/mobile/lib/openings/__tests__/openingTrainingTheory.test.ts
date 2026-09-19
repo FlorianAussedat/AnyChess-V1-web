@@ -113,15 +113,14 @@ describe('opening training states', () => {
   });
 });
 
-describe('openings review buttons', () => {
-  it('uses the same primary style for all three enabled review buttons', () => {
-    const src = read('components/openings/OpeningsReviewBlock.tsx');
-    assert.match(src, /review-all-btn/);
-    assert.match(src, /review-white-btn/);
-    assert.match(src, /review-black-btn/);
-    assert.match(src, /colors\.primary/);
-    assert.match(src, /disabled \? colors\.input : colors\.primary/);
-    assert.doesNotMatch(src, /reviewBtnLabelMuted/);
+describe('openings review hub', () => {
+  it('review lives on its own page with the two exercises, not three side buttons', () => {
+    const src = read('app/openings/review.tsx');
+    assert.match(src, /review-play-btn/);
+    assert.match(src, /review-continue-btn/);
+    assert.doesNotMatch(src, /review-all-btn/);
+    assert.doesNotMatch(src, /review-white-btn/);
+    assert.doesNotMatch(src, /review-black-btn/);
   });
 });
 

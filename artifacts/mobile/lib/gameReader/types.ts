@@ -18,6 +18,8 @@ export type ReaderNode = {
   moveNumber: number;
   color: ReaderColor;
   comment?: string;
+  /** Comment that appeared before this SAN in the PGN. */
+  commentBefore?: string;
   nags?: string[];
   parentId: string | null;
   /** Continuations after this move: [0] = main continuation at this fork. */

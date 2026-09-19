@@ -111,6 +111,8 @@ interface ProviderProps {
    * can copy comments/NAGs from the played branch into the analyzer PGN.
    */
   sourcePgn?: string | null;
+  /** When set, « Ligne suivante » asks the host to load another line. */
+  onRequestNextLine?: () => void;
 }
 
 function engineOptionsForBand(bandId: string) {
@@ -129,6 +131,7 @@ export function OpeningGameProvider({
   strengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
     DEFAULT_STRENGTH_BAND_ID,
   sourcePgn = null,
+  onRequestNextLine,
 }: ProviderProps) {
   const opponentRef = useRef<OpeningOpponent | null>(null);
   const [phase, setPhase] = React.useState<OpeningPhase>('book');
@@ -566,9 +569,12 @@ export function OpeningGameProvider({
   }, [resetForColor, playerColorRef]);
 
   const nextLine = useCallback(() => {
-    // Same side/settings; newGame re-rolls random book branches.
+    if (onRequestNextLine) {
+      onRequestNextLine();
+      return;
+    }
     resetForColor(playerColorRef.current);
-  }, [resetForColor, playerColorRef]);
+  }, [onRequestNextLine, resetForColor, playerColorRef]);
 
   const continueVsEngine = useCallback(() => {
     const opp = opponentRef.current;

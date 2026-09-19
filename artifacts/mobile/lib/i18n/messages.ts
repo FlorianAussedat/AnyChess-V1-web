@@ -57,6 +57,40 @@ export type MessageKey =
   | 'openings.reviewAll'
   | 'openings.reviewWhite'
   | 'openings.reviewBlack'
+  | 'openings.learn'
+  | 'openings.learnHint'
+  | 'openings.managePgn'
+  | 'openings.manageTitle'
+  | 'openings.hubReviewHint'
+  | 'openings.hubLearnHint'
+  | 'openings.reviewPoolSummary'
+  | 'openings.activePgnList'
+  | 'openings.noActivePgn'
+  | 'openings.folderActive'
+  | 'openings.folderInactive'
+  | 'openings.viewPgn'
+  | 'openings.changeSideConfirmTitle'
+  | 'openings.changeSideConfirmBody'
+  | 'openings.noComment'
+  | 'openings.tabComments'
+  | 'openings.tabNotation'
+  | 'openings.branchPickerTitle'
+  | 'openings.mainLine'
+  | 'openings.variation'
+  | 'openings.returnToCourse'
+  | 'openings.playThisLine'
+  | 'openings.continueThisLine'
+  | 'openings.analyzeGame'
+  | 'openings.studyThisOpening'
+  | 'openings.currentMove'
+  | 'openings.sideRequired'
+  | 'openings.learnFolders'
+  | 'openings.learnPgns'
+  | 'openings.linesShort'
+  | 'openings.continueVsEngineShort'
+  | 'openings.toggleReview'
+  | 'openings.setSide'
+  | 'openings.unassignedSideHint'
   | 'openings.customSelection'
   | 'openings.sideTitle'
   | 'openings.sidePrompt'
@@ -890,6 +924,46 @@ const fr: Dict = {
   'openings.reviewAll': 'Tout réviser',
   'openings.reviewWhite': 'Réviser Blancs',
   'openings.reviewBlack': 'Réviser Noirs',
+  'openings.learn': 'Apprentissage',
+  'openings.learnHint':
+    'Étudie chaque ouverture séparément, avec commentaires et variantes.',
+  'openings.managePgn': 'Importer / gérer mes PGN',
+  'openings.manageTitle': 'Mes PGN d’ouvertures',
+  'openings.hubReviewHint':
+    'Entraîne-toi sur les PGN actifs du pool : jouer contre le répertoire ou continuer la ligne.',
+  'openings.hubLearnHint':
+    'Consulte tous tes PGN, actifs ou non, dossier par dossier.',
+  'openings.reviewPoolSummary': '{{pgn}} PGN actifs · {{lines}} lignes disponibles',
+  'openings.activePgnList': 'PGN qui participent à la Révision',
+  'openings.noActivePgn':
+    'Aucun PGN actif. Active un dossier et au moins un PGN dans la gestion.',
+  'openings.folderActive': 'Actif pour la Révision',
+  'openings.folderInactive': 'Inactif pour la Révision',
+  'openings.viewPgn': 'Voir',
+  'openings.changeSideConfirmTitle': 'Changer de camp ?',
+  'openings.changeSideConfirmBody':
+    'Ce PGN passera d’un dossier {{from}} à un dossier {{to}}. L’orientation d’entraînement suivra le nouveau dossier.',
+  'openings.noComment': 'Aucun commentaire pour ce coup.',
+  'openings.tabComments': 'Commentaires',
+  'openings.tabNotation': 'Notation',
+  'openings.branchPickerTitle': 'Quelle continuation ?',
+  'openings.mainLine': 'ligne principale',
+  'openings.variation': 'variante',
+  'openings.returnToCourse': '↩ Revenir au cours',
+  'openings.playThisLine': 'Jouer cette ligne',
+  'openings.continueThisLine': 'Continuer cette ligne',
+  'openings.analyzeGame': 'Analyser la partie',
+  'openings.studyThisOpening': 'Étudier cette ouverture',
+  'openings.currentMove': 'Coup {{move}}',
+  'openings.sideRequired': 'Choisis Blancs ou Noirs pour ce dossier.',
+  'openings.learnFolders': 'Dossiers',
+  'openings.learnPgns': 'PGN du dossier',
+  'openings.linesShort': '{{count}} lignes',
+  'openings.continueVsEngineShort': 'Continuer contre Stockfish',
+  'openings.toggleReview': 'Révision',
+  'openings.setSide': 'Camp du dossier',
+  'openings.unassignedSideHint':
+    'Ce dossier n’a pas encore de camp. Choisis Blancs ou Noirs pour l’utiliser en Révision.',
   'openings.customSelection': 'Sélection personnalisée…',
   'openings.sideTitle': 'Côté du répertoire',
   'openings.sidePrompt': 'De quel côté travaillez-vous « {{name}} » ?',
@@ -1565,7 +1639,6 @@ const fr: Dict = {
     'L’adversaire suit tes lignes importées, puis Stockfish hors livre.',
   'openings.continueLineDesc':
     'Récite la suite d’une branche choisie dans ce répertoire.',
-  'openings.managePgn': 'Gérer les PGN',
   'openings.emptyPgnBody':
     'Importe un ou plusieurs fichiers .pgn dans ce dossier.',
   'openings.filesCount': '{{count}} fichier(s) PGN',
@@ -1801,6 +1874,46 @@ const en: Dict = {
   'openings.reviewAll': 'Review all',
   'openings.reviewWhite': 'Review White',
   'openings.reviewBlack': 'Review Black',
+  'openings.learn': 'Learning',
+  'openings.learnHint':
+    'Study each opening separately, with comments and variations.',
+  'openings.managePgn': 'Import / manage my PGNs',
+  'openings.manageTitle': 'My opening PGNs',
+  'openings.hubReviewHint':
+    'Train on active PGNs: play against the repertoire or continue the line.',
+  'openings.hubLearnHint':
+    'Browse every PGN, active or not, folder by folder.',
+  'openings.reviewPoolSummary': '{{pgn}} active PGNs · {{lines}} lines available',
+  'openings.activePgnList': 'PGNs included in Review',
+  'openings.noActivePgn':
+    'No active PGN. Enable a folder and at least one PGN in the library.',
+  'openings.folderActive': 'Active for Review',
+  'openings.folderInactive': 'Inactive for Review',
+  'openings.viewPgn': 'View',
+  'openings.changeSideConfirmTitle': 'Change side?',
+  'openings.changeSideConfirmBody':
+    'This PGN will move from a {{from}} folder to a {{to}} folder. Training orientation will follow the new folder.',
+  'openings.noComment': 'No comment for this move.',
+  'openings.tabComments': 'Comments',
+  'openings.tabNotation': 'Notation',
+  'openings.branchPickerTitle': 'Which continuation?',
+  'openings.mainLine': 'main line',
+  'openings.variation': 'variation',
+  'openings.returnToCourse': '↩ Back to the lesson',
+  'openings.playThisLine': 'Play this line',
+  'openings.continueThisLine': 'Continue this line',
+  'openings.analyzeGame': 'Analyse the game',
+  'openings.studyThisOpening': 'Study this opening',
+  'openings.currentMove': 'Move {{move}}',
+  'openings.sideRequired': 'Choose White or Black for this folder.',
+  'openings.learnFolders': 'Folders',
+  'openings.learnPgns': 'Folder PGNs',
+  'openings.linesShort': '{{count}} lines',
+  'openings.continueVsEngineShort': 'Continue vs Stockfish',
+  'openings.toggleReview': 'Review',
+  'openings.setSide': 'Folder side',
+  'openings.unassignedSideHint':
+    'This folder has no side yet. Choose White or Black to include it in Review.',
   'openings.customSelection': 'Custom selection…',
   'openings.sideTitle': 'Repertoire side',
   'openings.sidePrompt': 'Which side are you training “{{name}}” as?',
@@ -2471,7 +2584,6 @@ const en: Dict = {
     'The opponent follows your imported lines, then Stockfish out of book.',
   'openings.continueLineDesc':
     'Recite the continuation of a branch chosen from this repertoire.',
-  'openings.managePgn': 'Manage PGNs',
   'openings.emptyPgnBody':
     'Import one or more .pgn files into this folder.',
   'openings.filesCount': '{{count}} PGN file(s)',

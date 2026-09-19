@@ -35,8 +35,8 @@ export function useRepertoireLibrary() {
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
   const createFolder = useCallback(
-    async (name: string) => {
-      const folder = await repertoireService.createFolder(name);
+    async (name: string, side?: RepertoireSide, enabled = true) => {
+      const folder = await repertoireService.createFolder(name, side, enabled);
       bump();
       return folder;
     },
@@ -150,6 +150,20 @@ export function useRepertoireLibrary() {
     [bump],
   );
 
+  const setFolderEnabled = useCallback(
+    async (folderId: string, enabled: boolean) => {
+      const folder = await repertoireService.setFolderEnabled(folderId, enabled);
+      bump();
+      return folder;
+    },
+    [bump],
+  );
+
+  const getAllFiles = useCallback(
+    () => repertoireService.getAllFiles(),
+    [tick],
+  );
+
   const getTrainableFolders = useCallback(
     () => repertoireService.getTrainableFolders(),
     [tick],
@@ -178,6 +192,8 @@ export function useRepertoireLibrary() {
     copyPgnToFolder,
     setFileEnabled,
     setFolderSide,
+    setFolderEnabled,
+    getAllFiles,
     getTrainableFolders,
     getFoldersMissingSide,
   };

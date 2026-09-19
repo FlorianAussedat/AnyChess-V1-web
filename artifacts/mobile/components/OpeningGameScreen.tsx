@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
@@ -43,6 +43,7 @@ import {
   fitBoardSizeToViewport,
 } from '@/lib/game/boardSize';
 import { openPgnInAnalyzer } from '@/lib/gameLibrary';
+import { clearEphemeralOpeningSession, getEphemeralOpeningSession } from '@/lib/repertoire';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
@@ -208,7 +209,13 @@ export function OpeningGameScreen() {
   if (loadError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title={t('openings.repertoire')} />
+        <ScreenHeader
+          onBack={() => {
+            clearEphemeralOpeningSession();
+            router.back();
+          }}
+          title={t('openings.repertoire')}
+        />
         <Text style={[styles.errorText, { color: colors.destructive }]}>{loadError}</Text>
       </View>
     );
@@ -239,7 +246,10 @@ export function OpeningGameScreen() {
   return (
     <>
       <ChessScreenScaffold
-        onBack={() => router.back()}
+        onBack={() => {
+          clearEphemeralOpeningSession();
+          router.back();
+        }}
         title={headerTitle}
         subtitle={headerSubtitle}
         showSound
@@ -350,6 +360,27 @@ export function OpeningGameScreen() {
             }
           }}
           onShowFullLine={() => setTheoryOpen(true)}
+          onAnalyzeGame={async () => {
+            const pgn = exportPgn();
+            const opened = await openPgnInAnalyzer({
+              pgnText: pgn,
+              fileName: 'ouverture.pgn',
+              displayName: openingLabel || repertoireName || 'Ouverture',
+              flipped: playerColor === 'b',
+              tab: 'analysis',
+            });
+            if (!opened) return;
+            router.push(opened.href);
+          }}
+          onStudyOpening={() => {
+            const session = getEphemeralOpeningSession();
+            const id = session?.fileId;
+            if (id) {
+              router.push(`/openings/study?fileId=${encodeURIComponent(id)}` as Href);
+            } else {
+              router.back();
+            }
+          }}
         />
 
         {expectedHint && <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>{t('openings.expectedMove', { move: expectedHint })}</Text>}

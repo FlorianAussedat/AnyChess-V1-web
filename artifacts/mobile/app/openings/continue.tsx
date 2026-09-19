@@ -25,7 +25,7 @@ import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { sideLabel } from '@/components/RepertoireSidePicker';
-import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide } from '@/lib/repertoire';
+import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide, getEphemeralOpeningSession, repertoireFromSans, clearEphemeralOpeningSession, applyReviewPick, pickReviewLineFromMemory, listReviewPoolEntries } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
 import { getOpeningDisplayName } from '@/lib/openings';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
@@ -74,12 +74,13 @@ export default function ContinueLineScreen() {
   const { soundEnabled } = useAudioSettings();
   const { chessNotation } = usePreferences();
 
-  const { folderId, folderIds, fileId, gameIndex, side: sideParam } = useLocalSearchParams<{
+  const { folderId, folderIds, fileId, gameIndex, side: sideParam, from } = useLocalSearchParams<{
     folderId?: string;
     fileId?: string;
     gameIndex?: string;
     folderIds?: string;
     side?: string;
+    from?: string;
   }>();
 
   const reviewSide: ReviewSideFilter | null =
@@ -98,6 +99,7 @@ export default function ContinueLineScreen() {
     : mixedFolderIds[0] ?? '');
 
   const sessionRef = useRef(new ContinueLineSession());
+  const ephConsumedRef = useRef(false);
   const [snap, setSnap] = useState<ContinueLineSessionSnapshot>(
     () => sessionRef.current.snapshot(),
   );
@@ -136,17 +138,77 @@ export default function ContinueLineScreen() {
   );
 
   const startExercise = useCallback(async () => {
-    if (mixedFolderIds.length === 0) {
-      setLoadError(t('openings.folderIdMissing'));
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setLoadError(null);
     setFeedback(null);
     try {
       await repertoireService.ensureLoaded();
+      const eph = getEphemeralOpeningSession();
+      const reviewMode = from === 'review' || eph?.origin === 'review';
+      const studyMode = from === 'study' || eph?.origin === 'study';
+      if (eph && studyMode) {
+        const rep = repertoireFromSans(eph.pathSans);
+        const path = rep.trainingPaths?.[0];
+        const session = sessionRef.current;
+        activeFolderIdRef.current = eph.folderId;
+        session.start(rep, eph.displayName, {
+          recentPathIds: [],
+          sourceLabel: eph.displayName,
+          path: path ?? undefined,
+          folderId: eph.folderId,
+          trainingSide: eph.side,
+        });
+        let next = session.snapshot();
+        if (next.phase === 'error') {
+          setLoadError(next.errorMessage ?? t('openings.startFailed'));
+          setLoading(false);
+          setSnap(next);
+          return;
+        }
+        const begun = session.beginRecitation();
+        setSnap(begun.snapshot);
+        setLoading(false);
+        setFeedback(null);
+        return;
+      }
 
+      if (reviewMode) {
+        const existing = eph && eph.origin === 'review' && !ephConsumedRef.current ? eph : null;
+        ephConsumedRef.current = true;
+        const sessionData = existing
+          ? eph!
+          : (() => {
+              const pick = pickReviewLineFromMemory(
+                listReviewPoolEntries(
+                  repertoireService.getFolders(),
+                  repertoireService.getAllFiles(),
+                ),
+              );
+              return pick ? applyReviewPick(pick, 'review') : null;
+            })();
+        if (sessionData) {
+          const rep = repertoireFromSans(sessionData.pathSans);
+          const path = rep.trainingPaths?.[0];
+          const session = sessionRef.current;
+          activeFolderIdRef.current = sessionData.folderId;
+          session.start(rep, sessionData.displayName, {
+            path: path ?? undefined,
+            folderId: sessionData.folderId,
+            trainingSide: sessionData.side,
+            sourceLabel: sessionData.displayName,
+          });
+          const begun = session.beginRecitation();
+          setSnap(begun.snapshot);
+          setLoading(false);
+          return;
+        }
+      }
+
+    if (mixedFolderIds.length === 0) {
+      setLoadError(t('openings.folderIdMissing'));
+      setLoading(false);
+      return;
+    }
       const entries = [];
       for (const id of mixedFolderIds) {
         const folder = repertoireService.getFolder(id);
@@ -254,7 +316,7 @@ export default function ContinueLineScreen() {
       setLoadError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     }
-  }, [fileId, gameIndex, mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak, t]);
+  }, [fileId, from, gameIndex, mixedFolderIds, isMixed, recentKey, reviewSide, soundEnabled, speak, t]);
 
   // Dedicated retry that keeps the current path if still available
   const retrySame = useCallback(async () => {
@@ -471,7 +533,10 @@ export default function ContinueLineScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <ScreenHeader
-        onBack={() => router.back()}
+        onBack={() => {
+          clearEphemeralOpeningSession();
+          router.back();
+        }}
         title={t('openings.continueLine')}
         subtitle={`${snap.repertoireName}${
           snap.trainingSide ? ` · ${sideLabel(snap.trainingSide)}` : ''

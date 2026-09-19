@@ -99,7 +99,11 @@ export class RepertoireService {
 
   // ── Folders ───────────────────────────────────────────────────────────────
 
-  async createFolder(name: string): Promise<RepertoireFolder> {
+  async createFolder(
+    name: string,
+    side?: RepertoireSide,
+    enabled = true,
+  ): Promise<RepertoireFolder> {
     await this.ensureLoaded();
     const trimmed = name.trim();
     if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
@@ -112,6 +116,8 @@ export class RepertoireService {
     const folder: RepertoireFolder = {
       id: newId('folder'),
       name: trimmed,
+      side,
+      enabled,
       createdAt: nowIso(),
       updatedAt: nowIso(),
     };
@@ -163,10 +169,27 @@ export class RepertoireService {
     return folder;
   }
 
+  async setFolderEnabled(folderId: string, enabled: boolean): Promise<RepertoireFolder> {
+    await this.ensureLoaded();
+    const folder = this.snapshot!.folders.find((f) => f.id === folderId);
+    if (!folder) throw new Error(tMsg('errors.folderNotFound'));
+    folder.enabled = enabled;
+    folder.updatedAt = nowIso();
+    await this.persist();
+    invalidateFolderRepertoireCache(folderId);
+    return folder;
+  }
+
+  getAllFiles(): StoredPgnFile[] {
+    if (!this.snapshot) return [];
+    return [...this.snapshot.files];
+  }
+
   /** Folders that have at least one parseable PGN and a training side set. */
   getTrainableFolders(): RepertoireFolder[] {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
+      if (folder.enabled === false) return false;
       if (!folder.side) return false;
       return this.getFiles(folder.id).some(
         (f) => f.summary.parseSucceeded && f.enabled !== false,
