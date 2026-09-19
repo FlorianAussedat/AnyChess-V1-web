@@ -67,6 +67,7 @@ describe('ChessBoard square hits', () => {
     const board = read('components/ChessBoard.tsx');
     assert.match(board, /testID=\{`board-square-\$\{sqName\}`\}/);
     assert.match(board, /pointerEvents="none"/);
+    assert.match(board, /position: 'relative'/);
     assert.match(board, /StyleSheet\.absoluteFill/);
     assert.match(board, /displayCellToSquare|squareFromBoardIndices/);
     assert.doesNotMatch(board, /PanResponder|onPan|drag/);
