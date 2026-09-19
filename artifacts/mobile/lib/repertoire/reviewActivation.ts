@@ -3,9 +3,10 @@
  * Missing `enabled` (legacy snapshots) means on.
  */
 import type { RepertoireFolder, StoredPgnFile } from './storage/types.ts';
+import { hasAssignedRepertoireSide } from './folderSide.ts';
 
 export function isFolderEnabledForReview(folder: RepertoireFolder): boolean {
-  return folder.enabled !== false && (folder.side === 'white' || folder.side === 'black');
+  return folder.enabled !== false && hasAssignedRepertoireSide(folder.side);
 }
 
 export function isFileEnabledForReview(

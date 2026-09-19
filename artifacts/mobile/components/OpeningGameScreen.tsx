@@ -43,7 +43,7 @@ import {
   fitBoardSizeToViewport,
 } from '@/lib/game/boardSize';
 import { openPgnInAnalyzer } from '@/lib/gameLibrary';
-import { clearEphemeralOpeningSession, getEphemeralOpeningSession } from '@/lib/repertoire';
+import { leaveEphemeralOpeningExercise, getEphemeralOpeningSession } from '@/lib/repertoire';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { useOpeningIdentity } from '@/hooks/useOpeningIdentity';
@@ -211,7 +211,7 @@ export function OpeningGameScreen() {
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ScreenHeader
           onBack={() => {
-            clearEphemeralOpeningSession();
+            leaveEphemeralOpeningExercise();
             router.back();
           }}
           title={t('openings.repertoire')}
@@ -232,7 +232,12 @@ export function OpeningGameScreen() {
           },
         ]}
       >
-        <BackButton onPress={() => router.back()} />
+        <BackButton
+          onPress={() => {
+            leaveEphemeralOpeningExercise();
+            router.back();
+          }}
+        />
         <View style={styles.loadingBody}>
           <ActivityIndicator color={colors.primary} />
           <Text style={{ color: colors.mutedForeground, marginTop: 12, fontFamily: 'Inter_400Regular' }}>
@@ -247,7 +252,7 @@ export function OpeningGameScreen() {
     <>
       <ChessScreenScaffold
         onBack={() => {
-          clearEphemeralOpeningSession();
+          leaveEphemeralOpeningExercise();
           router.back();
         }}
         title={headerTitle}
@@ -370,11 +375,13 @@ export function OpeningGameScreen() {
               tab: 'analysis',
             });
             if (!opened) return;
+            leaveEphemeralOpeningExercise();
             router.push(opened.href);
           }}
           onStudyOpening={() => {
             const session = getEphemeralOpeningSession();
             const id = session?.fileId;
+            leaveEphemeralOpeningExercise();
             if (id) {
               router.push(`/openings/study?fileId=${encodeURIComponent(id)}` as Href);
             } else {
@@ -457,6 +464,7 @@ export function OpeningGameScreen() {
             tab: 'analysis',
           });
           if (!opened) return;
+          leaveEphemeralOpeningExercise();
           router.push(opened.href);
         }}
       />

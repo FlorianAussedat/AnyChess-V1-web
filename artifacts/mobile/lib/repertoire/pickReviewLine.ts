@@ -6,6 +6,7 @@ import { pickBalanced } from '../continueLine/RepertoireBranchSelector.ts';
 import type { ContinueLinePath } from '../continueLine/types.ts';
 import { buildRepertoire } from './repertoireTree.ts';
 import { isFileEnabledForReview } from './reviewActivation.ts';
+import { hasAssignedRepertoireSide } from './folderSide.ts';
 import type { RepertoireFolder, StoredPgnFile } from './storage/types.ts';
 import type { RepertoireSide } from './storage/types.ts';
 import { pgnFileDisplayName } from './storage/types.ts';
@@ -36,7 +37,7 @@ export function listReviewPoolEntries(
   const out: ReviewPoolEntry[] = [];
   for (const file of files) {
     const folder = byFolder.get(file.folderId);
-    if (!folder || !folder.side) continue;
+    if (!folder || !hasAssignedRepertoireSide(folder.side)) continue;
     if (!isFileEnabledForReview(folder, file)) continue;
     const rep = buildRepertoire(file.pgnText);
     const paths = rep.trainingPaths ?? [];

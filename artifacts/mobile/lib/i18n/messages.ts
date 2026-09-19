@@ -124,6 +124,8 @@ export type MessageKey =
   | 'openings.toggleReview'
   | 'openings.setSide'
   | 'openings.unassignedSideHint'
+  | 'openings.toClassify'
+  | 'openings.chooseWhiteOrBlack'
   | 'openings.customSelection'
   | 'openings.sideTitle'
   | 'openings.sidePrompt'
@@ -1033,7 +1035,9 @@ const fr: Dict = {
   'openings.toggleReview': 'Révision',
   'openings.setSide': 'Camp du dossier',
   'openings.unassignedSideHint':
-    'Ce dossier n’a pas encore de camp. Choisis Blancs ou Noirs pour l’utiliser en Révision.',
+    'À classer — choisis Blancs ou Noirs. Tant qu’aucun camp n’est choisi, ce dossier reste hors Révision.',
+  'openings.toClassify': 'À classer',
+  'openings.chooseWhiteOrBlack': 'Choisir Blancs ou Noirs',
   'openings.customSelection': 'Sélection personnalisée…',
   'openings.sideTitle': 'Côté du répertoire',
   'openings.sidePrompt': 'De quel côté travaillez-vous « {{name}} » ?',
@@ -1690,9 +1694,9 @@ const fr: Dict = {
   'openings.linesCount': '{{count}} ligne(s)',
   'openings.sectionWhite': 'RÉPERTOIRE BLANCS',
   'openings.sectionBlack': 'RÉPERTOIRE NOIRS',
-  'openings.sectionUnassigned': 'SANS CÔTÉ',
+  'openings.sectionUnassigned': 'À CLASSER',
   'openings.sectionUnassignedHint':
-    'Ouvre chaque dossier et choisis Blancs ou Noirs avant l’entraînement.',
+    'Dossiers sans camp (données conservées). Choisis Blancs ou Noirs pour les inclure en Révision.',
   'openings.newRepertoire': 'Nouveau répertoire',
   'openings.renameRepertoire': 'Renommer le répertoire',
   'openings.create': 'Créer',
@@ -2020,7 +2024,9 @@ const en: Dict = {
   'openings.toggleReview': 'Review',
   'openings.setSide': 'Folder side',
   'openings.unassignedSideHint':
-    'This folder has no side yet. Choose White or Black to include it in Review.',
+    'To sort — choose White or Black. Until a side is chosen, this folder stays out of Review.',
+  'openings.toClassify': 'To sort',
+  'openings.chooseWhiteOrBlack': 'Choose White or Black',
   'openings.customSelection': 'Custom selection…',
   'openings.sideTitle': 'Repertoire side',
   'openings.sidePrompt': 'Which side are you training “{{name}}” as?',
@@ -2672,9 +2678,9 @@ const en: Dict = {
   'openings.linesCount': '{{count}} line(s)',
   'openings.sectionWhite': 'WHITE REPERTOIRE',
   'openings.sectionBlack': 'BLACK REPERTOIRE',
-  'openings.sectionUnassigned': 'NO SIDE',
+  'openings.sectionUnassigned': 'TO SORT',
   'openings.sectionUnassignedHint':
-    'Open each folder and choose White or Black before training.',
+    'Folders without a side (data kept). Choose White or Black to include them in Review.',
   'openings.newRepertoire': 'New repertoire',
   'openings.renameRepertoire': 'Rename repertoire',
   'openings.create': 'Create',

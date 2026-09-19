@@ -22,6 +22,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { preferencesStore } from '@/lib/preferences';
 import { runStorageMigrations } from '@/lib/storage';
+import { useReleaseEphemeralOpeningSession } from '@/hooks/useReleaseEphemeralOpeningSession';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +41,7 @@ const queryClient = new QueryClient();
  * Home route — so Accueil / Back / bottom-nav Home do not replay it.
  */
 function RootLayoutNav() {
+  useReleaseEphemeralOpeningSession();
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />

@@ -13,7 +13,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import { isFileVisibleInLearning } from '@/lib/repertoire';
+import { hasAssignedRepertoireSide, isFileVisibleInLearning } from '@/lib/repertoire';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 
@@ -27,7 +27,7 @@ export default function OpeningsLearnScreen() {
   const sections = useMemo(() => {
     const white = folders.filter((f) => f.side === 'white');
     const black = folders.filter((f) => f.side === 'black');
-    const other = folders.filter((f) => !f.side);
+    const other = folders.filter((f) => !hasAssignedRepertoireSide(f.side));
     return [
       { title: t('openings.sectionWhite'), folders: white },
       { title: t('openings.sectionBlack'), folders: black },
@@ -85,7 +85,9 @@ export default function OpeningsLearnScreen() {
                     <View style={styles.body}>
                       <Text style={[styles.name, { color: colors.foreground }]}>{folder.name}</Text>
                       <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                        {folder.side ? sideLabel(folder.side) : t('openings.setSide')}
+                        {hasAssignedRepertoireSide(folder.side)
+                          ? sideLabel(folder.side)
+                          : `${t('openings.toClassify')} · ${t('openings.chooseWhiteOrBlack')}`}
                         {' · '}
                         {t('openings.pgnFileCount', { count: files.length })}
                       </Text>

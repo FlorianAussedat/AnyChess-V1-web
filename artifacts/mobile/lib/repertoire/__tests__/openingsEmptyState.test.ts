@@ -90,6 +90,9 @@ describe('openings manage import wiring', () => {
     assert.match(manage, /createSide/);
     assert.match(manage, /openings\.sideRequired/);
     assert.match(manage, /RepertoireSidePicker/);
+    assert.match(manage, /openings\.toClassify/);
+    assert.match(manage, /openings\.chooseWhiteOrBlack/);
+    assert.match(manage, /manage-folder-classify-/);
   });
 });
 
@@ -107,6 +110,12 @@ describe('openings empty-state i18n', () => {
     assert.equal(translate('en', 'openings.createFolder'), 'Create a folder');
     assert.equal(translate('fr', 'openings.importPgn'), 'Importer un PGN');
     assert.equal(translate('en', 'openings.importPgn'), 'Import a PGN');
+    assert.equal(translate('fr', 'openings.toClassify'), 'À classer');
+    assert.equal(translate('en', 'openings.toClassify'), 'To sort');
+    assert.equal(translate('fr', 'openings.chooseWhiteOrBlack'), 'Choisir Blancs ou Noirs');
+    assert.equal(translate('en', 'openings.chooseWhiteOrBlack'), 'Choose White or Black');
+    assert.equal(translate('fr', 'openings.sectionUnassigned'), 'À CLASSER');
+    assert.equal(translate('en', 'openings.sectionUnassigned'), 'TO SORT');
   });
 
   it('does not hardcode empty-state French in OpeningEmptyState', () => {

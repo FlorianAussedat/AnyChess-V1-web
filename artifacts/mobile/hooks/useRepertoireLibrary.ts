@@ -35,7 +35,7 @@ export function useRepertoireLibrary() {
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
   const createFolder = useCallback(
-    async (name: string, side?: RepertoireSide, enabled = true) => {
+    async (name: string, side: RepertoireSide, enabled = true) => {
       const folder = await repertoireService.createFolder(name, side, enabled);
       bump();
       return folder;

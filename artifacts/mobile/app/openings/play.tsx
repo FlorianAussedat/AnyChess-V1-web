@@ -13,7 +13,8 @@ import { OpeningGameScreen } from '@/components/OpeningGameScreen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import {
   applyReviewPick,
-  getEphemeralOpeningSession,
+  ephemeralSessionForOrigin,
+  leaveEphemeralOpeningExercise,
   listReviewPoolEntries,
   pickReviewLineFromMemory,
   repertoireFromSans,
@@ -45,6 +46,7 @@ export default function OpeningPlayRoute() {
     band?: string;
     from?: string;
   }>();
+  const fromOrigin = Array.isArray(from) ? from[0] : from;
 
   const preferredBand =
     preferencesStore.getPreferences().stockfishStrengthBandId ||
@@ -62,7 +64,7 @@ export default function OpeningPlayRoute() {
   const [loading, setLoading] = useState(true);
   const [lineKey, setLineKey] = useState(0);
   const originRef = useRef<'review' | 'study' | null>(
-    from === 'review' || from === 'study' ? from : null,
+    fromOrigin === 'review' || fromOrigin === 'study' ? fromOrigin : null,
   );
 
   const applyLine = useCallback(
@@ -83,8 +85,8 @@ export default function OpeningPlayRoute() {
     async function load() {
       try {
         await repertoireService.ensureLoaded();
-        const eph = getEphemeralOpeningSession();
-        if (eph && (from === 'review' || from === 'study' || eph.origin === 'review' || eph.origin === 'study')) {
+        const eph = ephemeralSessionForOrigin(fromOrigin);
+        if (eph) {
           originRef.current = eph.origin;
           if (cancelled) return;
           applyLine(
@@ -95,7 +97,7 @@ export default function OpeningPlayRoute() {
           );
           return;
         }
-        if (from === 'review') {
+        if (fromOrigin === 'review') {
           const pick = pickReviewLineFromMemory(
             listReviewPoolEntries(
               repertoireService.getFolders(),
@@ -160,7 +162,7 @@ export default function OpeningPlayRoute() {
     return () => {
       cancelled = true;
     };
-  }, [applyLine, color, fileId, folderId, from, gameIndex, t]);
+  }, [applyLine, color, fileId, folderId, fromOrigin, gameIndex, t]);
 
   const requestNextLine = useCallback(() => {
     if (originRef.current !== 'review') return;
@@ -198,7 +200,13 @@ export default function OpeningPlayRoute() {
           { backgroundColor: colors.background, paddingTop: contentTop, paddingHorizontal: 20 },
         ]}
       >
-        <ScreenHeader onBack={() => router.back()} title={t('openings.opening')} />
+        <ScreenHeader
+          onBack={() => {
+            leaveEphemeralOpeningExercise();
+            router.back();
+          }}
+          title={t('openings.opening')}
+        />
         <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
       </View>
     );

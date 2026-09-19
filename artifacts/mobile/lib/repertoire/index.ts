@@ -69,10 +69,15 @@ export {
   resetReviewPickMemory,
 } from './pickReviewLine';
 export type { ReviewPoolEntry, ReviewLinePick } from './pickReviewLine';
+export { hasAssignedRepertoireSide, requireRepertoireSide } from './folderSide';
 export {
   setEphemeralOpeningSession,
   getEphemeralOpeningSession,
+  leaveEphemeralOpeningExercise,
   clearEphemeralOpeningSession,
+  isOpeningExercisePath,
+  releaseEphemeralOpeningSessionIfLeaving,
+  ephemeralSessionForOrigin,
 } from './ephemeralOpeningSession';
 export type { EphemeralOpeningSession } from './ephemeralOpeningSession';
 export { repertoireFromSans } from './repertoireFromSans';

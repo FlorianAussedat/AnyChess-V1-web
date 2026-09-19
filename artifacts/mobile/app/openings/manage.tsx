@@ -15,6 +15,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import {
+  hasAssignedRepertoireSide,
   needsOppositeSideMoveConfirm,
   pgnFileDisplayName,
   selectedPgnImports,
@@ -98,7 +99,7 @@ export default function OpeningsManageScreen() {
     [folders],
   );
   const unassignedFolders = useMemo(
-    () => folders.filter((f) => !f.side),
+    () => folders.filter((f) => !hasAssignedRepertoireSide(f.side)),
     [folders],
   );
 
@@ -432,7 +433,9 @@ export default function OpeningsManageScreen() {
           <View style={styles.folderBody}>
             <Text style={[styles.folderName, { color: colors.foreground }]}>{folder.name}</Text>
             <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-              {folder.side ? sideLabel(folder.side) : t('openings.setSide')}
+              {hasAssignedRepertoireSide(folder.side)
+                ? sideLabel(folder.side)
+                : `${t('openings.toClassify')} · ${t('openings.chooseWhiteOrBlack')}`}
               {' · '}
               {folderOn ? t('openings.folderActive') : t('openings.folderInactive')}
               {' · '}
@@ -447,9 +450,12 @@ export default function OpeningsManageScreen() {
           />
         </Pressable>
 
-        {!folder.side ? (
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            {t('openings.unassignedSideHint')}
+        {!hasAssignedRepertoireSide(folder.side) ? (
+          <Text
+            style={[styles.hint, { color: colors.destructive }]}
+            testID={`manage-folder-classify-${folder.id}`}
+          >
+            {t('openings.toClassify')} — {t('openings.chooseWhiteOrBlack')}. {t('openings.unassignedSideHint')}
           </Text>
         ) : null}
 

@@ -3,6 +3,9 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   emptyRepertoireStore,
   normalizeRepertoireStore,
@@ -15,6 +18,7 @@ import {
   filterFoldersByReviewSide,
   filterEntriesByReviewSide,
 } from '../MixedRepertoireTraining.ts';
+import { hasAssignedRepertoireSide, requireRepertoireSide } from '../folderSide.ts';
 import { buildRepertoire } from '../repertoireTree.ts';
 import { ContinueLineRecentStorage } from '../../continueLine/ContinueLineRecentStorage.ts';
 
@@ -230,5 +234,47 @@ describe('ContinueLineRecentStorage mixed keys', () => {
     await store.pushRecentPathId(mixKey, 'b:e4 c5');
     const recent = await store.getRecentPathIds(mixKey);
     assert.deepEqual(recent, ['b:e4 c5', 'a:e4 e5']);
+  });
+});
+
+describe('assigned repertoire side', () => {
+  it('accepts only White or Black', () => {
+    assert.equal(hasAssignedRepertoireSide('white'), true);
+    assert.equal(hasAssignedRepertoireSide('black'), true);
+    assert.equal(hasAssignedRepertoireSide(undefined), false);
+    assert.equal(hasAssignedRepertoireSide(null), false);
+    assert.equal(requireRepertoireSide('white'), 'white');
+    assert.equal(requireRepertoireSide('black'), 'black');
+    assert.throws(() => requireRepertoireSide(undefined));
+    assert.throws(() => requireRepertoireSide(null));
+  });
+
+  it('keeps legacy unsided folders and requires a side on create/edit', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const mobileRoot = join(here, '../../..');
+    const service = readFileSync(
+      join(mobileRoot, 'lib/repertoire/RepertoireService.ts'),
+      'utf8',
+    );
+    const picker = readFileSync(
+      join(mobileRoot, 'components/RepertoireSidePicker.tsx'),
+      'utf8',
+    );
+    const parties = readFileSync(join(mobileRoot, 'app/parties/index.tsx'), 'utf8');
+    const manage = readFileSync(join(mobileRoot, 'app/openings/manage.tsx'), 'utf8');
+
+    assert.match(service, /async createFolder\(\s*name: string,\s*side: RepertoireSide,/);
+    assert.match(service, /requireRepertoireSide\(side\)/);
+    assert.match(service, /Rename never clears a classified side/);
+    assert.doesNotMatch(service, /folder\.side\s*=\s*undefined/);
+    assert.doesNotMatch(service, /async createFolder\(\s*name: string,\s*side\?:/);
+    assert.match(picker, /onChange: \(side: RepertoireSide\) => void/);
+    assert.doesNotMatch(picker, /onChange: \(side: RepertoireSide \| null\)/);
+    assert.match(parties, /openingsCreateSide/);
+    assert.match(parties, /RepertoireSidePicker/);
+    assert.match(parties, /openings\.sideRequired/);
+    assert.match(manage, /createSide/);
+    assert.match(manage, /openings\.toClassify/);
+    assert.match(manage, /openings\.chooseWhiteOrBlack/);
   });
 });

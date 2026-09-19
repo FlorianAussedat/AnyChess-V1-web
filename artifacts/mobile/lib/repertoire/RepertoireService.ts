@@ -27,6 +27,7 @@ import {
   repertoireCacheDevLog,
   setFolderRepertoireCache,
 } from './folderRepertoireCache';
+import { hasAssignedRepertoireSide, requireRepertoireSide } from './folderSide';
 
 export { normaliseFilename, uniquePgnFilename } from './pgnFilename';
 
@@ -101,12 +102,13 @@ export class RepertoireService {
 
   async createFolder(
     name: string,
-    side?: RepertoireSide,
+    side: RepertoireSide,
     enabled = true,
   ): Promise<RepertoireFolder> {
     await this.ensureLoaded();
     const trimmed = name.trim();
     if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
+    const assignedSide = requireRepertoireSide(side);
 
     const existing = this.snapshot!.folders.find(
       (f) => f.name.toLowerCase() === trimmed.toLowerCase(),
@@ -116,7 +118,7 @@ export class RepertoireService {
     const folder: RepertoireFolder = {
       id: newId('folder'),
       name: trimmed,
-      side,
+      side: assignedSide,
       enabled,
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -141,6 +143,7 @@ export class RepertoireService {
     if (clash) throw new Error(tMsg('errors.folderExists', { name: trimmed }));
 
     folder.name = trimmed;
+    // Rename never clears a classified side (legacy unsided folders stay unsided).
     folder.updatedAt = nowIso();
     await this.persist();
     return folder;
@@ -163,7 +166,7 @@ export class RepertoireService {
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
-    folder.side = side;
+    folder.side = requireRepertoireSide(side);
     folder.updatedAt = nowIso();
     await this.persist();
     return folder;
@@ -190,7 +193,7 @@ export class RepertoireService {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
       if (folder.enabled === false) return false;
-      if (!folder.side) return false;
+      if (!hasAssignedRepertoireSide(folder.side)) return false;
       return this.getFiles(folder.id).some(
         (f) => f.summary.parseSucceeded && f.enabled !== false,
       );
@@ -201,7 +204,7 @@ export class RepertoireService {
   getFoldersMissingSide(): RepertoireFolder[] {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
-      if (folder.side) return false;
+      if (hasAssignedRepertoireSide(folder.side)) return false;
       return this.getFiles(folder.id).some(
         (f) => f.summary.parseSucceeded && f.enabled !== false,
       );

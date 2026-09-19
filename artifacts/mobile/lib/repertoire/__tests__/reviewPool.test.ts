@@ -18,9 +18,14 @@ import {
 } from '../pickReviewLine.ts';
 import {
   clearEphemeralOpeningSession,
+  ephemeralSessionForOrigin,
   getEphemeralOpeningSession,
+  isOpeningExercisePath,
+  leaveEphemeralOpeningExercise,
+  releaseEphemeralOpeningSessionIfLeaving,
   setEphemeralOpeningSession,
 } from '../ephemeralOpeningSession.ts';
+import { hasAssignedRepertoireSide } from '../folderSide.ts';
 import { repertoireFromSans } from '../repertoireFromSans.ts';
 import type { RepertoireFolder, StoredPgnFile } from '../storage/types.ts';
 
@@ -102,7 +107,27 @@ describe('review activation', () => {
       createdAt: '',
       updatedAt: '',
     };
+    const pgn = file('a', 'x', SMALL, true);
+    assert.equal(hasAssignedRepertoireSide(f.side), false);
     assert.equal(isFolderEnabledForReview(f), false);
+    assert.equal(isFileEnabledForReview(f, pgn), false);
+    assert.equal(listReviewPoolEntries([f], [pgn]).length, 0);
+  });
+
+  it('an enabled unsided folder stays out of Review until White or Black is chosen', () => {
+    const unsided: RepertoireFolder = {
+      id: 'legacy',
+      name: 'Ancien dossier',
+      enabled: true,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const sided = folder('w', 'white', true);
+    const leftover = file('legacy-pgn', 'legacy', SMALL, true);
+    const active = file('a', 'w', SMALL, true);
+    const pool = listReviewPoolEntries([unsided, sided], [leftover, active]);
+    assert.equal(pool.length, 1);
+    assert.equal(pool[0]!.file.id, 'a');
   });
 });
 
@@ -160,7 +185,20 @@ describe('opposite-side move confirmation', () => {
 });
 
 describe('ephemeral opening session', () => {
-  beforeEach(() => clearEphemeralOpeningSession());
+  beforeEach(() => leaveEphemeralOpeningExercise());
+
+  function studyLine() {
+    return {
+      fileId: 'study-line',
+      folderId: 'study-folder',
+      pathSans: ['e4', 'c5'],
+      pathId: 'e4 c5',
+      sourcePgn: '[Event "study"]\n\n1. e4 c5 *',
+      displayName: 'Jouer cette ligne',
+      side: 'white' as const,
+      origin: 'study' as const,
+    };
+  }
 
   it('does not touch persistent flags and clears on demand', () => {
     const f = folder('w', 'white', true);
@@ -181,6 +219,86 @@ describe('ephemeral opening session', () => {
     assert.equal(f.enabled, true);
     clearEphemeralOpeningSession();
     assert.equal(getEphemeralOpeningSession(), null);
+  });
+
+  it('launches Jouer cette ligne then drops it on every exit from the exercise', () => {
+    setEphemeralOpeningSession(studyLine());
+    assert.equal(getEphemeralOpeningSession()?.origin, 'study');
+    assert.equal(ephemeralSessionForOrigin('study')?.fileId, 'study-line');
+
+    leaveEphemeralOpeningExercise();
+    assert.equal(getEphemeralOpeningSession(), null);
+
+    setEphemeralOpeningSession(studyLine());
+    assert.equal(
+      releaseEphemeralOpeningSessionIfLeaving('/openings/play', '/openings'),
+      true,
+    );
+    assert.equal(getEphemeralOpeningSession(), null);
+
+    setEphemeralOpeningSession(studyLine());
+    assert.equal(
+      releaseEphemeralOpeningSessionIfLeaving(
+        '/openings/continue?from=study',
+        '/openings/learn',
+      ),
+      true,
+    );
+    assert.equal(getEphemeralOpeningSession(), null);
+
+    setEphemeralOpeningSession(studyLine());
+    assert.equal(
+      releaseEphemeralOpeningSessionIfLeaving('/openings/play', '/parties/analyzer'),
+      true,
+    );
+    assert.equal(getEphemeralOpeningSession(), null);
+
+    setEphemeralOpeningSession(studyLine());
+    assert.equal(
+      releaseEphemeralOpeningSessionIfLeaving('/openings/play/', '/'),
+      true,
+    );
+    assert.equal(getEphemeralOpeningSession(), null);
+
+    setEphemeralOpeningSession(studyLine());
+    leaveEphemeralOpeningExercise();
+    assert.equal(getEphemeralOpeningSession(), null);
+  });
+
+  it('keeps the parked line while staying on play or continue (ligne suivante)', () => {
+    setEphemeralOpeningSession(studyLine());
+    assert.equal(
+      releaseEphemeralOpeningSessionIfLeaving(
+        '/openings/play?from=study',
+        '/openings/play?from=review',
+      ),
+      false,
+    );
+    assert.equal(getEphemeralOpeningSession()?.fileId, 'study-line');
+    assert.equal(
+      releaseEphemeralOpeningSessionIfLeaving('/openings/play', '/openings/continue'),
+      false,
+    );
+    assert.equal(getEphemeralOpeningSession()?.origin, 'study');
+    assert.equal(isOpeningExercisePath('/openings/play?from=study'), true);
+    assert.equal(isOpeningExercisePath('/openings/manage'), false);
+  });
+
+  it('a leftover study line cannot hijack a later Review — the active pool is used', () => {
+    const white = folder('w', 'white', true);
+    const active = file('pool-pgn', 'w', SMALL, true);
+    const entries = listReviewPoolEntries([white], [active]);
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0]!.file.id, 'pool-pgn');
+
+    setEphemeralOpeningSession(studyLine());
+    assert.equal(ephemeralSessionForOrigin('review'), null);
+    assert.equal(getEphemeralOpeningSession(), null);
+
+    const pick = pickReviewLine(entries, { rng: () => 0 });
+    assert.ok(pick);
+    assert.equal(pick!.file.id, 'pool-pgn');
+    assert.notEqual(pick!.file.id, 'study-line');
   });
 
   it('linear repertoire from a selected line cannot wander into other branches', () => {

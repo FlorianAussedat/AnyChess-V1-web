@@ -70,6 +70,30 @@ describe('ephemeral study training', () => {
     assert.doesNotMatch(study, /setFileEnabled/);
     assert.doesNotMatch(study, /setFolderEnabled/);
   });
+
+  it('clears the parked line through leaveEphemeralOpeningExercise on every exit', () => {
+    const layout = read('app/_layout.tsx');
+    const hook = read('hooks/useReleaseEphemeralOpeningSession.ts');
+    const play = read('app/openings/play.tsx');
+    const continueLine = read('app/openings/continue.tsx');
+    const screen = read('components/OpeningGameScreen.tsx');
+    const session = read('lib/repertoire/ephemeralOpeningSession.ts');
+
+    assert.match(layout, /useReleaseEphemeralOpeningSession/);
+    assert.match(hook, /releaseEphemeralOpeningSessionIfLeaving/);
+    assert.match(session, /function leaveEphemeralOpeningExercise/);
+    assert.match(session, /function releaseEphemeralOpeningSessionIfLeaving/);
+    assert.match(session, /function ephemeralSessionForOrigin/);
+    assert.match(play, /ephemeralSessionForOrigin\(fromOrigin\)/);
+    assert.match(play, /leaveEphemeralOpeningExercise/);
+    assert.match(continueLine, /ephemeralSessionForOrigin\(fromOrigin\)/);
+    assert.match(continueLine, /leaveEphemeralOpeningExercise/);
+    assert.match(screen, /leaveEphemeralOpeningExercise/);
+    assert.match(screen, /router\.push\(opened\.href\)/);
+    assert.match(screen, /\/openings\/study\?fileId=/);
+    assert.doesNotMatch(play, /getEphemeralOpeningSession\(\)/);
+    assert.doesNotMatch(continueLine, /getEphemeralOpeningSession\(\)/);
+  });
 });
 
 describe('pedagogical reader is openings-specific', () => {
