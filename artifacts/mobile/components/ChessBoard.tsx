@@ -123,6 +123,7 @@ export function ChessBoard({
                   width: cellSize,
                   height: cellSize,
                   backgroundColor: bg,
+                  position: 'relative',
                 }}
               >
                 <View
