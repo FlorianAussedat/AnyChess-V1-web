@@ -338,52 +338,57 @@ export default function OpeningAnnotateScreen() {
         backTestID="opening-annotate-back"
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <TextInput
-          value={session.snapshot.displayName}
-          onChangeText={(text) => setSession(editorSetDisplayName(session, text))}
-          placeholder={t('openings.newPgnNamePlaceholder')}
-          placeholderTextColor={colors.mutedForeground}
-          style={[
-            styles.titleInput,
-            { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input },
-          ]}
-          testID="opening-annotate-title"
+      <TextInput
+        value={session.snapshot.displayName}
+        onChangeText={(text) => setSession(editorSetDisplayName(session, text))}
+        placeholder={t('openings.newPgnNamePlaceholder')}
+        placeholderTextColor={colors.mutedForeground}
+        style={[
+          styles.titleInput,
+          { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input },
+        ]}
+        testID="opening-annotate-title"
+      />
+
+      <ChessBoardSection boardSize={boardSize} testID="opening-annotate-board">
+        <ChessBoard
+          board={board}
+          lastMove={lastMove}
+          isFlipped={side === 'black'}
+          showCoordinates={showCoordinates}
+          sizeMode="wide"
+          size={boardSize}
+          selectedSquare={touchSelected}
+          legalDots={legalDests}
+          onSquarePress={onSquarePress}
         />
+      </ChessBoardSection>
 
-        <ChessBoardSection boardSize={boardSize} testID="opening-annotate-board">
-          <ChessBoard
-            board={board}
-            lastMove={lastMove}
-            isFlipped={side === 'black'}
-            showCoordinates={showCoordinates}
-            sizeMode="wide"
-            size={boardSize}
-            selectedSquare={touchSelected}
-            legalDots={legalDests}
-            onSquarePress={onSquarePress}
-          />
-        </ChessBoardSection>
+      <Text style={[styles.moveStatus, { color: colors.foreground }]} testID="opening-annotate-move">
+        {moveLabel}
+      </Text>
 
-        <Text style={[styles.moveStatus, { color: colors.foreground }]} testID="opening-annotate-move">
-          {moveLabel}
-        </Text>
+      <GameReaderNavControls
+        canGoBack={editorCanGoBack(session)}
+        canGoForward={editorCanGoForward(session)}
+        onStart={() => mutate(editorGoStart)}
+        onPrev={() => mutate(editorGoPrev)}
+        onNext={() => mutate(editorGoNext)}
+        onEnd={() => mutate(editorGoEnd)}
+        labels={{
+          start: t('parties.start'),
+          prev: t('parties.prev'),
+          next: t('parties.next'),
+          end: t('parties.end'),
+        }}
+        testID="opening-annotate-nav"
+      />
 
-        <GameReaderNavControls
-          canGoBack={editorCanGoBack(session)}
-          canGoForward={editorCanGoForward(session)}
-          onStart={() => mutate(editorGoStart)}
-          onPrev={() => mutate(editorGoPrev)}
-          onNext={() => mutate(editorGoNext)}
-          onEnd={() => mutate(editorGoEnd)}
-          labels={{
-            start: t('parties.start'),
-            prev: t('parties.prev'),
-            next: t('parties.next'),
-            end: t('parties.end'),
-          }}
-          testID="opening-annotate-nav"
-        />
+      <ScrollView
+        style={styles.scrollFlex}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
 
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
           {t('openings.createVariationHint')}
@@ -611,7 +616,8 @@ export default function OpeningAnnotateScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { gap: 10, paddingBottom: 24 },
+  scrollFlex: { flex: 1 },
+  scroll: { gap: 10, paddingBottom: 32 },
   titleInput: {
     borderWidth: 1,
     borderRadius: 10,

@@ -262,7 +262,29 @@ export default function OpeningStudyScreen() {
         },
       ]}
     >
-      <ScreenHeader onBack={() => router.back()} title={title} />
+      <ScreenHeader
+        onBack={() => router.back()}
+        title={title}
+        trailing={
+          <Pressable
+            onPress={() => {
+              if (!fileId) return;
+              const nodeId = state.currentNodeId
+                ? `&nodeId=${encodeURIComponent(state.currentNodeId)}`
+                : '';
+              router.push(
+                `/openings/annotate?fileId=${encodeURIComponent(fileId)}${nodeId}` as Href,
+              );
+            }}
+            style={[styles.annotateBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            testID="opening-study-annotate"
+          >
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 12 }}>
+              {t('openings.annotateThisPgn')}
+            </Text>
+          </Pressable>
+        }
+      />
 
       <ChessBoardSection boardSize={boardSize} testID="opening-study-board">
         <ChessBoard
@@ -376,21 +398,6 @@ export default function OpeningStudyScreen() {
           </Text>
         </Pressable>
       </View>
-      <Pressable
-        onPress={() => {
-          if (!fileId) return;
-          const nodeId = state.currentNodeId ? `&nodeId=${encodeURIComponent(state.currentNodeId)}` : '';
-          router.push(
-            `/openings/annotate?fileId=${encodeURIComponent(fileId)}${nodeId}` as Href,
-          );
-        }}
-        style={[styles.annotateBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
-        testID="opening-study-annotate"
-      >
-        <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
-          {t('openings.annotateThisPgn')}
-        </Text>
-      </Pressable>
 
       <OpeningStudyBranchPicker
         visible={Boolean(pending)}
@@ -402,7 +409,7 @@ export default function OpeningStudyScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 12, gap: 8 },
+  root: { flex: 1, paddingHorizontal: 12, gap: 8, paddingBottom: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   moveStatus: {
     fontSize: 14,
@@ -437,7 +444,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 10,
-    paddingVertical: 10,
-    paddingBottom: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
 });
