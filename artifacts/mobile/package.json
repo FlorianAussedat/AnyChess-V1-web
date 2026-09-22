@@ -59,10 +59,8 @@
     "expo-glass-effect": "~0.1.4",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
-    "expo-image-picker": "~17.0.9",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.10",
-    "expo-location": "~19.0.8",
     "expo-router": "~6.0.17",
     "expo-splash-screen": "~31.0.12",
     "expo-status-bar": "~3.0.9",
@@ -87,13 +85,14 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "@react-native-community/slider": "^5.2.0",
+    "@react-native-community/slider": "5.0.1",
     "chess.js": "^1.4.0",
     "expo-av": "^16.0.8",
-    "expo-clipboard": "^57.0.1",
+    "expo-clipboard": "~8.0.8",
+    "expo-dev-client": "~6.0.21",
     "expo-document-picker": "^14.0.8",
     "expo-speech": "^14.0.8",
-    "expo-speech-recognition": "^56.0.1",
+    "expo-speech-recognition": "sdk-54",
     "stockfish": "^18.0.8"
   }
 }
