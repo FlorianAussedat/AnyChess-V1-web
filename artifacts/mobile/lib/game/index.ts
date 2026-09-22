@@ -35,3 +35,4 @@ export {
   type PlayTurnFlags,
   type PlayTurnState,
 } from './playTurnState.ts';
+export { scheduleExclusiveTimeout } from './scheduleExclusiveTimeout.ts';

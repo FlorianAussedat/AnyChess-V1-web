@@ -4,6 +4,7 @@ import type { BoardPiece, LastMove, MoveEvent, PlayerColor } from '@/lib/game/ty
 import type { MoveInputSource } from '@/lib/moveInput/canonicalMove';
 import { Chess } from 'chess.js';
 import { tMsg } from '@/lib/i18n';
+import { scheduleExclusiveTimeout } from '@/lib/game/scheduleExclusiveTimeout';
 
 /**
  * Shared board / turn / speech state used by Classic and Openings providers.
@@ -79,10 +80,14 @@ export function useSharedPlayState() {
   }, []);
 
   const scheduleOpponentKickoff = useCallback((delayMs = 1200) => {
-    opponentTimeoutRef.current = setTimeout(() => {
-      opponentTimeoutRef.current = null;
-      opponentMoveRef.current();
-    }, delayMs);
+    opponentTimeoutRef.current = scheduleExclusiveTimeout(
+      opponentTimeoutRef.current,
+      delayMs,
+      () => {
+        opponentTimeoutRef.current = null;
+        opponentMoveRef.current();
+      },
+    );
   }, []);
 
   return {
