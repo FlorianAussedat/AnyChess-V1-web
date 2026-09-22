@@ -61,6 +61,13 @@ import {
   useGameReader,
   type ReaderGame,
 } from '@/lib/gameReader';
+import {
+  OPENING_EDITOR_ANALYZER_SOURCE,
+  analyzedLineSans,
+  graftAnalyzedLineOntoParkedEditor,
+  setParkedOpeningEditor,
+} from '@/lib/openingStudy';
+import { CreateOpeningStudyModal } from '@/components/openings/CreateOpeningStudyModal';
 
 const RESERVED_CHROME = 340;
 
@@ -73,6 +80,7 @@ export default function GameWorkspaceScreen() {
     nodeId?: string;
     flipped?: string;
     tab?: string;
+    source?: string;
   }>();
   const gameId = typeof params.gameId === 'string' ? params.gameId : '';
   const paramNodeId =
@@ -80,6 +88,8 @@ export default function GameWorkspaceScreen() {
       ? params.nodeId
       : null;
   const paramFlipped = params.flipped === '1';
+  // Extra UI only — must not change click / legality / coordinates / selection.
+  const fromOpeningEditor = params.source === OPENING_EDITOR_ANALYZER_SOURCE;
   const initialTab: TabId =
     params.tab === 'analysis' ? 'analysis' : 'game';
 
@@ -104,6 +114,7 @@ export default function GameWorkspaceScreen() {
   const [restoreFlipped, setRestoreFlipped] = useState(paramFlipped);
   const [restoreOrigin, setRestoreOrigin] = useState<string | null>(null);
   const [sessionReady, setSessionReady] = useState(!gameId);
+  const [studyOpen, setStudyOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -289,6 +300,22 @@ export default function GameWorkspaceScreen() {
     });
   }, [game, reader, analysis]);
 
+  const returnToOpeningEditor = useCallback(() => {
+    persistPosition();
+    router.back();
+  }, [persistPosition, router]);
+
+  const addAnalyzedLineToPgn = useCallback(() => {
+    if (!reader) return;
+    graftAnalyzedLineOntoParkedEditor(
+      reader.game,
+      reader.explorationOriginNodeId,
+      reader.currentNodeId,
+    );
+    persistPosition();
+    router.back();
+  }, [persistPosition, reader, router]);
+
   const onLoad = () => {
     const draft = pgnDraft.trim();
     if (!draft) {
@@ -429,6 +456,7 @@ export default function GameWorkspaceScreen() {
     [reader],
   );
 
+  // Same selection hook as Classic / editor — opening-editor source is not an input.
   const { touchSelected, legalDests, onSquarePress } = useBoardTouchSelection({
     canAct: Boolean(reader),
     getLegalDestinations,
@@ -745,6 +773,62 @@ export default function GameWorkspaceScreen() {
               ) : null
             }
           />
+          {fromOpeningEditor ? (
+            <View style={styles.openingActions} testID="anyliseur-opening-editor-actions">
+              <Pressable
+                testID="anyliseur-return-editor"
+                onPress={returnToOpeningEditor}
+                style={({ pressed }) => [
+                  styles.chip,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.card,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.chipLabel, { color: colors.foreground }]}>
+                  {t('openings.returnToEditor')}
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="anyliseur-add-analyzed-line"
+                onPress={addAnalyzedLineToPgn}
+                style={({ pressed }) => [
+                  styles.chip,
+                  {
+                    borderColor: colors.primary,
+                    backgroundColor: colors.secondary,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.chipLabel, { color: colors.primary }]}>
+                  {t('openings.addAnalyzedLine')}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.openingActions} testID="anyliseur-create-study-actions">
+              <Pressable
+                testID="anyliseur-create-opening-study"
+                onPress={() => setStudyOpen(true)}
+                disabled={!reader}
+                style={({ pressed }) => [
+                  styles.chip,
+                  {
+                    borderColor: colors.primary,
+                    backgroundColor: colors.secondary,
+                    opacity: pressed || !reader ? 0.6 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.chipLabel, { color: colors.primary }]}>
+                  {t('openings.createStudyFromHere')}
+                </Text>
+              </Pressable>
+            </View>
+          )}
           {showEngineUi ? analysisPanel : null}
         </View>
       ) : null}
@@ -759,6 +843,38 @@ export default function GameWorkspaceScreen() {
         onCopyFen={() => void onCopyFen()}
         onDownloadFen={onDownloadFen}
       />
+
+      {!fromOpeningEditor ? (
+        <CreateOpeningStudyModal
+          visible={studyOpen}
+          initialFen={reader?.game.initialFen ?? game?.initialFen ?? ''}
+          currentFen={reader?.currentFen ?? game?.initialFen ?? ''}
+          sansFromStart={
+            reader
+              ? analyzedLineSans({
+                  game: reader.game,
+                  explorationOriginNodeId: null,
+                  currentNodeId: reader.currentNodeId,
+                })
+              : []
+          }
+          onCancel={() => setStudyOpen(false)}
+          onCreated={(session, side) => {
+            setParkedOpeningEditor({
+              session,
+              commentDraft: '',
+              side,
+              originNodeId: session.snapshot.currentNodeId,
+              kind: 'new-study',
+            });
+            setStudyOpen(false);
+            persistPosition();
+            router.push(
+              `/openings/annotate?folderId=${encodeURIComponent(session.folderId)}&name=${encodeURIComponent(session.snapshot.displayName)}` as Href,
+            );
+          }}
+        />
+      ) : null}
     </ChessScreenScaffold>
   );
 }
@@ -834,6 +950,14 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     gap: 10,
     alignItems: 'center',
+  },
+  openingActions: {
+    width: '100%',
+    maxWidth: 560,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
   },
   status: {
     fontSize: 12,

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { RepertoireFolder } from '@/lib/repertoire';
+import { hasAssignedRepertoireSide, type RepertoireFolder } from '@/lib/repertoire';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 
 type Props = {
@@ -84,7 +84,9 @@ export function FolderPickModal({
                     {folder.name}
                   </Text>
                   <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-                    {folder.side ? sideLabel(folder.side) : t('openings.sectionUnassigned')}
+                    {hasAssignedRepertoireSide(folder.side)
+                      ? sideLabel(folder.side)
+                      : `${t('openings.toClassify')} · ${t('openings.chooseWhiteOrBlack')}`}
                   </Text>
                 </Pressable>
               ))}

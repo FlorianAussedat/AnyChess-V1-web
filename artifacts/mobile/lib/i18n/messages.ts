@@ -57,6 +57,75 @@ export type MessageKey =
   | 'openings.reviewAll'
   | 'openings.reviewWhite'
   | 'openings.reviewBlack'
+  | 'openings.learn'
+  | 'openings.learnHint'
+  | 'openings.managePgn'
+  | 'openings.manageTitle'
+  | 'openings.hubReviewHint'
+  | 'openings.hubLearnHint'
+  | 'openings.reviewPoolSummary'
+  | 'openings.activePgnList'
+  | 'openings.noActivePgn'
+  | 'openings.folderActive'
+  | 'openings.folderInactive'
+  | 'openings.viewPgn'
+  | 'openings.changeSideConfirmTitle'
+  | 'openings.changeSideConfirmBody'
+  | 'openings.noComment'
+  | 'openings.tabComments'
+  | 'openings.tabNotation'
+  | 'openings.annotatePgn'
+  | 'openings.annotateThisPgn'
+  | 'openings.createPgn'
+  | 'openings.saveToAnyChess'
+  | 'openings.exportPgn'
+  | 'openings.addComment'
+  | 'openings.editComment'
+  | 'openings.deleteComment'
+  | 'openings.deleteVariation'
+  | 'openings.goParentLine'
+  | 'openings.addAnnotation'
+  | 'openings.createVariationHint'
+  | 'openings.confirmVariationTitle'
+  | 'openings.confirmVariationBody'
+  | 'openings.unsavedTitle'
+  | 'openings.unsavedBody'
+  | 'openings.leaveWithoutSaving'
+  | 'openings.commentPlaceholder'
+  | 'openings.commentNeedMove'
+  | 'openings.newPgnName'
+  | 'openings.newPgnNamePlaceholder'
+  | 'openings.newStudyDefault'
+  | 'openings.undoEdit'
+  | 'openings.redoEdit'
+  | 'openings.analyzeThisPosition'
+  | 'openings.returnToEditor'
+  | 'openings.addAnalyzedLine'
+  | 'openings.createStudyFromHere'
+  | 'openings.createStudyScopeTitle'
+  | 'openings.createStudyScopeBody'
+  | 'openings.createStudyFromStart'
+  | 'openings.createStudyFromPosition'
+  | 'openings.createStudyNameTitle'
+  | 'openings.branchPickerTitle'
+  | 'openings.mainLine'
+  | 'openings.variation'
+  | 'openings.returnToCourse'
+  | 'openings.playThisLine'
+  | 'openings.continueThisLine'
+  | 'openings.analyzeGame'
+  | 'openings.studyThisOpening'
+  | 'openings.currentMove'
+  | 'openings.sideRequired'
+  | 'openings.learnFolders'
+  | 'openings.learnPgns'
+  | 'openings.linesShort'
+  | 'openings.continueVsEngineShort'
+  | 'openings.toggleReview'
+  | 'openings.setSide'
+  | 'openings.unassignedSideHint'
+  | 'openings.toClassify'
+  | 'openings.chooseWhiteOrBlack'
   | 'openings.customSelection'
   | 'openings.sideTitle'
   | 'openings.sidePrompt'
@@ -890,6 +959,85 @@ const fr: Dict = {
   'openings.reviewAll': 'Tout réviser',
   'openings.reviewWhite': 'Réviser Blancs',
   'openings.reviewBlack': 'Réviser Noirs',
+  'openings.learn': 'Apprentissage',
+  'openings.learnHint':
+    'Étudie chaque ouverture séparément, avec commentaires et variantes.',
+  'openings.managePgn': 'Importer / gérer mes PGN',
+  'openings.manageTitle': 'Mes PGN d’ouvertures',
+  'openings.hubReviewHint':
+    'Entraîne-toi sur les PGN actifs du pool : jouer contre le répertoire ou continuer la ligne.',
+  'openings.hubLearnHint':
+    'Consulte tous tes PGN, actifs ou non, dossier par dossier.',
+  'openings.reviewPoolSummary': '{{pgn}} PGN actifs · {{lines}} lignes disponibles',
+  'openings.activePgnList': 'PGN qui participent à la Révision',
+  'openings.noActivePgn':
+    'Aucun PGN actif. Active un dossier et au moins un PGN dans la gestion.',
+  'openings.folderActive': 'Actif pour la Révision',
+  'openings.folderInactive': 'Inactif pour la Révision',
+  'openings.viewPgn': 'Voir / Étudier',
+  'openings.changeSideConfirmTitle': 'Changer de camp ?',
+  'openings.changeSideConfirmBody':
+    'Ce PGN passera d’un dossier {{from}} à un dossier {{to}}. L’orientation d’entraînement suivra le nouveau dossier.',
+  'openings.noComment': 'Aucun commentaire pour ce coup.',
+  'openings.tabComments': 'Commentaires',
+  'openings.tabNotation': 'Notation',
+  'openings.annotatePgn': 'Annoter / éditer',
+  'openings.annotateThisPgn': 'Annoter ce PGN',
+  'openings.createPgn': 'Créer un PGN',
+  'openings.saveToAnyChess': 'Sauvegarder dans AnyChess',
+  'openings.exportPgn': 'Exporter en PGN',
+  'openings.addComment': 'Ajouter un commentaire',
+  'openings.editComment': 'Modifier le commentaire',
+  'openings.deleteComment': 'Supprimer le commentaire',
+  'openings.deleteVariation': 'Supprimer cette variante',
+  'openings.goParentLine': 'Revenir à la ligne parente',
+  'openings.addAnnotation': 'Ajouter une annotation',
+  'openings.createVariationHint':
+    'Joue un autre coup depuis cette position pour proposer une nouvelle variante.',
+  'openings.confirmVariationTitle': 'Créer une variante ?',
+  'openings.confirmVariationBody':
+    'Le coup {{move}} n’est pas encore dans l’arbre. L’ajouter comme nouvelle variante ?',
+  'openings.unsavedTitle': 'Des modifications ne sont pas sauvegardées.',
+  'openings.unsavedBody':
+    'Sauvegarder dans AnyChess, quitter sans sauvegarder, ou rester dans l’éditeur.',
+  'openings.leaveWithoutSaving': 'Quitter sans sauvegarder',
+  'openings.commentPlaceholder': 'Commentaire de ce coup',
+  'openings.commentNeedMove': 'Joue un coup pour pouvoir le commenter.',
+  'openings.newPgnName': 'Nom du PGN',
+  'openings.newPgnNamePlaceholder': 'Nom affiché dans la bibliothèque',
+  'openings.newStudyDefault': 'Nouvelle étude',
+  'openings.undoEdit': 'Annuler',
+  'openings.redoEdit': 'Rétablir',
+  'openings.analyzeThisPosition': 'Analyser cette position',
+  'openings.returnToEditor': 'Retourner à l’éditeur',
+  'openings.addAnalyzedLine': 'Ajouter la ligne analysée au PGN',
+  'openings.createStudyFromHere': 'Créer une étude d’ouverture depuis ici',
+  'openings.createStudyScopeTitle': 'Contenu de l’étude',
+  'openings.createStudyScopeBody':
+    'Conserver les coups joués depuis le début de la partie, ou démarrer l’étude depuis la position actuelle ?',
+  'openings.createStudyFromStart': 'Depuis le début de la partie',
+  'openings.createStudyFromPosition': 'Depuis la position actuelle',
+  'openings.createStudyNameTitle': 'Nom de l’étude',
+  'openings.branchPickerTitle': 'Quelle continuation ?',
+  'openings.mainLine': 'ligne principale',
+  'openings.variation': 'variante',
+  'openings.returnToCourse': '↩ Revenir au cours',
+  'openings.playThisLine': 'Jouer cette ligne',
+  'openings.continueThisLine': 'Continuer cette ligne',
+  'openings.analyzeGame': 'Analyser la partie',
+  'openings.studyThisOpening': 'Étudier cette ouverture',
+  'openings.currentMove': 'Coup {{move}}',
+  'openings.sideRequired': 'Choisis Blancs ou Noirs pour ce dossier.',
+  'openings.learnFolders': 'Dossiers',
+  'openings.learnPgns': 'PGN du dossier',
+  'openings.linesShort': '{{count}} lignes',
+  'openings.continueVsEngineShort': 'Continuer contre Stockfish',
+  'openings.toggleReview': 'Révision',
+  'openings.setSide': 'Camp du dossier',
+  'openings.unassignedSideHint':
+    'À classer — choisis Blancs ou Noirs. Tant qu’aucun camp n’est choisi, ce dossier reste hors Révision.',
+  'openings.toClassify': 'À classer',
+  'openings.chooseWhiteOrBlack': 'Choisir Blancs ou Noirs',
   'openings.customSelection': 'Sélection personnalisée…',
   'openings.sideTitle': 'Côté du répertoire',
   'openings.sidePrompt': 'De quel côté travaillez-vous « {{name}} » ?',
@@ -1546,9 +1694,9 @@ const fr: Dict = {
   'openings.linesCount': '{{count}} ligne(s)',
   'openings.sectionWhite': 'RÉPERTOIRE BLANCS',
   'openings.sectionBlack': 'RÉPERTOIRE NOIRS',
-  'openings.sectionUnassigned': 'SANS CÔTÉ',
+  'openings.sectionUnassigned': 'À CLASSER',
   'openings.sectionUnassignedHint':
-    'Ouvre chaque dossier et choisis Blancs ou Noirs avant l’entraînement.',
+    'Dossiers sans camp (données conservées). Choisis Blancs ou Noirs pour les inclure en Révision.',
   'openings.newRepertoire': 'Nouveau répertoire',
   'openings.renameRepertoire': 'Renommer le répertoire',
   'openings.create': 'Créer',
@@ -1565,7 +1713,6 @@ const fr: Dict = {
     'L’adversaire suit tes lignes importées, puis Stockfish hors livre.',
   'openings.continueLineDesc':
     'Récite la suite d’une branche choisie dans ce répertoire.',
-  'openings.managePgn': 'Gérer les PGN',
   'openings.emptyPgnBody':
     'Importe un ou plusieurs fichiers .pgn dans ce dossier.',
   'openings.filesCount': '{{count}} fichier(s) PGN',
@@ -1801,6 +1948,85 @@ const en: Dict = {
   'openings.reviewAll': 'Review all',
   'openings.reviewWhite': 'Review White',
   'openings.reviewBlack': 'Review Black',
+  'openings.learn': 'Learning',
+  'openings.learnHint':
+    'Study each opening separately, with comments and variations.',
+  'openings.managePgn': 'Import / manage my PGNs',
+  'openings.manageTitle': 'My opening PGNs',
+  'openings.hubReviewHint':
+    'Train on active PGNs: play against the repertoire or continue the line.',
+  'openings.hubLearnHint':
+    'Browse every PGN, active or not, folder by folder.',
+  'openings.reviewPoolSummary': '{{pgn}} active PGNs · {{lines}} lines available',
+  'openings.activePgnList': 'PGNs included in Review',
+  'openings.noActivePgn':
+    'No active PGN. Enable a folder and at least one PGN in the library.',
+  'openings.folderActive': 'Active for Review',
+  'openings.folderInactive': 'Inactive for Review',
+  'openings.viewPgn': 'View / Study',
+  'openings.changeSideConfirmTitle': 'Change side?',
+  'openings.changeSideConfirmBody':
+    'This PGN will move from a {{from}} folder to a {{to}} folder. Training orientation will follow the new folder.',
+  'openings.noComment': 'No comment for this move.',
+  'openings.tabComments': 'Comments',
+  'openings.tabNotation': 'Notation',
+  'openings.annotatePgn': 'Annotate / edit',
+  'openings.annotateThisPgn': 'Annotate this PGN',
+  'openings.createPgn': 'Create a PGN',
+  'openings.saveToAnyChess': 'Save to AnyChess',
+  'openings.exportPgn': 'Export PGN',
+  'openings.addComment': 'Add a comment',
+  'openings.editComment': 'Edit the comment',
+  'openings.deleteComment': 'Delete the comment',
+  'openings.deleteVariation': 'Delete this variation',
+  'openings.goParentLine': 'Back to the parent line',
+  'openings.addAnnotation': 'Add an annotation',
+  'openings.createVariationHint':
+    'Play a different move from this position to propose a new variation.',
+  'openings.confirmVariationTitle': 'Create a variation?',
+  'openings.confirmVariationBody':
+    '{{move}} is not in the tree yet. Add it as a new variation?',
+  'openings.unsavedTitle': 'Some changes are not saved.',
+  'openings.unsavedBody':
+    'Save to AnyChess, leave without saving, or stay in the editor.',
+  'openings.leaveWithoutSaving': 'Leave without saving',
+  'openings.commentPlaceholder': 'Comment for this move',
+  'openings.commentNeedMove': 'Play a move before adding a comment.',
+  'openings.newPgnName': 'PGN name',
+  'openings.newPgnNamePlaceholder': 'Name shown in the library',
+  'openings.newStudyDefault': 'New study',
+  'openings.undoEdit': 'Undo',
+  'openings.redoEdit': 'Redo',
+  'openings.analyzeThisPosition': 'Analyse this position',
+  'openings.returnToEditor': 'Back to the editor',
+  'openings.addAnalyzedLine': 'Add the analysed line to the PGN',
+  'openings.createStudyFromHere': 'Create an opening study from here',
+  'openings.createStudyScopeTitle': 'Study contents',
+  'openings.createStudyScopeBody':
+    'Keep the moves played from the start of the game, or start the study from the current position?',
+  'openings.createStudyFromStart': 'From the start of the game',
+  'openings.createStudyFromPosition': 'From the current position',
+  'openings.createStudyNameTitle': 'Study name',
+  'openings.branchPickerTitle': 'Which continuation?',
+  'openings.mainLine': 'main line',
+  'openings.variation': 'variation',
+  'openings.returnToCourse': '↩ Back to the lesson',
+  'openings.playThisLine': 'Play this line',
+  'openings.continueThisLine': 'Continue this line',
+  'openings.analyzeGame': 'Analyse the game',
+  'openings.studyThisOpening': 'Study this opening',
+  'openings.currentMove': 'Move {{move}}',
+  'openings.sideRequired': 'Choose White or Black for this folder.',
+  'openings.learnFolders': 'Folders',
+  'openings.learnPgns': 'Folder PGNs',
+  'openings.linesShort': '{{count}} lines',
+  'openings.continueVsEngineShort': 'Continue vs Stockfish',
+  'openings.toggleReview': 'Review',
+  'openings.setSide': 'Folder side',
+  'openings.unassignedSideHint':
+    'To sort — choose White or Black. Until a side is chosen, this folder stays out of Review.',
+  'openings.toClassify': 'To sort',
+  'openings.chooseWhiteOrBlack': 'Choose White or Black',
   'openings.customSelection': 'Custom selection…',
   'openings.sideTitle': 'Repertoire side',
   'openings.sidePrompt': 'Which side are you training “{{name}}” as?',
@@ -2452,9 +2678,9 @@ const en: Dict = {
   'openings.linesCount': '{{count}} line(s)',
   'openings.sectionWhite': 'WHITE REPERTOIRE',
   'openings.sectionBlack': 'BLACK REPERTOIRE',
-  'openings.sectionUnassigned': 'NO SIDE',
+  'openings.sectionUnassigned': 'TO SORT',
   'openings.sectionUnassignedHint':
-    'Open each folder and choose White or Black before training.',
+    'Folders without a side (data kept). Choose White or Black to include them in Review.',
   'openings.newRepertoire': 'New repertoire',
   'openings.renameRepertoire': 'Rename repertoire',
   'openings.create': 'Create',
@@ -2471,7 +2697,6 @@ const en: Dict = {
     'The opponent follows your imported lines, then Stockfish out of book.',
   'openings.continueLineDesc':
     'Recite the continuation of a branch chosen from this repertoire.',
-  'openings.managePgn': 'Manage PGNs',
   'openings.emptyPgnBody':
     'Import one or more .pgn files into this folder.',
   'openings.filesCount': '{{count}} PGN file(s)',

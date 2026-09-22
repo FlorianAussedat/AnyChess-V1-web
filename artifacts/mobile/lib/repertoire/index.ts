@@ -53,6 +53,34 @@ export {
   exportOpeningPlayedPgn,
 } from './playedLineAnnotations';
 export type { PlyAnnotation } from './playedLineAnnotations';
+export {
+  isFolderEnabledForReview,
+  isFileEnabledForReview,
+  isFileVisibleInLearning,
+  needsOppositeSideMoveConfirm,
+} from './reviewActivation';
+export {
+  listReviewPoolEntries,
+  countReviewLines,
+  pickReviewLine,
+  pickReviewLineFromMemory,
+  reviewPickToSession,
+  applyReviewPick,
+  resetReviewPickMemory,
+} from './pickReviewLine';
+export type { ReviewPoolEntry, ReviewLinePick } from './pickReviewLine';
+export { hasAssignedRepertoireSide, requireRepertoireSide } from './folderSide';
+export {
+  setEphemeralOpeningSession,
+  getEphemeralOpeningSession,
+  leaveEphemeralOpeningExercise,
+  clearEphemeralOpeningSession,
+  isOpeningExercisePath,
+  releaseEphemeralOpeningSessionIfLeaving,
+  ephemeralSessionForOrigin,
+} from './ephemeralOpeningSession';
+export type { EphemeralOpeningSession } from './ephemeralOpeningSession';
+export { repertoireFromSans } from './repertoireFromSans';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
 export {

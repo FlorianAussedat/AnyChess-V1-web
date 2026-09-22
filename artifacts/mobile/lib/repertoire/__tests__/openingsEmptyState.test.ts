@@ -40,47 +40,59 @@ describe('OpeningEmptyState component', () => {
   });
 });
 
-describe('openings index empty vs populated', () => {
+describe('openings hub empty vs populated', () => {
   const index = read('app/openings/index.tsx');
 
   it('shows OpeningEmptyState when folders.length === 0', () => {
     assert.match(index, /OpeningEmptyState/);
-    assert.match(index, /folders\.length === 0/);
-    assert.match(index, /<OpeningEmptyState onCreateFolder=/);
+    assert.match(index, /empty/);
+    assert.match(index, /<OpeningEmptyState/);
   });
+
+  it('empty CTA opens PGN management', () => {
+    assert.match(index, /\/openings\/manage/);
+    assert.match(index, /openings-manage-pgn-btn/);
+  });
+
+  it('does not keep review-all / import / folder CRUD on the hub', () => {
+    assert.doesNotMatch(index, /FolderListRow/);
+    assert.doesNotMatch(index, /import-pgn-root-btn/);
+    assert.doesNotMatch(index, /create-folder-btn/);
+    assert.doesNotMatch(index, /review-all-btn/);
+  });
+});
+
+describe('openings manage import wiring', () => {
+  const manage = read('app/openings/manage.tsx');
 
   it('wires light-index import + mandatory folder pick (no auto unclassified)', () => {
-    assert.match(index, /openImport/);
-    assert.match(index, /importPgn/);
-    assert.match(index, /pickPgnFile/);
-    assert.match(index, /indexPgnGamesLight/);
-    assert.match(index, /PgnGameSelectModal/);
-    assert.match(index, /MAX_OPENINGS_PGN_IMPORT_BATCH/);
-    assert.match(index, /FolderPickModal/);
-    assert.match(index, /selectedPgnImports/);
-    assert.doesNotMatch(index, /folderNameFromPgnFilename/);
-    assert.doesNotMatch(index, /createFolderUnique/);
-    assert.doesNotMatch(index, /Non classées/);
-    assert.doesNotMatch(index, /ImportPgnModal/);
-  });
-
-  it('navigates into folder after create from empty state', () => {
-    assert.match(index, /navigateAfterCreate/);
-    assert.match(index, /router\.push\(`\/openings\/\$\{folder\.id\}/);
-  });
-
-  it('keeps the normal folder list when the library is not empty', () => {
-    assert.match(index, /FolderListRow/);
-    assert.match(index, /whiteFolders\.map\(renderFolderRow\)/);
-    assert.match(index, /blackFolders\.map\(renderFolderRow\)/);
-    assert.match(index, /create-folder-btn/);
-    assert.match(index, /import-pgn-root-btn/);
+    assert.match(manage, /openImport/);
+    assert.match(manage, /importPgn/);
+    assert.match(manage, /pickPgnFile/);
+    assert.match(manage, /indexPgnGamesLight/);
+    assert.match(manage, /PgnGameSelectModal/);
+    assert.match(manage, /MAX_OPENINGS_PGN_IMPORT_BATCH/);
+    assert.match(manage, /FolderPickModal/);
+    assert.match(manage, /selectedPgnImports/);
+    assert.doesNotMatch(manage, /folderNameFromPgnFilename/);
+    assert.doesNotMatch(manage, /createFolderUnique/);
+    assert.doesNotMatch(manage, /Non classées/);
+    assert.doesNotMatch(manage, /ImportPgnModal/);
   });
 
   it('surfaces import errors without crashing (status / formError path)', () => {
-    assert.match(index, /setFormError/);
-    assert.match(index, /setStatusMsg/);
-    assert.match(index, /catch \(err\)/);
+    assert.match(manage, /setFormError/);
+    assert.match(manage, /setStatusMsg/);
+    assert.match(manage, /catch \(err\)/);
+  });
+
+  it('requires White or Black when creating a folder', () => {
+    assert.match(manage, /createSide/);
+    assert.match(manage, /openings\.sideRequired/);
+    assert.match(manage, /RepertoireSidePicker/);
+    assert.match(manage, /openings\.toClassify/);
+    assert.match(manage, /openings\.chooseWhiteOrBlack/);
+    assert.match(manage, /manage-folder-classify-/);
   });
 });
 
@@ -98,6 +110,12 @@ describe('openings empty-state i18n', () => {
     assert.equal(translate('en', 'openings.createFolder'), 'Create a folder');
     assert.equal(translate('fr', 'openings.importPgn'), 'Importer un PGN');
     assert.equal(translate('en', 'openings.importPgn'), 'Import a PGN');
+    assert.equal(translate('fr', 'openings.toClassify'), 'À classer');
+    assert.equal(translate('en', 'openings.toClassify'), 'To sort');
+    assert.equal(translate('fr', 'openings.chooseWhiteOrBlack'), 'Choisir Blancs ou Noirs');
+    assert.equal(translate('en', 'openings.chooseWhiteOrBlack'), 'Choose White or Black');
+    assert.equal(translate('fr', 'openings.sectionUnassigned'), 'À CLASSER');
+    assert.equal(translate('en', 'openings.sectionUnassigned'), 'TO SORT');
   });
 
   it('does not hardcode empty-state French in OpeningEmptyState', () => {
@@ -107,4 +125,3 @@ describe('openings empty-state i18n', () => {
     assert.doesNotMatch(src, /Importer un PGN/);
   });
 });
-

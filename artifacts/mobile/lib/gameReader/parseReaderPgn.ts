@@ -177,6 +177,7 @@ function convertSiblings(
       moveNumber: fullMove,
       color,
       comment,
+      commentBefore: step.commentBefore,
       nags: step.nags.length > 0 ? [...step.nags] : undefined,
       parentId,
       childIds: childResult.ids,

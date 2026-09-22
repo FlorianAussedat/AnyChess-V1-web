@@ -45,5 +45,7 @@ const SVG: Record<string, string> = {
 export function PieceSvg({ type, color, size }: Props) {
   const key = color + type; // e.g. 'wp', 'bn'
   const xml = SVG[key] ?? '';
-  return <SvgXml xml={xml} width={size} height={size} />;
+  return (
+    <SvgXml xml={xml} width={size} height={size} pointerEvents="none" />
+  );
 }

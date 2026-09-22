@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -11,7 +11,16 @@ import {
 import type { PlayerColor } from '@/contexts/OpeningGameContext';
 import { OpeningGameScreen } from '@/components/OpeningGameScreen';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { repertoireService, type ParsedRepertoire } from '@/lib/repertoire';
+import {
+  applyReviewPick,
+  ephemeralSessionForOrigin,
+  leaveEphemeralOpeningExercise,
+  listReviewPoolEntries,
+  pickReviewLineFromMemory,
+  repertoireFromSans,
+  repertoireService,
+  type ParsedRepertoire,
+} from '@/lib/repertoire';
 import {
   DEFAULT_STRENGTH_BAND_ID,
   getStrengthBand,
@@ -21,11 +30,7 @@ import { preferencesStore } from '@/lib/preferences';
 /**
  * Opening Game play route.
  *
- * Loads the merged repertoire for `folderId`, then hosts an isolated
- * OpeningGameProvider (separate from Classic GameContext).
- *
- * Query: /openings/play?folderId=…&color=w|b&band=…
- * `band` overrides Paramètres; otherwise the shared preference is used.
+ * Loads an ephemeral selected line when present, otherwise the folder repertoire.
  */
 export default function OpeningPlayRoute() {
   const colors = useColors();
@@ -33,15 +38,16 @@ export default function OpeningPlayRoute() {
   const { contentTop } = useAppSafeInsets();
   const router = useRouter();
 
-  const { folderId, color, band, fileId, gameIndex } = useLocalSearchParams<{
+  const { folderId, color, band, fileId, gameIndex, from } = useLocalSearchParams<{
     folderId: string;
     fileId?: string;
     gameIndex?: string;
     color?: string;
     band?: string;
+    from?: string;
   }>();
+  const fromOrigin = Array.isArray(from) ? from[0] : from;
 
-  const initialColor: PlayerColor = color === 'b' ? 'b' : 'w';
   const preferredBand =
     preferencesStore.getPreferences().stockfishStrengthBandId ||
     DEFAULT_STRENGTH_BAND_ID;
@@ -53,19 +59,69 @@ export default function OpeningPlayRoute() {
   const [repertoire, setRepertoire] = useState<ParsedRepertoire | null>(null);
   const [repertoireName, setRepertoireName] = useState('');
   const [sourcePgn, setSourcePgn] = useState('');
+  const [playerColor, setPlayerColor] = useState<PlayerColor>(color === 'b' ? 'b' : 'w');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lineKey, setLineKey] = useState(0);
+  const originRef = useRef<'review' | 'study' | null>(
+    fromOrigin === 'review' || fromOrigin === 'study' ? fromOrigin : null,
+  );
+
+  const applyLine = useCallback(
+    (rep: ParsedRepertoire, name: string, pgn: string, nextColor: PlayerColor) => {
+      setRepertoire(rep);
+      setRepertoireName(name);
+      setSourcePgn(pgn);
+      setPlayerColor(nextColor);
+      setError(null);
+      setLoading(false);
+      setLineKey((k) => k + 1);
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      if (!folderId) {
-        setError(t('openings.folderIdMissing'));
-        setLoading(false);
-        return;
-      }
       try {
         await repertoireService.ensureLoaded();
+        const eph = ephemeralSessionForOrigin(fromOrigin);
+        if (eph) {
+          originRef.current = eph.origin;
+          if (cancelled) return;
+          applyLine(
+            repertoireFromSans(eph.pathSans),
+            eph.displayName,
+            eph.sourcePgn,
+            eph.side === 'black' ? 'b' : 'w',
+          );
+          return;
+        }
+        if (fromOrigin === 'review') {
+          const pick = pickReviewLineFromMemory(
+            listReviewPoolEntries(
+              repertoireService.getFolders(),
+              repertoireService.getAllFiles(),
+            ),
+          );
+          if (pick) {
+            const session = applyReviewPick(pick, 'review');
+            originRef.current = 'review';
+            if (cancelled) return;
+            applyLine(
+              repertoireFromSans(session.pathSans),
+              session.displayName,
+              session.sourcePgn,
+              session.side === 'black' ? 'b' : 'w',
+            );
+            return;
+          }
+        }
+        if (!folderId) {
+          setError(t('openings.folderIdMissing'));
+          setLoading(false);
+          return;
+        }
         const folder = repertoireService.getFolder(folderId);
         if (!folder) {
           setError(t('openings.repertoireNotFound'));
@@ -73,26 +129,27 @@ export default function OpeningPlayRoute() {
           return;
         }
         const { repertoire: rep, fileCount, issues } =
-          await repertoireService.buildFolderRepertoire(folderId, fileId, gameIndex === undefined ? undefined : Number(gameIndex));
-        if (fileCount === 0 || rep.positionCount === 0) {
-          setError(
-            issues[0]?.message ?? t('openings.playEmpty'),
+          await repertoireService.buildFolderRepertoire(
+            folderId,
+            fileId,
+            gameIndex === undefined ? undefined : Number(gameIndex),
           );
+        if (fileCount === 0 || rep.positionCount === 0) {
+          setError(issues[0]?.message ?? t('openings.playEmpty'));
           setLoading(false);
           return;
         }
         if (!cancelled) {
-          setRepertoire(rep);
-          setRepertoireName(folder.name);
-          setSourcePgn(
+          applyLine(
+            rep,
+            folder.name,
             repertoireService.getFolderCombinedPgn(
               folderId,
               fileId,
               gameIndex === undefined ? undefined : Number(gameIndex),
             ),
+            folder.side === 'black' ? 'b' : color === 'b' ? 'b' : 'w',
           );
-          setError(null);
-          setLoading(false);
         }
       } catch (err) {
         if (!cancelled) {
@@ -101,11 +158,28 @@ export default function OpeningPlayRoute() {
         }
       }
     }
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
-  }, [folderId, fileId, gameIndex, t]);
+  }, [applyLine, color, fileId, folderId, fromOrigin, gameIndex, t]);
+
+  const requestNextLine = useCallback(() => {
+    if (originRef.current !== 'review') return;
+    const entries = listReviewPoolEntries(
+      repertoireService.getFolders(),
+      repertoireService.getAllFiles(),
+    );
+    const pick = pickReviewLineFromMemory(entries);
+    if (!pick) return;
+    const session = applyReviewPick(pick, 'review');
+    applyLine(
+      repertoireFromSans(session.pathSans),
+      session.displayName,
+      session.sourcePgn,
+      session.side === 'black' ? 'b' : 'w',
+    );
+  }, [applyLine]);
 
   if (loading) {
     return (
@@ -126,7 +200,13 @@ export default function OpeningPlayRoute() {
           { backgroundColor: colors.background, paddingTop: contentTop, paddingHorizontal: 20 },
         ]}
       >
-        <ScreenHeader onBack={() => router.back()} title={t('openings.opening')} />
+        <ScreenHeader
+          onBack={() => {
+            leaveEphemeralOpeningExercise();
+            router.back();
+          }}
+          title={t('openings.opening')}
+        />
         <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
       </View>
     );
@@ -134,12 +214,14 @@ export default function OpeningPlayRoute() {
 
   return (
     <OpeningGameProvider
+      key={lineKey}
       repertoire={repertoire}
       repertoireName={repertoireName}
       sourcePgn={sourcePgn}
       strengthBandId={strengthBandId}
+      onRequestNextLine={originRef.current === 'review' ? requestNextLine : undefined}
     >
-      <ApplyInitialColor initialColor={initialColor}>
+      <ApplyInitialColor initialColor={playerColor}>
         <OpeningGameScreen />
       </ApplyInitialColor>
     </OpeningGameProvider>
@@ -181,4 +263,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-
