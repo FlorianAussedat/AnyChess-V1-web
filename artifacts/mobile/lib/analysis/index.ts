@@ -34,6 +34,11 @@ export {
 
 export { uciPvToSan, uciToSan } from './uciToSan.ts';
 export { AnalysisCache, makeAnalysisCacheKey } from './analysisCache.ts';
+export {
+  initAnalysisControllerSafely,
+  replaceAnalysisController,
+} from './anyliseurEngineLifecycle.ts';
+export type { DisposableAnalysisController } from './anyliseurEngineLifecycle.ts';
 export { mapEngineAnalysisToPosition } from './mapEngineAnalysis.ts';
 export { exportEnrichedPgn, serializeReaderGamePgn } from './exportEnrichedPgn.ts';
 export type { SerializeReaderPgnOptions } from './exportEnrichedPgn.ts';
