@@ -5,6 +5,10 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
+import {
+  parseStoredJson,
+  quarantineCorruptValue,
+} from '../storage/safeParse.ts';
 import { displayNameFromFilename } from './displayNameFromFilename.ts';
 import {
   collectDescendantFolderIds,
@@ -25,6 +29,31 @@ import type {
 
 export const GAME_LIBRARY_STORAGE_KEY = StorageKeys.gameLibrary.key;
 
+export type GameLibraryLoadFailure = 'corrupt' | 'read_failed';
+
+/** Thrown when the on-disk library cannot be treated as a valid snapshot. */
+export class GameLibraryUnreadableError extends Error {
+  readonly code: GameLibraryLoadFailure;
+  readonly reason?: 'invalid_json' | 'validation_failed';
+
+  constructor(
+    code: GameLibraryLoadFailure,
+    options?: { reason?: 'invalid_json' | 'validation_failed'; cause?: unknown },
+  ) {
+    super(
+      code === 'corrupt'
+        ? 'Game library storage is corrupt.'
+        : 'Game library storage could not be read.',
+    );
+    this.name = 'GameLibraryUnreadableError';
+    this.code = code;
+    this.reason = options?.reason;
+    if (options?.cause !== undefined) {
+      (this as Error & { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
+
 export function emptyGameLibrarySnapshot(): GameLibrarySnapshot {
   return emptyGameLibrarySnapshotV2();
 }
@@ -43,41 +72,87 @@ export function validateGameLibrarySnapshot(
 
 export class GameLibraryStore {
   private cache: GameLibrarySnapshot | null = null;
+  /** Set when a read is invalid; never treat that as a durable empty snapshot. */
+  private loadError: GameLibraryUnreadableError | null = null;
   private readonly storage: KeyValueStorage;
 
   constructor(storage: KeyValueStorage = defaultKeyValueStorage) {
     this.storage = storage;
   }
 
+  getLastLoadError(): GameLibraryUnreadableError | null {
+    return this.loadError;
+  }
+
+  isUnreadable(): boolean {
+    return this.loadError != null;
+  }
+
   async getSnapshot(): Promise<GameLibrarySnapshot> {
-    if (this.cache) return this.cache;
+    if (this.cache && !this.loadError) return this.cache;
+
+    let raw: string | null;
     try {
-      const raw = await this.storage.getItem(GAME_LIBRARY_STORAGE_KEY);
-      if (!raw) {
-        this.cache = emptyGameLibrarySnapshot();
-        return this.cache;
-      }
-      const parsed = validateGameLibrarySnapshot(JSON.parse(raw));
-      this.cache = parsed ?? emptyGameLibrarySnapshot();
-      // Persist migration if we upgraded from v1.
-      if (parsed && parsed.version === 2) {
-        const original = JSON.parse(raw) as { version?: number };
-        if (original.version === 1) {
-          await this.persist(parsed);
-        }
-      }
-      return this.cache;
-    } catch {
+      raw = await this.storage.getItem(GAME_LIBRARY_STORAGE_KEY);
+    } catch (cause) {
+      this.cache = null;
+      this.loadError = new GameLibraryUnreadableError('read_failed', { cause });
+      throw this.loadError;
+    }
+
+    const result = parseStoredJson(
+      raw,
+      emptyGameLibrarySnapshot(),
+      validateGameLibrarySnapshot,
+    );
+
+    if (result.status === 'missing') {
+      this.loadError = null;
       this.cache = emptyGameLibrarySnapshot();
       return this.cache;
     }
+
+    if (result.status === 'corrupt') {
+      this.cache = null;
+      if (result.raw != null && result.reason) {
+        await quarantineCorruptValue(
+          this.storage,
+          GAME_LIBRARY_STORAGE_KEY,
+          result.raw,
+          result.reason,
+        );
+      }
+      this.loadError = new GameLibraryUnreadableError('corrupt', {
+        reason: result.reason,
+      });
+      throw this.loadError;
+    }
+
+    this.loadError = null;
+    this.cache = result.value;
+    // Persist migration if we upgraded from v1.
+    if (result.raw) {
+      try {
+        const original = JSON.parse(result.raw) as { version?: number };
+        if (original.version === 1) {
+          await this.persist(result.value);
+        }
+      } catch (err) {
+        if (err instanceof GameLibraryUnreadableError) throw err;
+        // Version peek failed; in-memory v2 snapshot is still valid.
+      }
+    }
+    return this.cache;
   }
 
   private async persist(
     next: GameLibrarySnapshot,
   ): Promise<GameLibrarySnapshot> {
-    this.cache = next;
+    if (this.loadError) {
+      throw this.loadError;
+    }
     await this.storage.setItem(GAME_LIBRARY_STORAGE_KEY, JSON.stringify(next));
+    this.cache = next;
     return next;
   }
 

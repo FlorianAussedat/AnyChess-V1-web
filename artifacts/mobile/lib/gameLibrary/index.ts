@@ -43,8 +43,10 @@ export {
   emptyGameLibrarySnapshot,
   validateGameLibrarySnapshot,
   GameLibraryStore,
+  GameLibraryUnreadableError,
   gameLibraryStore,
 } from './GameLibraryStore.ts';
+export type { GameLibraryLoadFailure } from './GameLibraryStore.ts';
 
 export {
   gamePlayersTitle,

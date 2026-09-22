@@ -1,6 +1,5 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import {
   extractClkFromComment,
   stripClkTags,
@@ -13,11 +12,15 @@ import {
   clampPly,
   formatPlyLabel,
   GameLibraryStore,
+  GameLibraryUnreadableError,
   GamePlaybackScheduler,
   emptyGameLibrarySnapshot,
   validateGameLibrarySnapshot,
+  GAME_LIBRARY_STORAGE_KEY,
   type PlaybackSpeechPort,
 } from '../index.ts';
+import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
+import { corruptBackupKey } from '../../storage/StorageKeys.ts';
 import { dictationPaceToGapMs } from '../../preferences/dictationPace.ts';
 
 const SAMPLE_PGN = `[Event "World Blitz Championship"]
@@ -274,6 +277,110 @@ describe('gameLibrary persistence', () => {
       analyzedAt: 42,
     });
     assert.equal(cleared?.analysis, undefined);
+  });
+
+  it('does not rewrite the primary key when JSON is corrupt', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const bad = '{not-json';
+    await storage.setItem(GAME_LIBRARY_STORAGE_KEY, bad);
+    const store = new GameLibraryStore(storage);
+
+    await assert.rejects(
+      () => store.getSnapshot(),
+      (err: unknown) => {
+        assert.ok(err instanceof GameLibraryUnreadableError);
+        assert.equal(err.code, 'corrupt');
+        return true;
+      },
+    );
+    assert.equal(await storage.getItem(GAME_LIBRARY_STORAGE_KEY), bad);
+    assert.equal(
+      await storage.getItem(corruptBackupKey(GAME_LIBRARY_STORAGE_KEY)),
+      bad,
+    );
+    assert.equal(store.isUnreadable(), true);
+  });
+
+  it('does not rewrite the primary key when getItem throws', async () => {
+    const inner = new MemoryKeyValueStorage();
+    const original = JSON.stringify({
+      version: 2,
+      folders: [],
+      games: [
+        {
+          id: 'keep-me',
+          fingerprint: 'fp',
+          headers: {},
+          initialFen:
+            'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+          moves: [],
+          hasVariations: false,
+          source: { importedAt: 1 },
+        },
+      ],
+    });
+    await inner.setItem(GAME_LIBRARY_STORAGE_KEY, original);
+    const storage = {
+      async getItem(key: string) {
+        throw new Error('disk unavailable');
+      },
+      async setItem(key: string, value: string) {
+        return inner.setItem(key, value);
+      },
+      async removeItem(key: string) {
+        return inner.removeItem(key);
+      },
+    };
+    const store = new GameLibraryStore(storage);
+
+    await assert.rejects(
+      () => store.getSnapshot(),
+      (err: unknown) => {
+        assert.ok(err instanceof GameLibraryUnreadableError);
+        assert.equal(err.code, 'read_failed');
+        return true;
+      },
+    );
+    assert.equal(await inner.getItem(GAME_LIBRARY_STORAGE_KEY), original);
+  });
+
+  it('does not destroy the previous payload when mutating after a corrupt read', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const bad = '{not-json';
+    await storage.setItem(GAME_LIBRARY_STORAGE_KEY, bad);
+    const store = new GameLibraryStore(storage);
+
+    await assert.rejects(() => store.getSnapshot(), GameLibraryUnreadableError);
+    await assert.rejects(
+      () => store.importPgnText(SAMPLE_PGN, 'sample.pgn'),
+      GameLibraryUnreadableError,
+    );
+    await assert.rejects(() => store.deleteGame('any'), GameLibraryUnreadableError);
+
+    assert.equal(await storage.getItem(GAME_LIBRARY_STORAGE_KEY), bad);
+  });
+
+  it('surfaces setItem rejection and does not treat memory as durably saved', async () => {
+    const inner = new MemoryKeyValueStorage();
+    const storage = {
+      async getItem(key: string) {
+        return inner.getItem(key);
+      },
+      async setItem(_key: string, _value: string) {
+        throw new Error('quota exceeded');
+      },
+      async removeItem(key: string) {
+        return inner.removeItem(key);
+      },
+    };
+    const store = new GameLibraryStore(storage);
+
+    await assert.rejects(
+      () => store.importPgnText(SAMPLE_PGN, 'sample.pgn'),
+      /quota exceeded/,
+    );
+    assert.equal(await inner.getItem(GAME_LIBRARY_STORAGE_KEY), null);
+    assert.equal((await store.listGames()).length, 0);
   });
 });
 
