@@ -50,13 +50,13 @@ describe('G2 AnyLyseur native factory wiring', () => {
     assert.match(adapter, /this\.service\.destroy/);
   });
 
-  it('does not wire Finales / Défends la nulle', () => {
+  it('G4 endgames share SharedStockfishRuntime, not a new engine stack', () => {
     const opponent = read('lib/engines/index.ts');
     assert.match(opponent, /withInitFallback\(new StockfishEngine/);
     const runtime = read('lib/engines/runtime/SharedStockfishRuntime.ts');
-    assert.match(runtime, /Platform\.OS !== 'web'/);
-    assert.match(runtime, /Stockfish unavailable on native/);
-    assert.doesNotMatch(runtime, /createNativeUciTransport/);
+    assert.match(runtime, /Platform\.OS === 'android'/);
+    assert.match(runtime, /new StockfishAnalysisService/);
+    assert.doesNotMatch(runtime, /Stockfish unavailable on native/);
   });
 
   it('marks Android analysis available without claiming iOS / Expo Go', () => {

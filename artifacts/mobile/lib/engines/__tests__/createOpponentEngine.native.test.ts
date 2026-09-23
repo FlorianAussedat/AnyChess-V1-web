@@ -31,10 +31,7 @@ describe('G3a createOpponentEngine native Classic wiring', () => {
     assert.doesNotMatch(classic, /from ['\"]@\/lib\/engines\/random/);
   });
 
-  it('does not wire Finales / Défends la nulle or change Elo helpers', () => {
-    const runtime = read('lib/engines/runtime/SharedStockfishRuntime.ts');
-    assert.match(runtime, /Platform\.OS !== 'web'/);
-    assert.match(runtime, /Stockfish unavailable on native/);
+  it('does not change Elo helpers', () => {
     const uci = read('lib/engines/stockfish/uci.ts');
     assert.match(uci, /UCI_LimitStrength/);
     assert.match(uci, /MIN_UCI_ELO = 1320/);

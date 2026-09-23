@@ -66,6 +66,10 @@ G2 AnyLyseur:
 G3a Classic:
   GameContext → createOpponentEngine → StockfishEngine → UciTransport above
   (RandomEngine only if native init fails)
+
+G4 Endgames:
+  UI → SharedStockfishRuntime → StockfishAnalysisService
+    → ChessEngineService → UciTransport above
 ```
 
 Web keeps `transport.web.ts` (WASM Worker) via `createChessEngineService.web.ts`.
@@ -93,3 +97,10 @@ legacy filesDir candidate (not used for spawn).
 1. Metro reload is enough (JS factory). Same G1 APK.
 2. Open **Partie classique** only (not Opening play — G3b waits).
 3. Expect: opponent thinks, plays a legal move, undo/cancel, new game, strength band, leave/return, no freeze, no orphan process. RandomEngine only if native init fails.
+
+## Device recipe (G4 Endgames)
+
+1. Metro reload is enough (JS). Same G1 APK.
+2. **Défends la nulle**: prewarm → ready → defend, WDL/pressure unchanged, retry, leave during search, return, no orphan.
+3. **Finales théoriques**: engine plays, session/explanations unchanged, Analyze Game / Analyze Position still work.
+4. Do not overlap Classic/AnyLyseur searches (one native process).

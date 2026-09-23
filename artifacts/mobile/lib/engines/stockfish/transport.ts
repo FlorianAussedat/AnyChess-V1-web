@@ -7,7 +7,8 @@
  * G2: Android talks to the local `StockfishUci` Expo module (official Stockfish 19
  * process). AnyLyseur binds this transport via `createChessEngineService`.
  * G3a Classic uses the same transport via `createOpponentEngine` → StockfishEngine.
- * iOS still has no binary. Endgames (`SharedStockfishRuntime`) stay unwired.
+ * G4 endgames use it via `SharedStockfishRuntime` → ChessEngineService.
+ * iOS still has no binary.
  */
 import { AppState, Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';

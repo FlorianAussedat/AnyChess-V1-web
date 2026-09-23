@@ -77,6 +77,9 @@ describe('SharedStockfishRuntime (static contract)', () => {
     assert.match(src, /initPromise/);
     assert.doesNotMatch(src, /RandomEngine/);
     assert.match(src, /STOCKFISH_PLATFORM_NOTES\.web\.backend/);
+    assert.match(src, /STOCKFISH_PLATFORM_NOTES\.android\.backend/);
+    assert.match(src, /Platform\.OS === 'android'/);
+    assert.doesNotMatch(src, /Stockfish unavailable on native/);
   });
 
   it('play screens decouple position from engineReady', () => {
@@ -100,6 +103,24 @@ describe('SharedStockfishRuntime (static contract)', () => {
   it('worker URL helper excludes internal ,worker suffix', () => {
     const url = getStockfishWorkerUrl();
     assert.doesNotMatch(url, /,worker/);
+  });
+
+  it('G4 keeps endgame UI on SharedStockfishRuntime → StockfishAnalysisService', () => {
+    const runtime = read('lib/engines/runtime/SharedStockfishRuntime.ts');
+    assert.match(runtime, /StockfishAnalysisService/);
+    assert.match(runtime, /prewarm/);
+    assert.match(runtime, /ensureService/);
+    assert.match(runtime, /retry/);
+    assert.match(runtime, /release/);
+    assert.match(runtime, /shutdown/);
+    assert.match(runtime, /detachService/);
+    const defend = read('lib/defendDraw/StockfishAnalysisService.ts');
+    assert.match(defend, /createChessEngineService/);
+    assert.doesNotMatch(defend, /RandomEngine/);
+    const wdl = read('lib/defendDraw/practicalPressure.ts');
+    assert.match(wdl, /pickPracticalPressureMove/);
+    const session = read('lib/theoreticalEndgame/session/TheoreticalEndgameSession.ts');
+    assert.match(session, /targetUserMoves/);
   });
 });
 

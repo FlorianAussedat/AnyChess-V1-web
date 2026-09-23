@@ -4,8 +4,8 @@
  *
  * iOS / Expo Go: no module → factory does not inject a transport → service
  * stays `unavailable` (same as G1). Classic G3a uses `createOpponentEngine()` →
- * StockfishEngine (RandomEngine if native init fails). Endgames stay blocked by
- * `SharedStockfishRuntime` (`Platform.OS !== 'web'`).
+ * StockfishEngine (RandomEngine if native init fails). Endgames (G4) use
+ * `SharedStockfishRuntime` on Android. iOS stays unavailable.
  *
  * Web uses `createChessEngineService.web.ts` (Metro platform resolve).
  */

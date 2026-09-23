@@ -1,13 +1,14 @@
 /**
- * Single shared StockfishAnalysisService for endgame modes (Web Worker).
- * Avoids creating/destroying a Worker on every screen navigation.
+ * Single shared StockfishAnalysisService for endgame modes.
+ * Avoids creating/destroying a Worker/process on every screen navigation.
  *
- * Architecture note (play vs analysis concurrency) — Option B:
- * Classic/Openings play uses StockfishEngine (own Worker).
- * AnyLyseur analysis uses ChessEngineService (own Worker).
- * Endgames share this runtime (third Worker when those modes are used).
- * Separate Workers so a low-priority analysis search never blocks
- * opponent move selection. Within each Worker, searches are serialized.
+ * Web: WASM Worker via createChessEngineService.web.ts.
+ * Android G4: same stack, native UciTransport via createChessEngineService.ts.
+ * iOS: unavailable (no bundled binary).
+ *
+ * Classic/Openings use StockfishEngine; AnyLyseur uses its own ChessEngineService.
+ * Endgames share this runtime. Do not search concurrently with Classic/AnyLyseur
+ * on Android (one native Stockfish process).
  */
 import { Platform } from 'react-native';
 import { StockfishAnalysisService } from '../../defendDraw/StockfishAnalysisService.ts';
@@ -38,6 +39,16 @@ type Listener = (snap: SharedStockfishSnapshot) => void;
 
 let singleton: SharedStockfishRuntime | null = null;
 
+function isSharedRuntimeSupported(): boolean {
+  return Platform.OS === 'web' || Platform.OS === 'android';
+}
+
+function backendLabel(): string {
+  if (Platform.OS === 'web') return STOCKFISH_PLATFORM_NOTES.web.backend;
+  if (Platform.OS === 'android') return STOCKFISH_PLATFORM_NOTES.android.backend;
+  return 'native-unavailable';
+}
+
 export class SharedStockfishRuntime {
   private service: StockfishAnalysisService | null = null;
   private initPromise: Promise<StockfishAnalysisService> | null = null;
@@ -54,9 +65,12 @@ export class SharedStockfishRuntime {
   private constructor() {
     this.platformOs = Platform.OS;
     this.workerPath = getStockfishWorkerUrl();
-    if (Platform.OS !== 'web') {
+    if (!isSharedRuntimeSupported()) {
       this.status = 'unavailable';
-      this.lastError = STOCKFISH_PLATFORM_NOTES.expoGo.reason;
+      this.lastError =
+        Platform.OS === 'ios'
+          ? STOCKFISH_PLATFORM_NOTES.ios.requires
+          : STOCKFISH_PLATFORM_NOTES.expoGo.reason;
     }
     this.cachedSnapshot = this.buildSnapshot();
   }
@@ -87,10 +101,7 @@ export class SharedStockfishRuntime {
       lastError: this.lastError,
       workerPath: this.workerPath,
       platformOs: this.platformOs,
-      backend:
-        Platform.OS === 'web'
-          ? STOCKFISH_PLATFORM_NOTES.web.backend
-          : 'native-unavailable',
+      backend: backendLabel(),
       bootStartedAt: this.bootStartedAt,
       readyAt: this.readyAt,
     };
@@ -118,7 +129,7 @@ export class SharedStockfishRuntime {
   }
 
   prewarm(): void {
-    if (Platform.OS !== 'web') return;
+    if (!isSharedRuntimeSupported()) return;
     void this.ensureService().catch(() => {
       /* surfaced via snapshot */
     });
@@ -133,8 +144,10 @@ export class SharedStockfishRuntime {
   }
 
   ensureService(): Promise<StockfishAnalysisService> {
-    if (Platform.OS !== 'web') {
-      return Promise.reject(new Error(this.lastError ?? 'Stockfish unavailable on native.'));
+    if (!isSharedRuntimeSupported()) {
+      return Promise.reject(
+        new Error(this.lastError ?? 'Stockfish unavailable on this platform.'),
+      );
     }
     if (this.service && this.isEngineReady()) {
       return Promise.resolve(this.service);
@@ -174,7 +187,7 @@ export class SharedStockfishRuntime {
       moveTimeMs: DEFEND_DRAW_ENGINE_CONFIG.moveTimeMs,
       analysisTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.analysisTimeoutMs,
       bootTimeoutMs: DEFEND_DRAW_ENGINE_CONFIG.bootTimeoutMs,
-      enginePath: this.workerPath,
+      ...(Platform.OS === 'web' ? { enginePath: this.workerPath } : {}),
     });
     this.service = service;
     this.unsubStatus = service.onStatusChange((s: EngineStatus) => {
@@ -197,14 +210,14 @@ export class SharedStockfishRuntime {
     return this.ensureService();
   }
 
-  /** Release listeners only — keeps Worker alive for next screen. */
+  /** Release listeners only — keeps the engine alive for the next endgame screen. */
   release(): void {
     /* intentional no-op: shared runtime persists */
   }
 
   shutdown(): void {
     this.detachService();
-    this.setStatus(Platform.OS === 'web' ? 'uninitialized' : 'unavailable');
+    this.setStatus(isSharedRuntimeSupported() ? 'uninitialized' : 'unavailable');
   }
 
   private detachService(): void {

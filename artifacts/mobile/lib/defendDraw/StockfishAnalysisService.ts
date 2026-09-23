@@ -2,8 +2,8 @@
  * Defense-mode analyser — thin adapter over ChessEngineService.
  *
  * Web binds WASM via Metro platform resolve:
- *   createChessEngineService → createChessEngineService.web.ts
- *   → transport.web.ts (Worker)
+ *   createChessEngineService → createChessEngineService.web.ts → Worker
+ * Android: native UciTransport via createChessEngineService.ts (G4).
  *
  * Import of the factory MUST omit the `.ts` extension so Metro can pick `.web`.
  */

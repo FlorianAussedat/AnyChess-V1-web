@@ -67,9 +67,12 @@ describe('native transport contract vs web', () => {
     assert.match(plugin, /libstockfish\.so/);
   });
 
-  it('does not wire native Stockfish into Finales / Défends la nulle', () => {
+  it('G4 SharedStockfishRuntime boots on Android without RandomEngine', () => {
     const runtime = read('lib/engines/runtime/SharedStockfishRuntime.ts');
-    assert.match(runtime, /Platform\.OS !== 'web'/);
+    assert.match(runtime, /isSharedRuntimeSupported|Platform\.OS === 'android'/);
+    assert.match(runtime, /new StockfishAnalysisService/);
+    assert.doesNotMatch(runtime, /RandomEngine/);
+    assert.doesNotMatch(runtime, /Stockfish unavailable on native/);
   });
 
   it('G2 AnyLyseur factory binds native UciTransport on Android', () => {

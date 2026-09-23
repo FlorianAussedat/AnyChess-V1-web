@@ -90,8 +90,8 @@ export type ChessEngineServiceOptions = {
  *
  * Web preview: Stockfish 18 lite single-thread WASM in a Web Worker (`public/engine/`).
  * Android G2: process-backed `UciTransport` (`transport.ts` + `StockfishUci`) is
- * wired into AnyLyseur via `createChessEngineService`. Classic / Openings /
- * endgames are not switched over.
+ * wired into AnyLyseur via `createChessEngineService`, Classic via
+ * `createOpponentEngine`, and endgames via `SharedStockfishRuntime`.
  * iOS / Expo Go: no native UCI. Expo Go cannot load the custom module.
  */
 export const STOCKFISH_PLATFORM_NOTES = {

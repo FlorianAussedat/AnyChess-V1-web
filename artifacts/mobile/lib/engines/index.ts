@@ -37,9 +37,9 @@ export type {
  *            RandomEngine only if native init fails.
  * - iOS:     RandomEngine (no bundled binary).
  *
- * Opening play uses this same factory; G3b waits for Classic device validation.
- * AnyLyseur stays on createChessEngineService. Endgames stay on
- * SharedStockfishRuntime (web-only). Elo bands are unchanged.
+ * Opening play uses this same factory (G3b). AnyLyseur stays on
+ * createChessEngineService. Endgames (G4) use SharedStockfishRuntime on
+ * Android/web. Elo bands are unchanged.
  */
 export function createOpponentEngine(options?: {
   elo?: number;
