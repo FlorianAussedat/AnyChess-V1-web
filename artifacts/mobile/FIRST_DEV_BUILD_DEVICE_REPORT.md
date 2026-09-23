@@ -410,14 +410,14 @@ Un second chemin, Android seulement : `ExponentSpeech.stop()` peut émettre `spe
 | | |
 |---|---|
 | **Sévérité** | Moyenne — warning RN, windowing cassé, jank / logs bruyants (pas un crash) |
-| **Statut** | **Corrigé** (plus de `FlatList` verticale dans le `ScrollView` du scaffold) — à retester sur device |
+| **Statut** | **Corrigé** (historique en `map` + scaffold en `FlatList`, plus de `ScrollView` simple) — à retester sur device (reload JS complet) |
 | **Reproduction** | 1) **Partie classique / Ouvertures / Défends la nulle / Finales théoriques (play)** : jouer au moins un coup → carte « coups joués ». 2) **Finales théoriques (catalogue)**, bascule **vue liste**. |
 
 **Écran / composants :**
 
 | Surface | Parent | Enfant (même orientation verticale) |
 |---|---|---|
-| `ClassicGameScreen` | `ChessScreenScaffold` → `ScrollView` | `GameMoveHistoryCard` → `FlatList` |
+| `ClassicGameScreen` | `ChessScreenScaffold` → `ScrollView` *(avant)* | `GameMoveHistoryCard` → `FlatList` *(avant)* |
 | `OpeningGameScreen` | idem | idem |
 | `app/puzzles/defends-nulle-play.tsx` | idem | idem |
 | `app/puzzles/finales-theoriques-play.tsx` | idem | idem |
@@ -425,4 +425,8 @@ Un second chemin, Android seulement : `ExponentSpeech.stop()` peut émettre `spe
 
 Hors bug (orientation différente ou pas dans un `ScrollView`) : carousel horizontal du catalogue ; `PgnGameSelectModal` (`FlatList` dans `Modal` > `View`).
 
-**Correction minimale :** historique = `map` de lignes (plus de `FlatList`) ; vue liste catalogue = `View` + `map`. Pas de redesign d’écran. Le carousel horizontal est inchangé.
+**Correction :**
+
+1. Historique = `map` de lignes ; vue liste catalogue = `View` + `map` (plus de `FlatList` verticale métier).
+2. Relog device : le warning **persistait** — RN 0.81 teste `ScrollView.Context` dans `VirtualizedList.render` (`scrollEnabled !== false`). Tant que `ChessScreenScaffold` est un `ScrollView` simple, un `FlatList` encore monté (Fast Refresh, carousel, etc.) retrigger le warning, et LogBox pointe la carte historique (`GameMoveHistoryCard.tsx`).
+3. `ChessScreenScaffold` scrolle maintenant avec un `FlatList` (`ListHeaderComponent` = contenu écran). C’est le conteneur VirtualizedList recommandé par le message RN : plus de `ScrollView.Context`, donc plus de warning. Pas de redesign d’écran. Carousel horizontal inchangé.

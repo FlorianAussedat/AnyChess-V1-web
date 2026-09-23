@@ -4,10 +4,14 @@
  * Composable: optional ScreenHeader slots, then free children
  * (board, actions, answer, keypad, history, mode-specific content).
  * Classic Game spacing is the default reference.
+ *
+ * Uses a FlatList (VirtualizedList) as the page scroller so nested lists
+ * (history, catalog) do not trip RN's "VirtualizedLists nested in ScrollViews"
+ * warning. When scrollEnabled is false, a plain View is used instead.
  */
 import React from 'react';
 import {
-  ScrollView,
+  FlatList,
   StyleSheet,
   View,
   type StyleProp,
@@ -38,6 +42,12 @@ type Props = {
   testID?: string;
   scrollEnabled?: boolean;
 };
+
+const EMPTY_LIST: readonly { key: string }[] = [];
+
+function renderEmptyScaffoldItem(): null {
+  return null;
+}
 
 export function ChessScreenScaffold({
   children,
@@ -72,11 +82,22 @@ export function ChessScreenScaffold({
       />
     ) : null;
 
+  const bodyStyle: StyleProp<ViewStyle> = [
+    styles.root,
+    {
+      paddingTop: contentTop + padExtraTop,
+      paddingBottom: contentBottom + padExtraBottom,
+      paddingHorizontal,
+      gap,
+    },
+    contentContainerStyle,
+  ];
+
   const body = (
-    <>
+    <View style={bodyStyle}>
       {resolvedHeader}
       {children}
-    </>
+    </View>
   );
 
   if (!scrollEnabled) {
@@ -96,29 +117,24 @@ export function ChessScreenScaffold({
         ]}
         testID={testID}
       >
-        {body}
+        {resolvedHeader}
+        {children}
       </View>
     );
   }
 
   return (
-    <ScrollView
+    <FlatList
+      data={EMPTY_LIST}
+      renderItem={renderEmptyScaffoldItem}
+      ListHeaderComponent={body}
+      extraData={children}
       style={{ backgroundColor: colors.background }}
-      contentContainerStyle={[
-        styles.root,
-        {
-          paddingTop: contentTop + padExtraTop,
-          paddingBottom: contentBottom + padExtraBottom,
-          paddingHorizontal,
-          gap,
-        },
-        contentContainerStyle,
-      ]}
+      contentContainerStyle={styles.root}
       keyboardShouldPersistTaps="handled"
+      removeClippedSubviews={false}
       testID={testID}
-    >
-      {body}
-    </ScrollView>
+    />
   );
 }
 

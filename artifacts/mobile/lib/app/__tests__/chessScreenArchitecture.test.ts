@@ -66,6 +66,13 @@ describe('shared chess screen scaffold', () => {
     assert.doesNotMatch(src, /FlatList/);
     assert.match(src, /moveRows\.map/);
   });
+
+  it('ChessScreenScaffold scrolls with a VirtualizedList, not a plain ScrollView', () => {
+    const src = read('components/game/ChessScreenScaffold.tsx');
+    assert.match(src, /<FlatList/);
+    assert.match(src, /ListHeaderComponent/);
+    assert.doesNotMatch(src, /<ScrollView/);
+  });
 });
 
 describe('ChessBoard square hits', () => {
