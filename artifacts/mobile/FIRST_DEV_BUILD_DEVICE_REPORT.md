@@ -430,3 +430,25 @@ Hors bug (orientation différente ou pas dans un `ScrollView`) : carousel horizo
 1. Historique = `map` de lignes ; vue liste catalogue = `View` + `map` (plus de `FlatList` verticale métier).
 2. Relog device : le warning **persistait** — RN 0.81 teste `ScrollView.Context` dans `VirtualizedList.render` (`scrollEnabled !== false`). Tant que `ChessScreenScaffold` est un `ScrollView` simple, un `FlatList` encore monté (Fast Refresh, carousel, etc.) retrigger le warning, et LogBox pointe la carte historique (`GameMoveHistoryCard.tsx`).
 3. `ChessScreenScaffold` scrolle maintenant avec un `FlatList` (`ListHeaderComponent` = contenu écran). C’est le conteneur VirtualizedList recommandé par le message RN : plus de `ScrollView.Context`, donc plus de warning. Pas de redesign d’écran. Carousel horizontal inchangé.
+
+---
+
+# PRE-STOCKFISH BASELINE
+
+Consolidation mergée dans `main` (PR #56 + #57 + #58, un seul merge, sans duplication de commits).
+
+| Item | Valeur |
+|---|---|
+| SHA `main` | `d393727376f5ca323d0d70c4cea450d96ec7f4ef` |
+| Expo | SDK 54 (`expo` 54.0.35, pin `~54.0.27`) |
+| Package Android | `com.anychess.app` |
+| Typecheck mobile | OK (`tsc -p artifacts/mobile/tsconfig.json --noEmit`) |
+| Typecheck workspace | mockup-sandbox `calendar.tsx` / `spinner.tsx` Ref types — **préexistant**, hors stack 56–58 |
+| Tests | **1161 pass / 1 fail préexistante** `vision UX opt-ins` (`nommer.tsx` / `colors.primary`) — identique sur `main` avant merge, **pas une nouvelle régression** |
+| expo-doctor | **17/18** — leftover `expo 54.0.35` vs `~54.0.37` et `expo-constants 18.0.13` vs `~18.0.14` (volontairement non bumpés) |
+| assembleDebug | **BUILD SUCCESSFUL** (548 tâches, APK debug existant) |
+| Device validation | bugs identifiés **RESOLVED** (TTS RangeError, VirtualizedLists) ; plus reproduits |
+| NDV | Stockfish natif ; Share PGN natif si absent ; SQLite ; `content://` FileSystem |
+
+**READY FOR PHASE G — NATIVE STOCKFISH**
+
