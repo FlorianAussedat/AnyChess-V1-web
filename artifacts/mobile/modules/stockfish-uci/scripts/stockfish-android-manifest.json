@@ -1,0 +1,18 @@
+{
+  "engine": "Stockfish",
+  "version": "19",
+  "tag": "sf_19",
+  "license": "GPL-3.0-or-later",
+  "licenseUrl": "https://github.com/official-stockfish/Stockfish/blob/sf_19/Copying.txt",
+  "sourceUrl": "https://github.com/official-stockfish/Stockfish/tree/sf_19",
+  "releaseUrl": "https://github.com/official-stockfish/Stockfish/releases/tag/sf_19",
+  "abi": ["arm64-v8a"],
+  "artifact": {
+    "name": "stockfish-android-arm64-universal.tar.gz",
+    "url": "https://github.com/official-stockfish/Stockfish/releases/download/sf_19/stockfish-android-arm64-universal.tar.gz",
+    "sha256": "ebb24051aa4a222b4daaf049b882ecf1163d370c128fe02316602643f4d5e426",
+    "binaryMember": "stockfish/stockfish-android-arm64-universal"
+  },
+  "assetName": "stockfish.sfbin",
+  "notes": "Official statically-linked aarch64 executable with embedded NNUE. armeabi-v7a / x86_64 are not shipped in G1."
+}

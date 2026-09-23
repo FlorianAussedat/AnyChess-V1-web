@@ -29,10 +29,12 @@ describe('web backend resolution', () => {
     assert.match(webTransport, /new Worker\(enginePath\)/);
   });
 
-  it('native stub transport throws instead of falling back to RandomEngine', () => {
+  it('native Android transport is a UciTransport, not RandomEngine', () => {
     const nativeTransport = read('lib/engines/stockfish/transport.ts');
-    assert.match(nativeTransport, /throw new Error/);
+    assert.match(nativeTransport, /createNativeUciTransport/);
+    assert.match(nativeTransport, /StockfishUci/);
     assert.match(nativeTransport, /createUciTransport/);
+    assert.doesNotMatch(nativeTransport, /RandomEngine/);
   });
 });
 

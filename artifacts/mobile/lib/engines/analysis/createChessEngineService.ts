@@ -1,10 +1,7 @@
 /**
- * Native / default factory — no Stockfish UCI transport yet.
- * Status stays `unavailable` (no random-move substitute).
- *
- * A future native module must implement `createUciTransport` in
- * `lib/engines/stockfish/transport.ts` and pass it via options (Dev Client /
- * prebuild; Expo Go cannot load custom native engines).
+ * Native / default factory — product analysis is still `unavailable` on Android
+ * in G1. The native `UciTransport` exists (`lib/engines/stockfish/transport.ts`)
+ * but is not injected here so Classic / AnyLyseur / endgames stay unwired.
  *
  * Web uses `createChessEngineService.web.ts` (Metro platform resolve).
  */

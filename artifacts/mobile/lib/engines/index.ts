@@ -32,10 +32,8 @@ export type {
  * Build the opponent engine for the current platform.
  *
  * - web:    real Stockfish (WASM) in a Web Worker, fully offline.
- * - native: the built-in RandomEngine, temporarily, so the app stays fully
- *           functional on Android/iOS today. When a native Stockfish transport
- *           is added (see engines/stockfish/transport.ts), switch this to
- *           `new StockfishEngine()` for native too — no other code changes.
+ * - native: RandomEngine for product play in G1. Native UCI is exercised only
+ *           via `/dev/stockfish-uci` (`engines/stockfish/transport.ts`).
  */
 export function createOpponentEngine(options?: {
   elo?: number;

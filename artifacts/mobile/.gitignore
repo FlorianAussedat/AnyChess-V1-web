@@ -9,9 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
-ios/
-android/
+# Native (top-level generated prebuild only — keep modules/*/android)
+/ios
+/android
 *.orig.*
 *.jks
 *.p8
@@ -42,3 +42,7 @@ yarn-error.*
 
 # Large upstream dumps for offline dataset builds
 scripts/.cache/
+
+# Official Stockfish Android binary (fetched at Gradle preBuild)
+modules/stockfish-uci/.cache/
+modules/stockfish-uci/android/src/main/assets/stockfish/*.sfbin

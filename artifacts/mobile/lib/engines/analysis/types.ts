@@ -89,9 +89,9 @@ export type ChessEngineServiceOptions = {
  * Platform Stockfish availability — single source of truth for product copy.
  *
  * Web preview: Stockfish 18 lite single-thread WASM in a Web Worker (`public/engine/`).
- * Android / iOS / Expo Go: no native UCI transport yet (`transport.ts` throws).
- * A future native Stockfish needs a Dev Client / prebuild + real `createUciTransport`
- * in `lib/engines/stockfish/transport.ts` — Expo Go cannot load custom native modules.
+ * Android G1: process-backed `UciTransport` exists (`transport.ts` + `StockfishUci`)
+ * but product `available` stays false until G2 wiring.
+ * iOS / Expo Go: no native UCI. Expo Go cannot load the custom module.
  */
 export const STOCKFISH_PLATFORM_NOTES = {
   web: {

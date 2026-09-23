@@ -7,10 +7,9 @@
  * (handshake, option setup, Elo limiting, move selection) is shared code in
  * `StockfishEngine`.
  *
- * Web today provides a Web-Worker transport (`transport.web.ts`). A future
- * native Android/iOS build only needs to provide its own `createUciTransport`
- * (e.g. backed by a JSI / native module) in `transport.ts` — no other file in
- * the app has to change.
+ * Web today provides a Web-Worker transport (`transport.web.ts`). Native Android
+ * G1 provides a process-backed transport in `transport.ts` (`StockfishUci`).
+ * Product screens are not switched over yet.
  */
 
 /** Duplex UCI channel to a Stockfish engine instance. */

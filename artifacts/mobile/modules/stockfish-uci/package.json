@@ -1,0 +1,19 @@
+{
+  "name": "stockfish-uci",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Android stdin/stdout UCI bridge for official Stockfish. No product chess API.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "MIT",
+  "keywords": [
+    "react-native",
+    "expo",
+    "stockfish-uci"
+  ],
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

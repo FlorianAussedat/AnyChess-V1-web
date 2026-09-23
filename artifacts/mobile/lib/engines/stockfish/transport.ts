@@ -1,24 +1,70 @@
 /**
- * Default / native UCI transport.
+ * Native (Android / iOS) UCI transport.
  *
- * This is the fallback Metro picks on any non-web platform (Android, iOS).
- * There is no local Stockfish transport for native builds *yet* — that is the
- * planned future work: drop in a native engine here (e.g. a JSI binding or a
- * React Native module wrapping a compiled Stockfish) and nothing else in the
- * app needs to change.
+ * Metro resolves this file on non-web platforms. Web keeps `transport.web.ts`
+ * (WASM Worker) and never imports this module.
  *
- * Today, native builds never construct StockfishEngine (see
- * `engines/index.ts::createOpponentEngine`, which returns the built-in
- * RandomEngine on native), so this stub is not reached at runtime. It exists
- * so the module typechecks and to make the intended extension point explicit.
+ * G1: Android talks to the local `StockfishUci` Expo module (official Stockfish 19
+ * process). iOS still has no binary. Product screens are not switched over —
+ * `createOpponentEngine` / analysis factories stay as they were.
  */
+import { AppState, Platform } from 'react-native';
+import { requireOptionalNativeModule } from 'expo';
+import {
+  createNativeUciTransport,
+  type NativeStockfishBridge,
+} from './nativeUciTransport';
 import type { UciTransport } from './types';
 
+function getAndroidBridge(): NativeStockfishBridge | null {
+  if (Platform.OS !== 'android') return null;
+  return requireOptionalNativeModule<NativeStockfishBridge>('StockfishUci');
+}
+
+function attachBackgroundTerminate(transport: UciTransport): UciTransport {
+  let sub: { remove(): void } | null = null;
+  const originalTerminate = transport.terminate.bind(transport);
+  const terminate = () => {
+    if (sub) {
+      try {
+        sub.remove();
+      } catch {
+        /* ignore */
+      }
+      sub = null;
+    }
+    originalTerminate();
+  };
+
+  const originalStart = transport.start.bind(transport);
+  return {
+    start(onLine) {
+      if (!sub) {
+        sub = AppState.addEventListener('change', (state) => {
+          if (state === 'background') terminate();
+        });
+      }
+      return originalStart(onLine);
+    },
+    send: transport.send.bind(transport),
+    terminate,
+  };
+}
+
 export function createUciTransport(_enginePath: string): UciTransport {
+  if (Platform.OS === 'android') {
+    const bridge = getAndroidBridge();
+    if (!bridge) {
+      throw new Error(
+        '[StockfishEngine] Native StockfishUci module is unavailable. ' +
+          'This requires an Android Development Build (not Expo Go).',
+      );
+    }
+    return attachBackgroundTerminate(createNativeUciTransport(bridge));
+  }
+
   throw new Error(
     '[StockfishEngine] No local UCI transport is available on this platform yet. ' +
-      'The web build runs Stockfish in a Web Worker; a native Android/iOS build ' +
-      'must provide its own createUciTransport (native module / JSI) here before ' +
-      'StockfishEngine can run natively.',
+      'Android G1 uses the StockfishUci native module; iOS is not bundled.',
   );
 }
