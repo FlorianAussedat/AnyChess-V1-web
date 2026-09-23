@@ -323,28 +323,27 @@ class StockfishUciModule : Module() {
     lines += flatten("native", nativeFacts)
     lines += flatten("files", filesFacts)
     val summary = lines.joinToString("\n")
-    return mapOf(
-      "sdkInt" to Build.VERSION.SDK_INT,
-      "abis" to Build.SUPPORTED_ABIS.joinToString(","),
-      "extractNativeLibs" to extractNativeLibsFlag(),
-      "nativeLibraryDir" to (context.applicationInfo.nativeLibraryDir ?: ""),
-      "filesDir" to context.filesDir.absolutePath,
-      "spawnSource" to spawnSource,
-      "copyFlush" to "n/a (no filesDir copy; exec packaged jniLib)",
-      "absolutePath" to nativeFacts["absolutePath"] as String,
-      "exists" to nativeFacts["exists"] as Boolean,
-      "length" to nativeFacts["length"] as Long,
-      "canExecute" to nativeFacts["canExecuteAfter"] as? Boolean
-        ?: nativeFacts["canExecute"] as Boolean,
-      "posixMode" to (nativeFacts["posixModeAfter"] ?: nativeFacts["posixMode"] ?: "n/a"),
-      "setExecutable" to (nativeFacts["setExecutable"] ?: "n/a"),
-      "filesAbsolutePath" to filesFacts["absolutePath"] as String,
-      "filesExists" to filesFacts["exists"] as Boolean,
-      "filesLength" to filesFacts["length"] as Long,
-      "filesCanExecute" to (filesFacts["canExecuteAfter"] ?: filesFacts["canExecute"] ?: false),
-      "filesPosixMode" to (filesFacts["posixModeAfter"] ?: filesFacts["posixMode"] ?: "n/a"),
-      "filesSetExecutable" to (filesFacts["setExecutable"] ?: "n/a"),
-      "summary" to summary,
-    )
+    val out = linkedMapOf<String, Any>()
+    out["sdkInt"] = Build.VERSION.SDK_INT
+    out["abis"] = Build.SUPPORTED_ABIS.joinToString(",")
+    out["extractNativeLibs"] = extractNativeLibsFlag()
+    out["nativeLibraryDir"] = context.applicationInfo.nativeLibraryDir ?: ""
+    out["filesDir"] = context.filesDir.absolutePath
+    out["spawnSource"] = spawnSource
+    out["copyFlush"] = "n/a (no filesDir copy; exec packaged jniLib)"
+    out["absolutePath"] = nativeFacts["absolutePath"] ?: ""
+    out["exists"] = nativeFacts["exists"] ?: false
+    out["length"] = nativeFacts["length"] ?: 0L
+    out["canExecute"] = nativeFacts["canExecuteAfter"] ?: nativeFacts["canExecute"] ?: false
+    out["posixMode"] = nativeFacts["posixModeAfter"] ?: nativeFacts["posixMode"] ?: "n/a"
+    out["setExecutable"] = nativeFacts["setExecutable"] ?: "n/a"
+    out["filesAbsolutePath"] = filesFacts["absolutePath"] ?: ""
+    out["filesExists"] = filesFacts["exists"] ?: false
+    out["filesLength"] = filesFacts["length"] ?: 0L
+    out["filesCanExecute"] = filesFacts["canExecuteAfter"] ?: filesFacts["canExecute"] ?: false
+    out["filesPosixMode"] = filesFacts["posixModeAfter"] ?: filesFacts["posixMode"] ?: "n/a"
+    out["filesSetExecutable"] = filesFacts["setExecutable"] ?: "n/a"
+    out["summary"] = summary
+    return out
   }
 }
