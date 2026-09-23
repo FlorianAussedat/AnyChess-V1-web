@@ -82,4 +82,16 @@ describe('native transport contract vs web', () => {
     const notes = read('lib/engines/analysis/types.ts');
     assert.match(notes, /android:\s*\{[\s\S]*available:\s*true/);
   });
+
+  it('G5 AppState recover reboots ChessEngineService and StockfishEngine', () => {
+    const service = read('lib/engines/analysis/ChessEngineService.ts');
+    assert.match(service, /subscribeAndroidAppState/);
+    assert.match(service, /recoverAfterBackground/);
+    const play = read('lib/engines/stockfish/StockfishEngine.ts');
+    assert.match(play, /subscribeAndroidAppState/);
+    assert.match(play, /recoverAfterBackground/);
+    const helper = read('lib/engines/stockfish/androidAppState.ts');
+    assert.match(helper, /Platform\?\.OS !== 'android'/);
+    assert.doesNotMatch(read('lib/engines/stockfish/transport.web.ts'), /recoverAfterBackground/);
+  });
 });

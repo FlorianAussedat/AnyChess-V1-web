@@ -35,6 +35,11 @@ describe('G3a createOpponentEngine native Classic wiring', () => {
     const uci = read('lib/engines/stockfish/uci.ts');
     assert.match(uci, /UCI_LimitStrength/);
     assert.match(uci, /MIN_UCI_ELO = 1320/);
+    assert.match(uci, /uciPlayOptionsForTargetElo/);
+    const classic = read('contexts/GameContext.tsx');
+    assert.match(classic, /uciPlayOptionsForTargetElo/);
+    const opening = read('contexts/OpeningGameContext.tsx');
+    assert.match(opening, /uciPlayOptionsForTargetElo/);
   });
 
   it('web opponent factory path is unchanged', () => {

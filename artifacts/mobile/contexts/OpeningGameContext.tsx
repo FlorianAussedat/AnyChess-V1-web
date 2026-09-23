@@ -10,7 +10,7 @@ import { useFocusEffect } from 'expo-router';
 import type { Move } from 'chess.js';
 import { gameStateAnnouncement, verbalMove } from '@/lib/chessParser';
 import { createOpponentEngine } from '@/lib/engines';
-import { MIN_UCI_ELO } from '@/lib/engines/stockfish/uci';
+import { uciPlayOptionsForTargetElo } from '@/lib/engines/stockfish/uci';
 import {
   DEFAULT_STRENGTH_BAND_ID,
   eloForBand,
@@ -116,11 +116,7 @@ interface ProviderProps {
 }
 
 function engineOptionsForBand(bandId: string) {
-  const targetElo = eloForBand(getStrengthBand(bandId));
-  if (targetElo < MIN_UCI_ELO) {
-    return { elo: MIN_UCI_ELO, multiPv: 8, varietyMarginCp: 120 };
-  }
-  return { elo: targetElo };
+  return uciPlayOptionsForTargetElo(eloForBand(getStrengthBand(bandId)));
 }
 
 export function OpeningGameProvider({

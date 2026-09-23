@@ -8,6 +8,8 @@
  * process). AnyLyseur binds this transport via `createChessEngineService`.
  * G3a Classic uses the same transport via `createOpponentEngine` → StockfishEngine.
  * G4 endgames use it via `SharedStockfishRuntime` → ChessEngineService.
+ * G5: AppState still terminates the process in background; ChessEngineService
+ * and StockfishEngine re-init on foreground.
  * iOS still has no binary.
  */
 import { AppState, Platform } from 'react-native';

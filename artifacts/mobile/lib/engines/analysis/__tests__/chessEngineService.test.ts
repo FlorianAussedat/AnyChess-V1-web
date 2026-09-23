@@ -171,6 +171,35 @@ describe('ChessEngineService with scripted UCI', () => {
     assert.equal(firstResult.bestMove, null); // stopped early
     engine.destroy();
   });
+
+  it('recoverAfterBackground reboots a previously ready engine', async () => {
+    let boots = 0;
+    const engine = new ChessEngineService({
+      createTransport: () => {
+        boots += 1;
+        return createScriptedTransport({});
+      },
+      moveTimeMs: 50,
+    });
+    await engine.init();
+    assert.equal(engine.getStatus(), 'ready');
+    assert.equal(boots, 1);
+    await engine.recoverAfterBackground();
+    assert.equal(engine.getStatus(), 'ready');
+    assert.equal(boots, 2);
+    engine.destroy();
+  });
+
+  it('recoverAfterBackground is a no-op before the first successful boot', async () => {
+    const engine = new ChessEngineService({
+      createTransport: () => {
+        throw new Error('should not boot');
+      },
+    });
+    await engine.recoverAfterBackground();
+    assert.equal(engine.getStatus(), 'uninitialized');
+    engine.destroy();
+  });
 });
 
 describe('WDL defender POV conversion', () => {

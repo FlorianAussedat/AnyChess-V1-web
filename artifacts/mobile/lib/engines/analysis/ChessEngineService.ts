@@ -13,6 +13,7 @@
  */
 import { Chess } from 'chess.js';
 import type { UciTransport } from '../stockfish/types.ts';
+import { subscribeAndroidAppState } from '../stockfish/androidAppState.ts';
 import {
   DEFAULT_STOCKFISH_CONFIG,
   fullStrengthAnalysisOptionCommands,
@@ -184,6 +185,9 @@ export class ChessEngineService {
   private readonly createTransport: ((enginePath: string) => UciTransport) | null;
   private readonly listeners = new Set<(status: EngineStatus) => void>();
   private activeMultiPv = 1;
+  private unbindAppState: (() => void) | null = null;
+  /** True after a successful boot — skip foreground re-init if never started. */
+  private hadBooted = false;
 
   constructor(options: ChessEngineServiceOptions = {}) {
     this.enginePath = options.enginePath ?? DEFAULT_STOCKFISH_CONFIG.enginePath;
@@ -195,6 +199,15 @@ export class ChessEngineService {
     if (!this.createTransport) {
       this.status = 'unavailable';
       this.lastError = STOCKFISH_PLATFORM_NOTES.expoGo.reason;
+    } else {
+      this.unbindAppState = subscribeAndroidAppState((state) => {
+        if (this.destroyed) return;
+        if (state === 'background') {
+          void this.stop();
+        } else if (state === 'active') {
+          void this.recoverAfterBackground();
+        }
+      });
     }
   }
 
@@ -247,6 +260,9 @@ export class ChessEngineService {
 
   destroy(): void {
     this.destroyed = true;
+    this.hadBooted = false;
+    this.unbindAppState?.();
+    this.unbindAppState = null;
     if (this.pending) {
       const p = this.pending;
       this.clearPendingTimeout(p);
@@ -257,6 +273,24 @@ export class ChessEngineService {
     this.disposeTransport();
     this.readyPromise = null;
     this.setStatus(this.createTransport ? 'uninitialized' : 'unavailable');
+  }
+
+  /**
+   * G5: native process is killed in background. Drop the dead transport and
+   * boot a fresh one when the screen still owns this service.
+   */
+  async recoverAfterBackground(): Promise<void> {
+    if (this.destroyed || !this.createTransport || !this.hadBooted) return;
+    await this.stop();
+    if (this.destroyed) return;
+    this.disposeTransport();
+    this.readyPromise = null;
+    this.setStatus('uninitialized');
+    try {
+      await this.init();
+    } catch {
+      /* status already error */
+    }
   }
 
   /**
@@ -544,6 +578,7 @@ export class ChessEngineService {
               );
             }
             this.clearBootTimeout();
+            this.hadBooted = true;
             this.setStatus('ready');
             resolve();
             return;

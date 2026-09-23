@@ -59,10 +59,13 @@ describe('G2 AnyLyseur native factory wiring', () => {
     assert.doesNotMatch(runtime, /Stockfish unavailable on native/);
   });
 
-  it('marks Android analysis available without claiming iOS / Expo Go', () => {
-    const notes = read('lib/engines/analysis/types.ts');
-    assert.match(notes, /android:\s*\{[\s\S]*available:\s*true/);
-    assert.match(notes, /ios:\s*\{[\s\S]*available:\s*false/);
-    assert.match(notes, /expoGo:\s*\{[\s\S]*supportsStockfish:\s*false/);
+  it('G5 AnyLyseur Android depth caps keep web movetimes', () => {
+    const profiles = read('lib/analysis/profiles.ts');
+    assert.match(profiles, /ANDROID_ANALYSIS_DEPTH_CAP/);
+    assert.match(profiles, /resolveAnalysisProfile/);
+    assert.match(profiles, /platform === 'android'/);
+    assert.match(profiles, /movetimeMs: 250/);
+    assert.match(profiles, /movetimeMs: 800/);
+    assert.match(profiles, /movetimeMs: 2500/);
   });
 });

@@ -38,9 +38,35 @@ export const DEFAULT_STOCKFISH_CONFIG: StockfishConfig = {
 export const MIN_UCI_ELO = 1320;
 export const MAX_UCI_ELO = 3190;
 
+/** Extra MultiPV / variety when the requested Elo is below Stockfish's floor. */
+export const FLOOR_STRENGTH_MULTIPV = 8;
+export const FLOOR_STRENGTH_VARIETY_MARGIN_CP = 120;
+
 export function clampElo(elo: number): number {
   if (Number.isNaN(elo)) return DEFAULT_STOCKFISH_CONFIG.elo;
   return Math.max(MIN_UCI_ELO, Math.min(MAX_UCI_ELO, Math.round(elo)));
+}
+
+/**
+ * Classic / Opening play options for a requested band centre.
+ *
+ * Stockfish 18/19 both clamp `UCI_Elo` at 1320. Bands below that still send
+ * the floor; GameContext then raises MultiPV + variety so play feels weaker.
+ * G5 does not relabel product bands — the floor is an engine limit, not SF19.
+ */
+export function uciPlayOptionsForTargetElo(targetElo: number): {
+  elo: number;
+  multiPv?: number;
+  varietyMarginCp?: number;
+} {
+  if (targetElo < MIN_UCI_ELO) {
+    return {
+      elo: MIN_UCI_ELO,
+      multiPv: FLOOR_STRENGTH_MULTIPV,
+      varietyMarginCp: FLOOR_STRENGTH_VARIETY_MARGIN_CP,
+    };
+  }
+  return { elo: targetElo };
 }
 
 export interface UciMove {

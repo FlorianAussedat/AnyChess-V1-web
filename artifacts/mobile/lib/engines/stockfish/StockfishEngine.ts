@@ -19,6 +19,7 @@ import type { Move } from 'chess.js';
 import { Platform } from 'react-native';
 import type { ChessEngine } from '../../engine';
 import { DEFEND_DRAW_ENGINE_CONFIG } from '../../defendDraw/engineConfig.ts';
+import { subscribeAndroidAppState } from './androidAppState';
 import { createUciTransport } from './transport';
 import type { StockfishConfig, UciTransport } from './types';
 import { getStockfishWorkerUrl } from './workerUrl.ts';
@@ -51,9 +52,19 @@ export class StockfishEngine implements ChessEngine {
   private pending: PendingSearch | null = null;
   /** MultiPV candidate lines collected during the current search (keyed by rank). */
   private searchInfo = new Map<number, CandidateLine>();
+  private unbindAppState: (() => void) | null = null;
+  private hadBooted = false;
 
   constructor(config: Partial<StockfishConfig> = {}) {
     this.config = { ...DEFAULT_STOCKFISH_CONFIG, ...config };
+    this.unbindAppState = subscribeAndroidAppState((state) => {
+      if (this.destroyed) return;
+      if (state === 'background') {
+        this.cancel();
+      } else if (state === 'active') {
+        void this.recoverAfterBackground();
+      }
+    });
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -169,6 +180,7 @@ export class StockfishEngine implements ChessEngine {
               console.log('[Stockfish] boot duration:', Date.now() - bootStartedAt, 'ms');
             }
             this.isReady = true;
+            this.hadBooted = true;
             this.clearBootTimeout();
             transport.send('ucinewgame');
             resolve();
@@ -215,9 +227,28 @@ export class StockfishEngine implements ChessEngine {
 
   destroy(): void {
     this.destroyed = true;
+    this.hadBooted = false;
+    this.unbindAppState?.();
+    this.unbindAppState = null;
     this.cancel();
     this.disposeTransport();
     this.readyPromise = null;
+  }
+
+  /**
+   * G5: native process is killed in background. Re-boot if this opponent
+   * is still owned by the Classic / Opening screen.
+   */
+  async recoverAfterBackground(): Promise<void> {
+    if (this.destroyed || !this.hadBooted) return;
+    this.cancel();
+    this.disposeTransport();
+    this.readyPromise = null;
+    try {
+      await this.init();
+    } catch {
+      /* next pickMove will retry */
+    }
   }
 
   // ── New game ────────────────────────────────────────────────────────────────

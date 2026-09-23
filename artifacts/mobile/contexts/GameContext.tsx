@@ -10,7 +10,7 @@ import type { Move } from 'chess.js';
 import { gameStateAnnouncement, verbalMove } from '@/lib/chessParser';
 import type { ChessEngine } from '@/lib/engine';
 import { createOpponentEngine } from '@/lib/engines';
-import { MIN_UCI_ELO } from '@/lib/engines/stockfish/uci';
+import { uciPlayOptionsForTargetElo } from '@/lib/engines/stockfish/uci';
 import {
   shouldEmitMoveRecognizedFeedback,
   type MoveInputSource,
@@ -116,11 +116,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   } = play;
 
   const engineOptionsForBand = useCallback((bandId: string) => {
-    const targetElo = eloForBand(getStrengthBand(bandId));
-    if (targetElo < MIN_UCI_ELO) {
-      return { elo: MIN_UCI_ELO, multiPv: 8, varietyMarginCp: 120 };
-    }
-    return { elo: targetElo };
+    return uciPlayOptionsForTargetElo(eloForBand(getStrengthBand(bandId)));
   }, []);
 
   const recreateEngine = useCallback(

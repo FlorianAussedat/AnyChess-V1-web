@@ -12,8 +12,10 @@ export type {
 
 export {
   ANALYSIS_PROFILES,
+  ANDROID_ANALYSIS_DEPTH_CAP,
   DEFAULT_ANALYSIS_PROFILE,
   getAnalysisProfile,
+  resolveAnalysisProfile,
 } from './profiles.ts';
 
 export {
