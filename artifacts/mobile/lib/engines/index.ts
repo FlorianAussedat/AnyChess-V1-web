@@ -32,8 +32,9 @@ export type {
  * Build the opponent engine for the current platform.
  *
  * - web:    real Stockfish (WASM) in a Web Worker, fully offline.
- * - native: RandomEngine for product play in G1. Native UCI is exercised only
- *           via `/dev/stockfish-uci` (`engines/stockfish/transport.ts`).
+ * - native: RandomEngine for Classic / Openings play. AnyLyseur analysis uses
+ *           `createChessEngineService` → native `UciTransport` (G2). Endgames
+ *           stay on `SharedStockfishRuntime` (web-only).
  */
 export function createOpponentEngine(options?: {
   elo?: number;

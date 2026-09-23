@@ -1,6 +1,8 @@
-# Native Stockfish (Phase G1)
+# Native Stockfish (Phase G1–G2)
 
-Android-only UCI process bridge. Product screens (Classic, Openings, AnyLyseur, endgames) are **not** wired to this transport in G1.
+Android-only UCI process bridge. **G1** validated the transport. **G2** wires
+AnyLyseur (`createChessEngineService`) to that transport. Classic, Openings,
+and endgames stay unwired.
 
 ## Binary
 
@@ -56,9 +58,14 @@ G1 therefore:
 JS UciTransport (lib/engines/stockfish/transport.ts)
   → Expo module StockfishUci (stdin/stdout lines)
     → ProcessBuilder(nativeLibraryDir/libstockfish.so)
+
+G2 AnyLyseur:
+  useAnyLyseurAnalysis → AnalysisController → StockfishChessEngine
+    → createChessEngineService.ts (Android) → UciTransport above
 ```
 
-Web keeps `transport.web.ts` (WASM Worker). Metro never resolves the native module on web.
+Web keeps `transport.web.ts` (WASM Worker) via `createChessEngineService.web.ts`.
+Metro never resolves the native module on web.
 
 `diagnose()` (DEV) reports `absolutePath`, `exists`, `length`, `canExecute`,
 POSIX mode, `setExecutable` / `chmod` results, `extractNativeLibs`, and the
@@ -70,3 +77,9 @@ legacy filesDir candidate (not used for spawn).
 2. Open `/dev/stockfish-uci` (DEV only).
 3. Expect: Engine started → uciok → readyok → info → bestmove → stop OK → terminate OK.
 4. Failures are explicit (no start / no uciok / no readyok / timeout / no bestmove / process still alive).
+
+## Device recipe (G2)
+
+1. Same Development Build (native module already in the APK). Metro reload is enough for the JS factory.
+2. Open AnyLyseur (not Classic / Openings / Finales).
+3. Expect: engine goes from unavailable → ready; position analysis; eval; MultiPV; Fast/Normal/Deep; stop-on-navigate; retry; dispose on leave; clean re-init on return.

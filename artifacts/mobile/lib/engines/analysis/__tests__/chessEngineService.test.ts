@@ -211,10 +211,11 @@ describe('WDL defender POV conversion', () => {
 });
 
 describe('platform notes', () => {
-  it('documents web WASM vs Expo Go native gap', () => {
+  it('documents web WASM, Android native analysis, and Expo Go / iOS gap', () => {
     assert.equal(STOCKFISH_PLATFORM_NOTES.web.available, true);
     assert.equal(STOCKFISH_PLATFORM_NOTES.expoGo.supportsStockfish, false);
-    assert.equal(STOCKFISH_PLATFORM_NOTES.android.available, false);
+    assert.equal(STOCKFISH_PLATFORM_NOTES.android.available, true);
+    assert.match(STOCKFISH_PLATFORM_NOTES.android.backend, /stockfish-19/);
     assert.equal(STOCKFISH_PLATFORM_NOTES.ios.available, false);
   });
 });

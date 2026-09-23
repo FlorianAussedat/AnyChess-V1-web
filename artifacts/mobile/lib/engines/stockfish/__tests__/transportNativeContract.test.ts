@@ -67,13 +67,19 @@ describe('native transport contract vs web', () => {
     assert.match(plugin, /libstockfish\.so/);
   });
 
-  it('does not wire native Stockfish into product engine factories', () => {
+  it('does not wire native Stockfish into Classic / Openings / endgames', () => {
     const opponent = read('lib/engines/index.ts');
     assert.match(opponent, /return randomEngine/);
     assert.match(opponent, /Platform\.OS === 'web'/);
+    const runtime = read('lib/engines/runtime/SharedStockfishRuntime.ts');
+    assert.match(runtime, /Platform\.OS !== 'web'/);
+  });
+
+  it('G2 AnyLyseur factory binds native UciTransport on Android', () => {
     const analysisNative = read('lib/engines/analysis/createChessEngineService.ts');
-    assert.doesNotMatch(analysisNative, /createNativeUciTransport|StockfishUci/);
+    assert.match(analysisNative, /createUciTransport/);
+    assert.match(analysisNative, /Platform\.OS === 'android'/);
     const notes = read('lib/engines/analysis/types.ts');
-    assert.match(notes, /android:\s*\{[\s\S]*available:\s*false/);
+    assert.match(notes, /android:\s*\{[\s\S]*available:\s*true/);
   });
 });

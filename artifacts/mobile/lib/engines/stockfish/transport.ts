@@ -4,9 +4,10 @@
  * Metro resolves this file on non-web platforms. Web keeps `transport.web.ts`
  * (WASM Worker) and never imports this module.
  *
- * G1: Android talks to the local `StockfishUci` Expo module (official Stockfish 19
- * process). iOS still has no binary. Product screens are not switched over —
- * `createOpponentEngine` / analysis factories stay as they were.
+ * G2: Android talks to the local `StockfishUci` Expo module (official Stockfish 19
+ * process). AnyLyseur binds this transport via `createChessEngineService`.
+ * iOS still has no binary. Classic / Openings (`createOpponentEngine`) and
+ * endgames (`SharedStockfishRuntime`) stay unwired.
  */
 import { AppState, Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';

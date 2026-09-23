@@ -7,9 +7,10 @@
  * (handshake, option setup, Elo limiting, move selection) is shared code in
  * `StockfishEngine`.
  *
- * Web today provides a Web-Worker transport (`transport.web.ts`). Native Android
- * G1 provides a process-backed transport in `transport.ts` (`StockfishUci`).
- * Product screens are not switched over yet.
+ * Web provides a Web-Worker transport (`transport.web.ts`). Native Android
+ * provides a process-backed transport in `transport.ts` (`StockfishUci`).
+ * AnyLyseur (G2) uses that transport via `createChessEngineService`. Classic /
+ * Openings / endgames are not switched over.
  */
 
 /** Duplex UCI channel to a Stockfish engine instance. */

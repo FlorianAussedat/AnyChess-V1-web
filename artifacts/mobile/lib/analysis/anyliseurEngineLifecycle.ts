@@ -1,10 +1,11 @@
 /**
  * Bootstrap / retry helpers for AnyLyseur's AnalysisController.
  *
- * Native builds have no UCI transport: engine.init() rejects and the
- * controller maps that to `unavailable`. These wrappers guarantee that
- * rejection never escapes as an unhandled promise, while leaving the
- * controller's own status/error (including real web Worker failures) intact.
+ * Android G2: init should resolve once the native UCI process is ready.
+ * iOS / Expo Go / boot failures still reject; the controller maps that to
+ * `unavailable`. These wrappers guarantee that rejection never escapes as
+ * an unhandled promise, while leaving the controller's own status/error
+ * (including real web Worker failures) intact.
  */
 export type DisposableAnalysisController = {
   init(): Promise<void>;

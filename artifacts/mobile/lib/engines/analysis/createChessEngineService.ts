@@ -1,18 +1,40 @@
 /**
- * Native / default factory — product analysis is still `unavailable` on Android
- * in G1. The native `UciTransport` exists (`lib/engines/stockfish/transport.ts`)
- * but is not injected here so Classic / AnyLyseur / endgames stay unwired.
+ * Native factory — Android G2 wires AnyLyseur to the G1 `UciTransport`
+ * (`StockfishUci` process). Callers that inject `createTransport` (tests) win.
+ *
+ * iOS / Expo Go: no module → factory does not inject a transport → service
+ * stays `unavailable` (same as G1). Classic / Openings stay on
+ * `createOpponentEngine()` → RandomEngine. Endgames stay blocked by
+ * `SharedStockfishRuntime` (`Platform.OS !== 'web'`).
  *
  * Web uses `createChessEngineService.web.ts` (Metro platform resolve).
  */
+import { Platform } from 'react-native';
+import { createUciTransport } from '../stockfish/transport';
 import { ChessEngineService } from './ChessEngineService.ts';
 import type { ChessEngineServiceOptions } from './types.ts';
+import { STOCKFISH_PLATFORM_NOTES } from './types.ts';
 
 export type CreateChessEngineServiceOptions = ChessEngineServiceOptions;
 
 export function createChessEngineService(
   options: CreateChessEngineServiceOptions = {},
 ): ChessEngineService {
-  // If a caller injects a real transport (tests / future native), use it.
+  if (options.createTransport) {
+    return new ChessEngineService(options);
+  }
+
+  if (Platform.OS === 'android') {
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.log(
+        `[createChessEngineService] android | ${STOCKFISH_PLATFORM_NOTES.android.backend}`,
+      );
+    }
+    return new ChessEngineService({
+      ...options,
+      createTransport: (enginePath: string) => createUciTransport(enginePath),
+    });
+  }
+
   return new ChessEngineService(options);
 }

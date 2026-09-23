@@ -89,8 +89,9 @@ export type ChessEngineServiceOptions = {
  * Platform Stockfish availability — single source of truth for product copy.
  *
  * Web preview: Stockfish 18 lite single-thread WASM in a Web Worker (`public/engine/`).
- * Android G1: process-backed `UciTransport` exists (`transport.ts` + `StockfishUci`)
- * but product `available` stays false until G2 wiring.
+ * Android G2: process-backed `UciTransport` (`transport.ts` + `StockfishUci`) is
+ * wired into AnyLyseur via `createChessEngineService`. Classic / Openings /
+ * endgames are not switched over.
  * iOS / Expo Go: no native UCI. Expo Go cannot load the custom module.
  */
 export const STOCKFISH_PLATFORM_NOTES = {
@@ -99,10 +100,10 @@ export const STOCKFISH_PLATFORM_NOTES = {
     backend: 'stockfish-18-lite-single.wasm (Web Worker)',
   },
   android: {
-    available: false as const,
-    backend: null,
+    available: true as const,
+    backend: 'stockfish-19 native process (StockfishUci / libstockfish.so)',
     requires:
-      'Custom Dev Client / prebuild with a native Stockfish UCI module wired in transport.ts',
+      'Custom Dev Client / prebuild with the StockfishUci module (not Expo Go)',
   },
   ios: {
     available: false as const,

@@ -1,6 +1,7 @@
 /**
- * Stockfish adapter over ChessEngineService (web: WASM Worker).
- * Native later: inject ChessEngineService with a native UCI transport.
+ * Stockfish adapter over ChessEngineService.
+ * Web: WASM Worker via `createChessEngineService.web.ts`.
+ * Android G2: native UCI process via `createChessEngineService.ts`.
  */
 import {
   ChessEngineService,

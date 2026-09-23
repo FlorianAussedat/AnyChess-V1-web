@@ -1,7 +1,7 @@
 import type { ChessEngine } from './ChessEngine.ts';
 import { createStockfishChessEngine } from './StockfishChessEngine.ts';
 
-/** Default factory — web Stockfish WASM today; swappable for native later. */
+/** AnyLyseur engine factory — platform `createChessEngineService` (web Worker / Android process). */
 export function createChessEngine(): ChessEngine {
   return createStockfishChessEngine();
 }
