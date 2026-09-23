@@ -7,6 +7,10 @@ import type { ReaderGame } from '@/lib/gameReader';
 import { AnalysisController } from './AnalysisController.ts';
 import { createChessEngine } from './engine/createChessEngine.ts';
 import {
+  initAnalysisControllerSafely,
+  replaceAnalysisController,
+} from './anyliseurEngineLifecycle.ts';
+import {
   collectActiveLineNodes,
   collectMainLineNodes,
 } from './mainLineNodes.ts';
@@ -44,6 +48,8 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
 
   const [state, setState] = useState<AnalysisSessionState | null>(null);
   const controllerRef = useRef<AnalysisController | null>(null);
+  const cancelledRef = useRef(false);
+  const retryGenRef = useRef(0);
   const gameRef = useRef(game);
   const currentFenRef = useRef(currentFen);
   const activeLineRef = useRef(activeLineNodeIds);
@@ -54,6 +60,7 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
   const fingerprint = game?.fingerprint ?? game?.id ?? null;
 
   useEffect(() => {
+    cancelledRef.current = false;
     const engine = createChessEngine();
     const controller = new AnalysisController({
       engine,
@@ -61,10 +68,13 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     });
     controllerRef.current = controller;
     setState(controller.getState());
-    void controller.init();
+    void initAnalysisControllerSafely(controller);
     return () => {
-      void controller.dispose();
+      cancelledRef.current = true;
+      retryGenRef.current += 1;
+      const current = controllerRef.current;
       controllerRef.current = null;
+      if (current) void current.dispose();
     };
   }, []);
 
@@ -159,18 +169,37 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
   }, []);
 
   const retryEngine = useCallback(async () => {
+    retryGenRef.current += 1;
+    const gen = retryGenRef.current;
     const previous = controllerRef.current;
-    const engine = createChessEngine();
-    const controller = new AnalysisController({
-      engine,
-      onChange: setState,
-    });
-    controllerRef.current = controller;
-    if (previous) await previous.dispose();
-    setState(controller.getState());
-    await controller.init();
-    if (currentFen) await controller.analyzeCurrentPosition(currentFen);
-    if (game) startFullGameAnalysis(game);
+    controllerRef.current = null;
+    try {
+      const next = await replaceAnalysisController({
+        previous,
+        create: () =>
+          new AnalysisController({
+            engine: createChessEngine(),
+            onChange: setState,
+          }),
+        isStale: () =>
+          cancelledRef.current || retryGenRef.current !== gen,
+      });
+      if (!next) return;
+      if (
+        cancelledRef.current ||
+        retryGenRef.current !== gen ||
+        controllerRef.current
+      ) {
+        await next.dispose();
+        return;
+      }
+      controllerRef.current = next;
+      setState(next.getState());
+      if (currentFen) await next.analyzeCurrentPosition(currentFen);
+      if (game) startFullGameAnalysis(game);
+    } catch {
+      /* never surface as an unhandled rejection */
+    }
   }, [currentFen, game, startFullGameAnalysis]);
 
   const classificationInputs = useMemo(() => {

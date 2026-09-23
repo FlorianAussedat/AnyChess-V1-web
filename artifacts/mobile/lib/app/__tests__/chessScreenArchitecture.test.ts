@@ -60,6 +60,19 @@ describe('shared chess screen scaffold', () => {
     assert.match(defend, /endgame-command-row/);
     assert.match(defend, /endgame-input-mode-toggle/);
   });
+
+  it('GameMoveHistoryCard does not nest a vertical FlatList in ChessScreenScaffold', () => {
+    const src = read('components/game/GameMoveHistoryCard.tsx');
+    assert.doesNotMatch(src, /FlatList/);
+    assert.match(src, /moveRows\.map/);
+  });
+
+  it('ChessScreenScaffold scrolls with a VirtualizedList, not a plain ScrollView', () => {
+    const src = read('components/game/ChessScreenScaffold.tsx');
+    assert.match(src, /<FlatList/);
+    assert.match(src, /ListHeaderComponent/);
+    assert.doesNotMatch(src, /<ScrollView/);
+  });
 });
 
 describe('ChessBoard square hits', () => {

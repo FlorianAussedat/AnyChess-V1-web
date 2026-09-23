@@ -129,43 +129,50 @@ export default function GameWorkspaceScreen() {
     }
     let cancelled = false;
     void (async () => {
-      const [imported, session] = await Promise.all([
-        gameLibraryStore.getGame(gameId),
-        loadSharedGameSession(gameId),
-      ]);
-      if (cancelled) return;
-      if (session && session.gameId === gameId) {
-        setPgnDraft(
-          session.game.rawPgn?.trim() ||
-            session.game.source?.rawPgn?.trim() ||
-            '',
-        );
-        setError(null);
-        setGame(session.game);
-        setShowPaste(false);
-        setRestoreNodeId(paramNodeId ?? session.currentNodeId);
-        setRestoreFlipped(paramFlipped || session.boardFlipped);
-        setRestoreOrigin(session.explorationOriginNodeId);
-      } else if (imported) {
-        setPgnDraft(imported.source.rawPgn?.trim() || '');
-        setError(null);
-        setGame(
-          readerGameFromImported({
-            id: imported.id,
-            fingerprint: imported.fingerprint,
-            headers: imported.headers,
-            initialFen: imported.initialFen,
-            moves: imported.moves,
-            hasVariations: imported.hasVariations,
-            rawPgn: imported.source.rawPgn,
-            source: imported.source,
-          }),
-        );
-        setShowPaste(false);
-        if (paramNodeId) setRestoreNodeId(paramNodeId);
-        if (paramFlipped) setRestoreFlipped(true);
+      try {
+        const [imported, session] = await Promise.all([
+          gameLibraryStore.getGame(gameId),
+          loadSharedGameSession(gameId),
+        ]);
+        if (cancelled) return;
+        if (session && session.gameId === gameId) {
+          setPgnDraft(
+            session.game.rawPgn?.trim() ||
+              session.game.source?.rawPgn?.trim() ||
+              '',
+          );
+          setError(null);
+          setGame(session.game);
+          setShowPaste(false);
+          setRestoreNodeId(paramNodeId ?? session.currentNodeId);
+          setRestoreFlipped(paramFlipped || session.boardFlipped);
+          setRestoreOrigin(session.explorationOriginNodeId);
+        } else if (imported) {
+          setPgnDraft(imported.source.rawPgn?.trim() || '');
+          setError(null);
+          setGame(
+            readerGameFromImported({
+              id: imported.id,
+              fingerprint: imported.fingerprint,
+              headers: imported.headers,
+              initialFen: imported.initialFen,
+              moves: imported.moves,
+              hasVariations: imported.hasVariations,
+              rawPgn: imported.source.rawPgn,
+              source: imported.source,
+            }),
+          );
+          setShowPaste(false);
+          if (paramNodeId) setRestoreNodeId(paramNodeId);
+          if (paramFlipped) setRestoreFlipped(true);
+        }
+        setSessionReady(true);
+      } catch {
+        if (cancelled) return;
+        setError(t('errors.generic'));
+        setShowPaste(true);
+        setSessionReady(true);
       }
-      setSessionReady(true);
     })();
     return () => {
       cancelled = true;

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { OpeningIdentityBadge } from '@/components/OpeningIdentityBadge';
 import { useColors } from '@/hooks/useColors';
@@ -28,13 +28,6 @@ export function GameMoveHistoryCard({
   const colors = useColors();
   const { chessNotation } = usePreferences();
   const { t } = useTranslation();
-  const historyListRef = useRef<FlatList<MoveRow>>(null);
-
-  useEffect(() => {
-    if (moveRows.length > 0) {
-      setTimeout(() => historyListRef.current?.scrollToEnd({ animated: true }), 60);
-    }
-  }, [moveRows.length]);
 
   return (
     <View
@@ -72,14 +65,9 @@ export function GameMoveHistoryCard({
       {moveRows.length === 0 ? (
         <Text style={[styles.emptyMsg, { color: colors.mutedForeground }]}>{emptyMessage}</Text>
       ) : (
-        <FlatList
-          ref={historyListRef}
-          data={moveRows}
-          keyExtractor={(item) => item.key}
-          scrollEnabled
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={[styles.moveRow, { borderBottomColor: colors.border }]}>
+        <View>
+          {moveRows.map((item) => (
+            <View key={item.key} style={[styles.moveRow, { borderBottomColor: colors.border }]}>
               <Text style={[styles.moveNum, { color: colors.mutedForeground }]}>{item.num}.</Text>
               <Text style={[styles.moveCell, { color: colors.foreground }]}>
                 {item.white ? formatSanForDisplay(item.white, chessNotation) : ''}
@@ -88,8 +76,8 @@ export function GameMoveHistoryCard({
                 {item.black ? formatSanForDisplay(item.black, chessNotation) : ''}
               </Text>
             </View>
-          )}
-        />
+          ))}
+        </View>
       )}
     </View>
   );

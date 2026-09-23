@@ -64,6 +64,13 @@ class SpeechService {
 
   private activeOwnerId: string | undefined;
 
+  /**
+   * Re-entrancy latch. Native Android TTS callbacks and onCancel listeners
+   * (e.g. clearDictationTimer → cancel) must not re-enter stop/hardStop/cancel
+   * on the same stack.
+   */
+  private inHardStop = false;
+
   /** Settler for the utterance currently being spoken (speakAndWait). */
   private activeSettler: ((result: 'done' | 'error' | 'cancelled') => void) | null =
     null;
@@ -233,39 +240,48 @@ class SpeechService {
   }
 
   private hardStop(opts: { notify: boolean }): void {
-    this.token += 1;
-    const pending = this.queue.splice(0, this.queue.length);
-    const activeSettler = this.activeSettler;
-    this.activeSettler = null;
-    this.activeOwnerId = undefined;
+    if (this.inHardStop) return;
+    this.inHardStop = true;
     try {
-      Speech.stop();
-    } catch {
-      /* ignore */
-    }
-    this.setSpeaking(false);
-    if (activeSettler) {
+      this.token += 1;
+      const pending = this.queue.splice(0, this.queue.length);
+      const activeSettler = this.activeSettler;
+      this.activeSettler = null;
+      this.activeOwnerId = undefined;
       try {
-        activeSettler('cancelled');
+        // Latch is already set so native onStopped/onDone cannot recurse into
+        // cancel → hardStop → Speech.stop() on the same stack. Swallow the
+        // returned promise so a native rejection cannot surface uncaught.
+        void Promise.resolve(Speech.stop()).catch(() => {});
       } catch {
         /* ignore */
       }
-    }
-    for (const item of pending) {
-      try {
-        item.onSettled?.('cancelled');
-      } catch {
-        /* ignore */
-      }
-    }
-    if (opts.notify) {
-      this.cancelListeners.forEach((l) => {
+      this.setSpeaking(false);
+      if (activeSettler) {
         try {
-          l();
+          activeSettler('cancelled');
         } catch {
           /* ignore */
         }
-      });
+      }
+      for (const item of pending) {
+        try {
+          item.onSettled?.('cancelled');
+        } catch {
+          /* ignore */
+        }
+      }
+      if (opts.notify) {
+        this.cancelListeners.forEach((l) => {
+          try {
+            l();
+          } catch {
+            /* ignore */
+          }
+        });
+      }
+    } finally {
+      this.inHardStop = false;
     }
   }
 

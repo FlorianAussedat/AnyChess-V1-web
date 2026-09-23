@@ -159,14 +159,21 @@ export default function PartiesLibraryScreen() {
   }, []);
 
   const reload = useCallback(async () => {
-    const [folderList, gameList] = await Promise.all([
-      gameLibraryStore.listFolders(folderId),
-      gameLibraryStore.listGames(folderId),
-    ]);
-    setFolders(folderList);
-    setGames(gameList);
-    setLoading(false);
-  }, [folderId]);
+    try {
+      const [folderList, gameList] = await Promise.all([
+        gameLibraryStore.listFolders(folderId),
+        gameLibraryStore.listGames(folderId),
+      ]);
+      setFolders(folderList);
+      setGames(gameList);
+    } catch {
+      setFolders([]);
+      setGames([]);
+      setStatus(t('errors.generic'));
+    } finally {
+      setLoading(false);
+    }
+  }, [folderId, t]);
 
   useEffect(() => {
     setLoading(true);
