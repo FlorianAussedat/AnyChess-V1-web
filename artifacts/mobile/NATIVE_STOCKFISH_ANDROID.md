@@ -168,3 +168,27 @@ On Pixel arm64-v8a, after G1–G5:
 5. Défends la nulle — WDL / practical-pressure.
 6. Finales théoriques — play + Analyze Game / Position.
 7. Home/background then return — re-init, no orphan `libstockfish.so`.
+
+---
+
+# NATIVE STOCKFISH ANDROID BASELINE
+
+Fast-forward `feat/native-stockfish` → `main` (10 commits G1–G6, no squash).
+Ancestor: PRE-STOCKFISH `edd1ba7`.
+
+| Item | Value |
+|---|---|
+| SHA `main` (landing) | `25aadc566710a834d7bccb6a65abd483a4e883ef` |
+| Expo | SDK 54 (`expo` 54.0.35, pin `~54.0.27`) |
+| Stockfish | 19 official (`sf_19`) native process `libstockfish.so` |
+| Android package | `com.anychess.app` |
+| ABI | **arm64-v8a only** |
+| Typecheck | OK |
+| Tests | 1212 pass / 1 pre-existing fail (`vision UX opt-ins`) |
+| expo-doctor | 17/18 — pre-existing `expo` / `expo-constants` patch skew (not bumped) |
+| assembleDebug | BUILD SUCCESSFUL (`app-debug.apk` ~168 MiB) |
+| Device | G1–G5 PASS on Pixel arm64-v8a |
+| Web | WASM Worker unchanged |
+| iOS | not supported |
+
+**READY — NATIVE STOCKFISH ANDROID MERGED**

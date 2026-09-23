@@ -452,3 +452,27 @@ Consolidation mergée dans `main` (PR #56 + #57 + #58, un seul merge, sans dupli
 
 **READY FOR PHASE G — NATIVE STOCKFISH**
 
+---
+
+# NATIVE STOCKFISH ANDROID BASELINE
+
+Fast-forward de `feat/native-stockfish` dans `main` (10 commits G1–G6, pas de squash, pas de commit de merge extra). Ancêtre : PRE-STOCKFISH `edd1ba7`.
+
+| Item | Valeur |
+|---|---|
+| SHA `main` (landing) | `25aadc566710a834d7bccb6a65abd483a4e883ef` |
+| Expo | SDK 54 (`expo` 54.0.35, pin `~54.0.27`) |
+| Stockfish | **19** officiel (`sf_19`), process natif `libstockfish.so` |
+| Package Android | `com.anychess.app` |
+| ABI Stockfish | **arm64-v8a only** (autres ABI : erreur claire / Classic → RandomEngine) |
+| Typecheck mobile | OK (`pnpm typecheck`) |
+| Tests | **1212 pass / 1 fail préexistante** `vision UX opt-ins` — **pas une régression Stockfish** |
+| expo-doctor | **17/18** — leftover `expo 54.0.35` vs `~54.0.37` et `expo-constants 18.0.13` vs `~18.0.14` (non bumpés, identique PRE-STOCKFISH) |
+| assembleDebug | **BUILD SUCCESSFUL** — APK `android/app/build/outputs/apk/debug/app-debug.apk` (~168 MiB) |
+| Device validation | G1–G5 PASS Pixel arm64-v8a (UCI, AnyLyseur, Classic, Opening, Défends la nulle, Finales, AppState, pas d’orphelin) |
+| Web | Worker WASM SF18 lite **inchangé** |
+| iOS | **non supporté** |
+| NDV | iOS Stockfish ; Share PGN natif ; SQLite |
+
+**READY — NATIVE STOCKFISH ANDROID MERGED**
+
