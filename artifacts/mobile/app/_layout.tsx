@@ -57,10 +57,10 @@ function RootLayoutNav() {
       <Stack.Screen name="parametres" />
       <Stack.Screen name="profil" />
       {typeof __DEV__ !== 'undefined' && __DEV__ ? (
-        <>
-          <Stack.Screen name="dev/voice-parser" options={{ headerShown: true }} />
-          <Stack.Screen name="dev/stockfish-uci" options={{ headerShown: true }} />
-        </>
+        <Stack.Screen name="dev/voice-parser" options={{ headerShown: true }} />
+      ) : null}
+      {typeof __DEV__ !== 'undefined' && __DEV__ ? (
+        <Stack.Screen name="dev/stockfish-uci" options={{ headerShown: true }} />
       ) : null}
     </Stack>
   );
