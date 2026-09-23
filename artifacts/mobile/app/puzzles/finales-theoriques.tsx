@@ -310,13 +310,11 @@ export default function TheoreticalEndgameCatalogScreen() {
             style={styles.carousel}
           />
         ) : (
-          <FlatList
-            data={cards}
-            keyExtractor={(item) => item.theme.id}
-            renderItem={renderListRow}
-            contentContainerStyle={styles.listContent}
-            testID="theoretical-theme-list"
-          />
+          <View testID="theoretical-theme-list" style={styles.listContent}>
+            {cards.map((item) => (
+              <React.Fragment key={item.theme.id}>{renderListRow({ item })}</React.Fragment>
+            ))}
+          </View>
         )}
       </ChessScreenScaffold>
 

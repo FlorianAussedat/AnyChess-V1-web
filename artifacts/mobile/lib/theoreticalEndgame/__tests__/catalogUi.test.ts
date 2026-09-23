@@ -36,6 +36,12 @@ describe('theoretical catalog UI', () => {
     assert.match(catalog, /theoretical-theme-list/);
   });
 
+  it('list mode is not a vertical FlatList inside ChessScreenScaffold', () => {
+    assert.match(catalog, /<View testID="theoretical-theme-list"/);
+    const listSlice = catalog.slice(catalog.indexOf('theoretical-theme-list'));
+    assert.doesNotMatch(listSlice.slice(0, 400), /FlatList/);
+  });
+
   it('does not reference three-pawns or HubModeCard carousel', () => {
     assert.doesNotMatch(catalog, /three-pawns/);
     assert.doesNotMatch(catalog, /HubModeCard/);
