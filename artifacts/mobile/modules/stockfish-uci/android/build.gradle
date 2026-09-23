@@ -9,11 +9,11 @@ version = '0.1.0'
 def fetchScript = file("${project.projectDir}/../scripts/fetch-android-binary.mjs")
 
 tasks.register('fetchStockfishBinary', Exec) {
-  description = 'Download official Stockfish 19 Android arm64 binary into assets'
+  description = 'Download official Stockfish 19 Android arm64 binary into jniLibs'
   workingDir project.projectDir
   commandLine 'node', fetchScript.absolutePath
   inputs.file(file("${project.projectDir}/../scripts/stockfish-android-manifest.json"))
-  outputs.file(file("${project.projectDir}/src/main/assets/stockfish/stockfish.sfbin"))
+  outputs.file(file("${project.projectDir}/src/main/jniLibs/arm64-v8a/libstockfish.so"))
 }
 
 afterEvaluate {
@@ -28,7 +28,10 @@ android {
     versionCode 1
     versionName "0.1.0"
   }
-  androidResources {
-    noCompress += "sfbin"
+  packagingOptions {
+    jniLibs {
+      keepDebugSymbols += ['**/libstockfish.so']
+      useLegacyPackaging = true
+    }
   }
 }

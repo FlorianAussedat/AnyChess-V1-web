@@ -41,8 +41,30 @@ describe('native transport contract vs web', () => {
     assert.match(page, /Redirect/);
     assert.match(page, /runUciSmokeTest/);
     assert.match(page, /createUciTransport/);
+    assert.match(page, /diagnose/);
     const home = read('app/index.tsx');
     assert.doesNotMatch(home, /stockfish-uci/);
+  });
+
+  it('G1 execs extracted jniLib from nativeLibraryDir, not filesDir', () => {
+    const kt = read(
+      'modules/stockfish-uci/android/src/main/java/expo/modules/stockfishuci/StockfishUciModule.kt',
+    );
+    assert.match(kt, /nativeLibraryDir/);
+    assert.match(kt, /libstockfish\.so/);
+    assert.match(kt, /diagnoseBinary/);
+    assert.match(kt, /FLAG_EXTRACT_NATIVE_LIBS/);
+    assert.match(kt, /setExecutable\(true, false\)/);
+    assert.doesNotMatch(kt, /stockfish\.sfbin/);
+    assert.doesNotMatch(kt, /FileOutputStream/);
+    const fetch = read('modules/stockfish-uci/scripts/fetch-android-binary.mjs');
+    assert.match(fetch, /jniLibs\/arm64-v8a/);
+    assert.match(fetch, /libstockfish\.so/);
+    assert.match(fetch, /removeLegacyAssets/);
+    const plugin = read('modules/stockfish-uci/app.plugin.js');
+    assert.match(plugin, /useLegacyPackaging/);
+    assert.match(plugin, /extractNativeLibs/);
+    assert.match(plugin, /libstockfish\.so/);
   });
 
   it('does not wire native Stockfish into product engine factories', () => {

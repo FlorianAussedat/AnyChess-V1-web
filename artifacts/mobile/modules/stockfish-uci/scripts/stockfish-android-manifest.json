@@ -13,6 +13,6 @@
     "sha256": "ebb24051aa4a222b4daaf049b882ecf1163d370c128fe02316602643f4d5e426",
     "binaryMember": "stockfish/stockfish-android-arm64-universal"
   },
-  "assetName": "stockfish.sfbin",
-  "notes": "Official statically-linked aarch64 executable with embedded NNUE. armeabi-v7a / x86_64 are not shipped in G1."
+  "jniLibName": "libstockfish.so",
+  "notes": "Official statically-linked aarch64 executable with embedded NNUE, packaged as a jniLib so Android 10+ can execve it from nativeLibraryDir. armeabi-v7a / x86_64 are not shipped in G1. Do not copy into filesDir (W^X / error=13)."
 }

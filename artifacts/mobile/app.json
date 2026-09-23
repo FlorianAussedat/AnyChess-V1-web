@@ -39,7 +39,8 @@
           "microphonePermission": "AnyChess a besoin du microphone pour reconnaître vos coups d'échecs.",
           "speechRecognitionPermission": "AnyChess a besoin de la reconnaissance vocale pour jouer aux échecs."
         }
-      ]
+      ],
+      "./modules/stockfish-uci/app.plugin.js"
     ],
     "experiments": {
       "typedRoutes": true,

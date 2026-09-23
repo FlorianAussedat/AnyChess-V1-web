@@ -13,12 +13,29 @@ import {
   Platform,
 } from 'react-native';
 import { Stack, Redirect } from 'expo-router';
+import { requireOptionalNativeModule } from 'expo';
 import { createUciTransport } from '@/lib/engines/stockfish/transport';
 import {
   runUciSmokeTest,
   type UciHarnessLog,
 } from '@/lib/engines/stockfish/uciHarness';
 import type { UciTransport } from '@/lib/engines/stockfish/types';
+
+type StockfishDiagnoseModule = {
+  diagnose?: () => Record<string, unknown>;
+};
+
+function readNativeDiagnose(): Record<string, unknown> | null {
+  if (Platform.OS !== 'android') return null;
+  try {
+    const bridge = requireOptionalNativeModule<StockfishDiagnoseModule>('StockfishUci');
+    if (typeof bridge?.diagnose !== 'function') return null;
+    const snapshot = bridge.diagnose();
+    return snapshot && typeof snapshot === 'object' ? snapshot : null;
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 const IS_DEV =
   typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production';
@@ -58,6 +75,7 @@ export default function NativeStockfishUciDevScreen() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bestmove, setBestmove] = useState<string | null>(null);
+  const [diag, setDiag] = useState<Record<string, unknown> | null>(null);
 
   const cleanup = useCallback(() => {
     const transport = transportRef.current;
@@ -71,11 +89,16 @@ export default function NativeStockfishUciDevScreen() {
 
   useEffect(() => cleanup, [cleanup]);
 
+  useEffect(() => {
+    setDiag(readNativeDiagnose());
+  }, []);
+
   const run = useCallback(async () => {
     cleanup();
     setRunning(true);
     setError(null);
     setBestmove(null);
+    setDiag(readNativeDiagnose());
     setRows(INITIAL_ROWS.map((row) => (row.id === 'start' ? { ...row, status: 'running' } : row)));
 
     let transport: UciTransport;
@@ -109,6 +132,7 @@ export default function NativeStockfishUciDevScreen() {
         );
       }
     } finally {
+      setDiag(readNativeDiagnose());
       transportRef.current = null;
       setRunning(false);
     }
@@ -158,6 +182,14 @@ export default function NativeStockfishUciDevScreen() {
         ))}
         {bestmove ? <Text style={styles.mono}>{bestmove}</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
+        {diag ? (
+          <View style={styles.diagBox}>
+            <Text style={styles.diagTitle}>Spawn diagnose (DEV)</Text>
+            <Text style={styles.diagBody}>
+              {typeof diag.summary === 'string' ? diag.summary : JSON.stringify(diag, null, 2)}
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -195,4 +227,12 @@ const styles = StyleSheet.create({
   detail: { color: '#5B7FA0', fontSize: 12, marginTop: 2, fontFamily: 'monospace' },
   mono: { color: '#cfc', fontFamily: 'monospace', fontSize: 13, marginTop: 8 },
   error: { color: '#F5A623', marginTop: 8, fontFamily: 'monospace' },
+  diagBox: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#12233A',
+  },
+  diagTitle: { color: '#5B7FA0', fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  diagBody: { color: '#9BB6CC', fontFamily: 'monospace', fontSize: 11, lineHeight: 16 },
 });

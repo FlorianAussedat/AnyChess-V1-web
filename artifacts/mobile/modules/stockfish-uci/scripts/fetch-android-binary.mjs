@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * Download the official Stockfish 19 Android arm64 binary into module assets.
- * The ~97MB executable is gitignored and fetched at Gradle preBuild.
+ * Download the official Stockfish 19 Android arm64 binary into jniLibs.
+ * Packaged as libstockfish.so so PackageManager extracts it to nativeLibraryDir
+ * (the only app-owned path Android 10+ allows execve on). Gitignored; fetched
+ * at Gradle preBuild.
  */
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
+  chmodSync,
   copyFileSync,
   createReadStream,
   existsSync,
@@ -29,10 +32,11 @@ const manifest = JSON.parse(
 
 const cacheDir = join(moduleRoot, '.cache');
 const extractDir = join(cacheDir, 'extract');
-const assetDir = join(moduleRoot, 'android/src/main/assets/stockfish');
+const jniDir = join(moduleRoot, 'android/src/main/jniLibs/arm64-v8a');
 const tarPath = join(cacheDir, manifest.artifact.name);
-const destBin = join(assetDir, manifest.assetName);
-const destMeta = join(assetDir, 'VERSION.txt');
+const destBin = join(jniDir, manifest.jniLibName);
+const destMeta = join(moduleRoot, 'android/stockfish-binary.version');
+const legacyAssetDir = join(moduleRoot, 'android/src/main/assets/stockfish');
 
 function sha256File(path) {
   return new Promise((resolve, reject) => {
@@ -52,6 +56,13 @@ async function download(url, dest) {
   await pipeline(Readable.fromWeb(res.body), createWriteStream(dest));
 }
 
+function removeLegacyAssets() {
+  if (existsSync(legacyAssetDir)) {
+    rmSync(legacyAssetDir, { recursive: true, force: true });
+    console.log('[stockfish-uci] removed legacy assets/stockfish (exec from jniLibs)');
+  }
+}
+
 function alreadyReady() {
   if (!existsSync(destBin) || !existsSync(destMeta)) return false;
   const meta = readFileSync(destMeta, 'utf8').trim();
@@ -60,13 +71,15 @@ function alreadyReady() {
 }
 
 async function main() {
+  removeLegacyAssets();
+
   if (alreadyReady()) {
-    console.log(`[stockfish-uci] ${manifest.assetName} already present (${statSync(destBin).size} bytes)`);
+    console.log(`[stockfish-uci] ${manifest.jniLibName} already present (${statSync(destBin).size} bytes)`);
     return;
   }
 
   mkdirSync(cacheDir, { recursive: true });
-  mkdirSync(assetDir, { recursive: true });
+  mkdirSync(jniDir, { recursive: true });
 
   let needDownload = true;
   if (existsSync(tarPath)) {
@@ -104,6 +117,7 @@ async function main() {
   }
 
   copyFileSync(extracted, destBin);
+  chmodSync(destBin, 0o755);
   writeFileSync(
     destMeta,
     [
@@ -114,6 +128,7 @@ async function main() {
       `abi=${manifest.abi.join(',')}`,
       `sha256=${manifest.artifact.sha256}`,
       `bytes=${statSync(destBin).size}`,
+      `jniLib=${manifest.jniLibName}`,
     ].join('\n'),
     'utf8',
   );

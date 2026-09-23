@@ -1,23 +1,33 @@
 package expo.modules.stockfishuci
 
-import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.os.Build
+import android.system.Os
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-private const val ASSET_DIR = "stockfish"
-private const val ASSET_BIN = "stockfish.sfbin"
-private const val ASSET_VERSION = "VERSION.txt"
-private const val DEST_NAME = "stockfish-sf_19"
+/**
+ * Official Stockfish 19 is a statically-linked ELF executable packaged as
+ * `jniLibs/arm64-v8a/libstockfish.so` and executed from [ApplicationInfo.nativeLibraryDir].
+ *
+ * Android 10+ (API 29) W^X: [ProcessBuilder] / `execve` of a file the app wrote under
+ * [android.content.Context.getFilesDir] fails with EACCES (error=13) even when
+ * [File.setExecutable] / `chmod 0755` succeed. Pixel G1 smoke proved this:
+ * the binary was present in filesDir and still could not be spawned.
+ * Unix mode bits are not the policy that matters; the kernel refuses execute
+ * from writable app-home paths. Do not copy the engine into filesDir.
+ */
+private const val JNI_LIB_NAME = "libstockfish.so"
+private const val LEGACY_FILES_NAME = "stockfish-sf_19"
 
 class StockfishUciException(message: String) : CodedException(message)
 
@@ -34,7 +44,7 @@ class StockfishUciModule : Module() {
     Thread(runnable, "stockfish-uci-lifecycle").apply { isDaemon = true }
   }
 
-  private val context: Context
+  private val context: android.content.Context
     get() = appContext.reactContext
       ?: throw StockfishUciException("React context unavailable")
 
@@ -55,6 +65,10 @@ class StockfishUciModule : Module() {
       lifecycleExecutor.submit<Unit> { terminateEngine() }.get(5, TimeUnit.SECONDS)
     }
 
+    Function("diagnose") {
+      diagnoseBinary()
+    }
+
     OnDestroy {
       killImmediately()
     }
@@ -67,7 +81,9 @@ class StockfishUciModule : Module() {
 
   private fun startEngine() {
     terminateEngine()
-    val binary = ensureBinary()
+    val snapshot = diagnoseBinary()
+    val summary = snapshot["summary"] as String
+    val binary = resolveExecutable(summary)
     synchronized(lock) {
       if (running.get()) {
         return
@@ -78,7 +94,9 @@ class StockfishUciModule : Module() {
       val started = try {
         pb.start()
       } catch (err: Exception) {
-        throw StockfishUciException("Failed to spawn Stockfish: ${err.message}")
+        throw StockfishUciException(
+          "Failed to spawn Stockfish: ${err.message}\n$summary",
+        )
       }
       process = started
       stdin = BufferedWriter(OutputStreamWriter(started.outputStream, Charsets.UTF_8), 8192)
@@ -202,42 +220,131 @@ class StockfishUciModule : Module() {
     stdoutThread = null
   }
 
-  private fun ensureBinary(): File {
-    val dest = File(context.filesDir, DEST_NAME)
-    val marker = File(context.filesDir, "$DEST_NAME.version")
-    val expected = readAssetText("$ASSET_DIR/$ASSET_VERSION")
-    if (dest.exists() && dest.canExecute() && dest.length() > 1_000_000L && marker.exists()) {
-      if (marker.readText() == expected) {
-        return dest
-      }
-    }
+  private fun nativeBinary(): File =
+    File(context.applicationInfo.nativeLibraryDir, JNI_LIB_NAME)
 
-    dest.parentFile?.mkdirs()
-    try {
-      context.assets.open("$ASSET_DIR/$ASSET_BIN").use { input ->
-        FileOutputStream(dest).use { output ->
-          input.copyTo(output, DEFAULT_BUFFER_SIZE)
-        }
-      }
-    } catch (err: Exception) {
-      throw StockfishUciException(
-        "Stockfish binary missing from assets ($ASSET_DIR/$ASSET_BIN): ${err.message}",
-      )
-    }
+  private fun filesBinary(): File = File(context.filesDir, LEGACY_FILES_NAME)
 
-    if (!dest.setExecutable(true, true)) {
-      throw StockfishUciException("Could not chmod +x ${dest.absolutePath}")
+  private fun resolveExecutable(summary: String): File {
+    val native = nativeBinary()
+    if (native.isFile && native.length() > 1_000_000L) {
+      return native
     }
-    dest.setReadable(true, true)
-    marker.writeText(expected)
-    return dest
+    throw StockfishUciException(
+      "Stockfish jniLib missing at ${native.absolutePath}. " +
+        "Android 10+ cannot exec() from filesDir (W^X / error=13). " +
+        "Need extracted $JNI_LIB_NAME (expo.useLegacyPackaging / extractNativeLibs).\n$summary",
+    )
   }
 
-  private fun readAssetText(path: String): String {
+  private fun extractNativeLibsFlag(): Boolean {
+    val flags = context.applicationInfo.flags
+    return flags and ApplicationInfo.FLAG_EXTRACT_NATIVE_LIBS != 0
+  }
+
+  private fun posixModeOctal(file: File): String {
     return try {
-      context.assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }
-    } catch (_: Exception) {
-      "sf_19"
+      val st = Os.stat(file.absolutePath)
+      String.format("%o", st.st_mode)
+    } catch (err: Exception) {
+      "stat-failed:${err.javaClass.simpleName}:${err.message}"
     }
+  }
+
+  /**
+   * Records chmod / setExecutable results. On filesDir this typically *succeeds*
+   * and [File.canExecute] becomes true — then [ProcessBuilder.start] still
+   * throws EACCES on API 29+. That is the Pixel G1 failure mode.
+   */
+  private fun tryMakeExecutable(file: File): String {
+    val parts = mutableListOf<String>()
+    try {
+      parts.add("setExecutable(true,true)=${file.setExecutable(true, true)}")
+    } catch (err: Exception) {
+      parts.add("setExecutable(true,true)=throw:${err.javaClass.simpleName}:${err.message}")
+    }
+    try {
+      parts.add("setExecutable(true,false)=${file.setExecutable(true, false)}")
+    } catch (err: Exception) {
+      parts.add("setExecutable(true,false)=throw:${err.javaClass.simpleName}:${err.message}")
+    }
+    try {
+      Os.chmod(file.absolutePath, 493) // 0755
+      parts.add("chmod0755=ok")
+    } catch (err: Exception) {
+      parts.add("chmod0755=throw:${err.javaClass.simpleName}:${err.message}")
+    }
+    return parts.joinToString("; ")
+  }
+
+  private fun fileFacts(file: File, attemptChmod: Boolean): Map<String, Any> {
+    val exists = file.exists()
+    val facts = linkedMapOf<String, Any>(
+      "absolutePath" to file.absolutePath,
+      "exists" to exists,
+      "length" to if (exists) file.length() else 0L,
+      "canRead" to file.canRead(),
+      "canExecute" to file.canExecute(),
+      "posixMode" to if (exists) posixModeOctal(file) else "n/a",
+    )
+    if (attemptChmod && exists) {
+      facts["setExecutable"] = tryMakeExecutable(file)
+      facts["canExecuteAfter"] = file.canExecute()
+      facts["posixModeAfter"] = posixModeOctal(file)
+    } else {
+      facts["setExecutable"] = if (exists) "skipped" else "n/a (missing)"
+    }
+    return facts
+  }
+
+  private fun flatten(prefix: String, facts: Map<String, Any>): List<String> {
+    return facts.entries.map { "$prefix.${it.key}=${it.value}" }
+  }
+
+  private fun diagnoseBinary(): Map<String, Any> {
+    val native = nativeBinary()
+    val files = filesBinary()
+    val nativeFacts = fileFacts(native, attemptChmod = true)
+    val filesFacts = fileFacts(files, attemptChmod = true)
+    val spawnSource = if (native.isFile && native.length() > 1_000_000L) {
+      "nativeLibraryDir/$JNI_LIB_NAME"
+    } else {
+      "missing"
+    }
+    val lines = mutableListOf(
+      "sdkInt=${Build.VERSION.SDK_INT}",
+      "abis=${Build.SUPPORTED_ABIS.joinToString(",")}",
+      "extractNativeLibs=${extractNativeLibsFlag()}",
+      "nativeLibraryDir=${context.applicationInfo.nativeLibraryDir}",
+      "filesDir=${context.filesDir.absolutePath}",
+      "spawnSource=$spawnSource",
+      "copyFlush=n/a (no filesDir copy; exec packaged jniLib)",
+    )
+    lines += flatten("native", nativeFacts)
+    lines += flatten("files", filesFacts)
+    val summary = lines.joinToString("\n")
+    return mapOf(
+      "sdkInt" to Build.VERSION.SDK_INT,
+      "abis" to Build.SUPPORTED_ABIS.joinToString(","),
+      "extractNativeLibs" to extractNativeLibsFlag(),
+      "nativeLibraryDir" to (context.applicationInfo.nativeLibraryDir ?: ""),
+      "filesDir" to context.filesDir.absolutePath,
+      "spawnSource" to spawnSource,
+      "copyFlush" to "n/a (no filesDir copy; exec packaged jniLib)",
+      "absolutePath" to nativeFacts["absolutePath"] as String,
+      "exists" to nativeFacts["exists"] as Boolean,
+      "length" to nativeFacts["length"] as Long,
+      "canExecute" to nativeFacts["canExecuteAfter"] as? Boolean
+        ?: nativeFacts["canExecute"] as Boolean,
+      "posixMode" to (nativeFacts["posixModeAfter"] ?: nativeFacts["posixMode"] ?: "n/a"),
+      "setExecutable" to (nativeFacts["setExecutable"] ?: "n/a"),
+      "filesAbsolutePath" to filesFacts["absolutePath"] as String,
+      "filesExists" to filesFacts["exists"] as Boolean,
+      "filesLength" to filesFacts["length"] as Long,
+      "filesCanExecute" to (filesFacts["canExecuteAfter"] ?: filesFacts["canExecute"] ?: false),
+      "filesPosixMode" to (filesFacts["posixModeAfter"] ?: filesFacts["posixMode"] ?: "n/a"),
+      "filesSetExecutable" to (filesFacts["setExecutable"] ?: "n/a"),
+      "summary" to summary,
+    )
   }
 }

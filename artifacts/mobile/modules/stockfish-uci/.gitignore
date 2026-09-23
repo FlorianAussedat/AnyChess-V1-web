@@ -1,4 +1,6 @@
 .cache/
 android/src/main/assets/stockfish/
+android/src/main/jniLibs/
+android/stockfish-binary.version
 android/build/
 android/.gradle/
