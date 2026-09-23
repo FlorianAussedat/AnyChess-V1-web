@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import type { ChessEngine } from '../engine';
 import { randomEngine } from './random';
 import { StockfishEngine } from './stockfish';
+import { withInitFallback } from './withInitFallback';
 
 export { OwnedEngine } from './OwnedEngine';
 export type { EngineFactory } from './OwnedEngine';
@@ -31,22 +32,32 @@ export type {
 /**
  * Build the opponent engine for the current platform.
  *
- * - web:    real Stockfish (WASM) in a Web Worker, fully offline.
- * - native: RandomEngine for Classic / Openings play. AnyLyseur analysis uses
- *           `createChessEngineService` → native `UciTransport` (G2). Endgames
- *           stay on `SharedStockfishRuntime` (web-only).
+ * - web:     StockfishEngine (WASM Worker).
+ * - Android: StockfishEngine over the G1 native UciTransport (G3a Classic).
+ *            RandomEngine only if native init fails.
+ * - iOS:     RandomEngine (no bundled binary).
+ *
+ * Opening play uses this same factory; G3b waits for Classic device validation.
+ * AnyLyseur stays on createChessEngineService. Endgames stay on
+ * SharedStockfishRuntime (web-only). Elo bands are unchanged.
  */
 export function createOpponentEngine(options?: {
   elo?: number;
   multiPv?: number;
   varietyMarginCp?: number;
 }): ChessEngine {
+  const partial: { elo?: number; multiPv?: number; varietyMarginCp?: number } = {};
+  if (options?.elo != null) partial.elo = options.elo;
+  if (options?.multiPv != null) partial.multiPv = options.multiPv;
+  if (options?.varietyMarginCp != null) partial.varietyMarginCp = options.varietyMarginCp;
+
   if (Platform.OS === 'web') {
-    const partial: { elo?: number; multiPv?: number; varietyMarginCp?: number } = {};
-    if (options?.elo != null) partial.elo = options.elo;
-    if (options?.multiPv != null) partial.multiPv = options.multiPv;
-    if (options?.varietyMarginCp != null) partial.varietyMarginCp = options.varietyMarginCp;
     return new StockfishEngine(partial);
   }
+
+  if (Platform.OS === 'android') {
+    return withInitFallback(new StockfishEngine(partial), randomEngine);
+  }
+
   return randomEngine;
 }

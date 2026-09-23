@@ -9,8 +9,9 @@
  *
  * Web provides a Web-Worker transport (`transport.web.ts`). Native Android
  * provides a process-backed transport in `transport.ts` (`StockfishUci`).
- * AnyLyseur (G2) uses that transport via `createChessEngineService`. Classic /
- * Openings / endgames are not switched over.
+ * AnyLyseur (G2) uses that transport via `createChessEngineService`. Classic (G3a)
+ * uses it via `createOpponentEngine` → StockfishEngine. Opening play G3b waits
+ * for Classic device validation. Endgames are not switched over.
  */
 
 /** Duplex UCI channel to a Stockfish engine instance. */

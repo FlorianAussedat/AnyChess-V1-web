@@ -50,9 +50,9 @@ describe('G2 AnyLyseur native factory wiring', () => {
     assert.match(adapter, /this\.service\.destroy/);
   });
 
-  it('does not wire Classic, Openings, or endgames', () => {
+  it('does not wire Finales / Défends la nulle', () => {
     const opponent = read('lib/engines/index.ts');
-    assert.match(opponent, /return randomEngine/);
+    assert.match(opponent, /withInitFallback\(new StockfishEngine/);
     const runtime = read('lib/engines/runtime/SharedStockfishRuntime.ts');
     assert.match(runtime, /Platform\.OS !== 'web'/);
     assert.match(runtime, /Stockfish unavailable on native/);

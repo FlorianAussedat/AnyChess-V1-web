@@ -1,9 +1,9 @@
 /**
  * StockfishEngine — a `ChessEngine` backed by the Stockfish UCI engine.
  *
- * Platform-agnostic: it drives the engine purely over a `UciTransport`, so the
- * exact same orchestration runs on web today (Web Worker) and could run on a
- * native transport later without changes.
+ * Platform-agnostic: it drives the engine purely over a `UciTransport`.
+ * Web uses a Worker; Android G3a uses the G1 native process via
+ * `createOpponentEngine` → `createUciTransport`.
  *
  * Strength: pinned to ~1800 Elo via `UCI_LimitStrength` + `UCI_Elo` (see
  * uci.ts). This is Stockfish's dedicated human-strength model, which produces

@@ -67,10 +67,7 @@ describe('native transport contract vs web', () => {
     assert.match(plugin, /libstockfish\.so/);
   });
 
-  it('does not wire native Stockfish into Classic / Openings / endgames', () => {
-    const opponent = read('lib/engines/index.ts');
-    assert.match(opponent, /return randomEngine/);
-    assert.match(opponent, /Platform\.OS === 'web'/);
+  it('does not wire native Stockfish into Finales / Défends la nulle', () => {
     const runtime = read('lib/engines/runtime/SharedStockfishRuntime.ts');
     assert.match(runtime, /Platform\.OS !== 'web'/);
   });

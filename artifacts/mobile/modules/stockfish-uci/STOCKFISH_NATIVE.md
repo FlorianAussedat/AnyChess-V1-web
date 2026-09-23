@@ -62,6 +62,10 @@ JS UciTransport (lib/engines/stockfish/transport.ts)
 G2 AnyLyseur:
   useAnyLyseurAnalysis → AnalysisController → StockfishChessEngine
     → createChessEngineService.ts (Android) → UciTransport above
+
+G3a Classic:
+  GameContext → createOpponentEngine → StockfishEngine → UciTransport above
+  (RandomEngine only if native init fails)
 ```
 
 Web keeps `transport.web.ts` (WASM Worker) via `createChessEngineService.web.ts`.
@@ -83,3 +87,9 @@ legacy filesDir candidate (not used for spawn).
 1. Same Development Build (native module already in the APK). Metro reload is enough for the JS factory.
 2. Open AnyLyseur (not Classic / Openings / Finales).
 3. Expect: engine goes from unavailable → ready; position analysis; eval; MultiPV; Fast/Normal/Deep; stop-on-navigate; retry; dispose on leave; clean re-init on return.
+
+## Device recipe (G3a Classic)
+
+1. Metro reload is enough (JS factory). Same G1 APK.
+2. Open **Partie classique** only (not Opening play — G3b waits).
+3. Expect: opponent thinks, plays a legal move, undo/cancel, new game, strength band, leave/return, no freeze, no orphan process. RandomEngine only if native init fails.
