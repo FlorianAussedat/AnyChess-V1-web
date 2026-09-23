@@ -103,7 +103,7 @@ export const STOCKFISH_PLATFORM_NOTES = {
     available: true as const,
     backend: 'stockfish-19 native process (StockfishUci / libstockfish.so)',
     requires:
-      'Custom Dev Client / prebuild with the StockfishUci module (not Expo Go)',
+      'Custom Dev Client / prebuild with the StockfishUci module, arm64-v8a only (not Expo Go)',
   },
   ios: {
     available: false as const,

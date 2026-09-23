@@ -52,6 +52,7 @@ describe('native transport contract vs web', () => {
     );
     assert.match(kt, /nativeLibraryDir/);
     assert.match(kt, /libstockfish\.so/);
+    assert.match(kt, /arm64-v8a only/);
     assert.match(kt, /diagnoseBinary/);
     assert.match(kt, /FLAG_EXTRACT_NATIVE_LIBS/);
     assert.match(kt, /setExecutable\(true, false\)/);

@@ -1,6 +1,7 @@
 /**
  * DEV-only native Stockfish UCI smoke harness.
  * Route: /dev/stockfish-uci — not linked from production navigation.
+ * Production (`__DEV__ === false`) Redirects to `/` and never starts the engine.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {

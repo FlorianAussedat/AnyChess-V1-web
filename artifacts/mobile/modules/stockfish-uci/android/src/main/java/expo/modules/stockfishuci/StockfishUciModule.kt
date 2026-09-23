@@ -226,12 +226,19 @@ class StockfishUciModule : Module() {
   private fun filesBinary(): File = File(context.filesDir, LEGACY_FILES_NAME)
 
   private fun resolveExecutable(summary: String): File {
+    val abis = Build.SUPPORTED_ABIS.joinToString(",")
+    if (!Build.SUPPORTED_ABIS.contains("arm64-v8a")) {
+      throw StockfishUciException(
+        "Stockfish native baseline supports arm64-v8a only. " +
+          "This device ABIs: $abis. armeabi-v7a / x86 / x86_64 are not shipped.\n$summary",
+      )
+    }
     val native = nativeBinary()
     if (native.isFile && native.length() > 1_000_000L) {
       return native
     }
     throw StockfishUciException(
-      "Stockfish jniLib missing at ${native.absolutePath}. " +
+      "Stockfish jniLib missing at ${native.absolutePath} (arm64-v8a). " +
         "Android 10+ cannot exec() from filesDir (W^X / error=13). " +
         "Need extracted $JNI_LIB_NAME (expo.useLegacyPackaging / extractNativeLibs).\n$summary",
     )
