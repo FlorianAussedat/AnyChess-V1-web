@@ -232,7 +232,7 @@ Légende : **NDV** = non disponible volontairement.
 | # | Test | PASS | BUG | NDV | Notes |
 |---|---|---|---|---|---|
 | U1 | Safe areas | | | | |
-| U2 | Scrolling | | BUG | | VirtualizedLists nested — voir §9.2, **corrigé** (à retester) |
+| U2 | Scrolling | PASS | | | VirtualizedLists nested — §9.2, **RESOLVED** (plus reproduit après scaffold FlatList) |
 | U3 | Tailles / débordements | | | | |
 | U4 | Plateau | | | | |
 | U5 | Orientation portrait (paysage bloqué) | | | | |
@@ -276,8 +276,8 @@ Téléchargement `.pgn` natif / Share PGN : **NDV** si absent ; BUG seulement si
 | # | Test | PASS | BUG | NDV | Notes |
 |---|---|---|---|---|---|
 | T1 | Parler un coup | | | | |
-| T2 | Arrêter | | BUG | | RangeError stop/hardStop/cancel — voir §9.1, **corrigé** (à retester) |
-| T3 | Quitter l’écran pendant la parole | | BUG | | Même cycle TTS si `onCancel` est abonné (Blind) — **corrigé** |
+| T2 | Arrêter | PASS | | | RangeError stop/hardStop/cancel — §9.1, **RESOLVED** (plus reproduit) |
+| T3 | Quitter l’écran pendant la parole | PASS | | | Même cycle TTS — §9.1, **RESOLVED** (plus reproduit) |
 | T4 | Relancer TTS | | | | |
 
 ### Micro
@@ -382,7 +382,7 @@ Deux bugs JS remontés dans les logs appareil. Stockfish indisponible sur AnyLys
 | | |
 |---|---|
 | **Sévérité** | Haute — rejet de Promise non géré, coupure TTS peut planter le JS Hermes |
-| **Statut** | **Corrigé** (latch `inHardStop` dans `SpeechService.hardStop`) — à retester sur device |
+| **Statut** | **RESOLVED** — latch `inHardStop` ; plus reproduit sur device |
 | **Reproduction** | Écran **À l’aveugle** (`app/blind.tsx`) : lancer une dictée / TTS, puis **arrêter**, changer de phase, ou quitter l’écran pendant la parole. Le log montre `stop → hardStop → cancel → hardStop → cancel` en boucle. |
 | **Fichiers** | `services/SpeechService.ts` (`stop`, `cancel`, `hardStop`) ; `hooks/useBlindDictation.ts` (`clearDictationTimer` → `speechService.cancel('dictation')`) ; `contexts/BlindSequenceContext.tsx` (`onCancel(() => clearDictationTimer())`) |
 
@@ -410,7 +410,7 @@ Un second chemin, Android seulement : `ExponentSpeech.stop()` peut émettre `spe
 | | |
 |---|---|
 | **Sévérité** | Moyenne — warning RN, windowing cassé, jank / logs bruyants (pas un crash) |
-| **Statut** | **Corrigé** (historique en `map` + scaffold en `FlatList`, plus de `ScrollView` simple) — à retester sur device (reload JS complet) |
+| **Statut** | **RESOLVED** — historique en `map` + scaffold `FlatList` ; plus reproduit sur device |
 | **Reproduction** | 1) **Partie classique / Ouvertures / Défends la nulle / Finales théoriques (play)** : jouer au moins un coup → carte « coups joués ». 2) **Finales théoriques (catalogue)**, bascule **vue liste**. |
 
 **Écran / composants :**
