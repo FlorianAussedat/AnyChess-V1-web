@@ -232,7 +232,7 @@ Légende : **NDV** = non disponible volontairement.
 | # | Test | PASS | BUG | NDV | Notes |
 |---|---|---|---|---|---|
 | U1 | Safe areas | | | | |
-| U2 | Scrolling | | | | |
+| U2 | Scrolling | | BUG | | VirtualizedLists nested — voir §9.2, **corrigé** (à retester) |
 | U3 | Tailles / débordements | | | | |
 | U4 | Plateau | | | | |
 | U5 | Orientation portrait (paysage bloqué) | | | | |
@@ -276,8 +276,8 @@ Téléchargement `.pgn` natif / Share PGN : **NDV** si absent ; BUG seulement si
 | # | Test | PASS | BUG | NDV | Notes |
 |---|---|---|---|---|---|
 | T1 | Parler un coup | | | | |
-| T2 | Arrêter | | | | |
-| T3 | Quitter l’écran pendant la parole | | | | |
+| T2 | Arrêter | | BUG | | RangeError stop/hardStop/cancel — voir §9.1, **corrigé** (à retester) |
+| T3 | Quitter l’écran pendant la parole | | BUG | | Même cycle TTS si `onCancel` est abonné (Blind) — **corrigé** |
 | T4 | Relancer TTS | | | | |
 
 ### Micro
@@ -366,8 +366,63 @@ Téléchargement `.pgn` natif / Share PGN : **NDV** si absent ; BUG seulement si
 
 ## 8. Suite volontairement hors de cette étape
 
-- Corriger les bugs fonctionnels découverts **sur téléphone**
-- Stockfish UCI natif / WASM dans RN
+- Stockfish UCI natif / WASM dans RN — **NDV** (AnyLyseur / Finales `unavailable` = attendu, **non corrigé**)
 - Share PGN, FileSystem `content://`, SQLite
 - Merger cette branche
 - Compte Expo / `eas init` (à faire sur la machine du mainteneur)
+
+---
+
+## 9. Bugs device observés (premier Development Build Android)
+
+Deux bugs JS remontés dans les logs appareil. Stockfish indisponible sur AnyLyseur / Finales = **NDV**, hors périmètre.
+
+### 9.1 RangeError — `Maximum call stack size exceeded (native stack depth)`
+
+| | |
+|---|---|
+| **Sévérité** | Haute — rejet de Promise non géré, coupure TTS peut planter le JS Hermes |
+| **Statut** | **Corrigé** (latch `inHardStop` dans `SpeechService.hardStop`) — à retester sur device |
+| **Reproduction** | Écran **À l’aveugle** (`app/blind.tsx`) : lancer une dictée / TTS, puis **arrêter**, changer de phase, ou quitter l’écran pendant la parole. Le log montre `stop → hardStop → cancel → hardStop → cancel` en boucle. |
+| **Fichiers** | `services/SpeechService.ts` (`stop`, `cancel`, `hardStop`) ; `hooks/useBlindDictation.ts` (`clearDictationTimer` → `speechService.cancel('dictation')`) ; `contexts/BlindSequenceContext.tsx` (`onCancel(() => clearDictationTimer())`) |
+
+**Cycle d’appel (précis) :**
+
+1. `SpeechService.stop()` ou `cancel(reason)`
+2. → `hardStop({ notify: true })`
+3. → `Speech.stop()` (expo-speech, Promise native) + `cancelListeners.forEach`
+4. → listener Blind : `clearDictationTimer()`
+5. → `speechService.cancel('dictation')`
+6. → `hardStop({ notify: true })` → retour en 3. **Récursion infinie.**
+
+Un second chemin, Android seulement : `ExponentSpeech.stop()` peut émettre `speakingStopped` / `speakingDone` **sur la même pile native** (New Architecture / JSI) avant le retour de `Speech.stop()`. Si un callback rappelait `cancel`, on ré-entrait `hardStop` → `Speech.stop()` natif.
+
+**Pourquoi moins (ou pas) sur web :**
+
+- Le cycle JS `onCancel` → `cancel` existe aussi sur web **si** `BlindSequenceProvider` est monté. V8 a une pile bien plus profonde que Hermes (`native stack depth`) : overflow plus tardif / moins visible.
+- `expo-speech` web = `speechSynthesis.cancel()`, synchrone, **sans** re-entrée native JSI vers JS `onStopped`/`onDone` pendant `stop()`.
+- `Speech.stop()` est `async` : l’overflow Hermes se manifeste en **`Uncaught (in promise) RangeError`** (la Promise de `Speech.stop()` n’était pas catchée). Sur web le `try/catch` sync autour de `Speech.stop()` ne voyait rien non plus, mais la récursion native n’existait pas.
+
+**Correction minimale :** latch `inHardStop` en tête de `hardStop` (return si déjà en cours) ; `Speech.stop()` toujours appelé une fois pour la coupure immédiate ; rejet de la Promise avalé. `stop` / `cancel` / `hardStop` ne peuvent plus se rappeler. Test : `lib/speech/__tests__/speechCancel.test.ts`.
+
+### 9.2 Warning — `VirtualizedLists should never be nested inside plain ScrollViews with the same orientation`
+
+| | |
+|---|---|
+| **Sévérité** | Moyenne — warning RN, windowing cassé, jank / logs bruyants (pas un crash) |
+| **Statut** | **Corrigé** (plus de `FlatList` verticale dans le `ScrollView` du scaffold) — à retester sur device |
+| **Reproduction** | 1) **Partie classique / Ouvertures / Défends la nulle / Finales théoriques (play)** : jouer au moins un coup → carte « coups joués ». 2) **Finales théoriques (catalogue)**, bascule **vue liste**. |
+
+**Écran / composants :**
+
+| Surface | Parent | Enfant (même orientation verticale) |
+|---|---|---|
+| `ClassicGameScreen` | `ChessScreenScaffold` → `ScrollView` | `GameMoveHistoryCard` → `FlatList` |
+| `OpeningGameScreen` | idem | idem |
+| `app/puzzles/defends-nulle-play.tsx` | idem | idem |
+| `app/puzzles/finales-theoriques-play.tsx` | idem | idem |
+| `app/puzzles/finales-theoriques.tsx` (vue **liste**) | idem | `FlatList` `theoretical-theme-list` |
+
+Hors bug (orientation différente ou pas dans un `ScrollView`) : carousel horizontal du catalogue ; `PgnGameSelectModal` (`FlatList` dans `Modal` > `View`).
+
+**Correction minimale :** historique = `map` de lignes (plus de `FlatList`) ; vue liste catalogue = `View` + `map`. Pas de redesign d’écran. Le carousel horizontal est inchangé.
