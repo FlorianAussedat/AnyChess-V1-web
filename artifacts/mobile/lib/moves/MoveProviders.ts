@@ -97,7 +97,11 @@ export class StockfishMoveProvider implements MoveProvider {
   }
 
   newGame(): void {
-    this.engine.newGame?.();
+    void this.engine.newGame?.();
+  }
+
+  applyStrength(options: Parameters<NonNullable<ChessEngine['applyStrength']>>[0]): void {
+    void this.engine.applyStrength?.(options);
   }
 
   destroy(): void {

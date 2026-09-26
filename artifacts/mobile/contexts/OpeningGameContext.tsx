@@ -46,7 +46,7 @@ import {
   type PlayTurnState,
 } from '@/lib/game';
 import { tMsg } from '@/lib/i18n';
-import { useSharedPlayState } from '@/hooks/useSharedPlayState';
+import { OPPONENT_KICKOFF_DELAY_MS, useSharedPlayState } from '@/hooks/useSharedPlayState';
 import { preferencesStore } from '@/lib/preferences';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
@@ -181,6 +181,9 @@ export function OpeningGameProvider({
     [setWaitingForUser, setIsOpponentThinking],
   );
 
+  const bandRef = React.useRef(strengthBandId);
+  bandRef.current = strengthBandId;
+
   useFocusEffect(
     useCallback(() => {
       if (!repertoire) {
@@ -188,7 +191,7 @@ export function OpeningGameProvider({
         return () => {};
       }
 
-      const engine = createOpponentEngine(engineOptionsForBand(strengthBandId));
+      const engine = createOpponentEngine(engineOptionsForBand(bandRef.current));
       const opponent = new OpeningOpponent(repertoire, engine);
       opponentRef.current = opponent;
       setReady(false);
@@ -209,8 +212,12 @@ export function OpeningGameProvider({
         if (opponentRef.current === opponent) opponentRef.current = null;
         setReady(false);
       };
-    }, [repertoire, strengthBandId, cancelPendingOpponent]),
+    }, [repertoire, cancelPendingOpponent]),
   );
+
+  React.useEffect(() => {
+    opponentRef.current?.applyStrength(engineOptionsForBand(strengthBandId));
+  }, [strengthBandId]);
 
   const syncTheoryUi = useCallback(() => {
     const opp = opponentRef.current;
@@ -539,7 +546,7 @@ export function OpeningGameProvider({
       if (color === 'b') {
         setPlayTurn('playingRepertoireReply');
         setStatus(tMsg('game.opponentPreparing'));
-        scheduleOpponentKickoff(1200);
+        scheduleOpponentKickoff(OPPONENT_KICKOFF_DELAY_MS);
       } else {
         setPlayTurn('waitingForUser');
         setStatus(tMsg('game.yourTurn'));

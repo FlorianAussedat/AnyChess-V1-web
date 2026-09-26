@@ -3,8 +3,8 @@
  * Uses UCI_LimitStrength + UCI_Elo — not search-speed throttling.
  *
  * Note: Stockfish clamps UCI_Elo to MIN_UCI_ELO (1320). Bands targeting below
- * that still request the clamped floor; GameContext then raises multiPv /
- * varietyMarginCp so those opponents still play with more variety / weaker feel.
+ * that still request the clamped floor plus extra variety. Bands at or above
+ * the floor use UCI_Elo alone — no second MultiPV / variety weakening.
  *
  * G5 audit (SF18 WASM and SF19 native share this UCI_Elo floor):
  *   lt800 / 800–1000 / 1000–1200 / 1200–1400 all clamp to 1320 + extra variety.

@@ -39,17 +39,24 @@ export type {
  *
  * Opening play uses this same factory (G3b). AnyLyseur stays on
  * createChessEngineService. Endgames (G4) use SharedStockfishRuntime on
- * Android/web. Elo bands are unchanged.
+ * Android/web. Human-Elo games use UCI_Elo only; the process stays warm.
  */
 export function createOpponentEngine(options?: {
   elo?: number;
   multiPv?: number;
   varietyMarginCp?: number;
+  moveTimeMs?: number;
 }): ChessEngine {
-  const partial: { elo?: number; multiPv?: number; varietyMarginCp?: number } = {};
+  const partial: {
+    elo?: number;
+    multiPv?: number;
+    varietyMarginCp?: number;
+    moveTimeMs?: number;
+  } = {};
   if (options?.elo != null) partial.elo = options.elo;
   if (options?.multiPv != null) partial.multiPv = options.multiPv;
   if (options?.varietyMarginCp != null) partial.varietyMarginCp = options.varietyMarginCp;
+  if (options?.moveTimeMs != null) partial.moveTimeMs = options.moveTimeMs;
 
   if (Platform.OS === 'web') {
     return new StockfishEngine(partial);

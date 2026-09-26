@@ -44,7 +44,12 @@ export function withInitFallback(
     },
 
     newGame() {
-      if (!useFallback) primary.newGame?.();
+      if (!useFallback) return primary.newGame?.();
+    },
+
+    applyStrength(options) {
+      if (useFallback) return;
+      return primary.applyStrength?.(options);
     },
 
     destroy() {
