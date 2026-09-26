@@ -39,7 +39,7 @@ import {
   type PlayerColor,
 } from '@/lib/game';
 import { tMsg } from '@/lib/i18n';
-import { useSharedPlayState } from '@/hooks/useSharedPlayState';
+import { OPPONENT_KICKOFF_DELAY_MS, useSharedPlayState } from '@/hooks/useSharedPlayState';
 import { preferencesStore } from '@/lib/preferences';
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
@@ -119,34 +119,28 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return uciPlayOptionsForTargetElo(eloForBand(getStrengthBand(bandId)));
   }, []);
 
-  const recreateEngine = useCallback(
-    (bandId: string) => {
-      const prev = engineRef.current;
-      prev?.cancel?.();
-      prev?.destroy?.();
-      const next = createOpponentEngine(engineOptionsForBand(bandId));
-      engineRef.current = next;
-      next.init?.().catch(() => {});
-    },
-    [engineOptionsForBand],
-  );
+  const ensureEngine = useCallback(() => {
+    if (!engineRef.current) {
+      engineRef.current = createOpponentEngine(
+        engineOptionsForBand(strengthBandIdRef.current),
+      );
+    }
+    return engineRef.current;
+  }, [engineOptionsForBand]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!engineRef.current) {
-        engineRef.current = createOpponentEngine(
-          engineOptionsForBand(strengthBandIdRef.current),
-        );
-      }
-      engineRef.current.init?.().catch(() => {});
+      const engine = ensureEngine();
+      // Boot while the player is still choosing a side, so the first go is warm.
+      engine.init?.().catch(() => {});
       return () => {
         moveGenerationRef.current += 1;
-        const engine = engineRef.current;
+        const current = engineRef.current;
         engineRef.current = null;
-        engine?.cancel?.();
-        engine?.destroy?.();
+        current?.cancel?.();
+        current?.destroy?.();
       };
-    }, [engineOptionsForBand, moveGenerationRef]),
+    }, [ensureEngine, moveGenerationRef]),
   );
 
   const setStrengthBandId = useCallback(
@@ -154,10 +148,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const normalized = getStrengthBand(id).id;
       strengthBandIdRef.current = normalized;
       setStrengthBandIdState(normalized);
-      recreateEngine(normalized);
+      const engine = engineRef.current;
+      void engine?.applyStrength?.(engineOptionsForBand(normalized));
       void preferencesStore.update({ stockfishStrengthBandId: normalized });
     },
-    [recreateEngine],
+    [engineOptionsForBand],
   );
 
   const summarizeGameHistory = useCallback(() => {
@@ -393,7 +388,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     (color: PlayerColor) => {
       cancelPending();
       speechService.cancel('new-game');
-      recreateEngine(strengthBandIdRef.current);
+      const engine = ensureEngine();
+      void engine.applyStrength?.(engineOptionsForBand(strengthBandIdRef.current));
+      void engine.newGame?.();
       gameRef.current.reset();
       resetUiForNewGame();
       syncState();
@@ -401,7 +398,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (color === 'b') {
         setWaitingForUser(false);
         setStatus(tMsg('game.opponentPreparing'));
-        scheduleOpponentKickoff(1200);
+        scheduleOpponentKickoff(OPPONENT_KICKOFF_DELAY_MS);
       } else {
         setWaitingForUser(true);
         setStatus(tMsg('game.yourTurn'));
@@ -409,7 +406,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     },
     [
       cancelPending,
-      recreateEngine,
+      ensureEngine,
+      engineOptionsForBand,
       gameRef,
       resetUiForNewGame,
       syncState,

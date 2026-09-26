@@ -7,6 +7,12 @@ import { tMsg } from '@/lib/i18n';
 import { scheduleExclusiveTimeout } from '@/lib/game/scheduleExclusiveTimeout';
 
 /**
+ * Pause before the first opponent move so the board can paint.
+ * The engine is already booted; this is not a Stockfish startup wait.
+ */
+export const OPPONENT_KICKOFF_DELAY_MS = 40;
+
+/**
  * Shared board / turn / speech state used by Classic and Openings providers.
  * Opponent orchestration stays mode-specific.
  */
@@ -79,7 +85,7 @@ export function useSharedPlayState() {
     setIsSpeaking(false);
   }, []);
 
-  const scheduleOpponentKickoff = useCallback((delayMs = 1200) => {
+  const scheduleOpponentKickoff = useCallback((delayMs = OPPONENT_KICKOFF_DELAY_MS) => {
     opponentTimeoutRef.current = scheduleExclusiveTimeout(
       opponentTimeoutRef.current,
       delayMs,

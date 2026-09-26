@@ -117,6 +117,11 @@ export class OpeningOpponent {
     this.engine.newGame?.();
   }
 
+  /** Update Stockfish strength without destroying the native process. */
+  applyStrength(options: Parameters<NonNullable<import('@/lib/engine').ChessEngine['applyStrength']>>[0]): void {
+    this.engine.applyStrength?.(options);
+  }
+
   getPhase(): OpeningPhase {
     return this.phase;
   }

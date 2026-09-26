@@ -35,11 +35,15 @@ export interface UciTransport {
 export interface StockfishConfig {
   /**
    * Target playing strength in Elo, applied via `UCI_LimitStrength` +
-   * `UCI_Elo`. Stockfish accepts roughly 1320–3190.
+   * `UCI_Elo`. The live engine reports its own min/max; SF18/SF19 are 1320–3190.
    */
   elo: number;
 
-  /** Milliseconds Stockfish is allowed to think per move (`go movetime`). */
+  /**
+   * Response-time budget in milliseconds. This does not set strength.
+   * Human-Elo searches also pass a depth just past Stockfish's skill pick
+   * so the engine does not keep thinking after the move is already chosen.
+   */
   moveTimeMs: number;
 
   /**

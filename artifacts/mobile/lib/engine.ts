@@ -55,8 +55,20 @@ export interface ChessEngine {
    * Signal that a brand-new game has started, so the engine can reset any
    * per-game internal state (transposition tables, hash, etc.). This must NOT
    * be called on undo — undo stays within the same game.
+   * Must not destroy or respawn the engine process.
    */
-  newGame?(): void;
+  newGame?(): void | Promise<void>;
+
+  /**
+   * Update playing strength on the already-running engine (`setoption`),
+   * without spawning a new process. Used when the opponent level changes.
+   */
+  applyStrength?(options: {
+    elo?: number;
+    multiPv?: number;
+    varietyMarginCp?: number;
+    moveTimeMs?: number;
+  }): void | Promise<void>;
 
   /**
    * Release any resources (threads, workers, sockets, WASM memory).

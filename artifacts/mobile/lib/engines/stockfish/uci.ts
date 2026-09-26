@@ -6,67 +6,184 @@ import type { StockfishConfig } from './types';
 import { recommendedStockfishElo } from '../../difficulty/PlayerDifficultyProfile.ts';
 
 /**
+ * Nominal UCI_Elo window advertised by Stockfish 18 (web WASM) and
+ * Stockfish 19 (Android). `observeUciOptionLine` replaces this with the
+ * bounds the running binary actually prints, when they differ.
+ */
+export const MIN_UCI_ELO = 1320;
+export const MAX_UCI_ELO = 3190;
+
+/**
+ * Cubic used by SF18 and SF19 to turn `UCI_Elo` into an internal skill level
+ * (`search.h`, Skill). Skill 0..19 covers CCRL Blitz ~1320..3190.
+ * Fitted on the nominal window above — not on a rescaled product Elo.
+ */
+const SKILL_ELO_SPAN = MAX_UCI_ELO - MIN_UCI_ELO;
+
+let reportedEloMin = MIN_UCI_ELO;
+let reportedEloMax = MAX_UCI_ELO;
+
+/** Extra MultiPV / variety only when the requested Elo is below the engine floor. */
+export const FLOOR_STRENGTH_MULTIPV = 8;
+export const FLOOR_STRENGTH_VARIETY_MARGIN_CP = 120;
+/**
+ * Think time for below-floor opponents. Strength there is the variety window,
+ * so this is a real search — not a depth cap and not a few dozen milliseconds.
+ */
+export const FLOOR_VARIETY_MOVETIME_MS = 600;
+
+export interface UciEloBounds {
+  defaultValue: number;
+  min: number;
+  max: number;
+}
+
+/**
+ * Parse `option name UCI_Elo type spin default D min A max B` from `uci`.
+ * Returns null for every other line.
+ */
+export function parseUciEloBounds(line: string): UciEloBounds | null {
+  const match = line.match(
+    /^option name UCI_Elo type spin default (\d+) min (\d+) max (\d+)\s*$/,
+  );
+  if (!match) return null;
+  return {
+    defaultValue: Number(match[1]),
+    min: Number(match[2]),
+    max: Number(match[3]),
+  };
+}
+
+/** Remember the bounds printed by the live engine. */
+export function observeUciOptionLine(line: string): void {
+  const bounds = parseUciEloBounds(line);
+  if (!bounds || bounds.min <= 0 || bounds.max < bounds.min) return;
+  reportedEloMin = bounds.min;
+  reportedEloMax = bounds.max;
+}
+
+/** Test isolation. Production boot calls `observeUciOptionLine` instead. */
+export function resetUciEloBounds(): void {
+  reportedEloMin = MIN_UCI_ELO;
+  reportedEloMax = MAX_UCI_ELO;
+}
+
+export function currentUciEloBounds(): { min: number; max: number } {
+  return { min: reportedEloMin, max: reportedEloMax };
+}
+
+/**
  * Default engine configuration.
  *
  * Strength is sourced from `PlayerDifficultyProfile` (~1800 Chess.com today)
  * via `recommendedStockfishElo`, so a future global level can adjust Classic
  * without hunting hardcoded constants across the UI.
  *
- * `UCI_LimitStrength` is Stockfish's dedicated human-strength model — far more
- * natural than merely capping search depth.
+ * Above the UCI floor, strength is only `UCI_LimitStrength` + `UCI_Elo`.
+ * MultiPV stays 1 so we play Stockfish's own bestmove. A client-side
+ * variety pick on top of that was a second, uncalibrated weakening.
  *
  * `enginePath` points at the lite single-threaded WASM build copied into
- * `public/engine/`. The single-threaded build needs no COOP/COEP headers,
- * runs fully offline, and is still vastly stronger than any human at 1800.
+ * `public/engine/`. The single-threaded build needs no COOP/COEP headers
+ * and runs fully offline.
  */
 export const DEFAULT_STOCKFISH_CONFIG: StockfishConfig = {
   elo: recommendedStockfishElo(),
-  moveTimeMs: 1000,
+  moveTimeMs: 600,
   enginePath: '/engine/stockfish-18-lite-single.js',
-  multiPv: 4,
-  varietyMarginCp: 50,
+  multiPv: 1,
+  varietyMarginCp: 0,
 };
-
-/**
- * Stockfish's supported UCI_Elo range; values are clamped to this window.
- *
- * `UCI_Elo` never goes below `MIN_UCI_ELO` (1320). Strength bands that target
- * weaker ratings still call `clampElo(target)` / pass `MIN_UCI_ELO`, and should
- * compensate with higher `multiPv` + `varietyMarginCp` so play still feels weak
- * when the Elo floor is hit (see GameContext / createOpponentEngine).
- */
-export const MIN_UCI_ELO = 1320;
-export const MAX_UCI_ELO = 3190;
-
-/** Extra MultiPV / variety when the requested Elo is below Stockfish's floor. */
-export const FLOOR_STRENGTH_MULTIPV = 8;
-export const FLOOR_STRENGTH_VARIETY_MARGIN_CP = 120;
 
 export function clampElo(elo: number): number {
   if (Number.isNaN(elo)) return DEFAULT_STOCKFISH_CONFIG.elo;
-  return Math.max(MIN_UCI_ELO, Math.min(MAX_UCI_ELO, Math.round(elo)));
+  return Math.max(reportedEloMin, Math.min(reportedEloMax, Math.round(elo)));
 }
 
 /**
- * Classic / Opening play options for a requested band centre.
- *
- * Stockfish 18/19 both clamp `UCI_Elo` at 1320. Bands below that still send
- * the floor; GameContext then raises MultiPV + variety so play feels weaker.
- * G5 does not relabel product bands — the floor is an engine limit, not SF19.
+ * Internal skill level SF18/SF19 will derive from this Elo.
+ * Used only to size the search so it reaches `time_to_pick`, not as a
+ * second strength knob (we never send `Skill Level`).
  */
-export function uciPlayOptionsForTargetElo(targetElo: number): {
+export function stockfishSkillLevelForElo(elo: number): number {
+  const clamped = clampElo(elo);
+  const e = (clamped - MIN_UCI_ELO) / SKILL_ELO_SPAN;
+  const level = ((37.2473 * e - 40.8525) * e + 22.2943) * e - 0.311438;
+  if (Number.isNaN(level)) return 0;
+  return Math.min(19, Math.max(0, level));
+}
+
+export interface HumanEloSearchLimit {
+  /** Depth at which Stockfish freezes the handicapped move (`1 + floor(skill)`). */
+  pickDepth: number;
+  /**
+   * Stop two plies after the pick. Deeper search does not change the move
+   * once skill has chosen it, and a shallower cap would pick on noisy scores.
+   */
+  depth: number;
+  movetimeMs: number;
+}
+
+/**
+ * Response-time budget for a human-Elo game search.
+ * Strength stays `UCI_Elo`. Depth/movetime only stop the search once the
+ * engine has reached the depth where it decides the handicapped move.
+ */
+export function humanEloSearchLimit(elo: number): HumanEloSearchLimit {
+  const pickDepth = 1 + Math.floor(stockfishSkillLevelForElo(elo));
+  const depth = pickDepth + 2;
+  const movetimeMs = Math.min(900, Math.max(500, 280 + pickDepth * 80));
+  return { pickDepth, depth, movetimeMs };
+}
+
+export interface GameEngineProfile {
   elo: number;
-  multiPv?: number;
-  varietyMarginCp?: number;
-} {
+  multiPv: number;
+  varietyMarginCp: number;
+  moveTimeMs: number;
+}
+
+/**
+ * Classic / Opening play profile for a requested band centre.
+ *
+ * At or above the floor: `UCI_Elo` is the only strength limit (MultiPV 1,
+ * no variety). Below the floor Stockfish cannot go weaker, so the existing
+ * variety window remains — that is the documented exception, not a second
+ * cap on a 2000 opponent.
+ */
+export function gameEngineProfile(targetElo: number): GameEngineProfile {
   if (targetElo < MIN_UCI_ELO) {
     return {
       elo: MIN_UCI_ELO,
       multiPv: FLOOR_STRENGTH_MULTIPV,
       varietyMarginCp: FLOOR_STRENGTH_VARIETY_MARGIN_CP,
+      moveTimeMs: FLOOR_VARIETY_MOVETIME_MS,
     };
   }
-  return { elo: targetElo };
+  const elo = clampElo(targetElo);
+  return {
+    elo,
+    multiPv: 1,
+    varietyMarginCp: 0,
+    moveTimeMs: humanEloSearchLimit(elo).movetimeMs,
+  };
+}
+
+export function uciPlayOptionsForTargetElo(targetElo: number): GameEngineProfile {
+  return gameEngineProfile(targetElo);
+}
+
+/**
+ * `go` for a game profile.
+ * Human Elo: `depth` is just past the skill pick, `movetime` is the phone cap.
+ * Below-floor variety: movetime only, so depth is not an extra strength cap.
+ */
+export function gameGoCommand(profile: Pick<GameEngineProfile, 'elo' | 'multiPv'>): string {
+  if (profile.multiPv > 1) {
+    return `go movetime ${FLOOR_VARIETY_MOVETIME_MS}`;
+  }
+  const limit = humanEloSearchLimit(profile.elo);
+  return `go depth ${limit.depth} movetime ${limit.movetimeMs}`;
 }
 
 export interface UciMove {
@@ -93,9 +210,11 @@ export function parseBestMove(line: string): UciMove | null {
 }
 
 /**
- * UCI option commands applied once, right after the `uci`/`uciok` handshake:
- *   - pin the engine to a target human strength (UCI_LimitStrength/UCI_Elo);
- *   - request `multiPv` candidate lines so we can vary the chosen move.
+ * Game-engine options, sent after `uciok` and again when the level changes.
+ * `UCI_LimitStrength` + `UCI_Elo` are the strength model. `Skill Level` is
+ * intentionally absent: with LimitStrength on, Stockfish derives skill from
+ * `UCI_Elo` and a second Skill Level would be ignored or would fight it.
+ * MultiPV is 1 for human Elos (play `bestmove`) and higher only below the floor.
  */
 export function setupOptionCommands(elo: number, multiPv: number): string[] {
   return [
