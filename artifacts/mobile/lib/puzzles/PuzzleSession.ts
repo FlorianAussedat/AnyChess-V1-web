@@ -210,6 +210,19 @@ export class PuzzleSession {
     };
   }
 
+  restore(snap: PuzzleSessionSnapshot): PuzzleSessionSnapshot {
+    this.puzzle = snap.puzzle;
+    this.setupUci = snap.setupUci;
+    this.startFen = snap.startFen;
+    this.game = new Chess(snap.fen);
+    this.orientation = snap.orientation;
+    this.solutionIndex = snap.solutionIndex;
+    this.triedCurrent = false;
+    this.done = snap.done;
+    this.stats = { ...snap.stats };
+    return this.snapshot();
+  }
+
   expectedUci(): string | null {
     if (!this.puzzle || this.done) return null;
     return this.puzzle.moves[this.solutionIndex]

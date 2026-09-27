@@ -107,7 +107,7 @@ export const DesignTokens = {
     inputRadius: 10,
     toggleSize: 40,
   },
-  /** Home ModeCard target density (~4 cards above nav). */
+  /** Home ModeCard minimum; cards grow so descriptions stay fully visible. */
   modeCardMinHeight: 150,
   modeCardHeight: 152,
   /** Mascot slot ≈ 40–42% of card; image oversized for portrait PNG content. */

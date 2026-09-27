@@ -171,6 +171,33 @@ export class MoveNamingSession {
     return this.snapshot();
   }
 
+  /** Stop clocks without wiping an in-progress attempt (leave / background). */
+  pauseTimers(): void {
+    this.disposeTimers();
+  }
+
+  restorePlaying(payload: {
+    challenge: MoveNamingChallenge;
+    score: MoveNamingScore;
+    remainingSeconds: number;
+    previousRecord: number;
+    voiceEnabled?: boolean;
+  }): MoveNamingSnapshot {
+    this.disposeTimers();
+    this.phase = 'playing';
+    this.challenge = payload.challenge;
+    this.score = { ...payload.score };
+    this.previousRecord = payload.previousRecord;
+    if (payload.voiceEnabled !== undefined) {
+      this.voiceEnabled = payload.voiceEnabled;
+    }
+    this.lastFeedback = null;
+    this.countdownLabel = null;
+    this.sessionSeconds = Math.max(1, Math.floor(payload.remainingSeconds));
+    this.timer.startSession(this.sessionSeconds, () => this.endSession());
+    return this.snapshot();
+  }
+
   markRecordSaved(savedScore: number): MoveNamingSnapshot {
     this.isNewRecord = isRecordBeat(savedScore, this.previousRecord);
     this.previousRecord = Math.max(this.previousRecord, savedScore);

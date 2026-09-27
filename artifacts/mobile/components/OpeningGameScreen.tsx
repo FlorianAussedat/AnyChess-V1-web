@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
@@ -37,6 +37,8 @@ import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
+import { confirmDiscardActivity } from '@/lib/activitySessions';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import { flagsFromPlayTurn, pairMoveHistory } from '@/lib/game';
 import {
   computeBoardSize,
@@ -108,6 +110,29 @@ export function OpeningGameScreen() {
     exportPgn,
     downloadPgn,
   } = useOpeningGame();
+
+  const playParams = useLocalSearchParams<Record<string, string | undefined>>();
+  const resumeSessionId =
+    typeof playParams.sessionId === 'string' ? playParams.sessionId : undefined;
+  const playQuery = Object.entries(playParams)
+    .filter(([, value]) => typeof value === 'string' && value.length > 0)
+    .map(([key, value]) => `${key}=${encodeURIComponent(value as string)}`)
+    .join('&');
+  usePersistedActivity({
+    kind: 'opening-play',
+    modeId: 'openings',
+    resumeSessionId,
+    title: repertoireName || t('modes.openings.title'),
+    summary: history.slice(-4).join(' '),
+    routeFor: (id) => {
+      const qs = new URLSearchParams(playQuery);
+      qs.set('sessionId', id);
+      return `/openings/play?${qs.toString()}`;
+    },
+    enabled: ready && history.length > 0,
+    revision: history.join(','),
+    capture: () => ({ history, playerColor, status }),
+  });
 
   const openingIdentity = useOpeningIdentity(history);
   const applyRef = useRef(applyUserMove);
@@ -210,10 +235,7 @@ export function OpeningGameScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ScreenHeader
-          onBack={() => {
-            leaveEphemeralOpeningExercise();
-            router.back();
-          }}
+          onBack={() => router.navigate('/')}
           title={t('openings.repertoire')}
         />
         <Text style={[styles.errorText, { color: colors.destructive }]}>{loadError}</Text>
@@ -233,10 +255,7 @@ export function OpeningGameScreen() {
         ]}
       >
         <BackButton
-          onPress={() => {
-            leaveEphemeralOpeningExercise();
-            router.back();
-          }}
+          onPress={() => router.navigate('/')}
         />
         <View style={styles.loadingBody}>
           <ActivityIndicator color={colors.primary} />
@@ -252,8 +271,7 @@ export function OpeningGameScreen() {
     <>
       <ChessScreenScaffold
         onBack={() => {
-          leaveEphemeralOpeningExercise();
-          router.back();
+          router.navigate('/');
         }}
         title={headerTitle}
         subtitle={headerSubtitle}
@@ -291,7 +309,13 @@ export function OpeningGameScreen() {
             onRepeat={repeatLast}
             onUndo={undoMove}
             onSummarize={summarizeGame}
-            onNewGame={newGame}
+            onNewGame={() => {
+              if (history.length > 0) {
+                confirmDiscardActivity('cours', () => newGame());
+                return;
+              }
+              newGame();
+            }}
           />
         )}
 
@@ -354,8 +378,20 @@ export function OpeningGameScreen() {
         <TheoryDecisionPanel
           trainingState={trainingState}
           strengthBandLabel={strengthBandLabel}
-          onRestartLine={restartLine}
-          onNextLine={nextLine}
+          onRestartLine={() => {
+            if (history.length > 0) {
+              confirmDiscardActivity('cours', () => restartLine());
+              return;
+            }
+            restartLine();
+          }}
+          onNextLine={() => {
+            if (history.length > 0) {
+              confirmDiscardActivity('cours', () => nextLine());
+              return;
+            }
+            nextLine();
+          }}
           onContinueVsEngine={continueVsEngine}
           onUndoThinkAgain={undoAndThinkAgain}
           onShowExpected={() => {

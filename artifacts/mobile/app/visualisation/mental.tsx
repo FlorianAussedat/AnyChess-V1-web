@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -49,6 +49,7 @@ import {
   playSynchronizedSequence,
   type SynchronizedSequenceHandle,
 } from '@/lib/presentation/synchronizedSequence';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 
 const RECENT_KEY = StorageKeys.mentalRecent.key;
 
@@ -61,6 +62,9 @@ export default function MentalPositionScreen() {
   const { t } = useTranslation();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const resumeSessionId =
+    typeof params.sessionId === 'string' ? params.sessionId : undefined;
   const { soundEnabled } = useAudioSettings();
   const { chessNotation, dictationPace } = usePreferences();
   const boardSize = useBoardSize('wide');
@@ -83,6 +87,37 @@ export default function MentalPositionScreen() {
   const showing = snap.phase === 'showing';
   const done = snap.phase === 'done';
   const showBoardPanel = (showing && showBoard) || done;
+
+  type MentalPayload = {
+    snapshot: MentalSnapshot;
+    fullMoves: number;
+  };
+
+  usePersistedActivity<MentalPayload>({
+    kind: 'mental',
+    modeId: 'visualisation',
+    resumeSessionId,
+    title: t('vision.mental'),
+    summary: questioning
+      ? `${Math.min(snap.questionIndex + 1, snap.questions.length)}/${snap.questions.length}`
+      : '',
+    routeFor: (id) => `/visualisation/mental?sessionId=${encodeURIComponent(id)}`,
+    enabled: questioning && snap.questions.length > 0,
+    revision: `${snap.phase}|${snap.questionIndex}|${snap.score}|${snap.answered}`,
+    capture: () => ({
+      snapshot: sessionRef.current.snapshot(),
+      fullMoves,
+    }),
+    apply: (payload) => {
+      if (!payload?.snapshot) return;
+      const next = sessionRef.current.restore(payload.snapshot);
+      setFullMoves(payload.fullMoves || fullMoves);
+      setOrientation(next.orientation);
+      setDictate(next.dictateSequence);
+      setShowBoard(next.showBoardDuringSequence);
+      setSnap({ ...next });
+    },
+  });
 
   const sideToMove = useMemo(() => {
     if (!displayFen) return null;
@@ -283,7 +318,7 @@ export default function MentalPositionScreen() {
       testID="mental-screen"
     >
       <ScreenHeader
-        onBack={() => router.back()}
+        onBack={() => router.navigate('/')}
         title={t('vision.mental')}
         showSound
       />

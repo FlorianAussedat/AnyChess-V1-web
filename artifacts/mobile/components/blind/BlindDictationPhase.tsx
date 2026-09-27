@@ -20,7 +20,7 @@ export function BlindDictationPhase() {
     dictationComplete,
     replayDictation,
     startReconstruction,
-    backToSettings,
+    leaveToHome,
   } = useBlindSequence();
 
   const total = sequence.length || halfMoveCount(fullMoves);
@@ -28,7 +28,7 @@ export function BlindDictationPhase() {
   const showInProgress = !showReady;
 
   return (
-    <ModeScreenShell title={t('blind.dictation')} onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.dictation')} onBack={leaveToHome}>
       <View style={blindStyles.phaseBody}>
         <View
           style={[

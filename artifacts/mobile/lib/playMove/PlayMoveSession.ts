@@ -129,6 +129,31 @@ export class PlayMoveSession {
     return this.snapshot();
   }
 
+  /** Stop clocks without wiping an in-progress attempt (leave / background). */
+  pauseTimers(): void {
+    this.disposeTimers();
+  }
+
+  restorePlaying(payload: {
+    challenge: PlayMoveChallenge;
+    score: PlayMoveScore;
+    remainingSeconds: number;
+    previousRecord: number;
+    boardResetToken?: number;
+  }): PlayMoveSnapshot {
+    this.disposeTimers();
+    this.phase = 'playing';
+    this.challenge = payload.challenge;
+    this.score = { ...payload.score };
+    this.previousRecord = payload.previousRecord;
+    this.lastFeedback = null;
+    this.countdownLabel = null;
+    this.boardResetToken = payload.boardResetToken ?? 0;
+    this.sessionSeconds = Math.max(1, Math.floor(payload.remainingSeconds));
+    this.timer.startSession(this.sessionSeconds, () => this.endSession());
+    return this.snapshot();
+  }
+
   snapshot(): PlayMoveSnapshot {
     return {
       phase: this.phase,

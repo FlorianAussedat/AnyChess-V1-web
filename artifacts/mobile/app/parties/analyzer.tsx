@@ -68,6 +68,7 @@ import {
   setParkedOpeningEditor,
 } from '@/lib/openingStudy';
 import { CreateOpeningStudyModal } from '@/components/openings/CreateOpeningStudyModal';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 
 const RESERVED_CHROME = 340;
 
@@ -81,6 +82,7 @@ export default function GameWorkspaceScreen() {
     flipped?: string;
     tab?: string;
     source?: string;
+    sessionId?: string;
   }>();
   const gameId = typeof params.gameId === 'string' ? params.gameId : '';
   const paramNodeId =
@@ -186,6 +188,33 @@ export default function GameWorkspaceScreen() {
     initialExplorationOriginNodeId: restoreOrigin,
     autosaveSession: Boolean(game),
     analysisProfileId: undefined,
+  });
+
+  const analyzerGameId = gameId || game?.id || '';
+  const resumeSessionId =
+    typeof params.sessionId === 'string'
+      ? params.sessionId
+      : analyzerGameId
+        ? `parties_${analyzerGameId}`
+        : undefined;
+  usePersistedActivity({
+    kind: 'parties-analyzer',
+    modeId: 'parties',
+    resumeSessionId,
+    title: t('parties.workspace'),
+    summary: game
+      ? [game.headers.white, game.headers.black].filter(Boolean).join(' – ')
+      : '',
+    routeFor: (id) => {
+      const qs = new URLSearchParams();
+      if (analyzerGameId) qs.set('gameId', analyzerGameId);
+      qs.set('sessionId', id);
+      if (tab === 'analysis') qs.set('tab', 'analysis');
+      return `/parties/analyzer?${qs.toString()}`;
+    },
+    enabled: !!game && !showPaste,
+    revision: `${analyzerGameId}|${reader?.currentNodeId ?? ''}|${tab}`,
+    capture: () => ({ gameId: analyzerGameId, tab }),
   });
 
   const {
@@ -599,7 +628,7 @@ export default function GameWorkspaceScreen() {
       subtitle={t('parties.workspaceSubtitle')}
       onBack={() => {
         persistPosition();
-        router.back();
+        router.navigate('/');
       }}
       testID="game-workspace"
     >

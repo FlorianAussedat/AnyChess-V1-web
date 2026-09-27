@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import { createOpponentEngine } from '@/lib/engines';
@@ -39,6 +39,8 @@ import { preferencesStore } from '@/lib/preferences';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { tMsg } from '@/lib/i18n';
 import { defaultKeyValueStorage } from '@/lib/storage';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { chessFromSanHistory } from '@/lib/activitySessions';
 
 const blindRecordsStore = new BlindRecordsStore(defaultKeyValueStorage);
 
@@ -93,12 +95,31 @@ interface BlindSequenceContextValue {
   generateNewSequence: () => Promise<void>;
   reviewSequenceVisually: () => void;
   backToSettings: () => void;
+  /** Ordinary leave — persist mid-exercise and go home. Does not reset. */
+  leaveToHome: () => void;
 }
 
 const BlindSequenceContext = createContext<BlindSequenceContextValue | null>(null);
 const previousKeyRefGlobal = { current: null as string | null };
 
+type BlindActivityPayload = {
+  phase: BlindPhase;
+  submode: BlindSubmode;
+  perspective: BlindPerspective;
+  fullMoves: number;
+  orientation: BlindOrientation;
+  sequence: BlindSequenceMove[];
+  expectedIndex: number;
+  fen: string;
+  lastMove: LastMove | null;
+  recordEligible: boolean;
+};
+
 export function BlindSequenceProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const resumeSessionId =
+    typeof params.sessionId === 'string' ? params.sessionId : undefined;
   // Created on focus / cleared on blur — avoid orphan Workers when Stack keeps
   // this route mounted after the user leaves Blind mode.
   const engineRef = useRef<ChessEngine | null>(null);
@@ -378,6 +399,15 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
   }, [refreshModeRecord]);
 
   const backToHub = useCallback(() => {
+    if (
+      phase === 'dictation' ||
+      phase === 'observing' ||
+      phase === 'reconstruction' ||
+      phase === 'recitation'
+    ) {
+      router.navigate('/');
+      return;
+    }
     speechService.cancel('back-hub');
     replayRef.current.cancel();
     resultReplayRef.current?.cancel();
@@ -388,7 +418,16 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setPhase('hub');
     setScore(null);
     resetBoard();
-  }, [resetBoard, clearDictationTimer, showRecognized, replayRef, resultReplayRef, setIsReplaying]);
+  }, [
+    phase,
+    router,
+    resetBoard,
+    clearDictationTimer,
+    showRecognized,
+    replayRef,
+    resultReplayRef,
+    setIsReplaying,
+  ]);
 
   const startSession = useCallback(async () => {
     if (!submode) return;
@@ -796,6 +835,64 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     playVisualReplay(sequenceRef.current, { after: 'keep-final' });
   }, [playVisualReplay]);
 
+  usePersistedActivity<BlindActivityPayload>({
+    kind: 'blind',
+    modeId: 'blind',
+    resumeSessionId,
+    title: tMsg('blind.title'),
+    summary: sequence.length ? `${expectedIndex}/${sequence.length}` : '',
+    routeFor: (id) => `/blind?sessionId=${encodeURIComponent(id)}`,
+    enabled:
+      !!submode &&
+      (phase === 'dictation' ||
+        phase === 'observing' ||
+        phase === 'reconstruction' ||
+        phase === 'recitation'),
+    revision: `${phase}|${expectedIndex}|${sequence.length}|${submode ?? ''}`,
+    capture: () => {
+      if (!submode) return null;
+      return {
+        phase,
+        submode,
+        perspective,
+        fullMoves,
+        orientation,
+        sequence,
+        expectedIndex,
+        fen: gameRef.current.fen(),
+        lastMove,
+        recordEligible,
+      };
+    },
+    apply: (payload) => {
+      sequenceRef.current = payload.sequence;
+      setSequence(payload.sequence);
+      setSubmode(payload.submode);
+      submodeRef.current = payload.submode;
+      setPerspectiveState(payload.perspective);
+      perspectiveRef.current = payload.perspective;
+      setFullMovesState(payload.fullMoves);
+      setOrientation(payload.orientation);
+      setExpectedIndex(payload.expectedIndex);
+      setLastMove(payload.lastMove);
+      try {
+        gameRef.current.load(payload.fen);
+      } catch {
+        const rebuilt = chessFromSanHistory(payload.sequence.map((m) => m.san));
+        if (rebuilt) gameRef.current = rebuilt;
+      }
+      syncBoard();
+      setPhase(payload.phase);
+      recordEligibleRef.current = payload.recordEligible;
+      setRecordEligible(payload.recordEligible);
+    },
+  });
+
+  const leaveToHome = useCallback(() => {
+    speechService.cancel('blind-leave');
+    router.navigate('/');
+  }, [router]);
+
   const backToSettings = useCallback(() => {
     speechService.cancel('back-settings');
     replayRef.current.cancel();
@@ -861,6 +958,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
         generateNewSequence,
         reviewSequenceVisually,
         backToSettings,
+        leaveToHome,
       }}
     >
       {children}

@@ -225,6 +225,17 @@ export const StorageKeys = {
     shape: 'TheoreticalEndgameStoreV2 { catalogView, datasetVersion, themeAttempts, … }',
     documentVersion: 2,
   },
+  /**
+   * In-progress activities (classic, quizzes, puzzles, courses, …).
+   * Map keyed by session id — starting a new activity must not overwrite another.
+   */
+  activitySessions: {
+    key: 'anychess.activitySessions.v1',
+    feature: 'activity-sessions',
+    shape:
+      'ActivitySessionsDocument { version: 1, sessions: Record<id, ActivitySessionRecord> }',
+    documentVersion: 1,
+  },
 } as const satisfies Record<string, StorageKeyMeta>;
 
 export type StorageKeyId = keyof typeof StorageKeys;

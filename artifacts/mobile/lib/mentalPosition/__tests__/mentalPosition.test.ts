@@ -328,6 +328,28 @@ describe('MentalPositionSession', () => {
     session.recordHelp('redictate');
     assert.equal(session.snapshot().helpUsed, true);
   });
+
+  it('restores a mid-question snapshot', () => {
+    const session = new MentalPositionSession();
+    session.configure({
+      orientation: 'b',
+      showBoardDuringSequence: false,
+      dictateSequence: true,
+    });
+    session.loadSequence(ITALIAN_LINE);
+    session.beginQuestions();
+    const first = session.snapshot().questions[0];
+    session.answer(first.displayAnswer);
+    const mid = session.snapshot();
+    const restored = new MentalPositionSession();
+    const again = restored.restore(mid);
+    assert.equal(again.phase, 'questioning');
+    assert.equal(again.questionIndex, mid.questionIndex);
+    assert.equal(again.score, mid.score);
+    assert.equal(again.orientation, 'b');
+    assert.equal(again.questions.length, mid.questions.length);
+    assert.equal(again.answerLog.length, 1);
+  });
 });
 
 describe('generateMentalSequence', () => {
