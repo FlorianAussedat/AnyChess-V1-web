@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
+import { HubIntro } from '@/components/HubScreen';
 import { HubModeCard } from '@/components/HubModeCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { OpeningEmptyState } from '@/components/openings/OpeningEmptyState';
@@ -27,11 +28,6 @@ export default function OpeningsHub() {
 
   const empty = folders.length === 0;
 
-  const subtitle = useMemo(
-    () => t('modes.openings.title'),
-    [t],
-  );
-
   return (
     <View
       style={[
@@ -43,12 +39,8 @@ export default function OpeningsHub() {
         },
       ]}
     >
-      <ScreenHeader
-        onBack={() => router.back()}
-        title={t('openings.title')}
-        subtitle={subtitle}
-        backTestID="openings-back"
-      />
+      <ScreenHeader onBack={() => router.back()} backTestID="openings-back" />
+      <HubIntro title={t('openings.title')} subtitle={t('openings.hubLead')} />
 
       {!ready ? (
         <View style={styles.centered}>
@@ -104,8 +96,12 @@ export default function OpeningsHub() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 14, gap: 12 },
-  list: { gap: 12, paddingBottom: 8, flexGrow: 1 },
+  root: {
+    flex: 1,
+    paddingHorizontal: DesignTokens.spacing.xl - 2,
+    gap: DesignTokens.spacing.lg,
+  },
+  list: { gap: DesignTokens.spacing.md, paddingBottom: 8, flexGrow: 1 },
   centered: {
     flex: 1,
     alignItems: 'center',

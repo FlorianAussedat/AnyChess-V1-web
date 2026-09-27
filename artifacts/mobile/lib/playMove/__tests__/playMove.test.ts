@@ -186,6 +186,28 @@ describe('play move session', () => {
     scheduler.tick(COUNTDOWN_STEP_MS * 4);
     assert.equal(session.snapshot().phase, 'idle');
   });
+
+  it('restores a mid-session playing snapshot', () => {
+    const scheduler = new FakeScheduler();
+    const session = new PlayMoveSession({ scheduler, pickChallenge: pickTestChallenge });
+    const mid = runCountdownToPlaying(session, scheduler);
+    assert.equal(mid.phase, 'playing');
+    session.pauseTimers();
+    const restored = new PlayMoveSession({
+      scheduler: new FakeScheduler(),
+      pickChallenge: pickTestChallenge,
+    });
+    restored.restorePlaying({
+      challenge: mid.challenge!,
+      score: mid.score,
+      remainingSeconds: 37,
+      previousRecord: mid.previousRecord,
+    });
+    const again = restored.snapshot();
+    assert.equal(again.phase, 'playing');
+    assert.equal(again.challenge?.puzzleId, mid.challenge?.puzzleId);
+    restored.dispose();
+  });
 });
 
 describe('side to move label and board orientation', () => {

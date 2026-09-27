@@ -79,7 +79,7 @@ export function BottomNavigation() {
 
   const goHome = () => {
     if (pathname === '/' || pathname === '/index') return;
-    router.replace('/' as Href);
+    router.navigate('/' as Href);
   };
 
   const goRecords = () => {

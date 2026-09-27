@@ -54,31 +54,33 @@ function sampleQuestion(
 }
 
 describe('chessCulture question bank', () => {
-  it('contains exactly 500 active questions with unique ids', () => {
-    assert.equal(CHESS_CULTURE_QUESTIONS.length, 500);
+  it('contains exactly 213 active culture questions with unique ids', () => {
+    assert.equal(CHESS_CULTURE_QUESTIONS.length, 213);
     const ids = CHESS_CULTURE_QUESTIONS.map((q) => q.id);
     assert.equal(new Set(ids).size, ids.length);
   });
 
-  it('has a large active bank with practical category coverage', () => {
+  it('keeps culture categories and no play-the-move boards', () => {
     const active = CHESS_CULTURE_QUESTIONS.filter((q) => q.active === true);
     assert.equal(active.length, CHESS_CULTURE_QUESTIONS.length);
-    assert.equal(active.length, 500);
+    assert.equal(active.length, 213);
     const categories = new Set(active.map((q) => q.category));
     for (const required of [
-      'checkmates',
       'terminology',
       'endgames',
-      'strategy',
       'modern-chess',
-      'openings',
       'rules',
+      'history',
+      'players',
     ] as const) {
       assert.ok(categories.has(required), `missing category ${required}`);
     }
-    assert.ok(active.filter((q) => q.category === 'endgames').length >= 70);
-    assert.ok(active.filter((q) => q.presentation?.boardFen).length === 130);
-    assert.ok(active.filter((q) => q.category === 'terminology').length === 60);
+    assert.equal(active.filter((q) => q.category === 'endgames').length, 13);
+    assert.equal(active.filter((q) => q.presentation?.boardFen).length, 0);
+    assert.equal(active.filter((q) => q.category === 'terminology').length, 60);
+    assert.equal(active.filter((q) => q.category === 'strategy').length, 0);
+    assert.equal(active.filter((q) => q.category === 'openings').length, 0);
+    assert.equal(active.filter((q) => q.category === 'checkmates').length, 0);
   });
 
   it('passes schema validation including FEN questions', () => {
@@ -88,15 +90,11 @@ describe('chessCulture question bank', () => {
     assert.deepEqual(errors, []);
   });
 
-  it('keeps FEN presentation questions valid', () => {
+  it('has no FEN presentation questions left in the culture bank', () => {
     const fenQs = CHESS_CULTURE_QUESTIONS.filter(
       (q) => q.presentation?.boardFen,
     );
-    assert.ok(fenQs.length >= 15);
-    for (const q of fenQs) {
-      assert.deepEqual(validateChessCultureQuestion(q), []);
-      assert.equal(isValidChessFen(q.presentation!.boardFen!), true);
-    }
+    assert.equal(fenQs.length, 0);
   });
 
   it('assigns difficulty metadata in range 1..5', () => {
@@ -111,12 +109,11 @@ describe('chessCulture question bank', () => {
     assert.deepEqual(validateChessCultureQuestion(textOnly[0]!), []);
   });
 
-  it('preserves bilingual portraits and provides bilingual tactical diagrams', () => {
-    const bilingual = CHESS_CULTURE_QUESTIONS.filter(
-      (q) =>
-        q.id.startsWith('player-photo-') || q.verification?.kind === 'mate',
+  it('preserves bilingual portraits', () => {
+    const bilingual = CHESS_CULTURE_QUESTIONS.filter((q) =>
+      q.id.startsWith('player-photo-'),
     );
-    assert.equal(bilingual.length, 91);
+    assert.equal(bilingual.length, 11);
     for (const q of bilingual) {
       assert.ok(q.i18nEn, q.id);
       assert.equal(q.i18nEn.answers.length, 4);
@@ -410,7 +407,7 @@ describe('chessCulture FEN helpers', () => {
     const errors = validateChessCultureQuestion(broken);
     assert.ok(errors.some((e) => e.message.includes('boardFen')));
     // Valid neighbors still validate independently.
-    const ok = CHESS_CULTURE_QUESTIONS.find((q) => q.presentation?.boardFen);
+    const ok = CHESS_CULTURE_QUESTIONS[0];
     assert.ok(ok);
     assert.deepEqual(validateChessCultureQuestion(ok!), []);
   });

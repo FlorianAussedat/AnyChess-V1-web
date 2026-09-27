@@ -41,6 +41,7 @@ import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import { pairMoveHistory } from '@/lib/game';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import {
   EndgameEngineStatusBanner,
   useSharedStockfishRuntime,
@@ -117,6 +118,22 @@ export default function EndgameTrainingPlayScreen() {
   const startedRef = useRef(false);
   const recordedRef = useRef(false);
 
+  usePersistedActivity({
+    kind: 'defends-nulle',
+    modeId: 'puzzles',
+    title: t('quiz.defendsNulle'),
+    summary: snap.position?.id ?? String(positionId ?? ''),
+    routeFor: () =>
+      `/puzzles/defends-nulle-play?positionId=${encodeURIComponent(String(positionId ?? ''))}&source=${source ?? 'new'}`,
+    enabled:
+      positionReady &&
+      (snap.phase === 'playing' ||
+        snap.phase === 'thinking' ||
+        snap.phase === 'verifying-loss'),
+    revision: `${snap.phase}|${snap.fen}|${snap.movesResisted}`,
+    capture: () => sessionRef.current.snapshot(),
+  });
+
   const {
     snapshot: engineSnap,
     engineReady,
@@ -141,14 +158,6 @@ export default function EndgameTrainingPlayScreen() {
     void getShowGauge().then(setShowGaugeState);
     return () => {
       sessionRef.current.setAnalyzer(null);
-      const cur = sessionRef.current.snapshot();
-      if (
-        cur.phase === 'playing' ||
-        cur.phase === 'thinking' ||
-        cur.phase === 'verifying-loss'
-      ) {
-        sessionRef.current.abandon();
-      }
     };
   }, []);
 
@@ -474,7 +483,7 @@ export default function EndgameTrainingPlayScreen() {
     return (
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
-        onBack={() => router.back()}
+        onBack={() => router.navigate('/')}
         testID="endgame-training-play"
       >
         <View style={styles.missingBox}>
@@ -496,7 +505,7 @@ export default function EndgameTrainingPlayScreen() {
     return (
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
-        onBack={() => router.back()}
+        onBack={() => router.navigate('/')}
         testID="endgame-training-play"
       >
         <View style={styles.busyRow} testID="endgame-position-loading">
@@ -515,7 +524,7 @@ export default function EndgameTrainingPlayScreen() {
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
         subtitle={campLabel}
-        onBack={() => router.back()}
+        onBack={() => router.navigate('/')}
         testID="endgame-training-play"
       >
         {snap.position && (
@@ -604,7 +613,7 @@ export default function EndgameTrainingPlayScreen() {
         <EndgameEngineStatusBanner
           snapshot={engineSnap}
           onRetry={() => void retryEngine()}
-          onBack={() => router.back()}
+          onBack={() => router.navigate('/')}
         />
 
         {thinking && engineReady && (

@@ -23,11 +23,13 @@ import { BrandAssets, modeCardIllustration } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import {
   HORIZONTAL_LOGO_ART,
+  HORIZONTAL_LOGO_CANVAS,
   artHeight,
   artWidth,
 } from '@/constants/brandArtBounds';
 import { MAIN_MODE_CARD_META } from '@/lib/app/mainModeCards';
 import { ModeCard } from '@/components/home/ModeCard';
+import { ResumeActivities } from '@/components/home/ResumeActivities';
 import type { MessageKey } from '@/lib/i18n';
 
 export default function MainMenu() {
@@ -46,7 +48,9 @@ export default function MainMenu() {
   );
   const logoVisibleHeight = Math.round(logoVisibleWidth * (logoArtH / logoArtW));
   const logoImgWidth = Math.round(logoVisibleWidth / logoArtW);
-  const logoImgHeight = Math.round(logoImgWidth * (1024 / 1536));
+  const logoImgHeight = Math.round(
+    logoImgWidth * (HORIZONTAL_LOGO_CANVAS.height / HORIZONTAL_LOGO_CANVAS.width),
+  );
   const logoImgLeft = -Math.round(HORIZONTAL_LOGO_ART.left * logoImgWidth);
   const logoImgTop = -Math.round(HORIZONTAL_LOGO_ART.top * logoImgHeight);
 
@@ -85,13 +89,15 @@ export default function MainMenu() {
                 }}
                 contentFit="fill"
                 cachePolicy="memory-disk"
-                recyclingKey="home-horizontal-logo"
+                recyclingKey="home-horizontal-logo-1536"
                 accessibilityIgnoresInvertColors
               />
             </View>
           </View>
         </View>
       </View>
+
+      <ResumeActivities />
 
       <View style={styles.cards}>
         {MAIN_MODE_CARD_META.map((mode) => {

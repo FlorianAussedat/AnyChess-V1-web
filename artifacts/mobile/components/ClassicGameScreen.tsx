@@ -6,7 +6,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useCancelSpeechOnLeave } from '@/hooks/useCancelSpeechOnLeave';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
@@ -31,7 +31,9 @@ import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
-import { useGame } from '@/contexts/GameContext';
+import { useGame, type ClassicPlaySnapshot } from '@/contexts/GameContext';
+import { confirmDiscardActivity } from '@/lib/activitySessions';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import type { PlayerColor, SideChoice } from '@/lib/game/types';
 import { beginGameFromCampChoice, pairMoveHistory, resolveSideChoice } from '@/lib/game';
 import {
@@ -111,7 +113,13 @@ export function ClassicGameScreen() {
     retryOpponentMove,
     exportPgn,
     downloadPgn,
+    exportPlaySnapshot,
+    hydratePlaySnapshot,
   } = useGame();
+
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const resumeSessionId =
+    typeof params.sessionId === 'string' ? params.sessionId : undefined;
 
   const openingIdentity = useOpeningIdentity(history);
   const applyRef = useRef(applyUserMove);
@@ -130,6 +138,39 @@ export function ClassicGameScreen() {
   const [exportedText, setExportedText] = useState('');
   const [draftMove, setDraftMove] = useState('');
   const prevGameOver = useRef(false);
+
+  type ClassicActivityPayload = {
+    play: ClassicPlaySnapshot;
+    campLocked: boolean;
+    pendingSide: SideChoice;
+    setupBandId: string;
+    boardVisible: boolean;
+  };
+
+  const { discard } = usePersistedActivity<ClassicActivityPayload>({
+    kind: 'classic',
+    modeId: 'classic',
+    resumeSessionId,
+    title: t('modes.classic.title'),
+    summary: history.length > 0 ? history.slice(-4).join(' ') : t('game.configure'),
+    routeFor: (id) => `/classic?sessionId=${encodeURIComponent(id)}`,
+    enabled: campLocked,
+    revision: `${history.join(',')}|${playerColor}|${campLocked}|${boardVisible}`,
+    capture: () => ({
+      play: exportPlaySnapshot(),
+      campLocked,
+      pendingSide,
+      setupBandId,
+      boardVisible,
+    }),
+    apply: (payload) => {
+      hydratePlaySnapshot(payload.play);
+      setCampLocked(payload.campLocked);
+      setPendingSide(payload.pendingSide);
+      setSetupBandId(payload.setupBandId);
+      setBoardVisible(payload.boardVisible);
+    },
+  });
 
   useEffect(() => {
     if (isGameOver && !prevGameOver.current && campLocked) {
@@ -195,13 +236,24 @@ export function ClassicGameScreen() {
     [campLocked, setupBandId, setStrengthBandId, applySide],
   );
 
-  const onNewGamePress = useCallback(() => {
+  const resetCurrentGame = useCallback(() => {
     setStrengthBandId(setupBandId);
     setDraftMove('');
     if (pendingSide === 'random') applySide(resolveSideChoice('random'));
     else if (pendingSide !== playerColor) changeColor(pendingSide);
     else newGame();
   }, [setupBandId, setStrengthBandId, pendingSide, playerColor, applySide, changeColor, newGame]);
+
+  const onNewGamePress = useCallback(() => {
+    if (campLocked && history.length > 0) {
+      confirmDiscardActivity('partie', () => {
+        void discard();
+        resetCurrentGame();
+      });
+      return;
+    }
+    resetCurrentGame();
+  }, [campLocked, history.length, discard, resetCurrentGame]);
 
   const activeBand = getStrengthBand(setupBandId);
   const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
@@ -238,7 +290,7 @@ export function ClassicGameScreen() {
   return (
     <>
       <ChessScreenScaffold
-        onBack={() => router.back()}
+        onBack={() => router.navigate('/')}
         title={t('modes.classic.title')}
         subtitle={contextLine}
         showSound

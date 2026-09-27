@@ -10,6 +10,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import { verbalMove } from '@/lib/chessParser';
@@ -30,6 +31,7 @@ import {
   PIECE_COUNT_BANDS,
   PUZZLE_RATING_BANDS,
   PuzzleSession,
+  type PuzzleSessionSnapshot,
   PuzzleSolutionReplay,
   narratePosition,
   narratePositionSpoken,
@@ -51,6 +53,7 @@ import {
   isCleanPuzzleSolve,
 } from '@/lib/puzzles';
 import { puzzleStreakBandId } from '@/lib/puzzles/streakBand';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 
 export type PuzzleSpokenResult =
   | PuzzleAttemptResult
@@ -142,6 +145,10 @@ function filtersFromBands(
 }
 
 export function PuzzleProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const resumeSessionId =
+    typeof params.sessionId === 'string' ? params.sessionId : undefined;
   const sessionRef = useRef(new PuzzleSession());
   const replayRef = useRef(new PuzzleSolutionReplay());
   const submodeRef = useRef<PuzzleSubmode | null>(null);
@@ -377,6 +384,10 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   }, [resetPresentation]);
 
   const backToHub = useCallback(() => {
+    if (phase === 'playing' || phase === 'solution-replay') {
+      router.navigate('/');
+      return;
+    }
     if (phase === 'playing' && sessionRef.current.isLoaded && !streakRecordedRef.current) {
       void recordStreak(false);
     }
@@ -399,7 +410,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setBoard(new Chess().board() as (BoardPiece | null)[][]);
     setCurrentFen(new Chess().fen());
     setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
-  }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
+  }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId, router]);
 
   const announceBlindPosition = useCallback((fen: string, opts?: { flush?: boolean }) => {
     const text = narratePosition(fen);
@@ -832,6 +843,41 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     },
     [phase, isReplaying, isPreviewing, pieceRevealFilter],
   );
+
+  usePersistedActivity<{
+    session: PuzzleSessionSnapshot;
+    submode: PuzzleSubmode;
+    ratingBandId: string;
+    pieceCountBandId: string;
+  }>({
+    kind: 'puzzles-tactical',
+    modeId: 'puzzles',
+    resumeSessionId,
+    title: tMsg('modes.puzzles.title'),
+    summary: puzzle ? `${puzzle.id} · ${puzzle.rating}` : '',
+    routeFor: (id) => `/puzzles?sessionId=${encodeURIComponent(id)}`,
+    enabled: (phase === 'playing' || phase === 'solution-replay') && !!puzzle,
+    revision: `${currentFen}|${puzzle?.id ?? ''}|${phase}`,
+    capture: () => {
+      if (!sessionRef.current.isLoaded || !submode) return null;
+      return {
+        session: sessionRef.current.snapshot(),
+        submode,
+        ratingBandId,
+        pieceCountBandId,
+      };
+    },
+    apply: (payload) => {
+      sessionRef.current.restore(payload.session);
+      setSubmode(payload.submode);
+      submodeRef.current = payload.submode;
+      setRatingBandId(payload.ratingBandId);
+      setPieceCountBandId(payload.pieceCountBandId);
+      setPuzzle(payload.session.puzzle);
+      setPhase('playing');
+      syncFromSession();
+    },
+  });
 
   return (
     <PuzzleContext.Provider

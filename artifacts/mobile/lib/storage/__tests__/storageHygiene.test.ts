@@ -68,6 +68,7 @@ describe('StorageKeys registry', () => {
     );
     assert.equal(StorageKeys.gameLibrary.key, 'anychess.gameLibrary.v1');
     assert.equal(StorageKeys.gameSession.key, 'anychess.gameSession.v1');
+    assert.equal(StorageKeys.activitySessions.key, 'anychess.activitySessions.v1');
   });
 });
 

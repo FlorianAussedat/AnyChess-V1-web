@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessCultureVisual } from '@/components/chessCulture/ChessCultureVisual';
@@ -37,6 +37,8 @@ import {
   type ChessCultureFeedbackVote,
   type ChessCultureSessionQuestion,
 } from '@/lib/chessCulture';
+import { getActivitySession } from '@/lib/activitySessions';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 
 type Phase = 'loading' | 'playing' | 'finished';
 
@@ -47,6 +49,9 @@ export default function CultureGeneraleQuizScreen() {
   const insets = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
   const router = useRouter();
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const resumeSessionId =
+    typeof params.sessionId === 'string' ? params.sessionId : undefined;
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [session, setSession] = useState<ChessCultureSessionQuestion[]>([]);
@@ -93,9 +98,46 @@ export default function CultureGeneraleQuizScreen() {
     setPhase(next.length === 0 ? 'finished' : 'playing');
   }, [language]);
 
+  type CulturePayload = {
+    phase: Phase;
+    session: ChessCultureSessionQuestion[];
+    index: number;
+    score: number;
+    selectedDisplayIndex: number | null;
+    hasAnswered: boolean;
+  };
+
+  usePersistedActivity<CulturePayload>({
+    kind: 'culture',
+    modeId: 'quiz-ouverture',
+    resumeSessionId,
+    title: t('quiz.culture'),
+    summary: session.length ? `${score}/${session.length}` : '',
+    routeFor: (id) => `/quiz-ouverture/culture?sessionId=${encodeURIComponent(id)}`,
+    enabled: phase === 'playing' && session.length > 0,
+    revision: `${phase}|${index}|${score}|${hasAnswered}|${session.length}`,
+    capture: () => ({
+      phase,
+      session,
+      index,
+      score,
+      selectedDisplayIndex,
+      hasAnswered,
+    }),
+    apply: (payload) => {
+      setSession(payload.session);
+      setIndex(payload.index);
+      setScore(payload.score);
+      setSelectedDisplayIndex(payload.selectedDisplayIndex);
+      setHasAnswered(payload.hasAnswered);
+      setPhase(payload.phase);
+    },
+  });
+
   useEffect(() => {
+    if (resumeSessionId && getActivitySession(resumeSessionId)) return;
     void startSession();
-  }, [startSession]);
+  }, [resumeSessionId, startSession]);
 
   const current = session[index];
   useEffect(() => {
@@ -168,7 +210,7 @@ export default function CultureGeneraleQuizScreen() {
       ]}
     >
       <ScreenHeader
-        onBack={() => router.back()}
+        onBack={() => router.navigate('/')}
         title={t('quiz.quiz')}
         subtitle={t('quiz.cultureMixed')}
         backTestID="culture-quiz-back"

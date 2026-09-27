@@ -61,6 +61,7 @@ export type MessageKey =
   | 'openings.learnHint'
   | 'openings.managePgn'
   | 'openings.manageTitle'
+  | 'openings.hubLead'
   | 'openings.hubReviewHint'
   | 'openings.hubLearnHint'
   | 'openings.reviewPoolSummary'
@@ -902,6 +903,23 @@ export type MessageKey =
   | 'puzzle.menu'
   | 'puzzle.movePlaceholder'
   | 'puzzle.all'
+  | 'activity.resumeTitle'
+  | 'activity.resumeCta'
+  | 'activity.discardPartieTitle'
+  | 'activity.discardPartieBody'
+  | 'activity.discardPartieConfirm'
+  | 'activity.discardProblemeTitle'
+  | 'activity.discardProblemeBody'
+  | 'activity.discardProblemeConfirm'
+  | 'activity.discardQuizTitle'
+  | 'activity.discardQuizBody'
+  | 'activity.discardQuizConfirm'
+  | 'activity.discardCoursTitle'
+  | 'activity.discardCoursBody'
+  | 'activity.discardCoursConfirm'
+  | 'activity.discardExerciceTitle'
+  | 'activity.discardExerciceBody'
+  | 'activity.discardExerciceConfirm'
 
 type Dict = Record<MessageKey, string>;
 
@@ -964,10 +982,11 @@ const fr: Dict = {
     'Étudie chaque ouverture séparément, avec commentaires et variantes.',
   'openings.managePgn': 'Importer / gérer mes PGN',
   'openings.manageTitle': 'Mes PGN d’ouvertures',
-  'openings.hubReviewHint':
-    'Entraîne-toi sur les PGN actifs du pool : jouer contre le répertoire ou continuer la ligne.',
+  'openings.hubLead':
+    'Découvre tes ouvertures, puis entraîne-toi à retrouver les bons coups.',
+  'openings.hubReviewHint': 'Retrouve les bons coups de tes ouvertures.',
   'openings.hubLearnHint':
-    'Consulte tous tes PGN, actifs ou non, dossier par dossier.',
+    'Parcours tes ouvertures à ton rythme, coup par coup.',
   'openings.reviewPoolSummary': '{{pgn}} PGN actifs · {{lines}} lignes disponibles',
   'openings.activePgnList': 'PGN qui participent à la Révision',
   'openings.noActivePgn':
@@ -1099,27 +1118,26 @@ const fr: Dict = {
   'settings.paceFast': 'Rapide — 1 s',
   'modes.classic.title': 'Partie classique',
   'modes.classic.description':
-    'Joue une partie, tout simplement ! À la voix ou directement sur l’échiquier.',
+    'Joue aux échecs sur l’échiquier ou à la voix.',
   'modes.openings.title': 'Apprends tes ouvertures',
   'modes.openings.description':
-    'Apprends et révise tes répertoires d’ouvertures, coup après coup.',
+    'Apprends tes ouvertures et entraîne-toi à les rejouer.',
   'modes.blind.title': 'Mémorisation',
   'modes.blind.description':
-    'Entraîne-toi à retenir des séquences de coups, à l’écoute ou en les observant.',
+    'Retiens des suites de coups en les écoutant ou en les regardant.',
   'modes.puzzles.title': 'Entraînement tactique',
-  'modes.puzzles.description':
-    'Résous des positions tactiques, avec ou sans échiquier visible.',
+  'modes.puzzles.description': 'Résous des problèmes et entraîne tes finales.',
   'modes.visualisation.title': 'Vision de l’échiquier',
   'modes.visualisation.description':
-    'Entraîne-toi à suivre une position mentalement et à reconnaître rapidement les coups.',
+    'Suis les coups mentalement et repère-les sur l’échiquier.',
   'modes.quiz-ouverture.title': 'Culture générale',
   'modes.quiz-ouverture.description':
-    'Teste tes connaissances sur les ouvertures et la culture échiquéenne.',
+    'Reconnais les ouvertures et teste tes connaissances.',
   'modes.parties.title': 'Parties',
-  'modes.parties.description':
-    'Importe un PGN, rejoue la partie et analyse avec Stockfish dans le même workspace.',
+  'modes.parties.description': 'Retrouve, rejoue et analyse tes parties.',
   'parties.title': 'Parties',
-  'parties.subtitle': 'Bibliothèque',
+  'parties.subtitle':
+    'Classe tes parties, rejoue-les et analyse les positions qui t’intéressent.',
   'parties.importPgn': 'Importer un PGN',
   'parties.empty': 'Aucune partie importée. Importe un fichier PGN pour commencer.',
   'parties.noMeta': 'Métadonnées indisponibles',
@@ -1374,10 +1392,10 @@ const fr: Dict = {
   'blind.title': 'Mémorisation',
   'blind.listenReconstruct': 'Écouter puis reconstruire',
   'blind.listenReconstructDesc':
-    'Écoute une séquence, puis reconstitue-la coup par coup.',
+    'Écoute des coups, puis rejoue-les dans le bon ordre.',
   'blind.watchRecite': 'Regarder puis réciter',
   'blind.watchReciteDesc':
-    'Observe une séquence, puis récite-la à voix haute.',
+    'Regarde des coups, puis récite-les à voix haute.',
   'blind.fullMoves': 'Coups complets',
   'blind.generate': 'Générer la séquence',
   'blind.recitation': 'Récitation',
@@ -1417,14 +1435,14 @@ const fr: Dict = {
   'puzzle.hubTitle': 'Entraînement tactique',
   'vision.title': 'Vision de l’échiquier',
   'vision.subtitle':
-    'Trois exercices pour entraîner le suivi mental et la reconnaissance rapide de coups.',
+    'Exerce-toi à suivre les coups et à visualiser les positions.',
   'vision.mental': 'Suivi mental de position',
   'vision.mentalDesc':
-    'Suis une séquence de coups, puis réponds à des questions sur la position obtenue.',
+    'Suis les coups de tête, puis retrouve la position.',
   'vision.nommer': 'Nommer le coup',
-  'vision.nommerDesc': 'Identifie le plus rapidement possible le coup joué sur l’échiquier.',
+  'vision.nommerDesc': 'Regarde un coup et donne son nom.',
   'vision.jouer': 'Jouer le coup',
-  'vision.jouerDesc': 'Joue le plus rapidement possible le coup donné.',
+  'vision.jouerDesc': 'Lis un coup et joue-le sur l’échiquier.',
   'vision.incorrectRetry': 'Incorrect — réessaie',
   'vision.correct': 'Correct',
   'vision.records': 'Records',
@@ -1458,19 +1476,19 @@ const fr: Dict = {
   'vision.recordValue': 'Record : {{record}}',
   'quiz.title': 'Culture générale',
   'quiz.subtitle':
-    'Utilise la base d’ouvertures ECO locale — indépendante de tes répertoires PGN.',
+    'Découvre les ouvertures et teste tes connaissances sur les échecs.',
   'quiz.quiz': 'Quiz',
   'quiz.culture': 'Culture échiquéenne',
   'quiz.cultureDesc':
-    'Teste ta culture échiquéenne avec des questions variées sur l’histoire, les champions, les règles, les tournois et le monde des échecs.',
+    'Réponds à des questions sur le monde des échecs.',
   'quiz.cultureMixed': 'Culture échiquéenne — 10 questions mixtes',
   'quiz.quelle': 'Quelle ouverture ?',
   'quiz.quelleDesc':
-    'Reconnais le nom de l’ouverture à partir de la ligne jouée (base ECO).',
+    'Devine l’ouverture à partir des coups joués.',
   'quiz.defendsNulle': 'Défends la nulle !',
   'quiz.defendsNullePageTitle': 'Entraînement aux Finales',
   'quiz.defendsNulleDesc':
-    'Défends une position nulle contre Stockfish. Résiste 30 coups ou obtiens une vraie nulle.',
+    'Tiens une position égale face à Stockfish.',
   'quiz.defendsNulleLead':
     'Choisis une nouvelle finale ou rejoue une position de Essaie encore !',
   'quiz.defendsNulleProgress': 'Coups joués : {{current}}',
@@ -1533,7 +1551,7 @@ const fr: Dict = {
   'quiz.endgameReplay': 'Rejouer la finale',
   'quiz.theoreticalEndgameTitle': 'Finales théoriques',
   'quiz.theoreticalEndgameDesc':
-    'Automatismes fondamentaux : choisis un thème, joue la position, affronte Stockfish.',
+    'Choisis une finale et entraîne-toi à la jouer.',
   'quiz.theoreticalEndgameLead': 'Travaille les finales essentielles par répétition.',
   'quiz.theoreticalRandom': 'Aléatoire',
   'quiz.theoreticalViewList': 'Liste',
@@ -1790,7 +1808,7 @@ const fr: Dict = {
   'openings.continueSpeak': 'Continue la ligne{{side}}.',
   'openings.continueFromStartSpeak': 'Continue la ligne depuis le début{{side}}.',
   'blind.hubLead':
-    'Choisis un exercice. Les séquences sont générées par Stockfish (1 à 20 coups complets).',
+    'Travaille ta mémoire en retenant des suites de coups à l’oreille ou à l’œil.',
   'blind.record': 'Record : {{count}} coups complets',
   'blind.recordZero': 'Record : 0',
   'blind.perspective': 'PERSPECTIVE',
@@ -1847,15 +1865,15 @@ const fr: Dict = {
   'blind.exercisesMenu': 'Menu des exercices',
   'blind.movePlaceholder': 'Ex. e4, Cf3, petit roque…',
   'puzzle.hubLead':
-    'Mets ta vision tactique à l’épreuve, avec ou sans échiquier, parmi des milliers de problèmes variés adaptés à tous les niveaux.',
+    'Résous des problèmes, entraîne tes finales et apprends à défendre une position.',
   'puzzle.mode': 'Mode',
   'puzzle.visual': 'Visuel',
   'puzzle.blind': 'À l’aveugle',
   'puzzle.difficulty': 'Difficulté',
-  'puzzle.visualCardTitle': 'Problèmes Visuel',
-  'puzzle.visualCardDesc': 'Résous des problèmes directement sur l’échiquier.',
+  'puzzle.visualCardTitle': 'Problèmes visuels',
+  'puzzle.visualCardDesc': 'Trouve la solution directement sur l’échiquier.',
   'puzzle.blindCardTitle': 'Problèmes à l’aveugle',
-  'puzzle.blindCardDesc': 'Résous des problèmes sans voir la position complète.',
+  'puzzle.blindCardDesc': 'Trouve la solution sans voir toute la position.',
   'puzzle.difficultyDefaultHint':
     'La difficulté par défaut peut être modifiée dans Paramètres.',
   'settings.problemDifficulty': 'DIFFICULTÉ DES PROBLÈMES',
@@ -1892,6 +1910,28 @@ const fr: Dict = {
   'puzzle.menu': 'Menu des problèmes',
   'puzzle.movePlaceholder': 'Ex. Cf3, Fou prend e5, petit roque…',
   'puzzle.all': 'Tous',
+  'activity.resumeTitle': 'Activités en cours',
+  'activity.resumeCta': 'Reprendre',
+  'activity.discardPartieTitle': 'Quitter la partie ?',
+  'activity.discardPartieBody':
+    'Vous allez perdre votre partie en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardPartieConfirm': 'Quitter la partie',
+  'activity.discardProblemeTitle': 'Quitter le problème ?',
+  'activity.discardProblemeBody':
+    'Vous allez perdre votre problème en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardProblemeConfirm': 'Quitter le problème',
+  'activity.discardQuizTitle': 'Quitter le quiz ?',
+  'activity.discardQuizBody':
+    'Vous allez perdre votre quiz en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardQuizConfirm': 'Quitter le quiz',
+  'activity.discardCoursTitle': 'Quitter le cours ?',
+  'activity.discardCoursBody':
+    'Vous allez perdre votre cours en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardCoursConfirm': 'Quitter le cours',
+  'activity.discardExerciceTitle': 'Quitter l’exercice ?',
+  'activity.discardExerciceBody':
+    'Vous allez perdre votre exercice en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardExerciceConfirm': 'Quitter l’exercice',
 };
 
 const en: Dict = {
@@ -1953,10 +1993,11 @@ const en: Dict = {
     'Study each opening separately, with comments and variations.',
   'openings.managePgn': 'Import / manage my PGNs',
   'openings.manageTitle': 'My opening PGNs',
-  'openings.hubReviewHint':
-    'Train on active PGNs: play against the repertoire or continue the line.',
+  'openings.hubLead':
+    'Discover your openings, then practice finding the right moves.',
+  'openings.hubReviewHint': 'Find the right moves of your openings.',
   'openings.hubLearnHint':
-    'Browse every PGN, active or not, folder by folder.',
+    'Browse your openings at your own pace, move by move.',
   'openings.reviewPoolSummary': '{{pgn}} active PGNs · {{lines}} lines available',
   'openings.activePgnList': 'PGNs included in Review',
   'openings.noActivePgn':
@@ -2088,27 +2129,26 @@ const en: Dict = {
   'settings.paceFast': 'Fast — 1 s',
   'modes.classic.title': 'Classic game',
   'modes.classic.description':
-    'Just play a game — by voice or directly on the board.',
+    'Play chess on the board or by voice.',
   'modes.openings.title': 'Learn your openings',
   'modes.openings.description':
-    'Learn and revise your opening repertoires, move by move.',
+    'Learn your openings and practice replaying them.',
   'modes.blind.title': 'Memorization',
   'modes.blind.description':
-    'Train to remember move sequences by listening or watching.',
+    'Remember move sequences by listening or watching.',
   'modes.puzzles.title': 'Tactical training',
-  'modes.puzzles.description':
-    'Solve tactical positions, with or without a visible board.',
+  'modes.puzzles.description': 'Solve problems and train your endgames.',
   'modes.visualisation.title': 'Board vision',
   'modes.visualisation.description':
-    'Train to follow a position mentally and recognize moves quickly.',
+    'Follow moves mentally and spot them on the board.',
   'modes.quiz-ouverture.title': 'General knowledge',
   'modes.quiz-ouverture.description':
-    'Test your knowledge of openings and chess culture.',
+    'Recognize openings and test your knowledge.',
   'modes.parties.title': 'Games',
-  'modes.parties.description':
-    'Import a PGN, replay the game, and analyze with Stockfish in one workspace.',
+  'modes.parties.description': 'Find, replay and analyze your games.',
   'parties.title': 'Games',
-  'parties.subtitle': 'Library',
+  'parties.subtitle':
+    'Organize your games, replay them and analyze the positions that interest you.',
   'parties.importPgn': 'Import a PGN',
   'parties.empty': 'No imported games yet. Import a PGN file to get started.',
   'parties.noMeta': 'No metadata available',
@@ -2361,10 +2401,10 @@ const en: Dict = {
   'blind.title': 'Memorization',
   'blind.listenReconstruct': 'Listen then reconstruct',
   'blind.listenReconstructDesc':
-    'Listen to a sequence, then rebuild it move by move.',
+    'Listen to moves, then replay them in the right order.',
   'blind.watchRecite': 'Watch then recite',
   'blind.watchReciteDesc':
-    'Watch a sequence, then recite it out loud.',
+    'Watch moves, then recite them out loud.',
   'blind.fullMoves': 'Full moves',
   'blind.generate': 'Generate sequence',
   'blind.recitation': 'Recitation',
@@ -2404,14 +2444,14 @@ const en: Dict = {
   'puzzle.hubTitle': 'Tactical Training',
   'vision.title': 'Board vision',
   'vision.subtitle':
-    'Three exercises to train mental tracking and quick move recognition.',
+    'Practice following moves and visualizing positions.',
   'vision.mental': 'Mental position tracking',
   'vision.mentalDesc':
-    'Follow a move sequence, then answer questions about the resulting position.',
+    'Follow the moves in your head, then find the position.',
   'vision.nommer': 'Name the move',
-  'vision.nommerDesc': 'Identify the move played on the board as quickly as possible.',
+  'vision.nommerDesc': 'Watch a move and give its name.',
   'vision.jouer': 'Play the move',
-  'vision.jouerDesc': 'Play the given move as quickly as possible.',
+  'vision.jouerDesc': 'Read a move and play it on the board.',
   'vision.incorrectRetry': 'Incorrect — try again',
   'vision.correct': 'Correct',
   'vision.records': 'Records',
@@ -2445,18 +2485,18 @@ const en: Dict = {
   'vision.recordValue': 'Record: {{record}}',
   'quiz.title': 'General knowledge',
   'quiz.subtitle':
-    'Uses the local ECO opening base — independent of your PGN repertoires.',
+    'Discover openings and test your chess knowledge.',
   'quiz.quiz': 'Quiz',
   'quiz.culture': 'Chess culture',
   'quiz.cultureDesc':
-    'Test your chess culture with mixed questions on history, champions, rules, tournaments and the chess world.',
+    'Answer questions about the world of chess.',
   'quiz.cultureMixed': 'Chess culture — 10 mixed questions',
   'quiz.quelle': 'Which opening?',
-  'quiz.quelleDesc': 'Recognize the opening name from the played line (ECO base).',
+  'quiz.quelleDesc': 'Guess the opening from the moves played.',
   'quiz.defendsNulle': 'Defend the draw!',
   'quiz.defendsNullePageTitle': 'Endgame Training',
   'quiz.defendsNulleDesc':
-    'Defend a drawn position against Stockfish. Resist 30 moves or reach an official draw.',
+    'Hold an equal position against Stockfish.',
   'quiz.defendsNulleLead':
     'Pick a new endgame or replay a position from Try again!',
   'quiz.defendsNulleProgress': 'Moves played: {{current}}',
@@ -2518,7 +2558,7 @@ const en: Dict = {
   'quiz.endgameReplay': 'Replay endgame',
   'quiz.theoreticalEndgameTitle': 'Theoretical Endgames',
   'quiz.theoreticalEndgameDesc':
-    'Core endgame drills: pick a theme, play the position, face Stockfish.',
+    'Pick an endgame and practice playing it.',
   'quiz.theoreticalEndgameLead': 'Practice essential endgames through repetition.',
   'quiz.theoreticalRandom': 'Random',
   'quiz.theoreticalViewList': 'List',
@@ -2774,7 +2814,7 @@ const en: Dict = {
   'openings.continueSpeak': 'Continue the line{{side}}.',
   'openings.continueFromStartSpeak': 'Continue the line from the start{{side}}.',
   'blind.hubLead':
-    'Choose an exercise. Sequences are generated by Stockfish (1 to 20 full moves).',
+    'Train your memory by remembering move sequences by ear or by eye.',
   'blind.record': 'Record: {{count}} full moves',
   'blind.recordZero': 'Record: 0',
   'blind.perspective': 'PERSPECTIVE',
@@ -2830,15 +2870,15 @@ const en: Dict = {
   'blind.exercisesMenu': 'Exercise menu',
   'blind.movePlaceholder': 'e.g. e4, Nf3, O-O…',
   'puzzle.hubLead':
-    'Put your tactical vision to the test, with or without the board, through thousands of varied problems suited to every level.',
+    'Solve problems, train your endgames and learn to defend a position.',
   'puzzle.mode': 'Mode',
   'puzzle.visual': 'Visual',
   'puzzle.blind': 'Blindfold',
   'puzzle.difficulty': 'Difficulty',
-  'puzzle.visualCardTitle': 'Visual Problems',
-  'puzzle.visualCardDesc': 'Solve chess problems directly on the board.',
-  'puzzle.blindCardTitle': 'Blindfold Problems',
-  'puzzle.blindCardDesc': 'Solve chess problems without seeing the full position.',
+  'puzzle.visualCardTitle': 'Visual problems',
+  'puzzle.visualCardDesc': 'Find the solution directly on the board.',
+  'puzzle.blindCardTitle': 'Blindfold problems',
+  'puzzle.blindCardDesc': 'Find the solution without seeing the full position.',
   'puzzle.difficultyDefaultHint':
     'You can change the default difficulty in Settings.',
   'settings.problemDifficulty': 'PROBLEM DIFFICULTY',
@@ -2875,6 +2915,28 @@ const en: Dict = {
   'puzzle.menu': 'Puzzle menu',
   'puzzle.movePlaceholder': 'e.g. Nf3, Bxe5, O-O…',
   'puzzle.all': 'All',
+  'activity.resumeTitle': 'Activities in progress',
+  'activity.resumeCta': 'Resume',
+  'activity.discardPartieTitle': 'Leave this game?',
+  'activity.discardPartieBody':
+    'You will lose your current game. Do you really want to quit?',
+  'activity.discardPartieConfirm': 'Quit game',
+  'activity.discardProblemeTitle': 'Leave this puzzle?',
+  'activity.discardProblemeBody':
+    'You will lose your current puzzle. Do you really want to quit?',
+  'activity.discardProblemeConfirm': 'Quit puzzle',
+  'activity.discardQuizTitle': 'Leave this quiz?',
+  'activity.discardQuizBody':
+    'You will lose your current quiz. Do you really want to quit?',
+  'activity.discardQuizConfirm': 'Quit quiz',
+  'activity.discardCoursTitle': 'Leave this lesson?',
+  'activity.discardCoursBody':
+    'You will lose your current lesson. Do you really want to quit?',
+  'activity.discardCoursConfirm': 'Quit lesson',
+  'activity.discardExerciceTitle': 'Leave this exercise?',
+  'activity.discardExerciceBody':
+    'You will lose your current exercise. Do you really want to quit?',
+  'activity.discardExerciceConfirm': 'Quit exercise',
 };
 
 const DICTS: Record<AppLanguage, Dict> = { fr, en };

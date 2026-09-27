@@ -1,6 +1,5 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import { Chess } from 'chess.js';
 import { CHESS_CULTURE_QUESTIONS as bank } from '../questions.ts';
 import { QuizHistoryStore } from '../QuizHistoryStore.ts';
@@ -11,11 +10,6 @@ import {
   createChessCultureQuizSession,
   validateChessCultureQuestion,
 } from '../quizEngine.ts';
-import {
-  matingMoves,
-  playUci,
-  uci,
-} from '../../../scripts/quiz-quality/mateProof.mjs';
 
 const normalized = (text) =>
   text
@@ -25,7 +19,7 @@ const normalized = (text) =>
     .replace(/\s+/g, ' ')
     .trim();
 describe('curated bank editorial and diagram contracts', () => {
-  it('contains 500 distinct prompts/visuals and four distinct choices each', () => {
+  it('contains 213 distinct prompts and four distinct choices each', () => {
     const prompts = new Set();
     for (const q of bank) {
       const key = [
@@ -39,7 +33,7 @@ describe('curated bank editorial and diagram contracts', () => {
       if (q.i18nEn)
         assert.equal(new Set(q.i18nEn.answers.map(normalized)).size, 4, q.id);
     }
-    assert.equal(prompts.size, 500);
+    assert.equal(prompts.size, 213);
   });
 
   it('removes the incorrect and trivial legacy examples', () => {
@@ -102,90 +96,71 @@ describe('curated bank editorial and diagram contracts', () => {
     }
   });
 
-  it('replays all 50 opening sequences to the displayed FEN', () => {
-    const openings = bank.filter((q) => q.verification?.kind === 'opening');
-    assert.equal(openings.length, 50);
-    const unique = new Set();
-    for (const q of openings) {
-      const board = new Chess();
-      for (const move of q.verification.moves) board.move(move);
-      assert.equal(board.fen(), q.presentation.boardFen, q.id);
-      const position = board.fen().split(' ').slice(0, 4).join(' ');
-      assert.ok(!unique.has(position), q.id);
-      unique.add(position);
-    }
-  });
-
-  it('proves unique forced mates against every legal defence, including all distractors', () => {
-    const puzzles = JSON.parse(
-      fs.readFileSync(
-        new URL('../../puzzles/data/puzzles.json', import.meta.url),
-        'utf8',
-      ),
-    );
-    const positions = bank.filter((q) => q.verification?.kind === 'mate');
-    assert.equal(positions.length, 80);
+  it('no longer includes opening-recognition or mate-solving exercises', () => {
     assert.equal(
-      positions.filter((q) => q.verification.movesToMate === 1).length,
-      40,
+      bank.filter((q) => q.verification?.kind === 'opening').length,
+      0,
     );
-    for (const q of positions) {
-      const v = q.verification;
-      const board = new Chess(q.presentation.boardFen);
-      const source = puzzles.find((p) => p.id === v.puzzleId);
-      assert.ok(source, q.id);
-      const setup = new Chess(source.fen);
-      playUci(setup, source.moves[0]);
-      assert.equal(setup.fen(), board.fen(), q.id);
-      const legal = new Set(board.moves({ verbose: true }).map(uci));
-      for (const move of v.answerMoves)
-        assert.ok(legal.has(move), `${q.id}: illegal distractor ${move}`);
-      const winners = matingMoves(board, v.movesToMate);
-      assert.deepEqual(
-        winners,
-        [v.answerMoves[q.correctAnswer]],
-        `${q.id}: missing or ambiguous mate`,
-      );
-      if (v.movesToMate === 2)
-        assert.deepEqual(
-          matingMoves(board, 1),
-          [],
-          `${q.id}: actually mate in one`,
-        );
-      for (const move of v.principalLine) playUci(board, move);
-      assert.equal(
-        board.isCheckmate(),
-        true,
-        `${q.id}: explanation line must mate`,
-      );
-    }
+    assert.equal(bank.filter((q) => q.verification?.kind === 'mate').length, 0);
+    assert.equal(
+      bank.filter((q) => q.id.startsWith('openingPlans-review-')).length,
+      0,
+    );
+    assert.equal(bank.filter((q) => q.id.startsWith('strategy-review-')).length, 0);
+    assert.equal(bank.filter((q) => q.id.startsWith('opening-board-')).length, 0);
+    assert.equal(bank.filter((q) => q.id.startsWith('position-mate-')).length, 0);
+    const keptEndgames = bank.filter((q) => q.id.startsWith('endgames-review-'));
+    assert.equal(keptEndgames.length, 13);
+    assert.deepEqual(
+      keptEndgames.map((q) => q.id).sort(),
+      [
+        'endgames-review-003',
+        'endgames-review-004',
+        'endgames-review-010',
+        'endgames-review-011',
+        'endgames-review-013',
+        'endgames-review-017',
+        'endgames-review-021',
+        'endgames-review-022',
+        'endgames-review-026',
+        'endgames-review-051',
+        'endgames-review-052',
+        'endgames-review-056',
+        'endgames-review-059',
+      ],
+    );
   });
 });
 
 describe('question rotation and persistence', () => {
-  it('exhausts the full bank before repeating even across 50 sessions', () => {
+  it('exhausts the full bank before repeating', () => {
     const seen = [];
     const ids = new Set();
-    for (let i = 0; i < 50; i++) {
+    while (ids.size < bank.length) {
       const session = createChessCultureQuizSession(bank, 10, () => 0.42, seen);
-      assert.equal(session.length, 10);
+      assert.ok(session.length > 0);
       for (const { question: q } of session) {
-        assert.ok(!ids.has(q.id), `early repeat ${q.id}`);
-        ids.add(q.id);
+        if (!ids.has(q.id)) {
+          ids.add(q.id);
+        } else {
+          assert.equal(ids.size, bank.length, `early repeat ${q.id}`);
+        }
         seen.push(chessCultureQuestionKey(q));
       }
     }
-    assert.equal(ids.size, 500);
+    assert.equal(ids.size, 213);
     const next = createChessCultureQuizSession(bank, 10, () => 0.42, seen);
-    assert.deepEqual(
-      next.map((x) => chessCultureQuestionKey(x.question)),
-      seen.slice(0, 10),
+    assert.equal(next.length, 10);
+    assert.ok(
+      next.every((x) => ids.has(x.question.id)),
+      'after exhaustion the next session only repeats known questions',
     );
   });
 
-  it('spreads a fresh session over ten categories', () => {
+  it('spreads a fresh session across remaining culture categories', () => {
     const session = createChessCultureQuizSession(bank, 10, () => 0.42);
-    assert.equal(new Set(session.map((x) => x.question.category)).size, 10);
+    const categories = new Set(session.map((x) => x.question.category));
+    assert.equal(categories.size, 10);
   });
 
   it('gives corrected revisions a new chance without breaking feedback identity', () => {

@@ -264,6 +264,33 @@ describe('move naming session — 60s model', () => {
     scheduler.tick(COUNTDOWN_STEP_MS * 4);
     assert.equal(session.snapshot().phase, 'idle');
   });
+
+  it('restores a mid-session playing snapshot', () => {
+    const scheduler = new FakeScheduler();
+    const session = testSession(scheduler);
+    runCountdownToPlaying(session, scheduler);
+    session.answer(session.snapshot().challenge!.expectedSan);
+    const mid = session.snapshot();
+    assert.equal(mid.phase, 'playing');
+    session.pauseTimers();
+    const restored = new MoveNamingSession({
+      scheduler: new FakeScheduler(),
+      pickChallenge: pickTestChallenge,
+    });
+    restored.restorePlaying({
+      challenge: mid.challenge!,
+      score: mid.score,
+      remainingSeconds: 41,
+      previousRecord: mid.previousRecord,
+      voiceEnabled: mid.voiceEnabled,
+    });
+    const again = restored.snapshot();
+    assert.equal(again.phase, 'playing');
+    assert.equal(again.score.correct, mid.score.correct);
+    assert.equal(again.challenge?.puzzleId, mid.challenge?.puzzleId);
+    assert.ok(again.remainingSeconds <= 41);
+    restored.dispose();
+  });
 });
 
 describe('board perspective (display only)', () => {

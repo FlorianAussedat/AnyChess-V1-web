@@ -41,6 +41,23 @@ describe('i18n dictionaries', () => {
     assert.match(translate('en', 'profil.resetRecordsBody'), /kept/);
   });
 
+  it('exposes activity resume and discard copy in FR and EN', () => {
+    assert.equal(translate('fr', 'activity.resumeTitle'), 'Activités en cours');
+    assert.equal(translate('fr', 'activity.resumeCta'), 'Reprendre');
+    assert.equal(
+      translate('fr', 'activity.discardPartieBody'),
+      'Vous allez perdre votre partie en cours. Voulez-vous vraiment quitter ?',
+    );
+    assert.equal(translate('fr', 'activity.discardPartieConfirm'), 'Quitter la partie');
+    assert.equal(translate('fr', 'activity.discardProblemeConfirm'), 'Quitter le problème');
+    assert.equal(translate('fr', 'activity.discardQuizConfirm'), 'Quitter le quiz');
+    assert.equal(translate('fr', 'activity.discardCoursConfirm'), 'Quitter le cours');
+    assert.equal(translate('fr', 'activity.discardExerciceConfirm'), 'Quitter l’exercice');
+    assert.equal(translate('fr', 'common.cancel'), 'Annuler');
+    assert.equal(translate('en', 'activity.resumeTitle'), 'Activities in progress');
+    assert.match(translate('en', 'activity.discardPartieBody'), /lose your current game/i);
+  });
+
   it('interpolates params', () => {
     assert.equal(
       translate('en', 'puzzle.nextMove', { san: 'Nf3' }),

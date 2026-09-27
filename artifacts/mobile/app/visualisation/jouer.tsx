@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Chess } from 'chess.js';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ChessBoard } from '@/components/ChessBoard';
@@ -33,6 +33,7 @@ import {
 } from '@/lib/playMove';
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 
 const records = new PlayMoveRecordsStore(defaultKeyValueStorage);
 const styles = timedVisionStyles;
@@ -41,6 +42,9 @@ export default function JouerLeCoupScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const resumeSessionId =
+    typeof params.sessionId === 'string' ? params.sessionId : undefined;
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
   useCancelSpeechOnLeave();
@@ -56,7 +60,37 @@ export default function JouerLeCoupScreen() {
     setSnap(sessionRef.current.snapshot());
   }, []);
 
-  useEffect(() => () => sessionRef.current.dispose(), []);
+  usePersistedActivity({
+    kind: 'jouer',
+    modeId: 'visualisation',
+    resumeSessionId,
+    title: t('vision.jouer'),
+    summary:
+      snap.phase === 'playing'
+        ? `${snap.score.score} · ${snap.remainingSeconds}s`
+        : '',
+    routeFor: (id) => `/visualisation/jouer?sessionId=${encodeURIComponent(id)}`,
+    enabled: snap.phase === 'playing' && !!snap.challenge,
+    revision: `${snap.phase}|${snap.score.score}|${snap.challenge?.puzzleId ?? ''}|${snap.remainingSeconds}`,
+    capture: () => {
+      if (snap.phase !== 'playing' || !snap.challenge) return null;
+      return {
+        challenge: snap.challenge,
+        score: snap.score,
+        remainingSeconds: snap.remainingSeconds,
+        previousRecord: snap.previousRecord,
+        boardResetToken: snap.boardResetToken,
+      };
+    },
+    apply: (payload) => {
+      if (!payload?.challenge) return;
+      sessionRef.current.restorePlaying(payload);
+      setBoardFen(payload.challenge.initialFen);
+      sync();
+    },
+  });
+
+  useEffect(() => () => sessionRef.current.pauseTimers(), []);
 
   useEffect(() => {
     records
@@ -167,9 +201,14 @@ export default function JouerLeCoupScreen() {
       <ScreenHeader
         onBack={() => {
           speechService.cancel('play-move-leave');
+          if (snap.phase === 'playing' || snap.phase === 'countdown') {
+            sessionRef.current.pauseTimers();
+            router.navigate('/');
+            return;
+          }
           sessionRef.current.returnToIdle();
           sync();
-          router.back();
+          router.navigate('/');
         }}
         title={t('vision.jouer')}
         showSound
@@ -240,7 +279,7 @@ export default function JouerLeCoupScreen() {
           onBack={() => {
             sessionRef.current.returnToIdle();
             sync();
-            router.back();
+            router.navigate('/');
           }}
         />
       )}

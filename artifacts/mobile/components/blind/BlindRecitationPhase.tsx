@@ -25,7 +25,7 @@ export function BlindRecitationPhase() {
     attemptSpoken,
     useHelp,
     skipExpectedMove,
-    backToSettings,
+    leaveToHome,
   } = useBlindSequence();
 
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
@@ -65,7 +65,7 @@ export function BlindRecitationPhase() {
   });
 
   return (
-    <ModeScreenShell title={t('blind.recitation')} onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.recitation')} onBack={leaveToHome}>
       <ScrollView
         contentContainerStyle={blindStyles.phaseBody}
         keyboardShouldPersistTaps="handled"
