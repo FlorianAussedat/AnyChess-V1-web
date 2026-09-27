@@ -212,6 +212,49 @@ export class OpeningIdentificationRun {
     });
   }
 
+  exportState(): {
+    difficulty: AnyChessDifficultyId;
+    questions: BuiltOpeningQuestion[];
+    review: OpeningQuizReviewItem[];
+    questionIndex: number;
+    score: number;
+    step: 1 | 2;
+    answered: boolean;
+    verdict: OpeningAnswerVerdict | null;
+    finished: boolean;
+    insufficientLines: boolean;
+    availableLineCount: number;
+  } {
+    return {
+      difficulty: this.difficulty,
+      questions: this.questions,
+      review: this.review,
+      questionIndex: this.questionIndex,
+      score: this.score,
+      step: this.step,
+      answered: this.answered,
+      verdict: this.verdict,
+      finished: this.finished,
+      insufficientLines: this.insufficientLines,
+      availableLineCount: this.availableLineCount,
+    };
+  }
+
+  importState(state: ReturnType<OpeningIdentificationRun['exportState']>): OpeningIdentificationRunSnapshot {
+    this.difficulty = state.difficulty;
+    this.questions = state.questions;
+    this.review = state.review;
+    this.questionIndex = state.questionIndex;
+    this.score = state.score;
+    this.step = state.step;
+    this.answered = state.answered;
+    this.verdict = state.verdict;
+    this.finished = state.finished;
+    this.insufficientLines = state.insufficientLines;
+    this.availableLineCount = state.availableLineCount;
+    return this.snapshot();
+  }
+
   snapshot(): OpeningIdentificationRunSnapshot {
     if (this.insufficientLines) {
       return emptySnapshot(this.difficulty, this.availableLineCount);

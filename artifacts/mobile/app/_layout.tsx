@@ -22,6 +22,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { preferencesStore } from '@/lib/preferences';
 import { runStorageMigrations } from '@/lib/storage';
+import { loadActivitySessions } from '@/lib/activitySessions';
 import { useReleaseEphemeralOpeningSession } from '@/hooks/useReleaseEphemeralOpeningSession';
 
 SplashScreen.preventAutoHideAsync();
@@ -84,6 +85,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     runStorageMigrations().catch(() => {});
+    void loadActivitySessions().catch(() => {});
     preferencesStore
       .ensureLoaded()
       .then(() => setPrefsHydrated(true))

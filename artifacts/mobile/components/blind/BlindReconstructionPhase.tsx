@@ -34,7 +34,7 @@ export function BlindReconstructionPhase() {
     attemptMove,
     attemptSpoken,
     useHelp,
-    backToSettings,
+    leaveToHome,
   } = useBlindSequence();
 
   const [selected, setSelected] = useState<string | null>(null);
@@ -115,7 +115,7 @@ export function BlindReconstructionPhase() {
   );
 
   return (
-    <ModeScreenShell title={t('blind.reconstruction')} onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.reconstruction')} onBack={leaveToHome}>
       <ScrollView
         contentContainerStyle={blindStyles.phaseBody}
         keyboardShouldPersistTaps="handled"

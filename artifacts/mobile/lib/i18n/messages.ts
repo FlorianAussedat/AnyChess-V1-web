@@ -902,6 +902,23 @@ export type MessageKey =
   | 'puzzle.menu'
   | 'puzzle.movePlaceholder'
   | 'puzzle.all'
+  | 'activity.resumeTitle'
+  | 'activity.resumeCta'
+  | 'activity.discardPartieTitle'
+  | 'activity.discardPartieBody'
+  | 'activity.discardPartieConfirm'
+  | 'activity.discardProblemeTitle'
+  | 'activity.discardProblemeBody'
+  | 'activity.discardProblemeConfirm'
+  | 'activity.discardQuizTitle'
+  | 'activity.discardQuizBody'
+  | 'activity.discardQuizConfirm'
+  | 'activity.discardCoursTitle'
+  | 'activity.discardCoursBody'
+  | 'activity.discardCoursConfirm'
+  | 'activity.discardExerciceTitle'
+  | 'activity.discardExerciceBody'
+  | 'activity.discardExerciceConfirm'
 
 type Dict = Record<MessageKey, string>;
 
@@ -1892,6 +1909,28 @@ const fr: Dict = {
   'puzzle.menu': 'Menu des problèmes',
   'puzzle.movePlaceholder': 'Ex. Cf3, Fou prend e5, petit roque…',
   'puzzle.all': 'Tous',
+  'activity.resumeTitle': 'Activités en cours',
+  'activity.resumeCta': 'Reprendre',
+  'activity.discardPartieTitle': 'Quitter la partie ?',
+  'activity.discardPartieBody':
+    'Vous allez perdre votre partie en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardPartieConfirm': 'Quitter la partie',
+  'activity.discardProblemeTitle': 'Quitter le problème ?',
+  'activity.discardProblemeBody':
+    'Vous allez perdre votre problème en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardProblemeConfirm': 'Quitter le problème',
+  'activity.discardQuizTitle': 'Quitter le quiz ?',
+  'activity.discardQuizBody':
+    'Vous allez perdre votre quiz en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardQuizConfirm': 'Quitter le quiz',
+  'activity.discardCoursTitle': 'Quitter le cours ?',
+  'activity.discardCoursBody':
+    'Vous allez perdre votre cours en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardCoursConfirm': 'Quitter le cours',
+  'activity.discardExerciceTitle': 'Quitter l’exercice ?',
+  'activity.discardExerciceBody':
+    'Vous allez perdre votre exercice en cours. Voulez-vous vraiment quitter ?',
+  'activity.discardExerciceConfirm': 'Quitter l’exercice',
 };
 
 const en: Dict = {
@@ -2875,6 +2914,28 @@ const en: Dict = {
   'puzzle.menu': 'Puzzle menu',
   'puzzle.movePlaceholder': 'e.g. Nf3, Bxe5, O-O…',
   'puzzle.all': 'All',
+  'activity.resumeTitle': 'Activities in progress',
+  'activity.resumeCta': 'Resume',
+  'activity.discardPartieTitle': 'Leave this game?',
+  'activity.discardPartieBody':
+    'You will lose your current game. Do you really want to quit?',
+  'activity.discardPartieConfirm': 'Quit game',
+  'activity.discardProblemeTitle': 'Leave this puzzle?',
+  'activity.discardProblemeBody':
+    'You will lose your current puzzle. Do you really want to quit?',
+  'activity.discardProblemeConfirm': 'Quit puzzle',
+  'activity.discardQuizTitle': 'Leave this quiz?',
+  'activity.discardQuizBody':
+    'You will lose your current quiz. Do you really want to quit?',
+  'activity.discardQuizConfirm': 'Quit quiz',
+  'activity.discardCoursTitle': 'Leave this lesson?',
+  'activity.discardCoursBody':
+    'You will lose your current lesson. Do you really want to quit?',
+  'activity.discardCoursConfirm': 'Quit lesson',
+  'activity.discardExerciceTitle': 'Leave this exercise?',
+  'activity.discardExerciceBody':
+    'You will lose your current exercise. Do you really want to quit?',
+  'activity.discardExerciceConfirm': 'Quit exercise',
 };
 
 const DICTS: Record<AppLanguage, Dict> = { fr, en };

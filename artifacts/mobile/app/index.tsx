@@ -28,6 +28,7 @@ import {
 } from '@/constants/brandArtBounds';
 import { MAIN_MODE_CARD_META } from '@/lib/app/mainModeCards';
 import { ModeCard } from '@/components/home/ModeCard';
+import { ResumeActivities } from '@/components/home/ResumeActivities';
 import type { MessageKey } from '@/lib/i18n';
 
 export default function MainMenu() {
@@ -92,6 +93,8 @@ export default function MainMenu() {
           </View>
         </View>
       </View>
+
+      <ResumeActivities />
 
       <View style={styles.cards}>
         {MAIN_MODE_CARD_META.map((mode) => {

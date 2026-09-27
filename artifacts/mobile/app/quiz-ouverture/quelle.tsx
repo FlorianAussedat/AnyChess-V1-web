@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { OptionChip } from '@/components/ui/OptionChip';
@@ -24,6 +24,7 @@ import {
   OPENING_QUIZ_SESSION_SIZE,
   type OpeningIdentificationRunSnapshot,
 } from '@/lib/openingQuiz';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 
 type Phase = 'pick-level' | 'playing' | 'feedback' | 'results' | 'review';
 
@@ -47,6 +48,9 @@ export default function QuelleOuvertureScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const resumeSessionId =
+    typeof params.sessionId === 'string' ? params.sessionId : undefined;
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const run = useRef(new OpeningIdentificationRun());
   const savedForRun = useRef(false);
@@ -60,6 +64,23 @@ export default function QuelleOuvertureScreen() {
     setSnap(next);
     setPhase(phaseFromSnap(next, prefer ?? phase));
   };
+
+  usePersistedActivity({
+    kind: 'quelle',
+    modeId: 'quiz-ouverture',
+    resumeSessionId,
+    title: t('quiz.quelle'),
+    summary: snap ? `${snap.score}/${snap.totalQuestions || 10}` : '',
+    routeFor: (id) => `/quiz-ouverture/quelle?sessionId=${encodeURIComponent(id)}`,
+    enabled: phase === 'playing' || phase === 'feedback',
+    revision: `${phase}|${snap?.questionIndex ?? 0}|${snap?.score ?? 0}|${snap?.step ?? 1}`,
+    capture: () => run.current.exportState(),
+    apply: (payload) => {
+      const next = run.current.importState(payload);
+      setDifficulty(next.difficulty);
+      applySnap(next, next.answered ? 'feedback' : 'playing');
+    },
+  });
 
   const startLevel = (level: AnyChessDifficultyId) => {
     setDifficulty(level);
@@ -130,7 +151,7 @@ export default function QuelleOuvertureScreen() {
       keyboardShouldPersistTaps="handled"
       testID="quelle-screen"
     >
-      <ScreenHeader onBack={() => router.back()} title={t('quiz.quelle')} showSound />
+      <ScreenHeader onBack={() => router.navigate('/')} title={t('quiz.quelle')} showSound />
 
       {phase === 'pick-level' ? (
         <View style={styles.block} testID="quelle-level-picker">

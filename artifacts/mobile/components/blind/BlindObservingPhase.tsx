@@ -21,14 +21,14 @@ export function BlindObservingPhase() {
     observationIndex,
     isReplaying,
     startRecitation,
-    backToSettings,
+    leaveToHome,
   } = useBlindSequence();
 
   const observationDone =
     !isReplaying && observationIndex >= sequence.length && sequence.length > 0;
 
   return (
-    <ModeScreenShell title={t('blind.observation')} onBack={backToSettings}>
+    <ModeScreenShell title={t('blind.observation')} onBack={leaveToHome}>
       <View style={blindStyles.phaseBody}>
         <Text style={[blindStyles.hint, { color: colors.mutedForeground, textAlign: 'center' }]}>
           {t('blind.observationHint')}

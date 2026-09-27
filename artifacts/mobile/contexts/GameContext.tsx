@@ -41,6 +41,14 @@ import {
 import { tMsg } from '@/lib/i18n';
 import { OPPONENT_KICKOFF_DELAY_MS, useSharedPlayState } from '@/hooks/useSharedPlayState';
 import { preferencesStore } from '@/lib/preferences';
+import { chessFromSanHistory, lastMoveFromGame } from '@/lib/activitySessions';
+
+export type ClassicPlaySnapshot = {
+  history: string[];
+  playerColor: PlayerColor;
+  strengthBandId: string;
+  status: string;
+};
 
 export type { BoardPiece, LastMove, MoveEvent, PlayerColor };
 
@@ -71,11 +79,17 @@ interface GameContextValue {
   retryOpponentMove: () => void;
   exportPgn: () => string;
   downloadPgn: () => void;
+  exportPlaySnapshot: () => ClassicPlaySnapshot;
+  hydratePlaySnapshot: (snap: ClassicPlaySnapshot) => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
 
-export function GameProvider({ children }: { children: React.ReactNode }) {
+export function GameProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const initialBand =
     preferencesStore.getPreferences().stockfishStrengthBandId ||
     DEFAULT_STRENGTH_BAND_ID;
@@ -469,6 +483,49 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     opponentMoveRef.current();
   }, [gameRef, setWaitingForUser, opponentMoveRef]);
 
+  const exportPlaySnapshot = useCallback((): ClassicPlaySnapshot => {
+    return {
+      history: gameRef.current.history(),
+      playerColor: playerColorRef.current,
+      strengthBandId: strengthBandIdRef.current,
+      status,
+    };
+  }, [gameRef, playerColorRef, status]);
+
+  const hydratePlaySnapshot = useCallback(
+    (snap: ClassicPlaySnapshot) => {
+      cancelPending();
+      const restored = chessFromSanHistory(snap.history);
+      if (!restored) return;
+      gameRef.current = restored;
+      const color = snap.playerColor === 'b' ? 'b' : 'w';
+      playerColorRef.current = color;
+      setPlayerColor(color);
+      const band = getStrengthBand(snap.strengthBandId || strengthBandIdRef.current).id;
+      strengthBandIdRef.current = band;
+      setStrengthBandIdState(band);
+      setLastMove(lastMoveFromGame(restored));
+      setHeardText('');
+      setIsOpponentThinking(false);
+      syncState();
+      const over = restored.isGameOver();
+      setWaitingForUser(!over && restored.turn() === color);
+      setStatus(snap.status || (over ? tMsg('game.yourTurn') : tMsg('game.yourTurn')));
+    },
+    [
+      cancelPending,
+      gameRef,
+      playerColorRef,
+      setPlayerColor,
+      setLastMove,
+      setHeardText,
+      setIsOpponentThinking,
+      syncState,
+      setWaitingForUser,
+      setStatus,
+    ],
+  );
+
   return (
     <GameContext.Provider
       value={{
@@ -496,6 +553,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         retryOpponentMove,
         exportPgn,
         downloadPgn,
+        exportPlaySnapshot,
+        hydratePlaySnapshot,
       }}
     >
       {children}

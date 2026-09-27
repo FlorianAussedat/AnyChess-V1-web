@@ -4,13 +4,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import { Chess } from 'chess.js';
 import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
@@ -97,6 +97,22 @@ export default function TheoreticalEndgamePlayScreen() {
   const startedRef = useRef(false);
   const recordedRef = useRef(false);
 
+  usePersistedActivity({
+    kind: 'theoretical-endgame',
+    modeId: 'puzzles',
+    title: t('quiz.theoreticalEndgameTitle'),
+    summary: String(positionId ?? ''),
+    routeFor: () =>
+      `/puzzles/finales-theoriques-play?positionId=${encodeURIComponent(String(positionId ?? ''))}${
+        themeId ? `&themeId=${encodeURIComponent(String(themeId))}` : ''
+      }`,
+    enabled:
+      positionReady &&
+      (snap.phase === 'playing' || snap.phase === 'thinking' || snap.phase === 'verifying'),
+    revision: `${snap.phase}|${snap.fen}`,
+    capture: () => sessionRef.current.snapshot(),
+  });
+
   const {
     snapshot: engineSnap,
     engineReady,
@@ -120,14 +136,6 @@ export default function TheoreticalEndgamePlayScreen() {
   useEffect(() => {
     return () => {
       sessionRef.current.setAnalyzer(null);
-      const cur = sessionRef.current.snapshot();
-      if (
-        cur.phase === 'playing' ||
-        cur.phase === 'thinking' ||
-        cur.phase === 'verifying'
-      ) {
-        sessionRef.current.abandon();
-      }
     };
   }, []);
 
@@ -179,25 +187,7 @@ export default function TheoreticalEndgamePlayScreen() {
   }, [snap.result]);
 
   const confirmExit = () => {
-    if (snap.phase !== 'playing' && snap.phase !== 'thinking' && snap.phase !== 'verifying') {
-      router.back();
-      return;
-    }
-    Alert.alert(
-      t('quiz.theoreticalExitTitle'),
-      t('quiz.theoreticalExitBody'),
-      [
-        { text: t('quiz.theoreticalExitContinue'), style: 'cancel' },
-        {
-          text: t('quiz.theoreticalExitConfirm'),
-          style: 'destructive',
-          onPress: () => {
-            sessionRef.current.abandon();
-            router.back();
-          },
-        },
-      ],
-    );
+    router.navigate('/');
   };
 
   const playUserMove = async (from: string, to: string, promotion?: string) => {

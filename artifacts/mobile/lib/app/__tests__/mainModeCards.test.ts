@@ -1,7 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { MAIN_MODE_CARD_META } from '../mainModeCards.ts';
 import { DesignTokens } from '../../../constants/designTokens.ts';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const mobileRoot = join(here, '../../..');
 
 describe('main mode cards catalog', () => {
   it('exposes exactly the six existing modes with stable routes', () => {
@@ -62,11 +68,22 @@ describe('design tokens', () => {
   });
 
   it('targets denser ModeCards with larger mascot slots', () => {
+    assert.ok(DesignTokens.modeCardMinHeight >= 150);
     assert.ok(DesignTokens.modeCardHeight >= 150);
     assert.ok(DesignTokens.modeCardHeight <= 170);
     assert.ok(DesignTokens.modeIllustrationWidth >= 128);
     // Accueil viewport is ~28–32px of visible art (padding cropped via layout).
     assert.ok(DesignTokens.bottomNavHomeIconHeight >= 28);
     assert.ok(DesignTokens.bottomNavHomeIconHeight <= 36);
+  });
+});
+
+describe('ModeCard layout', () => {
+  it('does not truncate the menu explanation with numberOfLines', () => {
+    const src = readFileSync(join(mobileRoot, 'components/home/ModeCard.tsx'), 'utf8');
+    assert.doesNotMatch(src, /numberOfLines/);
+    assert.match(src, /styles\.description/);
+    assert.match(src, /textCol/);
+    assert.match(src, /illustrationSlot/);
   });
 });

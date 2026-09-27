@@ -134,6 +134,24 @@ export class MentalPositionSession {
     return this.snapshot();
   }
 
+  restore(snap: MentalSnapshot): MentalSnapshot {
+    this.phase = snap.phase;
+    this.sans = [...snap.sans];
+    this.finalFen = snap.finalFen;
+    this.orientation = snap.orientation;
+    this.showBoardDuringSequence = snap.showBoardDuringSequence;
+    this.dictateSequence = snap.dictateSequence;
+    this.questions = [...snap.questions];
+    this.questionIndex = snap.questionIndex;
+    this.score = snap.score;
+    this.answered = snap.answered;
+    this.lastFeedback = snap.lastFeedback;
+    this.errorMessage = snap.errorMessage;
+    this.answerLog = snap.answerLog.map((entry) => ({ ...entry }));
+    this.helpUsed = snap.helpUsed;
+    return this.snapshot();
+  }
+
   snapshot(): MentalSnapshot {
     const q = this.questions[this.questionIndex] ?? null;
     return {
