@@ -190,9 +190,7 @@ describe('play move session', () => {
   it('restores a mid-session playing snapshot', () => {
     const scheduler = new FakeScheduler();
     const session = new PlayMoveSession({ scheduler, pickChallenge: pickTestChallenge });
-    session.startCountdown();
-    scheduler.tick(COUNTDOWN_STEP_MS * 4);
-    const mid = session.snapshot();
+    const mid = runCountdownToPlaying(session, scheduler);
     assert.equal(mid.phase, 'playing');
     session.pauseTimers();
     const restored = new PlayMoveSession({

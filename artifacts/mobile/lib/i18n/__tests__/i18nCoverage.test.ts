@@ -55,7 +55,7 @@ describe('i18n dictionaries', () => {
     assert.equal(translate('fr', 'activity.discardExerciceConfirm'), 'Quitter l’exercice');
     assert.equal(translate('fr', 'common.cancel'), 'Annuler');
     assert.equal(translate('en', 'activity.resumeTitle'), 'Activities in progress');
-    assert.match(translate('en', 'activity.discardPartieBody'), /lose your game/i);
+    assert.match(translate('en', 'activity.discardPartieBody'), /lose your current game/i);
   });
 
   it('interpolates params', () => {
