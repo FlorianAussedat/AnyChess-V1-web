@@ -17,12 +17,29 @@ export type ArtBounds = {
   bottom: number;
 };
 
-/** Horizontal logo wordmark + knight (excludes embedded tagline band). */
+export const HORIZONTAL_LOGO_CANVAS = { width: 1536, height: 1024 } as const;
+export const LAUNCH_PORTRAIT_CANVAS = { width: 936, height: 1024 } as const;
+
+/**
+ * Horizontal logo, wordmark, and embedded tagline measured from the
+ * supplied 1536×1024 PNG. Bottom includes the full slogan band.
+ */
 export const HORIZONTAL_LOGO_ART: ArtBounds = {
-  left: 322 / 1536,
-  top: 349 / 1024,
-  right: 1162 / 1536,
-  bottom: 545 / 1024,
+  left: 322 / HORIZONTAL_LOGO_CANVAS.width,
+  top: 347 / HORIZONTAL_LOGO_CANVAS.height,
+  right: 1165 / HORIZONTAL_LOGO_CANVAS.width,
+  bottom: 595 / HORIZONTAL_LOGO_CANVAS.height,
+};
+
+/**
+ * Launch portrait artwork (knight + AnyChess + slogan) inside the
+ * supplied 936×1024 PNG. Transparent margins are cropped at layout time.
+ */
+export const LAUNCH_PORTRAIT_ART: ArtBounds = {
+  left: 129 / LAUNCH_PORTRAIT_CANVAS.width,
+  top: 347 / LAUNCH_PORTRAIT_CANVAS.height,
+  right: 693 / LAUNCH_PORTRAIT_CANVAS.width,
+  bottom: 810 / LAUNCH_PORTRAIT_CANVAS.height,
 };
 
 /** Accueil nav knight — centered subject in portrait canvas. */

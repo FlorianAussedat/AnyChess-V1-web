@@ -1,6 +1,6 @@
 /**
  * Timing for the AnyChess launch intro (application start only).
- * Values are milliseconds from intro start.
+ * Values are milliseconds from the moment the launch artwork has loaded.
  *
  * Native Android splash (expo-splash-screen) → this branded intro → Home.
  * Keep the navy background continuous across that handoff.
@@ -8,22 +8,12 @@
 export const ANYCHESS_NAVY = '#0B1728';
 export const ANYCHESS_TAGLINE = 'JOUER. APPRENDRE. VISUALISER.';
 
-/** Logo mark fade + subtle scale. */
-export const LOGO_FADE_DELAY_MS = 100;
-export const LOGO_FADE_DURATION_MS = 500;
-export const LOGO_SCALE_FROM = 0.94;
-
-/** "AnyChess" wordmark. */
-export const WORDMARK_FADE_DELAY_MS = 400;
-export const WORDMARK_FADE_DURATION_MS = 500;
-
-/** Tagline. */
-export const TAGLINE_FADE_DELAY_MS = 700;
-export const TAGLINE_FADE_DURATION_MS = 500;
+/** Fade the supplied artwork as one image to keep the logo and tagline together. */
+export const ENTER_FADE_DURATION_MS = 300;
 
 /**
  * Minimum time the intro should run before starting the exit fade.
- * Composition is fully visible after ~1.2s; hold briefly, then leave around 2.0–2.5s.
+ * Starts only once the artwork has loaded, so it remains legible on slow devices.
  */
 export const MIN_INTRO_MS = 2100;
 
@@ -37,7 +27,8 @@ export const EXIT_FADE_DURATION_MS = 400;
 export const LATE_READY_HOLD_MS = 280;
 
 /**
- * Delay before starting the exit fade, once `appReady` is true.
+ * Delay before starting the exit fade, once `appReady` is true and the
+ * launch image has loaded (`introStartedAtMs`).
  * Overlaps init with the intro: does not add wait when init was already slow.
  */
 export function msUntilExitFadeStart(args: {

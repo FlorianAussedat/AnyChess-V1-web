@@ -3,12 +3,10 @@ import assert from 'node:assert/strict';
 import {
   ANYCHESS_NAVY,
   ANYCHESS_TAGLINE,
+  ENTER_FADE_DURATION_MS,
   EXIT_FADE_DURATION_MS,
   LATE_READY_HOLD_MS,
-  LOGO_FADE_DELAY_MS,
   MIN_INTRO_MS,
-  TAGLINE_FADE_DELAY_MS,
-  WORDMARK_FADE_DELAY_MS,
   msUntilExitFadeStart,
   totalIntroBudgetMs,
 } from '../splashTiming.ts';
@@ -22,10 +20,8 @@ describe('AnyChess splash timing', () => {
     assert.equal(ANYCHESS_TAGLINE, 'JOUER. APPRENDRE. VISUALISER.');
   });
 
-  it('staggers logo → wordmark → tagline before the exit window', () => {
-    assert.ok(LOGO_FADE_DELAY_MS < WORDMARK_FADE_DELAY_MS);
-    assert.ok(WORDMARK_FADE_DELAY_MS < TAGLINE_FADE_DELAY_MS);
-    assert.ok(TAGLINE_FADE_DELAY_MS < MIN_INTRO_MS);
+  it('displays the complete artwork before the exit window', () => {
+    assert.ok(ENTER_FADE_DURATION_MS < MIN_INTRO_MS);
     assert.ok(MIN_INTRO_MS >= 2000);
     assert.ok(MIN_INTRO_MS + EXIT_FADE_DURATION_MS <= 2600);
   });

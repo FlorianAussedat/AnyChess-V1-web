@@ -110,11 +110,7 @@ export default function RootLayout() {
                   <View
                     style={[
                       styles.content,
-                      {
-                        paddingBottom: introDone
-                          ? DesignTokens.bottomNavContentHeight
-                          : 0,
-                      },
+                      { paddingBottom: DesignTokens.bottomNavContentHeight },
                     ]}
                   >
                     <RootLayoutNav />
@@ -123,8 +119,8 @@ export default function RootLayout() {
                   <View style={styles.bootBridge} testID="anychess-boot-bridge" />
                 )}
 
-                {/* Nav only after launch intro — never drawn over the splash. */}
-                {appReady && introDone ? <BottomNavigation /> : null}
+                {/* Prepare home + nav under the fading overlay so they do not pop in. */}
+                {appReady ? <BottomNavigation /> : null}
 
                 {!introDone ? (
                   <AnyChessSplashScreen
