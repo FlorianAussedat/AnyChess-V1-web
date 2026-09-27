@@ -14,9 +14,10 @@ import type { MainModeId } from '@/lib/app/modes';
 
 export const BrandAssets = {
   logoMark: require('@/assets/brand/logo-mark.png'),
-  splash: require('@/assets/brand/splash-brand.png'),
-  /** Home header — optimized display WebP (source: v1-anychess-horizontal-logo.png). */
-  horizontalLogo: require('@/assets/brand/display/v1-anychess-horizontal-logo.webp'),
+  /** Launch intro — supplied portrait artwork (knight + wordmark + tagline). */
+  splash: require('@/assets/brand/launch-portrait.png'),
+  /** Home header — full-resolution 1536×1024 PNG (not the 512px display WebP). */
+  horizontalLogo: require('@/assets/brand/home-horizontal-logo.png'),
   /** Bottom-nav Accueil — optimized display WebP (source: v1-home-nav.png). */
   navHome: require('@/assets/brand/display/nav/v1-home-nav.webp'),
   modes: {
