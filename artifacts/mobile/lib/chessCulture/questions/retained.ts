@@ -1,6 +1,5 @@
 /**
- * Canonical Culture générale questions. Generated from the 500-question dossier.
- * Do not hand-edit entries; change the source bank instead.
+ * Canonical Culture générale questions: players, history, competitions, portraits.
  */
 import type { ChessCultureQuestion } from '../types.ts';
 
