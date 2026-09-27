@@ -1,10 +1,9 @@
 /**
  * Reusable home menu mode card — premium dark card with integrated knight art.
- * Illustration sits in the card (no white square container).
  *
- * v1 mascot PNGs place the subject in the upper-middle of a tall canvas with
- * empty black padding below. Layout aligns the measured artwork bounds to the
- * card BOTTOM-RIGHT so heads stay visible (slight bottom crop OK).
+ * Text and mascot live in separate columns so the knight never covers the
+ * title or explanation. The card grows with the copy; descriptions are not
+ * ellipsized.
  */
 import React, { type ComponentProps } from 'react';
 import {
@@ -22,8 +21,8 @@ import { MASCOT_ART, artHeight, mascotCanvasAspect } from '@/constants/brandArtB
 import type { ModeIconName } from '@/lib/app/mainModeCards';
 import type { MainModeId } from '@/lib/app/modes';
 
-/** ~2× previous thematic icon size (was 17). */
 const THEMATIC_ICON_SIZE = 34;
+const MASCOT_COL = 112;
 
 export interface ModeCardProps {
   modeId: MainModeId;
@@ -45,27 +44,21 @@ export function ModeCard({
   testID,
 }: ModeCardProps) {
   const colors = useColors();
-  const cardH = DesignTokens.modeCardHeight;
   const art = MASCOT_ART[modeId] ?? MASCOT_ART.classic;
   const aH = artHeight(art);
-
-  // Fit full artwork (head → base) inside the card; slight bottom crop of the base.
-  // Openings: keep horse head + book together (full measured bounds).
-  const targetArtH = Math.round(cardH * 0.92);
-  const bottomCrop = 10;
+  const mascotH = 118;
+  const targetArtH = Math.round(mascotH * 0.96);
   const imgHeight = Math.round(targetArtH / aH);
   const imgWidth = Math.round(imgHeight * mascotCanvasAspect(modeId));
-
-  // Anchor artwork bottom-right inside the card (not the raw PNG canvas).
-  const imageBottom = -Math.round((1 - art.bottom) * imgHeight) - bottomCrop;
-  const imageRight = -Math.round((1 - art.right) * imgWidth) - 6;
+  const imageBottom = -Math.round((1 - art.bottom) * imgHeight) - 4;
+  const imageRight = -Math.round((1 - art.right) * imgWidth) - 2;
 
   return (
     <Pressable
       onPress={onPress}
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={title}
+      accessibilityLabel={`${title}. ${description}`}
       style={({ pressed }) => [
         styles.card,
         {
@@ -76,49 +69,39 @@ export function ModeCard({
         },
       ]}
     >
-      <View style={styles.contentRow}>
-        <Ionicons
-          name={iconName as ComponentProps<typeof Ionicons>['name']}
-          size={THEMATIC_ICON_SIZE}
-          color={colors.primary}
-          style={styles.thematicIcon}
-          testID={testID ? `${testID}-icon` : undefined}
-        />
-        <View style={[styles.textCol, { maxWidth: '56%', paddingRight: 6 }]}>
-          <Text
-            style={[styles.title, { color: colors.foreground }]}
-            numberOfLines={2}
-          >
-            {title}
-          </Text>
-          <Text
-            style={[styles.description, { color: colors.mutedForeground }]}
-            numberOfLines={3}
-          >
+      <View style={styles.columns}>
+        <View style={styles.textCol}>
+          <View style={styles.titleRow}>
+            <Ionicons
+              name={iconName as ComponentProps<typeof Ionicons>['name']}
+              size={THEMATIC_ICON_SIZE}
+              color={colors.primary}
+              style={styles.thematicIcon}
+              testID={testID ? `${testID}-icon` : undefined}
+            />
+            <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+          </View>
+          <Text style={[styles.description, { color: colors.mutedForeground }]}>
             {description}
           </Text>
         </View>
-      </View>
 
-      <View style={styles.illustrationSlot} pointerEvents="none">
-        <Image
-          source={illustration}
-          style={{
-            position: 'absolute',
-            right: imageRight,
-            bottom: imageBottom,
-            width: imgWidth,
-            height: imgHeight,
-          }}
-          contentFit="contain"
-          cachePolicy="memory-disk"
-          recyclingKey={`mode-${modeId}`}
-          accessibilityIgnoresInvertColors
-        />
-      </View>
-
-      <View style={styles.chevron} pointerEvents="none">
-        <Ionicons name="chevron-forward" size={16} color={colors.mutedForeground} />
+        <View style={styles.illustrationSlot} pointerEvents="none">
+          <Image
+            source={illustration}
+            style={{
+              position: 'absolute',
+              right: imageRight,
+              bottom: imageBottom,
+              width: imgWidth,
+              height: imgHeight,
+            }}
+            contentFit="contain"
+            cachePolicy="memory-disk"
+            recyclingKey={`mode-${modeId}`}
+            accessibilityIgnoresInvertColors
+          />
+        </View>
       </View>
     </Pressable>
   );
@@ -126,31 +109,36 @@ export function ModeCard({
 
 const styles = StyleSheet.create({
   card: {
-    height: DesignTokens.modeCardHeight,
     minHeight: DesignTokens.modeCardMinHeight,
     borderRadius: DesignTokens.radius.card,
     borderWidth: 1,
-    overflow: 'hidden',
-    paddingVertical: DesignTokens.spacing.sm,
+    paddingVertical: DesignTokens.spacing.md,
     paddingLeft: DesignTokens.spacing.lg,
     paddingRight: DesignTokens.spacing.sm,
-    justifyContent: 'center',
   },
-  contentRow: {
-    zIndex: 2,
+  columns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  textCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
+    paddingRight: 4,
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
   },
   thematicIcon: {
     marginTop: 2,
-  },
-  textCol: {
-    flexShrink: 1,
-    gap: 6,
+    flexShrink: 0,
   },
   title: {
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
     fontSize: DesignTokens.typography.cardTitle,
     fontFamily: 'Inter_700Bold',
     letterSpacing: 0.15,
@@ -160,23 +148,13 @@ const styles = StyleSheet.create({
   description: {
     fontSize: DesignTokens.typography.caption,
     fontFamily: 'Inter_400Regular',
-    lineHeight: 20,
-    paddingRight: 2,
+    lineHeight: 21,
   },
   illustrationSlot: {
-    position: 'absolute',
-    right: 0,
-    bottom: 0,
-    top: 0,
-    width: '48%',
-    zIndex: 1,
+    width: MASCOT_COL,
+    height: 118,
     overflow: 'hidden',
-  },
-  chevron: {
-    position: 'absolute',
-    right: 8,
-    top: '50%',
-    marginTop: -8,
-    zIndex: 3,
+    position: 'relative',
+    flexShrink: 0,
   },
 });

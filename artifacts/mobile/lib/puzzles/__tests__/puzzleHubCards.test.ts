@@ -48,11 +48,11 @@ describe('Puzzle hub card category page', () => {
     );
     assert.match(
       messages,
-      /Mets ta vision tactique à l’épreuve, avec ou sans échiquier/,
+      /Résous des problèmes, entraîne tes finales et apprends à défendre une position/,
     );
     assert.match(
       messages,
-      /Put your tactical vision to the test, with or without the board/,
+      /Solve problems, train your endgames and learn to defend a position/,
     );
     assert.doesNotMatch(messages, /Pack local/);
     assert.doesNotMatch(messages, /Local pack/);
