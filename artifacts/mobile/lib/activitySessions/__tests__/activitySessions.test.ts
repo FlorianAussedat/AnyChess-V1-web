@@ -8,15 +8,14 @@ import { StorageKeys } from '../../storage/StorageKeys.ts';
 import { chessFromSanHistory } from '../chessHistory.ts';
 import {
   __setActivitySessionsStorageForTests,
-  createActivitySessionId,
   getActivitySession,
   listInProgressActivities,
   loadActivitySessions,
   markActivityFinished,
-  nounForKind,
   removeActivitySession,
   upsertActivitySession,
-} from '../index.ts';
+} from '../ActivitySessionsStore.ts';
+import { createActivitySessionId, nounForKind } from '../types.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = join(here, '../../..');
