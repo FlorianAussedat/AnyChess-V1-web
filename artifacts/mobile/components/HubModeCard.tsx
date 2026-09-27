@@ -68,7 +68,9 @@ export function HubModeCard({
         <Text style={[styles.cardTitle, { color: colors.foreground }]}>{title}</Text>
         <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>{description}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+      <View style={styles.chevron} pointerEvents="none">
+        <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+      </View>
     </Pressable>
   );
 }
@@ -76,14 +78,13 @@ export function HubModeCard({
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: DesignTokens.spacing.md,
     borderWidth: 1,
     borderRadius: DesignTokens.radius.md,
-    // Tighter vertical/left padding so the mascot can use more of the card.
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingLeft: 8,
-    paddingRight: DesignTokens.spacing.lg,
+    paddingRight: DesignTokens.spacing.md,
     minHeight: 100,
   },
   iconWrap: {
@@ -92,16 +93,23 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   modeIcon: { width: 80, height: 80 },
-  textCol: { flex: 1, gap: 3 },
+  textCol: { flex: 1, minWidth: 0, gap: 4, paddingTop: 6 },
   cardTitle: {
     fontSize: 16,
     fontFamily: DesignTokens.typography.weightSemiBold,
+    lineHeight: 22,
   },
   cardDesc: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: DesignTokens.typography.weightRegular,
-    lineHeight: 18,
+    lineHeight: 20,
+  },
+  chevron: {
+    flexShrink: 0,
+    alignSelf: 'center',
+    paddingTop: 2,
   },
 });

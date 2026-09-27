@@ -7,8 +7,8 @@
  *
  * Home density targets (vs reference mockup):
  * - Header ≈ 1/8 viewport (logo row + tagline)
- * - Mode cards ≈ 150–156px, gap ≈ 12
- * - Mascot column ≈ 40–42% of card width
+ * - Mode cards grow from a 150px minimum so descriptions stay fully readable
+ * - Mascot sits in a reserved column and never covers title or body text
  */
 export const DesignTokens = {
   /**

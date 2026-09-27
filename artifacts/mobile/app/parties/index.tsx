@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { HubIntro } from '@/components/HubScreen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useColors } from '@/hooks/useColors';
@@ -568,9 +569,11 @@ export default function PartiesLibraryScreen() {
           if (folderStack.length > 0) goUp();
           else router.back();
         }}
-        title={title}
-        subtitle={t('parties.subtitle')}
         backTestID="parties-back"
+      />
+      <HubIntro
+        title={title}
+        subtitle={folderStack.length === 0 ? t('parties.subtitle') : undefined}
       />
 
       <Pressable

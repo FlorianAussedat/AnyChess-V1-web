@@ -5,6 +5,27 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
 
+type IntroProps = {
+  title: string;
+  subtitle?: string;
+};
+
+/**
+ * Shared category heading used by every hub and by library screens
+ * that keep the same hierarchy (back, then title, then a short lead).
+ */
+export function HubIntro({ title, subtitle }: IntroProps) {
+  const colors = useColors();
+  return (
+    <View style={styles.intro}>
+      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+      {subtitle ? (
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 type Props = {
   title: string;
   subtitle?: string;
@@ -29,12 +50,7 @@ export function HubScreen({ title, subtitle, onBack, children, showSound = false
       ]}
     >
       <ScreenHeader onBack={onBack} showSound={showSound} />
-      <View style={styles.intro}>
-        <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
-        {subtitle ? (
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{subtitle}</Text>
-        ) : null}
-      </View>
+      <HubIntro title={title} subtitle={subtitle} />
       <View style={styles.cards}>{children}</View>
     </ScrollView>
   );
@@ -49,11 +65,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: DesignTokens.typography.title,
     fontFamily: DesignTokens.typography.weightBold,
+    lineHeight: 30,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: DesignTokens.typography.weightRegular,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   cards: { gap: DesignTokens.spacing.md },
 });
