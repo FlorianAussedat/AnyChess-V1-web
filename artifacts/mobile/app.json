@@ -18,7 +18,12 @@
     },
     "android": {
       "package": "com.anychess.app",
-      "userInterfaceStyle": "dark"
+      "userInterfaceStyle": "dark",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon/android-adaptive-foreground.png",
+        "backgroundColor": "#0B1728",
+        "monochromeImage": "./assets/icon/android-adaptive-monochrome.png"
+      }
     },
     "web": {
       "favicon": "./assets/images/icon.png"
