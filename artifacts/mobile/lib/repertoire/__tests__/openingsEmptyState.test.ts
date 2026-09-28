@@ -68,21 +68,21 @@ describe('openings hub empty vs populated', () => {
     assert.match(manage, /openCreate/);
     assert.match(manage, /create-folder-btn/);
     assert.match(manage, /import-pgn-root-btn/);
+    assert.match(manage, /\/openings\/import/);
   });
 });
 
 describe('openings manage import wiring', () => {
   const manage = read('app/openings/manage.tsx');
+  const importScreen = read('app/openings/import.tsx');
 
-  it('wires light-index import + mandatory folder pick (no auto unclassified)', () => {
+  it('routes import to the shared panel and defaults to À classer', () => {
     assert.match(manage, /openImport/);
-    assert.match(manage, /importPgn/);
-    assert.match(manage, /pickPgnFile/);
-    assert.match(manage, /indexPgnGamesLight/);
-    assert.match(manage, /PgnGameSelectModal/);
-    assert.match(manage, /MAX_OPENINGS_PGN_IMPORT_BATCH/);
-    assert.match(manage, /FolderPickModal/);
-    assert.match(manage, /selectedPgnImports/);
+    assert.match(manage, /\/openings\/import/);
+    assert.match(importScreen, /PgnImportPanel/);
+    assert.match(importScreen, /allowFen=\{false\}/);
+    assert.match(importScreen, /getUnfiledFolderId/);
+    assert.match(importScreen, /MAX_OPENINGS_PGN_IMPORT_BATCH/);
     assert.doesNotMatch(manage, /folderNameFromPgnFilename/);
     assert.doesNotMatch(manage, /createFolderUnique/);
     assert.doesNotMatch(manage, /Non classées/);

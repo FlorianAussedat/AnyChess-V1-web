@@ -78,10 +78,10 @@ describe('main mode cards catalog', () => {
       byId['quiz-ouverture']?.description,
       'Reconnais les ouvertures et teste tes connaissances.',
     );
-    assert.equal(byId.parties?.title, 'Parties');
+    assert.equal(byId.parties?.title, 'Analyses de parties');
     assert.equal(
       byId.parties?.description,
-      'Retrouve, rejoue et analyse tes parties.',
+      'Classe tes parties, rejoue-les et analyse les positions qui t’intéressent.',
     );
     assert.equal(byId.parties?.requiredMascotAsset, 'mascot-player-knight-dj.png');
   });

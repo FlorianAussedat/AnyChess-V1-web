@@ -43,7 +43,7 @@ describe('navigation hub copy', () => {
     );
     assert.equal(
       translate('fr', 'modes.parties.description'),
-      'Retrouve, rejoue et analyse tes parties.',
+      'Classe tes parties, rejoue-les et analyse les positions qui t’intéressent.',
     );
   });
 
@@ -160,17 +160,12 @@ describe('shared hub structure', () => {
     );
   });
 
-  it('shows Parties title and category lead outside the truncating header', () => {
+  it('shows Analyses de parties with a wrapping header title', () => {
     const parties = read('app/parties/index.tsx');
-    assert.match(parties, /<HubIntro/);
-    assert.match(parties, /parties\.subtitle/);
-    const header = parties.slice(
-      parties.indexOf('<ScreenHeader'),
-      parties.indexOf('/>', parties.indexOf('<ScreenHeader')) + 2,
-    );
-    assert.match(header, /backTestID="parties-back"/);
-    assert.doesNotMatch(header, /title=/);
-    assert.doesNotMatch(header, /subtitle=/);
+    assert.match(parties, /parties\.title/);
+    assert.match(parties, /titleNumberOfLines=\{2\}/);
+    assert.match(parties, /backTestID="parties-back"/);
+    assert.doesNotMatch(parties, /<HubIntro/);
   });
 
   it('lets hub cards wrap their description beside a reserved mascot or icon', () => {
