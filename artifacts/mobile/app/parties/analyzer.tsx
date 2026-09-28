@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Chess } from 'chess.js';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import {
   AnyLyseurExportMenu,
   AnyLyseurToolbar,
@@ -76,6 +77,7 @@ type TabId = 'game' | 'analysis';
 
 export default function GameWorkspaceScreen() {
   const router = useRouter();
+  const goBackOrHome = useSmartBack('/');
   const params = useLocalSearchParams<{
     gameId?: string;
     nodeId?: string;
@@ -92,6 +94,7 @@ export default function GameWorkspaceScreen() {
   const paramFlipped = params.flipped === '1';
   // Extra UI only — must not change click / legality / coordinates / selection.
   const fromOpeningEditor = params.source === OPENING_EDITOR_ANALYZER_SOURCE;
+  const fromLiveWorkflow = fromOpeningEditor || params.source === 'live';
   const initialTab: TabId =
     params.tab === 'analysis' ? 'analysis' : 'game';
 
@@ -203,7 +206,8 @@ export default function GameWorkspaceScreen() {
     resumeSessionId,
     title: t('parties.workspace'),
     summary: game
-      ? [game.headers.white, game.headers.black].filter(Boolean).join(' – ')
+      ? game.headers.opening ||
+        [game.headers.white, game.headers.black].filter(Boolean).join(' – ')
       : '',
     routeFor: (id) => {
       const qs = new URLSearchParams();
@@ -212,7 +216,7 @@ export default function GameWorkspaceScreen() {
       if (tab === 'analysis') qs.set('tab', 'analysis');
       return `/parties/analyzer?${qs.toString()}`;
     },
-    enabled: !!game && !showPaste,
+    enabled: !!game && !showPaste && !fromLiveWorkflow,
     revision: `${analyzerGameId}|${reader?.currentNodeId ?? ''}|${tab}`,
     capture: () => ({ gameId: analyzerGameId, tab }),
   });
@@ -628,7 +632,7 @@ export default function GameWorkspaceScreen() {
       subtitle={t('parties.workspaceSubtitle')}
       onBack={() => {
         persistPosition();
-        router.navigate('/');
+        goBackOrHome();
       }}
       testID="game-workspace"
     >

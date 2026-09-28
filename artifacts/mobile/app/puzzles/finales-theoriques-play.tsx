@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { confirmLeaveToHub } from '@/lib/activitySessions';
 import { Chess } from 'chess.js';
 import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
@@ -71,9 +72,10 @@ function themeTitleKey(titleKey: string): MessageKey {
 }
 
 export default function TheoreticalEndgamePlayScreen() {
-  const { positionId, themeId } = useLocalSearchParams<{
+  const { positionId, themeId, sessionId: resumeParam } = useLocalSearchParams<{
     positionId: string;
     themeId?: string;
+    sessionId?: string;
   }>();
   const colors = useColors();
   const { t } = useTranslation();
@@ -97,15 +99,16 @@ export default function TheoreticalEndgamePlayScreen() {
   const startedRef = useRef(false);
   const recordedRef = useRef(false);
 
-  usePersistedActivity({
+  const { sessionId } = usePersistedActivity({
     kind: 'theoretical-endgame',
     modeId: 'puzzles',
+    resumeSessionId: typeof resumeParam === 'string' ? resumeParam : undefined,
     title: t('quiz.theoreticalEndgameTitle'),
     summary: String(positionId ?? ''),
-    routeFor: () =>
+    routeFor: (id) =>
       `/puzzles/finales-theoriques-play?positionId=${encodeURIComponent(String(positionId ?? ''))}${
         themeId ? `&themeId=${encodeURIComponent(String(themeId))}` : ''
-      }`,
+      }&sessionId=${encodeURIComponent(id)}`,
     enabled:
       positionReady &&
       (snap.phase === 'playing' || snap.phase === 'thinking' || snap.phase === 'verifying'),
@@ -187,7 +190,17 @@ export default function TheoreticalEndgamePlayScreen() {
   }, [snap.result]);
 
   const confirmExit = () => {
-    router.navigate('/');
+    const goHub = () =>
+      router.replace('/puzzles/finales-theoriques' as Href);
+    if (
+      snap.phase === 'playing' ||
+      snap.phase === 'thinking' ||
+      snap.phase === 'verifying'
+    ) {
+      confirmLeaveToHub('theoretical-endgame', sessionId, goHub);
+      return;
+    }
+    goHub();
   };
 
   const playUserMove = async (from: string, to: string, promotion?: string) => {

@@ -2,14 +2,14 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from 'react';
-import { useFocusEffect } from 'expo-router';
 import type { Move } from 'chess.js';
 import { gameStateAnnouncement, verbalMove } from '@/lib/chessParser';
 import type { ChessEngine } from '@/lib/engine';
-import { createOpponentEngine } from '@/lib/engines';
+import { createOpponentEngine, requestOpponentMove } from '@/lib/engines';
 import { uciPlayOptionsForTargetElo } from '@/lib/engines/stockfish/uci';
 import {
   shouldEmitMoveRecognizedFeedback,
@@ -77,6 +77,8 @@ interface GameContextValue {
   undoMove: () => void;
   /** Re-kick opponent search after a failed engine move. */
   retryOpponentMove: () => void;
+  /** Reset the board without starting a replacement game. */
+  returnToCampSetup: () => void;
   exportPgn: () => string;
   downloadPgn: () => void;
   exportPlaySnapshot: () => ClassicPlaySnapshot;
@@ -142,20 +144,18 @@ export function GameProvider({
     return engineRef.current;
   }, [engineOptionsForBand]);
 
-  useFocusEffect(
-    useCallback(() => {
-      const engine = ensureEngine();
-      // Boot while the player is still choosing a side, so the first go is warm.
-      engine.init?.().catch(() => {});
-      return () => {
-        moveGenerationRef.current += 1;
-        const current = engineRef.current;
-        engineRef.current = null;
-        current?.cancel?.();
-        current?.destroy?.();
-      };
-    }, [ensureEngine, moveGenerationRef]),
-  );
+  useEffect(() => {
+    const engine = ensureEngine();
+    // Boot while the player is still choosing a side, so the first go is warm.
+    engine.init?.().catch(() => {});
+    return () => {
+      moveGenerationRef.current += 1;
+      const current = engineRef.current;
+      engineRef.current = null;
+      current?.cancel?.();
+      current?.destroy?.();
+    };
+  }, [ensureEngine, moveGenerationRef]);
 
   const setStrengthBandId = useCallback(
     (id: string) => {
@@ -179,24 +179,31 @@ export function GameProvider({
 
   const opponentMove = useCallback(async () => {
     const game = gameRef.current;
-    if (game.isGameOver()) return;
-
     const myGen = moveGenerationRef.current;
     setIsOpponentThinking(true);
 
-    let selected: Move | null = null;
-    try {
-      selected = (await engineRef.current?.pickMove(game)) ?? null;
-    } catch {
-      selected = null;
-    }
+    const outcome = await requestOpponentMove({
+      engine: ensureEngine(),
+      game,
+      requestId: myGen,
+      isCurrent: (id) => id === moveGenerationRef.current,
+      mode: 'classic',
+    });
 
-    if (myGen !== moveGenerationRef.current) {
+    if (myGen !== moveGenerationRef.current || outcome.kind === 'cancelled') {
       setIsOpponentThinking(false);
       return;
     }
 
-    if (!selected) {
+    if (outcome.kind === 'terminal') {
+      setIsOpponentThinking(false);
+      setWaitingForUser(false);
+      syncState();
+      setStatus(gameStateAnnouncement(game, ''));
+      return;
+    }
+
+    if (outcome.kind === 'error') {
       setIsOpponentThinking(false);
       setWaitingForUser(true);
       setStatus(tMsg('game.opponentFailed'));
@@ -205,9 +212,9 @@ export function GameProvider({
 
     try {
       const played = game.move({
-        from: selected.from,
-        to: selected.to,
-        promotion: selected.promotion || 'q',
+        from: outcome.move.from,
+        to: outcome.move.to,
+        promotion: outcome.move.promotion || 'q',
       }) as Move;
 
       setLastMove({ from: played.from, to: played.to });
@@ -221,8 +228,10 @@ export function GameProvider({
     } catch {
       setIsOpponentThinking(false);
       setWaitingForUser(true);
+      setStatus(tMsg('game.opponentFailed'));
     }
   }, [
+    ensureEngine,
     gameRef,
     moveGenerationRef,
     setIsOpponentThinking,
@@ -483,6 +492,23 @@ export function GameProvider({
     opponentMoveRef.current();
   }, [gameRef, setWaitingForUser, opponentMoveRef]);
 
+  const returnToCampSetup = useCallback(() => {
+    cancelPending();
+    speechService.cancel('new-game');
+    gameRef.current.reset();
+    resetUiForNewGame();
+    syncState();
+    setWaitingForUser(true);
+    setStatus(tMsg('game.yourTurn'));
+  }, [
+    cancelPending,
+    gameRef,
+    resetUiForNewGame,
+    syncState,
+    setWaitingForUser,
+    setStatus,
+  ]);
+
   const exportPlaySnapshot = useCallback((): ClassicPlaySnapshot => {
     return {
       history: gameRef.current.history(),
@@ -509,8 +535,19 @@ export function GameProvider({
       setIsOpponentThinking(false);
       syncState();
       const over = restored.isGameOver();
-      setWaitingForUser(!over && restored.turn() === color);
-      setStatus(snap.status || (over ? tMsg('game.yourTurn') : tMsg('game.yourTurn')));
+      const engineToMove = !over && restored.turn() !== color;
+      setWaitingForUser(!over && !engineToMove);
+      setStatus(
+        snap.status ||
+          (over
+            ? tMsg('game.gameOver')
+            : engineToMove
+              ? tMsg('game.opponentThinking')
+              : tMsg('game.yourTurn')),
+      );
+      if (engineToMove) {
+        scheduleOpponentKickoff(OPPONENT_KICKOFF_DELAY_MS);
+      }
     },
     [
       cancelPending,
@@ -523,6 +560,7 @@ export function GameProvider({
       syncState,
       setWaitingForUser,
       setStatus,
+      scheduleOpponentKickoff,
     ],
   );
 
@@ -551,6 +589,7 @@ export function GameProvider({
         summarizeGame: summarizeGameHistory,
         undoMove,
         retryOpponentMove,
+        returnToCampSetup,
         exportPgn,
         downloadPgn,
         exportPlaySnapshot,

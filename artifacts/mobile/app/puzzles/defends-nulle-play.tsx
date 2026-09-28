@@ -42,6 +42,7 @@ import { pairMoveHistory } from '@/lib/game';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { confirmLeaveToHub } from '@/lib/activitySessions';
 import {
   EndgameEngineStatusBanner,
   useSharedStockfishRuntime,
@@ -89,9 +90,10 @@ function boardFromFen(fen: string): (BoardPiece | null)[][] {
 }
 
 export default function EndgameTrainingPlayScreen() {
-  const { positionId, source } = useLocalSearchParams<{
+  const { positionId, source, sessionId: resumeParam } = useLocalSearchParams<{
     positionId: string;
     source?: string;
+    sessionId?: string;
   }>();
   const colors = useColors();
   const { t } = useTranslation();
@@ -118,13 +120,14 @@ export default function EndgameTrainingPlayScreen() {
   const startedRef = useRef(false);
   const recordedRef = useRef(false);
 
-  usePersistedActivity({
+  const { sessionId } = usePersistedActivity({
     kind: 'defends-nulle',
     modeId: 'puzzles',
+    resumeSessionId: typeof resumeParam === 'string' ? resumeParam : undefined,
     title: t('quiz.defendsNulle'),
     summary: snap.position?.id ?? String(positionId ?? ''),
-    routeFor: () =>
-      `/puzzles/defends-nulle-play?positionId=${encodeURIComponent(String(positionId ?? ''))}&source=${source ?? 'new'}`,
+    routeFor: (id) =>
+      `/puzzles/defends-nulle-play?positionId=${encodeURIComponent(String(positionId ?? ''))}&source=${source ?? 'new'}&sessionId=${encodeURIComponent(id)}`,
     enabled:
       positionReady &&
       (snap.phase === 'playing' ||
@@ -479,11 +482,24 @@ export default function EndgameTrainingPlayScreen() {
     setTryAgainPromptVisible(false);
   };
 
+  const leaveToHub = () => router.replace('/puzzles/defends-nulle' as Href);
+  const onPlayBack = () => {
+    if (
+      snap.phase === 'playing' ||
+      snap.phase === 'thinking' ||
+      snap.phase === 'verifying-loss'
+    ) {
+      confirmLeaveToHub('defends-nulle', sessionId, leaveToHub);
+      return;
+    }
+    leaveToHub();
+  };
+
   if (positionMissing) {
     return (
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
-        onBack={() => router.navigate('/')}
+        onBack={onPlayBack}
         testID="endgame-training-play"
       >
         <View style={styles.missingBox}>
@@ -505,7 +521,7 @@ export default function EndgameTrainingPlayScreen() {
     return (
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
-        onBack={() => router.navigate('/')}
+        onBack={onPlayBack}
         testID="endgame-training-play"
       >
         <View style={styles.busyRow} testID="endgame-position-loading">
@@ -524,7 +540,7 @@ export default function EndgameTrainingPlayScreen() {
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
         subtitle={campLabel}
-        onBack={() => router.navigate('/')}
+        onBack={onPlayBack}
         testID="endgame-training-play"
       >
         {snap.position && (
@@ -613,7 +629,7 @@ export default function EndgameTrainingPlayScreen() {
         <EndgameEngineStatusBanner
           snapshot={engineSnap}
           onRetry={() => void retryEngine()}
-          onBack={() => router.navigate('/')}
+          onBack={onPlayBack}
         />
 
         {thinking && engineReady && (

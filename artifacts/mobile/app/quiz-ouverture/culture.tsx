@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessCultureVisual } from '@/components/chessCulture/ChessCultureVisual';
@@ -37,7 +37,7 @@ import {
   type ChessCultureFeedbackVote,
   type ChessCultureSessionQuestion,
 } from '@/lib/chessCulture';
-import { getActivitySession } from '@/lib/activitySessions';
+import { getActivitySession, confirmLeaveToHub } from '@/lib/activitySessions';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 
 type Phase = 'loading' | 'playing' | 'finished';
@@ -107,7 +107,7 @@ export default function CultureGeneraleQuizScreen() {
     hasAnswered: boolean;
   };
 
-  usePersistedActivity<CulturePayload>({
+  const { sessionId } = usePersistedActivity<CulturePayload>({
     kind: 'culture',
     modeId: 'quiz-ouverture',
     resumeSessionId,
@@ -210,7 +210,15 @@ export default function CultureGeneraleQuizScreen() {
       ]}
     >
       <ScreenHeader
-        onBack={() => router.navigate('/')}
+        onBack={() => {
+          if (phase === 'playing') {
+            confirmLeaveToHub('culture', sessionId, () => {
+              router.replace('/quiz-ouverture' as Href);
+            });
+            return;
+          }
+          router.navigate('/');
+        }}
         title={t('quiz.quiz')}
         subtitle={t('quiz.cultureMixed')}
         backTestID="culture-quiz-back"

@@ -73,6 +73,7 @@ export async function openPgnInAnalyzer(input: {
   flipped?: boolean;
   tab?: string;
   nodeId?: string;
+  source?: string;
   store?: GameLibraryStore;
 }): Promise<{ gameId: string; href: AnalyzerHref; game: ImportedChessGame } | null> {
   const store = input.store ?? gameLibraryStore;
@@ -90,6 +91,7 @@ export async function openPgnInAnalyzer(input: {
       flipped: input.flipped,
       tab: input.tab ?? 'analysis',
       nodeId: input.nodeId,
+      source: input.source,
     }),
   };
 }

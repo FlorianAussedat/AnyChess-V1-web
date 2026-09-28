@@ -43,6 +43,27 @@ export function createActivitySessionId(): string {
   return `act_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** User-facing quit copy family — coarser than ActivityNoun. */
+export type ActivityEndCopy = 'partie' | 'exercice' | 'analyse' | 'quiz' | 'entrainement';
+
+export function endCopyForKind(kind: ActivityKind): ActivityEndCopy {
+  switch (kind) {
+    case 'classic':
+      return 'partie';
+    case 'parties-analyzer':
+      return 'analyse';
+    case 'quelle':
+    case 'culture':
+      return 'quiz';
+    case 'opening-play':
+    case 'opening-study':
+    case 'opening-continue':
+      return 'entrainement';
+    default:
+      return 'exercice';
+  }
+}
+
 export function nounForKind(kind: ActivityKind): ActivityNoun {
   switch (kind) {
     case 'classic':

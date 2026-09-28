@@ -37,7 +37,7 @@ import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
-import { confirmDiscardActivity } from '@/lib/activitySessions';
+import { confirmDiscardActivity, confirmLeaveToHub } from '@/lib/activitySessions';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import { flagsFromPlayTurn, pairMoveHistory } from '@/lib/game';
 import {
@@ -111,19 +111,19 @@ export function OpeningGameScreen() {
     downloadPgn,
   } = useOpeningGame();
 
-  const playParams = useLocalSearchParams<Record<string, string | undefined>>();
+  const playParams = useLocalSearchParams();
   const resumeSessionId =
     typeof playParams.sessionId === 'string' ? playParams.sessionId : undefined;
   const playQuery = Object.entries(playParams)
     .filter(([, value]) => typeof value === 'string' && value.length > 0)
     .map(([key, value]) => `${key}=${encodeURIComponent(value as string)}`)
     .join('&');
-  usePersistedActivity({
+  const { sessionId } = usePersistedActivity({
     kind: 'opening-play',
     modeId: 'openings',
     resumeSessionId,
-    title: repertoireName || t('modes.openings.title'),
-    summary: history.slice(-4).join(' '),
+    title: t('activity.openingTraining'),
+    summary: repertoireName || history.slice(-4).join(' '),
     routeFor: (id) => {
       const qs = new URLSearchParams(playQuery);
       qs.set('sessionId', id);
@@ -271,6 +271,12 @@ export function OpeningGameScreen() {
     <>
       <ChessScreenScaffold
         onBack={() => {
+          if (history.length > 0) {
+            confirmLeaveToHub('opening-play', sessionId, () => {
+              router.replace('/openings' as Href);
+            });
+            return;
+          }
           router.navigate('/');
         }}
         title={headerTitle}
@@ -311,11 +317,14 @@ export function OpeningGameScreen() {
             onSummarize={summarizeGame}
             onNewGame={() => {
               if (history.length > 0) {
-                confirmDiscardActivity('cours', () => newGame());
+                confirmLeaveToHub('opening-play', sessionId, () => {
+                  router.replace('/openings' as Href);
+                });
                 return;
               }
               newGame();
             }}
+            leaveMode={history.length > 0 ? 'quit-training' : 'new'}
           />
         )}
 
@@ -409,6 +418,7 @@ export function OpeningGameScreen() {
               displayName: openingLabel || repertoireName || 'Ouverture',
               flipped: playerColor === 'b',
               tab: 'analysis',
+              source: 'live',
             });
             if (!opened) return;
             leaveEphemeralOpeningExercise();
@@ -498,6 +508,7 @@ export function OpeningGameScreen() {
             displayName: openingLabel || repertoireName || 'Ouverture',
             flipped: playerColor === 'b',
             tab: 'analysis',
+            source: 'live',
           });
           if (!opened) return;
           leaveEphemeralOpeningExercise();

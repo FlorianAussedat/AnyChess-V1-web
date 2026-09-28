@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import { verbalMove } from '@/lib/chessParser';
@@ -54,6 +54,7 @@ import {
 } from '@/lib/puzzles';
 import { puzzleStreakBandId } from '@/lib/puzzles/streakBand';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { confirmLeaveToHub } from '@/lib/activitySessions';
 
 export type PuzzleSpokenResult =
   | PuzzleAttemptResult
@@ -145,10 +146,10 @@ function filtersFromBands(
 }
 
 export function PuzzleProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const resumeSessionId =
     typeof params.sessionId === 'string' ? params.sessionId : undefined;
+  const sessionIdRef = useRef('');
   const sessionRef = useRef(new PuzzleSession());
   const replayRef = useRef(new PuzzleSolutionReplay());
   const submodeRef = useRef<PuzzleSubmode | null>(null);
@@ -384,33 +385,36 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
   }, [resetPresentation]);
 
   const backToHub = useCallback(() => {
+    const resetToHub = () => {
+      if (sessionRef.current.isLoaded && !streakRecordedRef.current) {
+        void recordStreak(false);
+      }
+      speechService.stop();
+      replayRef.current.cancel();
+      resetPresentation();
+      setIsReplaying(false);
+      setSubmode(null);
+      submodeRef.current = null;
+      setPhase('hub');
+      setPuzzle(null);
+      setStats(null);
+      setLastMove(null);
+      setLastFeedback(null);
+      setSolutionLine(null);
+      setNextMoveHint(null);
+      setPositionNarration(null);
+      setLoadError(null);
+      setBoardVisible(true);
+      setBoard(new Chess().board() as (BoardPiece | null)[][]);
+      setCurrentFen(new Chess().fen());
+      setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
+    };
     if (phase === 'playing' || phase === 'solution-replay') {
-      router.navigate('/');
+      confirmLeaveToHub('puzzles-tactical', sessionIdRef.current, resetToHub);
       return;
     }
-    if (phase === 'playing' && sessionRef.current.isLoaded && !streakRecordedRef.current) {
-      void recordStreak(false);
-    }
-    speechService.stop();
-    replayRef.current.cancel();
-    resetPresentation();
-    setIsReplaying(false);
-    setSubmode(null);
-    submodeRef.current = null;
-    setPhase('hub');
-    setPuzzle(null);
-    setStats(null);
-    setLastMove(null);
-    setLastFeedback(null);
-    setSolutionLine(null);
-    setNextMoveHint(null);
-    setPositionNarration(null);
-    setLoadError(null);
-    setBoardVisible(true);
-    setBoard(new Chess().board() as (BoardPiece | null)[][]);
-    setCurrentFen(new Chess().fen());
-    setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
-  }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId, router]);
+    resetToHub();
+  }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
 
   const announceBlindPosition = useCallback((fen: string, opts?: { flush?: boolean }) => {
     const text = narratePosition(fen);
@@ -844,7 +848,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     [phase, isReplaying, isPreviewing, pieceRevealFilter],
   );
 
-  usePersistedActivity<{
+  const { sessionId } = usePersistedActivity<{
     session: PuzzleSessionSnapshot;
     submode: PuzzleSubmode;
     ratingBandId: string;
@@ -878,6 +882,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
       syncFromSession();
     },
   });
+  sessionIdRef.current = sessionId;
 
   return (
     <PuzzleContext.Provider

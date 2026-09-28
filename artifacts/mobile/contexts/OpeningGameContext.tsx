@@ -6,10 +6,9 @@ import React, {
   useEffect,
   useRef,
 } from 'react';
-import { useFocusEffect } from 'expo-router';
 import type { Move } from 'chess.js';
 import { gameStateAnnouncement, verbalMove } from '@/lib/chessParser';
-import { createOpponentEngine } from '@/lib/engines';
+import { createOpponentEngine, logOpponentMoveDebug } from '@/lib/engines';
 import { uciPlayOptionsForTargetElo } from '@/lib/engines/stockfish/uci';
 import {
   DEFAULT_STRENGTH_BAND_ID,
@@ -184,36 +183,34 @@ export function OpeningGameProvider({
   const bandRef = React.useRef(strengthBandId);
   bandRef.current = strengthBandId;
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!repertoire) {
-        setReady(false);
-        return () => {};
-      }
-
-      const engine = createOpponentEngine(engineOptionsForBand(bandRef.current));
-      const opponent = new OpeningOpponent(repertoire, engine);
-      opponentRef.current = opponent;
+  useEffect(() => {
+    if (!repertoire) {
       setReady(false);
+      return () => {};
+    }
 
-      let cancelled = false;
-      opponent
-        .init()
-        .catch(() => {})
-        .finally(() => {
-          if (!cancelled) setReady(true);
-        });
+    const engine = createOpponentEngine(engineOptionsForBand(bandRef.current));
+    const opponent = new OpeningOpponent(repertoire, engine);
+    opponentRef.current = opponent;
+    setReady(false);
 
-      return () => {
-        cancelled = true;
-        // Invalidate in-flight opponentMove callbacks (mirrors Classic GameContext).
-        cancelPendingOpponent(() => opponent.cancel());
-        opponent.destroy();
-        if (opponentRef.current === opponent) opponentRef.current = null;
-        setReady(false);
-      };
-    }, [repertoire, cancelPendingOpponent]),
-  );
+    let cancelled = false;
+    opponent
+      .init()
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+      // Invalidate in-flight opponentMove callbacks (mirrors Classic GameContext).
+      cancelPendingOpponent(() => opponent.cancel());
+      opponent.destroy();
+      if (opponentRef.current === opponent) opponentRef.current = null;
+      setReady(false);
+    };
+  }, [repertoire, cancelPendingOpponent]);
 
   React.useEffect(() => {
     opponentRef.current?.applyStrength(engineOptionsForBand(strengthBandId));
@@ -290,10 +287,20 @@ export function OpeningGameProvider({
     }
 
     if (!selected) {
+      if (game.isGameOver() || game.moves().length === 0) {
+        setPlayTurn('finished', true);
+        return;
+      }
       const st = opponentRef.current?.getTrainingState() ?? 'playingTheory';
       const next = playTurnAfterEmptyOpponentPick(st);
       setPlayTurn(next, game.isGameOver());
       if (next === 'error') {
+        logOpponentMoveDebug({
+          mode: 'opening',
+          reason: 'empty',
+          fen: game.fen(),
+          requestId: myGen,
+        });
         setStatus(tMsg('game.opponentFailed'));
       }
       return;
