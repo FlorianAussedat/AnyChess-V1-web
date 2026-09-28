@@ -29,6 +29,8 @@ export interface RepertoireFolder {
    * file flag is on. Missing (legacy) means enabled.
    */
   enabled?: boolean;
+  /** Permanent catch-all folder — not user-deletable. Independent from game library. */
+  systemKey?: 'unfiled';
   createdAt: string;
   updatedAt: string;
 }

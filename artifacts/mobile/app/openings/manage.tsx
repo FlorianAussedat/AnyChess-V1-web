@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +16,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import {
   hasAssignedRepertoireSide,
+  isUnfiledOpeningFolder,
   needsOppositeSideMoveConfirm,
   pgnFileDisplayName,
   selectedPgnImports,
@@ -34,6 +34,8 @@ import { parkExternalOpeningPgn } from '@/lib/openingStudy';
 import { confirmAction } from '@/lib/openings/confirmAction';
 import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { LibraryActionRow } from '@/components/library/LibraryActionRow';
+import { LibraryFolderFab } from '@/components/library/LibraryFolderFab';
 import { DesignTokens } from '@/constants/designTokens';
 import { NameModal } from '@/components/openings/NameModal';
 import { FolderPickModal } from '@/components/openings/FolderPickModal';
@@ -49,43 +51,6 @@ type PendingImport = {
   entries: PgnGameIndexEntry[];
   selectedIndices: number[];
 };
-
-type PgnAction = {
-  testID: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-};
-
-function OpeningPgnActionRow({
-  action,
-  colors,
-}: {
-  action: PgnAction;
-  colors: ReturnType<typeof useColors>;
-}) {
-  return (
-    <Pressable
-      onPress={action.onPress}
-      accessibilityRole="button"
-      accessibilityLabel={action.label}
-      testID={action.testID}
-      style={({ pressed }) => [
-        styles.pgnActionBtn,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          opacity: pressed ? 0.8 : 1,
-        },
-      ]}
-    >
-      <View style={[styles.pgnActionIcon, { backgroundColor: colors.primary }]}>
-        <Ionicons name={action.icon} size={18} color={colors.primaryForeground} />
-      </View>
-      <Text style={[styles.pgnActionLabel, { color: colors.foreground }]}>{action.label}</Text>
-    </Pressable>
-  );
-}
 
 export default function OpeningsManageScreen() {
   const colors = useColors();
@@ -132,15 +97,22 @@ export default function OpeningsManageScreen() {
   const [pgnPickMode, setPgnPickMode] = useState<'import' | 'edit' | null>(null);
 
   const whiteFolders = useMemo(
-    () => folders.filter((f) => f.side === 'white'),
+    () => folders.filter((f) => f.side === 'white' && !isUnfiledOpeningFolder(f)),
     [folders],
   );
   const blackFolders = useMemo(
-    () => folders.filter((f) => f.side === 'black'),
+    () => folders.filter((f) => f.side === 'black' && !isUnfiledOpeningFolder(f)),
     [folders],
   );
   const unassignedFolders = useMemo(
-    () => folders.filter((f) => !hasAssignedRepertoireSide(f.side)),
+    () =>
+      folders.filter(
+        (f) => !hasAssignedRepertoireSide(f.side) && !isUnfiledOpeningFolder(f),
+      ),
+    [folders],
+  );
+  const unfiledFolder = useMemo(
+    () => folders.find((f) => isUnfiledOpeningFolder(f)) ?? null,
     [folders],
   );
 
@@ -267,8 +239,8 @@ export default function OpeningsManageScreen() {
   );
 
   const openImport = useCallback(() => {
-    void pickOpeningPgn('import');
-  }, [pickOpeningPgn]);
+    router.push('/openings/import' as Href);
+  }, [router]);
 
   const openEditPgn = useCallback(() => {
     void pickOpeningPgn('edit');
@@ -522,6 +494,7 @@ export default function OpeningsManageScreen() {
     const open = expanded.has(folder.id);
     const lines = files.reduce((sum, f) => sum + (f.summary.branchCount || 0), 0);
     const folderOn = folder.enabled !== false;
+    const unfiled = isUnfiledOpeningFolder(folder);
     return (
       <View
         key={folder.id}
@@ -533,13 +506,17 @@ export default function OpeningsManageScreen() {
             <Ionicons name="folder" size={20} color={colors.primaryForeground} />
           </View>
           <View style={styles.folderBody}>
-            <Text style={[styles.folderName, { color: colors.foreground }]}>{folder.name}</Text>
+            <Text style={[styles.folderName, { color: colors.foreground }]}>
+              {unfiled ? t('openings.toClassify') : folder.name}
+            </Text>
             <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-              {hasAssignedRepertoireSide(folder.side)
-                ? sideLabel(folder.side)
-                : `${t('openings.toClassify')} · ${t('openings.chooseWhiteOrBlack')}`}
+              {unfiled
+                ? t('openings.systemFolder')
+                : hasAssignedRepertoireSide(folder.side)
+                  ? sideLabel(folder.side)
+                  : `${t('openings.toClassify')} · ${t('openings.chooseWhiteOrBlack')}`}
               {' · '}
-              {hasAssignedRepertoireSide(folder.side) && folderOn
+              {!unfiled && hasAssignedRepertoireSide(folder.side) && folderOn
                 ? t('openings.folderActive')
                 : t('openings.folderInactive')}
               {' · '}
@@ -547,6 +524,9 @@ export default function OpeningsManageScreen() {
               {lines > 0 ? ` · ${t('openings.linesShort', { count: lines })}` : ''}
             </Text>
           </View>
+          {unfiled ? (
+            <Ionicons name="lock-closed-outline" size={16} color={colors.mutedForeground} />
+          ) : null}
           <Ionicons
             name={open ? 'chevron-up' : 'chevron-down'}
             size={18}
@@ -554,7 +534,11 @@ export default function OpeningsManageScreen() {
           />
         </Pressable>
 
-        {!hasAssignedRepertoireSide(folder.side) ? (
+        {unfiled ? (
+          <Text style={[styles.hint, { color: colors.mutedForeground }]} testID="openings-unfiled-hint">
+            {t('openings.unfiledHint')}
+          </Text>
+        ) : !hasAssignedRepertoireSide(folder.side) ? (
           <Text
             style={[styles.hint, { color: colors.destructive }]}
             testID={`manage-folder-classify-${folder.id}`}
@@ -563,53 +547,55 @@ export default function OpeningsManageScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.folderTools}>
-          <RepertoireSidePicker
-            value={folder.side ?? null}
-            onChange={(side) => {
-              void setFolderSide(folder.id, side);
-            }}
-          />
-          <View style={styles.toolRow}>
-            <Text style={[styles.meta, { color: colors.foreground }]}>
-              {t('openings.toggleReview')}
-            </Text>
-            <Switch
-              value={folderOn}
-              onValueChange={(v) => {
-                void setFolderEnabled(folder.id, v);
+        {unfiled ? null : (
+          <View style={styles.folderTools}>
+            <RepertoireSidePicker
+              value={folder.side ?? null}
+              onChange={(side) => {
+                void setFolderSide(folder.id, side);
               }}
-              testID={`toggle-folder-${folder.id}`}
             />
-            <Pressable
-              onPress={() => {
-                setRenameTarget(folder);
-                setNameDraft(folder.name);
-                setFormError(null);
-              }}
-              hitSlop={8}
-              testID={`rename-folder-${folder.id}`}
-            >
-              <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
-            </Pressable>
-            <Pressable
-              onPress={() =>
-                confirmAction(
-                  t('openings.deleteFolderTitle'),
-                  t('openings.deleteFolderBody', { name: folder.name }),
-                  () => {
-                    void deleteFolder(folder.id);
-                  },
-                  { destructive: true, confirmLabel: t('profil.erase') },
-                )
-              }
-              hitSlop={8}
-              testID={`delete-folder-${folder.id}`}
-            >
-              <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-            </Pressable>
+            <View style={styles.toolRow}>
+              <Text style={[styles.meta, { color: colors.foreground }]}>
+                {t('openings.toggleReview')}
+              </Text>
+              <Switch
+                value={folderOn}
+                onValueChange={(v) => {
+                  void setFolderEnabled(folder.id, v);
+                }}
+                testID={`toggle-folder-${folder.id}`}
+              />
+              <Pressable
+                onPress={() => {
+                  setRenameTarget(folder);
+                  setNameDraft(folder.name);
+                  setFormError(null);
+                }}
+                hitSlop={8}
+                testID={`rename-folder-${folder.id}`}
+              >
+                <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  confirmAction(
+                    t('openings.deleteFolderTitle'),
+                    t('openings.deleteFolderBody', { name: folder.name }),
+                    () => {
+                      void deleteFolder(folder.id);
+                    },
+                    { destructive: true, confirmLabel: t('profil.erase') },
+                  )
+                }
+                hitSlop={8}
+                testID={`delete-folder-${folder.id}`}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.destructive} />
+              </Pressable>
+            </View>
           </View>
-        </View>
+        )}
 
         {open ? <View style={styles.pgnList}>{files.map((f) => renderPgn(f, folder))}</View> : null}
       </View>
@@ -638,32 +624,23 @@ export default function OpeningsManageScreen() {
       ) : null}
 
       <View style={styles.pgnActionStack} testID="opening-pgn-actions">
-        <OpeningPgnActionRow
-          colors={colors}
-          action={{
-            testID: 'import-pgn-root-btn',
-            icon: 'arrow-up-outline',
-            label: t('openings.importOpeningPgn'),
-            onPress: openImport,
-          }}
+        <LibraryActionRow
+          testID="import-pgn-root-btn"
+          icon="arrow-up-outline"
+          label={t('openings.importOpeningPgn')}
+          onPress={openImport}
         />
-        <OpeningPgnActionRow
-          colors={colors}
-          action={{
-            testID: 'create-pgn-btn',
-            icon: 'add',
-            label: t('openings.createOpeningPgn'),
-            onPress: openCreatePgn,
-          }}
+        <LibraryActionRow
+          testID="create-pgn-btn"
+          icon="add"
+          label={t('openings.createOpeningPgn')}
+          onPress={openCreatePgn}
         />
-        <OpeningPgnActionRow
-          colors={colors}
-          action={{
-            testID: 'edit-pgn-root-btn',
-            icon: 'create-outline',
-            label: t('openings.editOpeningPgn'),
-            onPress: openEditPgn,
-          }}
+        <LibraryActionRow
+          testID="edit-pgn-root-btn"
+          icon="create-outline"
+          label={t('openings.editOpeningPgn')}
+          onPress={openEditPgn}
         />
       </View>
 
@@ -677,6 +654,11 @@ export default function OpeningsManageScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+          {unfiledFolder ? (
+            <View style={styles.section} testID="openings-unfiled-section">
+              {renderFolder(unfiledFolder)}
+            </View>
+          ) : null}
           {whiteFolders.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
@@ -707,27 +689,12 @@ export default function OpeningsManageScreen() {
         </ScrollView>
       )}
 
-      <Pressable
-        onPress={openCreate}
-        accessibilityRole="button"
+      <LibraryFolderFab
+        label={t('openings.createFolderFab')}
         accessibilityLabel={t('openings.createFolderA11y')}
+        onPress={openCreate}
         testID="create-folder-btn"
-        style={({ pressed }) => [
-          styles.folderFab,
-          {
-            backgroundColor: colors.primary,
-            opacity: pressed ? 0.85 : 1,
-            bottom:
-              DesignTokens.spacing.md +
-              (Platform.OS === 'web' ? DesignTokens.bottomNavContentHeight : 0),
-          },
-        ]}
-      >
-        <Ionicons name="add" size={20} color={colors.primaryForeground} />
-        <Text style={[styles.folderFabLabel, { color: colors.primaryForeground }]}>
-          {t('openings.createFolderFab')}
-        </Text>
-      </Pressable>
+      />
 
       <NameModal
         visible={createOpen}

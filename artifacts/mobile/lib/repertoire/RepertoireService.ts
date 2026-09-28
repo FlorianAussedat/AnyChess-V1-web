@@ -28,6 +28,10 @@ import {
   setFolderRepertoireCache,
 } from './folderRepertoireCache';
 import { hasAssignedRepertoireSide, requireRepertoireSide } from './folderSide';
+import {
+  isUnfiledOpeningFolder,
+  makeUnfiledOpeningFolder,
+} from './unfiledFolder';
 
 export { normaliseFilename, uniquePgnFilename } from './pgnFilename';
 
@@ -62,10 +66,11 @@ export class RepertoireService {
   async ensureLoaded(): Promise<RepertoireStoreSnapshot> {
     if (this.snapshot) return this.snapshot;
     if (!this.loadPromise) {
-      this.loadPromise = this.storage.load().then((snap) => {
+      this.loadPromise = this.storage.load().then(async (snap) => {
         this.snapshot = snap;
         this.loadPromise = null;
-        return snap;
+        await this.ensureUnfiledFolder();
+        return this.snapshot!;
       });
     }
     return this.loadPromise;
@@ -78,9 +83,11 @@ export class RepertoireService {
 
   getFolders(): RepertoireFolder[] {
     if (!this.snapshot) return [];
-    return [...this.snapshot.folders].sort((a, b) =>
-      a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }),
-    );
+    return [...this.snapshot.folders].sort((a, b) => {
+      if (isUnfiledOpeningFolder(a) && !isUnfiledOpeningFolder(b)) return -1;
+      if (!isUnfiledOpeningFolder(a) && isUnfiledOpeningFolder(b)) return 1;
+      return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+    });
   }
 
   getFolder(folderId: string): RepertoireFolder | null {
@@ -99,6 +106,29 @@ export class RepertoireService {
   }
 
   // ── Folders ───────────────────────────────────────────────────────────────
+
+  async ensureUnfiledFolder(): Promise<RepertoireFolder> {
+    await this.ensureLoaded();
+    const existing = this.snapshot!.folders.find((f) => isUnfiledOpeningFolder(f));
+    if (existing) {
+      if (existing.systemKey !== 'unfiled' || existing.enabled !== false) {
+        existing.systemKey = 'unfiled';
+        existing.enabled = false;
+        existing.updatedAt = nowIso();
+        await this.persist();
+      }
+      return existing;
+    }
+    const folder = makeUnfiledOpeningFolder();
+    this.snapshot!.folders.unshift(folder);
+    await this.persist();
+    return folder;
+  }
+
+  async getUnfiledFolderId(): Promise<string> {
+    const folder = await this.ensureUnfiledFolder();
+    return folder.id;
+  }
 
   async createFolder(
     name: string,
@@ -136,6 +166,9 @@ export class RepertoireService {
 
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
+    if (isUnfiledOpeningFolder(folder)) {
+      throw new Error(tMsg('errors.systemFolderProtected'));
+    }
 
     const clash = this.snapshot!.folders.find(
       (f) => f.id !== folderId && f.name.toLowerCase() === trimmed.toLowerCase(),
@@ -155,6 +188,10 @@ export class RepertoireService {
    */
   async deleteFolder(folderId: string): Promise<void> {
     await this.ensureLoaded();
+    const target = this.snapshot!.folders.find((f) => f.id === folderId);
+    if (target && isUnfiledOpeningFolder(target)) {
+      throw new Error(tMsg('errors.systemFolderProtected'));
+    }
     this.snapshot!.folders = this.snapshot!.folders.filter((f) => f.id !== folderId);
     this.snapshot!.files = this.snapshot!.files.filter((f) => f.folderId !== folderId);
     invalidateFolderRepertoireCache(folderId);
@@ -166,6 +203,9 @@ export class RepertoireService {
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
+    if (isUnfiledOpeningFolder(folder)) {
+      throw new Error(tMsg('errors.systemFolderProtected'));
+    }
     folder.side = requireRepertoireSide(side);
     folder.updatedAt = nowIso();
     await this.persist();
@@ -176,6 +216,9 @@ export class RepertoireService {
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
+    if (isUnfiledOpeningFolder(folder)) {
+      throw new Error(tMsg('errors.systemFolderProtected'));
+    }
     folder.enabled = enabled;
     folder.updatedAt = nowIso();
     await this.persist();
@@ -204,6 +247,7 @@ export class RepertoireService {
   getFoldersMissingSide(): RepertoireFolder[] {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
+      if (isUnfiledOpeningFolder(folder)) return false;
       if (hasAssignedRepertoireSide(folder.side)) return false;
       return this.getFiles(folder.id).some(
         (f) => f.summary.parseSucceeded && f.enabled !== false,

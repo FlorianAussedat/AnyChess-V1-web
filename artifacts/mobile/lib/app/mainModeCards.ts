@@ -72,8 +72,8 @@ export const MAIN_MODE_CARD_META: MainModeCardMeta[] = [
   {
     id: 'parties',
     route: '/parties' as Href,
-    title: 'Parties',
-    description: 'Retrouve, rejoue et analyse tes parties.',
+    title: 'Analyses de parties',
+    description: 'Classe tes parties, rejoue-les et analyse les positions qui t’intéressent.',
     iconName: 'play-circle-outline',
     requiredMascotAsset: 'mascot-player-knight-dj.png',
   },

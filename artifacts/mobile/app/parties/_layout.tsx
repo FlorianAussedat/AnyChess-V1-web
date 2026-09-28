@@ -6,6 +6,7 @@ export default function PartiesLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="[gameId]" />
       <Stack.Screen name="analyzer" />
+      <Stack.Screen name="import" />
     </Stack>
   );
 }

@@ -79,6 +79,10 @@ export type MessageKey =
   | 'openings.annotateThisPgn'
   | 'openings.createPgn'
   | 'openings.importOpeningPgn'
+  | 'openings.importTitle'
+  | 'openings.importedToUnfiled'
+  | 'openings.systemFolder'
+  | 'openings.unfiledHint'
   | 'openings.createOpeningPgn'
   | 'openings.editOpeningPgn'
   | 'openings.createFolderFab'
@@ -205,6 +209,30 @@ export type MessageKey =
   | 'parties.title'
   | 'parties.subtitle'
   | 'parties.importPgn'
+  | 'parties.importPgnFen'
+  | 'parties.startFromInitial'
+  | 'parties.createFolderFab'
+  | 'parties.createFolderA11y'
+  | 'parties.unfiledFolder'
+  | 'parties.systemFolder'
+  | 'parties.importFilePgn'
+  | 'parties.pastePgn'
+  | 'parties.pastePgnPlaceholder'
+  | 'parties.pasteFen'
+  | 'parties.pasteFenPlaceholder'
+  | 'parties.pgnInvalid'
+  | 'parties.fenInvalid'
+  | 'parties.saveAnalysis'
+  | 'parties.savedToUnfiled'
+  | 'parties.alreadySaved'
+  | 'parties.importTitle'
+  | 'parties.emptyFolder'
+  | 'parties.moveGame'
+  | 'parties.folderLocked'
+  | 'parties.anyliseurProfileFastDesc'
+  | 'parties.anyliseurProfileNormalDesc'
+  | 'parties.anyliseurProfileDeepDesc'
+  | 'parties.anyliseurProfileMetric'
   | 'parties.empty'
   | 'parties.noMeta'
   | 'parties.moveCount'
@@ -405,6 +433,7 @@ export type MessageKey =
   | 'errors.pgnEmpty'
   | 'errors.pgnNotFound'
   | 'errors.filePgnNotFound'
+  | 'errors.systemFolderProtected'
   // Openings
   | 'openings.title'
   | 'openings.repertoires'
@@ -1009,6 +1038,11 @@ const fr: Dict = {
   'openings.annotateThisPgn': 'Annoter ce PGN',
   'openings.createPgn': 'Créer un PGN',
   'openings.importOpeningPgn': 'Importer un PGN d’ouverture',
+  'openings.importTitle': 'Importer un PGN d’ouverture',
+  'openings.importedToUnfiled': 'Importé dans « À classer ».',
+  'openings.systemFolder': 'Dossier système',
+  'openings.unfiledHint':
+    'Destination par défaut. Déplace ensuite tes PGN vers un répertoire Blancs ou Noirs.',
   'openings.createOpeningPgn': 'Créer un PGN d’ouverture',
   'openings.editOpeningPgn': 'Éditer un PGN d’ouverture',
   'openings.createFolderFab': 'Dossier',
@@ -1143,13 +1177,42 @@ const fr: Dict = {
   'modes.quiz-ouverture.title': 'Culture générale',
   'modes.quiz-ouverture.description':
     'Reconnais les ouvertures et teste tes connaissances.',
-  'modes.parties.title': 'Parties',
-  'modes.parties.description': 'Retrouve, rejoue et analyse tes parties.',
-  'parties.title': 'Parties',
+  'modes.parties.title': 'Analyses de parties',
+  'modes.parties.description':
+    'Classe tes parties, rejoue-les et analyse les positions qui t’intéressent.',
+  'parties.title': 'Analyses de parties',
   'parties.subtitle':
     'Classe tes parties, rejoue-les et analyse les positions qui t’intéressent.',
-  'parties.importPgn': 'Importer un PGN',
-  'parties.empty': 'Aucune partie importée. Importe un fichier PGN pour commencer.',
+  'parties.importPgn': 'Importer un PGN / FEN',
+  'parties.importPgnFen': 'Importer un PGN / FEN',
+  'parties.startFromInitial': 'Analyse depuis la position de départ',
+  'parties.createFolderFab': 'Dossier',
+  'parties.createFolderA11y': 'Créer un dossier',
+  'parties.unfiledFolder': 'À classer',
+  'parties.systemFolder': 'Dossier système',
+  'parties.importFilePgn': 'Importer un fichier PGN',
+  'parties.pastePgn': 'Coller un PGN',
+  'parties.pastePgnPlaceholder': 'Colle un PGN ici…',
+  'parties.pasteFen': 'Coller un FEN',
+  'parties.pasteFenPlaceholder': 'Colle une position FEN ici…',
+  'parties.pgnInvalid': 'PGN invalide ou incomplet.',
+  'parties.fenInvalid': 'FEN invalide. Vérifie la position saisie.',
+  'parties.saveAnalysis': 'Sauvegarder',
+  'parties.savedToUnfiled': 'Enregistrée dans « À classer ».',
+  'parties.alreadySaved': 'Cette analyse est déjà enregistrée.',
+  'parties.importTitle': 'Importer un PGN / FEN',
+  'parties.emptyFolder': 'Aucune analyse dans ce dossier.',
+  'parties.moveGame': 'Déplacer vers un dossier',
+  'parties.folderLocked': 'Dossier système — non supprimable',
+  'parties.anyliseurProfileFastDesc':
+    'Analyse quasi immédiate pour naviguer rapidement dans la partie.',
+  'parties.anyliseurProfileNormalDesc':
+    'Analyse plus précise, avec un temps d’attente modéré.',
+  'parties.anyliseurProfileDeepDesc':
+    'Analyse approfondie, plus lente.',
+  'parties.anyliseurProfileMetric': '~{{ms}} ms · profondeur {{depth}}',
+  'parties.empty':
+    'Aucune analyse enregistrée. Importe un PGN ou lance une analyse depuis la position de départ, puis sauvegarde.',
   'parties.noMeta': 'Métadonnées indisponibles',
   'parties.moveCount': '{{count}} demi-coups',
   'parties.importOk': '{{count}} partie(s) importée(s)',
@@ -1203,8 +1266,8 @@ const fr: Dict = {
   'parties.anyliseurTabGame': 'Partie',
   'parties.anyliseurTabAnalysis': 'Analyse',
   'parties.anyliseurProfileFast': 'Rapide',
-  'parties.anyliseurProfileNormal': 'Normal',
-  'parties.anyliseurProfileDeep': 'Approfondie',
+  'parties.anyliseurProfileNormal': 'Moyenne',
+  'parties.anyliseurProfileDeep': 'Forte',
   'parties.anyliseurExport': 'Export',
   'parties.anyliseurExportDone': 'PGN enrichi copié.',
   'parties.anyliseurExportFail': 'Impossible de copier le PGN.',
@@ -1254,7 +1317,7 @@ const fr: Dict = {
   'parties.anyliseurA11yReturnHint': 'Retourne au point avant les coups d’exploration',
   'parties.anyliseurProfileTitle': 'Profil d’analyse',
   'parties.anyliseurProfileHint':
-    'Ces modes règlent le temps de recherche du moteur, pas la difficulté.',
+    'Ces modes règlent le temps de recherche et la profondeur maximale du moteur, pas la difficulté.',
   'parties.anyliseurProfileClose': 'Fermer le profil d’analyse',
   'parties.analyzer': 'AnyLyseur',
   'parties.analyzerSubtitle': 'Analyse de partie et de position',
@@ -1264,8 +1327,8 @@ const fr: Dict = {
   'parties.parseError': 'Impossible de lire cette partie.',
   'parties.parseErrorHint': 'Vérifie le PGN (coups, en-têtes) puis réessaie.',
   'parties.openAnalyzer': 'Ouvrir AnyLyseur',
-  'parties.openWorkspace': 'Nouvelle partie / analyse',
-  'parties.workspace': 'Workspace partie',
+  'parties.openWorkspace': 'Analyse depuis la position de départ',
+  'parties.workspace': 'Analyse de partie',
   'parties.workspaceSubtitle': 'Partie et analyse — un seul état',
   'game.movesPlayed': 'Coups joués',
   'game.exportPgn': 'Exporter en PGN',
@@ -1349,6 +1412,7 @@ const fr: Dict = {
   'errors.pgnEmpty': 'Le contenu PGN est vide.',
   'errors.pgnNotFound': 'Fichier PGN introuvable.',
   'errors.filePgnNotFound': 'Fichier PGN introuvable.',
+  'errors.systemFolderProtected': 'Ce dossier système ne peut pas être modifié.',
   'openings.title': 'Ouvertures',
   'openings.repertoires': 'Répertoires PGN',
   'openings.new': 'Nouveau',
@@ -2025,6 +2089,11 @@ const en: Dict = {
   'openings.annotateThisPgn': 'Annotate this PGN',
   'openings.createPgn': 'Create a PGN',
   'openings.importOpeningPgn': 'Import an opening PGN',
+  'openings.importTitle': 'Import an opening PGN',
+  'openings.importedToUnfiled': 'Imported into “Unsorted”.',
+  'openings.systemFolder': 'System folder',
+  'openings.unfiledHint':
+    'Default destination. Move PGNs into a White or Black repertoire afterwards.',
   'openings.createOpeningPgn': 'Create an opening PGN',
   'openings.editOpeningPgn': 'Edit an opening PGN',
   'openings.createFolderFab': 'Folder',
@@ -2159,13 +2228,42 @@ const en: Dict = {
   'modes.quiz-ouverture.title': 'General knowledge',
   'modes.quiz-ouverture.description':
     'Recognize openings and test your knowledge.',
-  'modes.parties.title': 'Games',
-  'modes.parties.description': 'Find, replay and analyze your games.',
-  'parties.title': 'Games',
+  'modes.parties.title': 'Game analyses',
+  'modes.parties.description':
+    'Organize your games, replay them and analyze the positions that interest you.',
+  'parties.title': 'Game analyses',
   'parties.subtitle':
     'Organize your games, replay them and analyze the positions that interest you.',
-  'parties.importPgn': 'Import a PGN',
-  'parties.empty': 'No imported games yet. Import a PGN file to get started.',
+  'parties.importPgn': 'Import a PGN / FEN',
+  'parties.importPgnFen': 'Import a PGN / FEN',
+  'parties.startFromInitial': 'Analyze from the starting position',
+  'parties.createFolderFab': 'Folder',
+  'parties.createFolderA11y': 'Create a folder',
+  'parties.unfiledFolder': 'Unsorted',
+  'parties.systemFolder': 'System folder',
+  'parties.importFilePgn': 'Import a PGN file',
+  'parties.pastePgn': 'Paste a PGN',
+  'parties.pastePgnPlaceholder': 'Paste a PGN here…',
+  'parties.pasteFen': 'Paste a FEN',
+  'parties.pasteFenPlaceholder': 'Paste a FEN position here…',
+  'parties.pgnInvalid': 'Invalid or incomplete PGN.',
+  'parties.fenInvalid': 'Invalid FEN. Check the position you entered.',
+  'parties.saveAnalysis': 'Save',
+  'parties.savedToUnfiled': 'Saved to “Unsorted”.',
+  'parties.alreadySaved': 'This analysis is already saved.',
+  'parties.importTitle': 'Import a PGN / FEN',
+  'parties.emptyFolder': 'No analyses in this folder.',
+  'parties.moveGame': 'Move to a folder',
+  'parties.folderLocked': 'System folder — cannot be deleted',
+  'parties.anyliseurProfileFastDesc':
+    'Near-instant analysis for navigating through the game quickly.',
+  'parties.anyliseurProfileNormalDesc':
+    'More precise analysis, with a moderate wait.',
+  'parties.anyliseurProfileDeepDesc':
+    'Deeper analysis, slower.',
+  'parties.anyliseurProfileMetric': '~{{ms}} ms · depth {{depth}}',
+  'parties.empty':
+    'No saved analyses yet. Import a PGN or start from the initial position, then save.',
   'parties.noMeta': 'No metadata available',
   'parties.moveCount': '{{count}} plies',
   'parties.importOk': '{{count}} game(s) imported',
@@ -2218,8 +2316,8 @@ const en: Dict = {
   'parties.anyliseurTabGame': 'Game',
   'parties.anyliseurTabAnalysis': 'Analysis',
   'parties.anyliseurProfileFast': 'Fast',
-  'parties.anyliseurProfileNormal': 'Normal',
-  'parties.anyliseurProfileDeep': 'Deep',
+  'parties.anyliseurProfileNormal': 'Medium',
+  'parties.anyliseurProfileDeep': 'Strong',
   'parties.anyliseurExport': 'Export',
   'parties.anyliseurExportDone': 'Enriched PGN copied.',
   'parties.anyliseurExportFail': 'Could not copy PGN.',
@@ -2269,7 +2367,7 @@ const en: Dict = {
   'parties.anyliseurA11yReturnHint': 'Go back to the position before exploration moves',
   'parties.anyliseurProfileTitle': 'Analysis profile',
   'parties.anyliseurProfileHint':
-    'These modes set engine search time, not difficulty.',
+    'These modes set engine search time and maximum depth, not difficulty.',
   'parties.anyliseurProfileClose': 'Close analysis profile',
   'parties.analyzer': 'AnyLyseur',
   'parties.analyzerSubtitle': 'Game and position analysis',
@@ -2279,8 +2377,8 @@ const en: Dict = {
   'parties.parseError': 'Unable to read this game.',
   'parties.parseErrorHint': 'Check the PGN (moves, headers) and try again.',
   'parties.openAnalyzer': 'Open AnyLyseur',
-  'parties.openWorkspace': 'New game / analysis',
-  'parties.workspace': 'Game workspace',
+  'parties.openWorkspace': 'Analyze from the starting position',
+  'parties.workspace': 'Game analysis',
   'parties.workspaceSubtitle': 'Game and analysis — one shared state',
   'game.movesPlayed': 'Moves played',
   'game.exportPgn': 'Export PGN',
@@ -2364,6 +2462,7 @@ const en: Dict = {
   'errors.pgnEmpty': 'PGN content is empty.',
   'errors.pgnNotFound': 'PGN file not found.',
   'errors.filePgnNotFound': 'PGN file not found.',
+  'errors.systemFolderProtected': 'This system folder cannot be changed.',
   'openings.title': 'Openings',
   'openings.repertoires': 'PGN repertoires',
   'openings.new': 'New',
