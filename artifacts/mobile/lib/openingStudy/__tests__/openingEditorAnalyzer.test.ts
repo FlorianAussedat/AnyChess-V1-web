@@ -29,6 +29,10 @@ import {
   setParkedOpeningEditor,
   takeParkedOpeningEditor,
 } from '../parkedOpeningEditor.ts';
+import {
+  EXTERNAL_OPENING_EDITOR_HANDOFF,
+  parkExternalOpeningPgn,
+} from '../parkExternalOpeningPgn.ts';
 
 const AFTER_E4 = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1';
 
@@ -297,5 +301,41 @@ describe('graft several analysed plies onto an existing editor node', () => {
       (n) => n.san === 'e5',
     ).length;
     assert.equal(e5Count, 1);
+  });
+});
+
+describe('parkExternalOpeningPgn', () => {
+  it('loads a picked PGN into the existing editor without importing it', () => {
+    parkExternalOpeningPgn({
+      pgnText: '[White "W"]\n[Black "B"]\n\n1. e4 e5 2. Nf3 *',
+      displayName: 'Italian',
+    });
+    assert.equal(takeParkedOpeningEditor({ fileId: 'pgn_1' }), null);
+    const taken = takeParkedOpeningEditor({ handoff: EXTERNAL_OPENING_EDITOR_HANDOFF });
+    assert.ok(taken);
+    assert.equal(taken!.kind, 'external-edit');
+    assert.equal(taken!.session.fileId, null);
+    assert.equal(taken!.session.folderId, '');
+    assert.equal(taken!.session.dirty, true);
+    assert.equal(taken!.session.snapshot.displayName, 'Italian');
+    assert.match(editorExportPgn(taken!.session), /1\. e4 e5 2\. Nf3/);
+    assert.equal(takeParkedOpeningEditor({ handoff: EXTERNAL_OPENING_EDITOR_HANDOFF }), null);
+  });
+
+  it('restores an AnyLyseur return that kept the external handoff', () => {
+    parkExternalOpeningPgn({
+      pgnText: '1. e4 *',
+      displayName: 'Edit me',
+    });
+    const parked = takeParkedOpeningEditor({ handoff: EXTERNAL_OPENING_EDITOR_HANDOFF });
+    assert.ok(parked);
+    setParkedOpeningEditor({
+      ...parked!,
+      kind: 'analyze-return',
+    });
+    const restored = takeParkedOpeningEditor({ handoff: EXTERNAL_OPENING_EDITOR_HANDOFF });
+    assert.ok(restored);
+    assert.equal(restored!.kind, 'analyze-return');
+    assert.equal(restored!.session.snapshot.displayName, 'Edit me');
   });
 });

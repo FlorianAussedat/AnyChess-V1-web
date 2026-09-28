@@ -19,7 +19,7 @@ export const ANDROID_ANALYSIS_DEPTH_CAP: Record<AnalysisProfileId, number> = {
   deep: 32,
 };
 
-export const DEFAULT_ANALYSIS_PROFILE: AnalysisProfileId = 'normal';
+export const DEFAULT_ANALYSIS_PROFILE: AnalysisProfileId = 'fast';
 
 function detectPlatform(): string {
   try {
@@ -43,4 +43,18 @@ export function resolveAnalysisProfile(
 
 export function getAnalysisProfile(id: AnalysisProfileId): AnalysisProfile {
   return resolveAnalysisProfile(id, detectPlatform());
+}
+
+/** User-facing metric: both depth cap and movetime are sent to Stockfish. */
+export function analysisProfileMetric(id: AnalysisProfileId): {
+  depth: number;
+  movetimeMs: number;
+  multiPv: number;
+} {
+  const profile = getAnalysisProfile(id);
+  return {
+    depth: profile.depth,
+    movetimeMs: profile.movetimeMs,
+    multiPv: profile.multiPv,
+  };
 }

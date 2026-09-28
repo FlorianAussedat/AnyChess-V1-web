@@ -53,6 +53,7 @@ export function migrateGameLibrarySnapshot(
         name: folder.name.trim() || 'Dossier',
         parentId:
           typeof folder.parentId === 'string' ? folder.parentId : null,
+        systemKey: folder.systemKey === 'unfiled' ? 'unfiled' : undefined,
         createdAt:
           typeof folder.createdAt === 'number' ? folder.createdAt : Date.now(),
         updatedAt:

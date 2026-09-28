@@ -60,20 +60,29 @@ describe('openings hub empty vs populated', () => {
     assert.doesNotMatch(index, /create-folder-btn/);
     assert.doesNotMatch(index, /review-all-btn/);
   });
+
+  it('manage still uses the existing light-index import and create-folder workflow', () => {
+    const manage = read('app/openings/manage.tsx');
+    assert.match(manage, /openImport/);
+    assert.match(manage, /openCreatePgn/);
+    assert.match(manage, /openCreate/);
+    assert.match(manage, /create-folder-btn/);
+    assert.match(manage, /import-pgn-root-btn/);
+    assert.match(manage, /\/openings\/import/);
+  });
 });
 
 describe('openings manage import wiring', () => {
   const manage = read('app/openings/manage.tsx');
+  const importScreen = read('app/openings/import.tsx');
 
-  it('wires light-index import + mandatory folder pick (no auto unclassified)', () => {
+  it('routes import to the shared panel and defaults to À classer', () => {
     assert.match(manage, /openImport/);
-    assert.match(manage, /importPgn/);
-    assert.match(manage, /pickPgnFile/);
-    assert.match(manage, /indexPgnGamesLight/);
-    assert.match(manage, /PgnGameSelectModal/);
-    assert.match(manage, /MAX_OPENINGS_PGN_IMPORT_BATCH/);
-    assert.match(manage, /FolderPickModal/);
-    assert.match(manage, /selectedPgnImports/);
+    assert.match(manage, /\/openings\/import/);
+    assert.match(importScreen, /PgnImportPanel/);
+    assert.match(importScreen, /allowFen=\{false\}/);
+    assert.match(importScreen, /getUnfiledFolderId/);
+    assert.match(importScreen, /MAX_OPENINGS_PGN_IMPORT_BATCH/);
     assert.doesNotMatch(manage, /folderNameFromPgnFilename/);
     assert.doesNotMatch(manage, /createFolderUnique/);
     assert.doesNotMatch(manage, /Non classées/);
@@ -110,6 +119,18 @@ describe('openings empty-state i18n', () => {
     assert.equal(translate('en', 'openings.createFolder'), 'Create a folder');
     assert.equal(translate('fr', 'openings.importPgn'), 'Importer un PGN');
     assert.equal(translate('en', 'openings.importPgn'), 'Import a PGN');
+    assert.equal(translate('fr', 'openings.manageTitle'), 'Mes PGN d’ouverture');
+    assert.equal(translate('en', 'openings.manageTitle'), 'My opening PGNs');
+    assert.equal(translate('fr', 'openings.importOpeningPgn'), 'Importer un PGN d’ouverture');
+    assert.equal(translate('en', 'openings.importOpeningPgn'), 'Import an opening PGN');
+    assert.equal(translate('fr', 'openings.createOpeningPgn'), 'Créer un PGN d’ouverture');
+    assert.equal(translate('en', 'openings.createOpeningPgn'), 'Create an opening PGN');
+    assert.equal(translate('fr', 'openings.editOpeningPgn'), 'Éditer un PGN d’ouverture');
+    assert.equal(translate('en', 'openings.editOpeningPgn'), 'Edit an opening PGN');
+    assert.equal(translate('fr', 'openings.createFolderFab'), 'Dossier');
+    assert.equal(translate('en', 'openings.createFolderFab'), 'Folder');
+    assert.equal(translate('fr', 'openings.createFolderA11y'), 'Créer un nouveau dossier');
+    assert.equal(translate('en', 'openings.createFolderA11y'), 'Create a new folder');
     assert.equal(translate('fr', 'openings.toClassify'), 'À classer');
     assert.equal(translate('en', 'openings.toClassify'), 'To sort');
     assert.equal(translate('fr', 'openings.chooseWhiteOrBlack'), 'Choisir Blancs ou Noirs');

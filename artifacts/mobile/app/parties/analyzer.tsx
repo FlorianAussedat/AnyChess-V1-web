@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { Chess } from 'chess.js';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import {
   AnyLyseurExportMenu,
   AnyLyseurToolbar,
@@ -46,12 +45,16 @@ import {
   anyChessPgnFilename,
   downloadPgnFile,
 } from '@/lib/pgn/PgnExporter';
-import { pickPgnFile } from '@/lib/repertoire/pickPgnFile';
 import {
   computeBoardSize,
   fitBoardSizeToViewport,
 } from '@/lib/game/boardSize';
-import { gameLibraryStore } from '@/lib/gameLibrary';
+import { gameLibraryStore, saveReaderGameToLibrary } from '@/lib/gameLibrary';
+import {
+  ANALYZER_DRAFT_HANDOFF,
+  takeParkedAnalyzerDraft,
+} from '@/lib/gameLibrary/parkedAnalyzerDraft';
+import { validateAnalysisFen } from '@/lib/gameLibrary/validateAnalysisFen';
 import {
   emptyReaderGame,
   flushSharedGameSession,
@@ -77,7 +80,6 @@ type TabId = 'game' | 'analysis';
 
 export default function GameWorkspaceScreen() {
   const router = useRouter();
-  const goBackOrHome = useSmartBack('/');
   const params = useLocalSearchParams<{
     gameId?: string;
     nodeId?: string;
@@ -85,8 +87,12 @@ export default function GameWorkspaceScreen() {
     tab?: string;
     source?: string;
     sessionId?: string;
+    draft?: string;
+    blank?: string;
   }>();
   const gameId = typeof params.gameId === 'string' ? params.gameId : '';
+  const isDraft = params.draft === ANALYZER_DRAFT_HANDOFF || params.draft === '1';
+  const isBlankStart = params.blank === '1' || (!gameId && !isDraft);
   const paramNodeId =
     typeof params.nodeId === 'string' && params.nodeId.length > 0
       ? params.nodeId
@@ -112,14 +118,17 @@ export default function GameWorkspaceScreen() {
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [includeEvals, setIncludeEvals] = useState(true);
-  const [showPaste, setShowPaste] = useState(!gameId);
+  const [showPaste, setShowPaste] = useState(false);
   const [restoreNodeId, setRestoreNodeId] = useState<string | null>(
     paramNodeId,
   );
   const [restoreFlipped, setRestoreFlipped] = useState(paramFlipped);
   const [restoreOrigin, setRestoreOrigin] = useState<string | null>(null);
-  const [sessionReady, setSessionReady] = useState(!gameId);
+  const [sessionReady, setSessionReady] = useState(false);
   const [studyOpen, setStudyOpen] = useState(false);
+  const [savedLibraryId, setSavedLibraryId] = useState<string | null>(
+    gameId || null,
+  );
 
   useEffect(() => {
     return () => {
@@ -128,61 +137,115 @@ export default function GameWorkspaceScreen() {
   }, []);
 
   useEffect(() => {
-    if (!gameId) {
-      setSessionReady(true);
-      return;
-    }
     let cancelled = false;
-    void (async () => {
-      try {
-        const [imported, session] = await Promise.all([
-          gameLibraryStore.getGame(gameId),
-          loadSharedGameSession(gameId),
-        ]);
-        if (cancelled) return;
-        if (session && session.gameId === gameId) {
-          setPgnDraft(
-            session.game.rawPgn?.trim() ||
-              session.game.source?.rawPgn?.trim() ||
-              '',
-          );
-          setError(null);
-          setGame(session.game);
-          setShowPaste(false);
-          setRestoreNodeId(paramNodeId ?? session.currentNodeId);
-          setRestoreFlipped(paramFlipped || session.boardFlipped);
-          setRestoreOrigin(session.explorationOriginNodeId);
-        } else if (imported) {
-          setPgnDraft(imported.source.rawPgn?.trim() || '');
-          setError(null);
-          setGame(
-            readerGameFromImported({
-              id: imported.id,
-              fingerprint: imported.fingerprint,
-              headers: imported.headers,
-              initialFen: imported.initialFen,
-              moves: imported.moves,
-              hasVariations: imported.hasVariations,
-              rawPgn: imported.source.rawPgn,
-              source: imported.source,
-            }),
-          );
-          setShowPaste(false);
-          if (paramNodeId) setRestoreNodeId(paramNodeId);
-          if (paramFlipped) setRestoreFlipped(true);
+    const loadBlank = () => {
+      setGame(emptyReaderGame());
+      setShowPaste(false);
+      setRestoreFlipped(false);
+      setTab(params.tab === 'game' ? 'game' : 'analysis');
+      setSessionReady(true);
+    };
+    if (gameId) {
+      void (async () => {
+        try {
+          const [imported, session] = await Promise.all([
+            gameLibraryStore.getGame(gameId),
+            loadSharedGameSession(gameId),
+          ]);
+          if (cancelled) return;
+          if (session && session.gameId === gameId) {
+            setPgnDraft(
+              session.game.rawPgn?.trim() ||
+                session.game.source?.rawPgn?.trim() ||
+                '',
+            );
+            setError(null);
+            setGame(session.game);
+            setShowPaste(false);
+            setSavedLibraryId(gameId);
+            setRestoreNodeId(paramNodeId ?? session.currentNodeId);
+            setRestoreFlipped(paramFlipped || session.boardFlipped);
+            setRestoreOrigin(session.explorationOriginNodeId);
+          } else if (imported) {
+            setPgnDraft(imported.source.rawPgn?.trim() || '');
+            setError(null);
+            setGame(
+              readerGameFromImported({
+                id: imported.id,
+                fingerprint: imported.fingerprint,
+                headers: imported.headers,
+                initialFen: imported.initialFen,
+                moves: imported.moves,
+                hasVariations: imported.hasVariations,
+                rawPgn: imported.source.rawPgn,
+                source: imported.source,
+              }),
+            );
+            setShowPaste(false);
+            setSavedLibraryId(gameId);
+            if (paramNodeId) setRestoreNodeId(paramNodeId);
+            if (paramFlipped) setRestoreFlipped(true);
+          }
+          setSessionReady(true);
+        } catch {
+          if (cancelled) return;
+          setError(t('errors.generic'));
+          loadBlank();
         }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (isDraft) {
+      const parked = takeParkedAnalyzerDraft();
+      if (parked?.fen) {
+        const checked = validateAnalysisFen(parked.fen);
+        if (!checked.ok) {
+          setError(t('parties.fenInvalid'));
+          loadBlank();
+          return () => {
+            cancelled = true;
+          };
+        }
+        setError(null);
+        setGame(emptyReaderGame(checked.fen));
+        setShowPaste(false);
+        setRestoreFlipped(false);
+        setTab(parked.tab === 'game' ? 'game' : 'analysis');
         setSessionReady(true);
-      } catch {
-        if (cancelled) return;
-        setError(t('errors.generic'));
-        setShowPaste(true);
-        setSessionReady(true);
+        return () => {
+          cancelled = true;
+        };
       }
-    })();
+      if (parked?.pgnText) {
+        const result = parseReaderPgn(parked.pgnText, { allowEmptyMoves: true });
+        if (!result.ok) {
+          setError(t('parties.pgnInvalid'));
+          loadBlank();
+          return () => {
+            cancelled = true;
+          };
+        }
+        setError(null);
+        setPgnDraft(parked.pgnText);
+        setGame(result.game);
+        setShowPaste(false);
+        setRestoreFlipped(false);
+        setTab(parked.tab === 'game' ? 'game' : 'analysis');
+        setSessionReady(true);
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+
+    loadBlank();
     return () => {
       cancelled = true;
     };
-  }, [gameId, paramNodeId, paramFlipped]);
+  }, [gameId, isDraft, isBlankStart, paramNodeId, paramFlipped, params.tab, t]);
 
   const reader = useGameReader({
     game: sessionReady ? game : null,
@@ -437,22 +500,29 @@ export default function GameWorkspaceScreen() {
   };
 
   const onImport = useCallback(async () => {
-    if (gameId) {
-      router.push('/parties' as Href);
+    persistPosition();
+    router.push('/parties/import' as Href);
+  }, [persistPosition, router]);
+
+  const onSaveToLibrary = useCallback(async () => {
+    const current = reader?.game ?? game;
+    if (!current) return;
+    if (savedLibraryId) {
+      setExportStatus(t('parties.alreadySaved'));
       return;
     }
     try {
-      const picked = await pickPgnFile();
-      if (picked?.text) {
-        setPgnDraft(picked.text);
-        setShowPaste(true);
-        return;
+      const saved = await saveReaderGameToLibrary({ game: current });
+      if (saved) {
+        setSavedLibraryId(saved.id);
+        setExportStatus(t('parties.savedToUnfiled'));
+      } else {
+        setExportStatus(t('parties.pgnInvalid'));
       }
-    } catch {
-      /* fall through — paste still available */
+    } catch (e) {
+      setExportStatus(e instanceof Error ? e.message : t('errors.generic'));
     }
-    setShowPaste(true);
-  }, [gameId, router]);
+  }, [game, reader?.game, savedLibraryId, t]);
 
   const onProfileChange = useCallback(
     (id: AnalysisProfileId) => {
@@ -518,7 +588,7 @@ export default function GameWorkspaceScreen() {
       onToggleArrows={() =>
         setArrowsEnabled(!(analysis?.arrowsEnabled ?? true))
       }
-      profileId={analysis?.profileId ?? 'normal'}
+      profileId={analysis?.profileId ?? 'fast'}
       onProfileChange={onProfileChange}
       onImport={onImport}
       onExport={() => setExportMenuOpen(true)}
@@ -632,8 +702,30 @@ export default function GameWorkspaceScreen() {
       subtitle={t('parties.workspaceSubtitle')}
       onBack={() => {
         persistPosition();
-        goBackOrHome();
+        if (fromOpeningEditor) router.back();
+        else router.navigate('/parties');
       }}
+      trailing={
+        game && !fromOpeningEditor ? (
+          <Pressable
+            testID="anyliseur-save"
+            onPress={() => void onSaveToLibrary()}
+            accessibilityRole="button"
+            accessibilityLabel={t('parties.saveAnalysis')}
+            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+          >
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: DesignTokens.typography.weightSemiBold,
+                fontSize: 14,
+              }}
+            >
+              {t('parties.saveAnalysis')}
+            </Text>
+          </Pressable>
+        ) : undefined
+      }
       testID="game-workspace"
     >
       {!game || showPaste ? (

@@ -97,7 +97,11 @@ export type {
 } from './MixedRepertoireTraining';
 export { pickPgnFile } from './pickPgnFile';
 export type { PickedPgnFile } from './pickPgnFile';
-export { folderNameFromPgnFilename } from './folderNameFromPgnFilename';
+export {
+  isUnfiledOpeningFolder,
+  UNFILED_OPENING_FOLDER_ID,
+  makeUnfiledOpeningFolder,
+} from './unfiledFolder';
 export {
   getAllTrainingLinesFromPgn,
   getValidRepertoireSansAtFen,

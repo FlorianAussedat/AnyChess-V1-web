@@ -11,6 +11,7 @@ export default function OpeningsLayout() {
       <Stack.Screen name="review" />
       <Stack.Screen name="learn" />
       <Stack.Screen name="manage" />
+      <Stack.Screen name="import" />
       <Stack.Screen name="study" />
       <Stack.Screen name="annotate" />
       <Stack.Screen name="[folderId]" />

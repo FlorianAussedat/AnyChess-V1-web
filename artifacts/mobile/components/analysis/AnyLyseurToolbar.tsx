@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { DesignTokens } from '@/constants/designTokens';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { AnalysisProfileId } from '@/lib/analysis';
+import { analysisProfileMetric, type AnalysisProfileId } from '@/lib/analysis';
 
 export type AnyLyseurToolbarProps = {
   onFlip: () => void;
@@ -192,6 +192,13 @@ export function AnyLyseurToolbar({
             </Text>
             {PROFILES.map((id) => {
               const active = profileId === id;
+              const metric = analysisProfileMetric(id);
+              const desc =
+                id === 'fast'
+                  ? t('parties.anyliseurProfileFastDesc')
+                  : id === 'deep'
+                    ? t('parties.anyliseurProfileDeepDesc')
+                    : t('parties.anyliseurProfileNormalDesc');
               return (
                 <Pressable
                   key={id}
@@ -222,6 +229,33 @@ export function AnyLyseurToolbar({
                     }}
                   >
                     {profileLabel(id)}
+                  </Text>
+                  <Text
+                    style={{
+                      color: active
+                        ? colors.primaryForeground
+                        : colors.mutedForeground,
+                      fontSize: 12,
+                      lineHeight: 16,
+                      marginTop: 2,
+                    }}
+                  >
+                    {desc}
+                  </Text>
+                  <Text
+                    style={{
+                      color: active
+                        ? colors.primaryForeground
+                        : colors.mutedForeground,
+                      fontSize: 11,
+                      marginTop: 2,
+                    }}
+                    testID={`anyliseur-profile-metric-${id}`}
+                  >
+                    {t('parties.anyliseurProfileMetric', {
+                      ms: String(metric.movetimeMs),
+                      depth: String(metric.depth),
+                    })}
                   </Text>
                 </Pressable>
               );
@@ -280,8 +314,9 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: DesignTokens.radius.md,
     borderWidth: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
     paddingHorizontal: 12,
+    paddingVertical: 10,
   },
 });

@@ -6,10 +6,14 @@ import { describe, it } from 'node:test';
 import {
   ANALYSIS_PROFILES,
   ANDROID_ANALYSIS_DEPTH_CAP,
+  DEFAULT_ANALYSIS_PROFILE,
   resolveAnalysisProfile,
 } from '../profiles.ts';
 
 describe('ANALYSIS_PROFILES (web)', () => {
+  it('defaults new analyses to Fast (Rapide)', () => {
+    assert.equal(DEFAULT_ANALYSIS_PROFILE, 'fast');
+  });
   it('keeps the WASM Fast / Normal / Deep budgets', () => {
     assert.deepEqual(ANALYSIS_PROFILES.fast, {
       id: 'fast',

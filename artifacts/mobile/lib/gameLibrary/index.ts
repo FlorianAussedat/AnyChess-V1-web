@@ -99,3 +99,26 @@ export {
   openExercisePositionInAnalyzer,
   type ExerciseAnalyzerOpen,
 } from './openExerciseAnalyzer.ts';
+
+export {
+  saveReaderGameToLibrary,
+} from './saveReaderGameToLibrary.ts';
+
+export {
+  setParkedAnalyzerDraft,
+  takeParkedAnalyzerDraft,
+  peekParkedAnalyzerDraft,
+  ANALYZER_DRAFT_HANDOFF,
+} from './parkedAnalyzerDraft.ts';
+export type { ParkedAnalyzerDraft } from './parkedAnalyzerDraft.ts';
+
+export {
+  validateAnalysisFen,
+  isStandardStartFen,
+} from './validateAnalysisFen.ts';
+
+export {
+  isUnfiledGameFolder,
+  UNFILED_GAME_FOLDER_ID,
+  makeUnfiledGameFolder,
+} from './unfiledFolder.ts';

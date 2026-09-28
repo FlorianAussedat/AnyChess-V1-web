@@ -43,6 +43,8 @@ export type GameLibraryFolder = {
   name: string;
   /** null = root level */
   parentId: string | null;
+  /** Permanent catch-all folder — not user-deletable. */
+  systemKey?: 'unfiled';
   createdAt: number;
   updatedAt: number;
 };

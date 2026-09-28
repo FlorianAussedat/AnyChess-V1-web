@@ -16,6 +16,7 @@ export {
   DEFAULT_ANALYSIS_PROFILE,
   getAnalysisProfile,
   resolveAnalysisProfile,
+  analysisProfileMetric,
 } from './profiles.ts';
 
 export {

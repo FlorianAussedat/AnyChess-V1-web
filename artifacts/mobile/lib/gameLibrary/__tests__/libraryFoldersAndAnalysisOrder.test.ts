@@ -58,7 +58,8 @@ describe('game library folders', () => {
     assert.equal(renamed?.displayName, 'Finale Moscou');
 
     await store.moveGame(imported.imported[0]!.id, null);
-    assert.equal((await store.getGame(imported.imported[0]!.id))?.folderId, null);
+    const unfiledId = await store.getUnfiledFolderId();
+    assert.equal((await store.getGame(imported.imported[0]!.id))?.folderId, unfiledId);
 
     await store.moveGame(imported.imported[0]!.id, child.id);
     const snap = await store.getSnapshot();
@@ -70,7 +71,8 @@ describe('game library folders', () => {
 
     await store.deleteFolder(root.id, { deleteContents: true });
     const after = await store.getSnapshot();
-    assert.equal(after.folders.length, 0);
+    assert.equal(after.folders.length, 1);
+    assert.equal(after.folders[0]?.systemKey, 'unfiled');
     assert.equal(after.games.length, 0);
   });
 

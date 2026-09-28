@@ -88,6 +88,10 @@ export type {
   ParkedOpeningEditorKind,
 } from './parkedOpeningEditor.ts';
 export {
+  EXTERNAL_OPENING_EDITOR_HANDOFF,
+  parkExternalOpeningPgn,
+} from './parkExternalOpeningPgn.ts';
+export {
   OPENING_EDITOR_ANALYZER_SOURCE,
   nodePathSans,
   analyzedLineSans,

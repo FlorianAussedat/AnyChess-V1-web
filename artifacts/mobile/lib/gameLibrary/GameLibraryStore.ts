@@ -16,6 +16,11 @@ import {
   migrateGameLibrarySnapshot,
   newLibraryFolderId,
 } from './folders.ts';
+import {
+  ensureUnfiledGameFolderInSnapshot,
+  isUnfiledGameFolder,
+  UNFILED_GAME_FOLDER_ID,
+} from './unfiledFolder.ts';
 import { importPgnGames } from './importPgnGames.ts';
 import { indexPgnGamesLight } from './indexPgnGamesLight.ts';
 import { importSelectedPgnGames } from './importSelectedPgnGames.ts';
@@ -109,6 +114,7 @@ export class GameLibraryStore {
     if (result.status === 'missing') {
       this.loadError = null;
       this.cache = emptyGameLibrarySnapshot();
+      this.cache = await this.ensureUnfiledFolder(this.cache);
       return this.cache;
     }
 
@@ -130,6 +136,7 @@ export class GameLibraryStore {
 
     this.loadError = null;
     this.cache = result.value;
+    this.cache = await this.ensureUnfiledFolder(this.cache);
     // Persist migration if we upgraded from v1.
     if (result.raw) {
       try {
@@ -156,6 +163,31 @@ export class GameLibraryStore {
     return next;
   }
 
+  async ensureUnfiledFolder(
+    snap?: GameLibrarySnapshot,
+  ): Promise<GameLibrarySnapshot> {
+    const current = snap ?? (this.cache && !this.loadError ? this.cache : await this.getSnapshot());
+    const ensured = ensureUnfiledGameFolderInSnapshot(current.folders);
+    const unfiledId = ensured.unfiled.id;
+    let gamesChanged = false;
+    const games = current.games.map((game) => {
+      if (game.folderId != null) return game;
+      gamesChanged = true;
+      return { ...game, folderId: unfiledId };
+    });
+    if (!ensured.changed && !gamesChanged) return current;
+    return this.persist({
+      ...current,
+      folders: ensured.folders,
+      games,
+    });
+  }
+
+  async getUnfiledFolderId(): Promise<string> {
+    const snap = await this.ensureUnfiledFolder();
+    return snap.folders.find((f) => isUnfiledGameFolder(f))?.id ?? UNFILED_GAME_FOLDER_ID;
+  }
+
   async listGames(folderId?: string | null): Promise<ImportedChessGame[]> {
     const snap = await this.getSnapshot();
     const target = folderId === undefined ? undefined : folderId;
@@ -172,9 +204,11 @@ export class GameLibraryStore {
     const snap = await this.getSnapshot();
     return snap.folders
       .filter((f) => (f.parentId ?? null) === parentId)
-      .sort((a, b) =>
-        a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }),
-      );
+      .sort((a, b) => {
+        if (isUnfiledGameFolder(a) && !isUnfiledGameFolder(b)) return -1;
+        if (!isUnfiledGameFolder(a) && isUnfiledGameFolder(b)) return 1;
+        return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+      });
   }
 
   async getGame(id: string): Promise<ImportedChessGame | null> {
@@ -215,6 +249,8 @@ export class GameLibraryStore {
 
   async renameFolder(id: string, name: string): Promise<GameLibraryFolder | null> {
     const snap = await this.getSnapshot();
+    const current = snap.folders.find((f) => f.id === id);
+    if (!current || isUnfiledGameFolder(current)) return null;
     const trimmed = name.trim();
     if (!trimmed) return null;
     const folders = snap.folders.map((f) =>
@@ -229,13 +265,19 @@ export class GameLibraryStore {
     options?: { deleteContents?: boolean },
   ): Promise<GameLibrarySnapshot> {
     const snap = await this.getSnapshot();
+    const target = snap.folders.find((f) => f.id === id);
+    if (target && isUnfiledGameFolder(target)) {
+      throw new Error('Ce dossier système ne peut pas être supprimé.');
+    }
     const deleteContents = options?.deleteContents !== false;
     const ids = new Set(collectDescendantFolderIds(snap.folders, id));
     const folders = snap.folders.filter((f) => !ids.has(f.id));
+    const unfiledId =
+      snap.folders.find((f) => isUnfiledGameFolder(f))?.id ?? UNFILED_GAME_FOLDER_ID;
     const games = deleteContents
       ? snap.games.filter((g) => !g.folderId || !ids.has(g.folderId))
       : snap.games.map((g) =>
-          g.folderId && ids.has(g.folderId) ? { ...g, folderId: null } : g,
+          g.folderId && ids.has(g.folderId) ? { ...g, folderId: unfiledId } : g,
         );
     return this.persist({ version: 2, folders, games });
   }
@@ -245,12 +287,15 @@ export class GameLibraryStore {
     folderId: string | null,
   ): Promise<ImportedChessGame | null> {
     const snap = await this.getSnapshot();
-    if (folderId && !snap.folders.some((f) => f.id === folderId)) {
+    const unfiledId =
+      snap.folders.find((f) => isUnfiledGameFolder(f))?.id ?? UNFILED_GAME_FOLDER_ID;
+    const targetId = folderId ?? unfiledId;
+    if (!snap.folders.some((f) => f.id === targetId)) {
       throw new Error('Dossier introuvable.');
     }
     const index = snap.games.findIndex((g) => g.id === gameId);
     if (index < 0) return null;
-    const updated = { ...snap.games[index]!, folderId };
+    const updated = { ...snap.games[index]!, folderId: targetId };
     const games = [...snap.games];
     games[index] = updated;
     await this.persist({ ...snap, games });
@@ -317,7 +362,9 @@ export class GameLibraryStore {
       return { ...result, snapshot: snap };
     }
     const names = options?.displayNames;
-    const folderId = options?.folderId ?? null;
+    const unfiledId =
+      snap.folders.find((f) => isUnfiledGameFolder(f))?.id ?? UNFILED_GAME_FOLDER_ID;
+    const folderId = options?.folderId ?? unfiledId;
     const useFile =
       options?.useFileNameAsDisplayName !== false
         ? displayNameFromFilename(fileName)
@@ -354,7 +401,10 @@ export class GameLibraryStore {
       .filter((g) => !existing.has(g.fingerprint))
       .map((g) => ({
         ...g,
-        folderId: g.folderId ?? null,
+        folderId:
+          g.folderId ??
+          snap.folders.find((f) => isUnfiledGameFolder(f))?.id ??
+          UNFILED_GAME_FOLDER_ID,
         displayName:
           g.displayName?.trim() ||
           displayNameFromFilename(g.source.fileName) ||

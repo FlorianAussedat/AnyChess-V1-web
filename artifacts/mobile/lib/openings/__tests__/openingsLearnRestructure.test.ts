@@ -137,6 +137,43 @@ describe('opening PGN editor', () => {
     assert.match(manage, /\/openings\/annotate\?fileId=/);
   });
 
+  it('manage groups import, create and edit PGN actions under a wrapping title', () => {
+    const manage = read('app/openings/manage.tsx');
+    const header = read('components/ScreenHeader.tsx');
+    assert.match(manage, /openings\.manageTitle/);
+    assert.match(manage, /titleNumberOfLines=\{2\}/);
+    assert.match(header, /titleNumberOfLines/);
+    assert.match(manage, /opening-pgn-actions/);
+    assert.match(manage, /import-pgn-root-btn/);
+    assert.match(manage, /create-pgn-btn/);
+    assert.match(manage, /edit-pgn-root-btn/);
+    assert.match(manage, /openings\.importOpeningPgn/);
+    assert.match(manage, /openings\.createOpeningPgn/);
+    assert.match(manage, /openings\.editOpeningPgn/);
+    assert.doesNotMatch(manage, /t\('openings\.importPgn'\)/);
+    assert.doesNotMatch(manage, /t\('openings\.createPgn'\)/);
+    assert.doesNotMatch(manage, /t\('openings\.new'\)/);
+    assert.match(manage, /create-folder-btn/);
+    assert.match(manage, /folderFab/);
+    assert.match(manage, /openings\.createFolderA11y/);
+  });
+
+  it('edit opening PGN parks the picked file in the existing annotate editor', () => {
+    const manage = read('app/openings/manage.tsx');
+    const annotate = read('app/openings/annotate.tsx');
+    const parked = read('lib/openingStudy/parkExternalOpeningPgn.ts');
+    assert.match(manage, /pickOpeningPgn\('edit'\)/);
+    assert.match(manage, /parkExternalOpeningPgn/);
+    assert.match(manage, /\/openings\/annotate\?external=1/);
+    assert.match(manage, /maxSelection=\{pgnPickMode === 'edit' \? 1/);
+    assert.match(parked, /loadEditorSessionFromPgn/);
+    assert.match(parked, /kind: 'external-edit'/);
+    assert.doesNotMatch(parked, /importPgn/);
+    assert.match(annotate, /EXTERNAL_OPENING_EDITOR_HANDOFF/);
+    assert.match(annotate, /FolderPickModal/);
+    assert.match(annotate, /handoff: externalHandoff/);
+  });
+
   it('annotate screen saves to AnyChess, exports PGN and warns on unsaved leave', () => {
     const annotate = read('app/openings/annotate.tsx');
     assert.match(annotate, /createEmptyEditorSession/);

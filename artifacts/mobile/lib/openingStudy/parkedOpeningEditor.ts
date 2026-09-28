@@ -4,7 +4,7 @@
  */
 import type { OpeningEditorSession } from './openingEditorState.ts';
 
-export type ParkedOpeningEditorKind = 'analyze-return' | 'new-study';
+export type ParkedOpeningEditorKind = 'analyze-return' | 'new-study' | 'external-edit';
 
 export type ParkedOpeningEditor = {
   session: OpeningEditorSession;
@@ -12,6 +12,8 @@ export type ParkedOpeningEditor = {
   side: 'white' | 'black';
   originNodeId: string | null;
   kind: ParkedOpeningEditorKind;
+  /** Matches annotate ?external= so AnyLyseur can return to the same unsaved edit. */
+  handoff?: string;
 };
 
 let current: ParkedOpeningEditor | null = null;
@@ -33,9 +35,12 @@ export function clearParkedOpeningEditor(): void {
 export function takeParkedOpeningEditor(match?: {
   fileId?: string | null;
   folderId?: string | null;
+  handoff?: string | null;
 }): ParkedOpeningEditor | null {
   if (!current) return null;
-  if (match?.fileId) {
+  if (match?.handoff) {
+    if (current.handoff !== match.handoff) return null;
+  } else if (match?.fileId) {
     if (current.session.fileId !== match.fileId) return null;
   } else if (match?.folderId) {
     if (current.session.fileId) return null;
