@@ -13,6 +13,8 @@ import { withInitFallback } from './withInitFallback';
 
 export { OwnedEngine } from './OwnedEngine';
 export type { EngineFactory } from './OwnedEngine';
+export { requestOpponentMove, logOpponentMoveDebug } from './requestOpponentMove';
+export type { OpponentMoveOutcome } from './requestOpponentMove';
 export {
   ChessEngineService,
   createChessEngineService,

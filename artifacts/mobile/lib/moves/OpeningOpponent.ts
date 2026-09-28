@@ -214,7 +214,17 @@ export class OpeningOpponent {
       return { move: null, theoryMessage: this.theoryExit?.message ?? null };
     }
 
-    return { move: await this.engine.pickMove(game), theoryMessage: null };
+    if (game.isGameOver() || game.moves().length === 0) {
+      return { move: null, theoryMessage: null };
+    }
+
+    await this.engine.init?.();
+    let move = await this.engine.pickMove(game);
+    if (!move && !game.isGameOver() && game.moves().length > 0) {
+      await this.engine.init?.();
+      move = await this.engine.pickMove(game);
+    }
+    return { move, theoryMessage: null };
   }
 }
 

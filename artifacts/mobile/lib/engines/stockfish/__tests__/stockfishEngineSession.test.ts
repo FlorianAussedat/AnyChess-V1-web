@@ -205,4 +205,18 @@ describe('StockfishEngine game session', () => {
     assert.match(classic, /applyStrength\?\./);
     assert.doesNotMatch(classic, /recreateEngine/);
   });
+
+  it('Classic keeps the engine across Analyse focus loss', () => {
+    const classic = read('../../../../contexts/GameContext.tsx');
+    assert.doesNotMatch(classic, /useFocusEffect/);
+    assert.match(classic, /requestOpponentMove/);
+    assert.match(classic, /scheduleOpponentKickoff/);
+    assert.match(classic, /returnToCampSetup/);
+  });
+
+  it('Opening keeps the opponent engine across Analyse focus loss', () => {
+    const opening = read('../../../../contexts/OpeningGameContext.tsx');
+    assert.doesNotMatch(opening, /useFocusEffect/);
+    assert.match(opening, /cancelPendingOpponent\(\(\)\s*=>\s*opponent\.cancel\(\)\)/);
+  });
 });
