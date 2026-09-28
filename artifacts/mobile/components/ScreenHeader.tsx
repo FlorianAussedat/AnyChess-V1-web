@@ -13,6 +13,8 @@ type Props = {
   /** Extra trailing controls (keep board-specific toggles out of this). */
   trailing?: React.ReactNode;
   backTestID?: string;
+  /** Allow a long title to wrap instead of truncating with ellipsis. */
+  titleNumberOfLines?: number;
 };
 
 /**
@@ -26,14 +28,19 @@ export function ScreenHeader({
   showSound = false,
   trailing,
   backTestID,
+  titleNumberOfLines = 1,
 }: Props) {
   const colors = useColors();
+  const showTrailing = Boolean(trailing) || showSound;
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, titleNumberOfLines > 1 ? styles.headerWrap : null]}>
       <BackButton onPress={onBack} testID={backTestID} />
       <View style={styles.titleBlock}>
         {title ? (
-          <Text style={[styles.title, { color: colors.foreground }]} numberOfLines={1}>
+          <Text
+            style={[styles.title, { color: colors.foreground }]}
+            numberOfLines={titleNumberOfLines}
+          >
             {title}
           </Text>
         ) : null}
@@ -43,10 +50,12 @@ export function ScreenHeader({
           </Text>
         ) : null}
       </View>
-      <View style={styles.trailing}>
-        {trailing}
-        {showSound ? <SoundToggle /> : null}
-      </View>
+      {showTrailing ? (
+        <View style={styles.trailing}>
+          {trailing}
+          {showSound ? <SoundToggle /> : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -57,9 +66,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: DesignTokens.spacing.sm,
   },
+  headerWrap: {
+    alignItems: 'flex-start',
+  },
   titleBlock: { flex: 1, gap: 1, minWidth: 0 },
   title: {
     fontSize: DesignTokens.typography.modeTitle,
+    lineHeight: 22,
     fontFamily: DesignTokens.typography.weightBold,
   },
   subtitle: {

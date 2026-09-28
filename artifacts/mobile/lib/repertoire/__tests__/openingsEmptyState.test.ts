@@ -60,6 +60,15 @@ describe('openings hub empty vs populated', () => {
     assert.doesNotMatch(index, /create-folder-btn/);
     assert.doesNotMatch(index, /review-all-btn/);
   });
+
+  it('manage still uses the existing light-index import and create-folder workflow', () => {
+    const manage = read('app/openings/manage.tsx');
+    assert.match(manage, /openImport/);
+    assert.match(manage, /openCreatePgn/);
+    assert.match(manage, /openCreate/);
+    assert.match(manage, /create-folder-btn/);
+    assert.match(manage, /import-pgn-root-btn/);
+  });
 });
 
 describe('openings manage import wiring', () => {
@@ -110,6 +119,18 @@ describe('openings empty-state i18n', () => {
     assert.equal(translate('en', 'openings.createFolder'), 'Create a folder');
     assert.equal(translate('fr', 'openings.importPgn'), 'Importer un PGN');
     assert.equal(translate('en', 'openings.importPgn'), 'Import a PGN');
+    assert.equal(translate('fr', 'openings.manageTitle'), 'Mes PGN d’ouverture');
+    assert.equal(translate('en', 'openings.manageTitle'), 'My opening PGNs');
+    assert.equal(translate('fr', 'openings.importOpeningPgn'), 'Importer un PGN d’ouverture');
+    assert.equal(translate('en', 'openings.importOpeningPgn'), 'Import an opening PGN');
+    assert.equal(translate('fr', 'openings.createOpeningPgn'), 'Créer un PGN d’ouverture');
+    assert.equal(translate('en', 'openings.createOpeningPgn'), 'Create an opening PGN');
+    assert.equal(translate('fr', 'openings.editOpeningPgn'), 'Éditer un PGN d’ouverture');
+    assert.equal(translate('en', 'openings.editOpeningPgn'), 'Edit an opening PGN');
+    assert.equal(translate('fr', 'openings.createFolderFab'), 'Dossier');
+    assert.equal(translate('en', 'openings.createFolderFab'), 'Folder');
+    assert.equal(translate('fr', 'openings.createFolderA11y'), 'Créer un nouveau dossier');
+    assert.equal(translate('en', 'openings.createFolderA11y'), 'Create a new folder');
     assert.equal(translate('fr', 'openings.toClassify'), 'À classer');
     assert.equal(translate('en', 'openings.toClassify'), 'To sort');
     assert.equal(translate('fr', 'openings.chooseWhiteOrBlack'), 'Choisir Blancs ou Noirs');

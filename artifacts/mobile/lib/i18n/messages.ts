@@ -78,6 +78,11 @@ export type MessageKey =
   | 'openings.annotatePgn'
   | 'openings.annotateThisPgn'
   | 'openings.createPgn'
+  | 'openings.importOpeningPgn'
+  | 'openings.createOpeningPgn'
+  | 'openings.editOpeningPgn'
+  | 'openings.createFolderFab'
+  | 'openings.createFolderA11y'
   | 'openings.saveToAnyChess'
   | 'openings.exportPgn'
   | 'openings.addComment'
@@ -981,7 +986,7 @@ const fr: Dict = {
   'openings.learnHint':
     'Étudie chaque ouverture séparément, avec commentaires et variantes.',
   'openings.managePgn': 'Importer / gérer mes PGN',
-  'openings.manageTitle': 'Mes PGN d’ouvertures',
+  'openings.manageTitle': 'Mes PGN d’ouverture',
   'openings.hubLead':
     'Découvre tes ouvertures, puis entraîne-toi à retrouver les bons coups.',
   'openings.hubReviewHint': 'Retrouve les bons coups de tes ouvertures.',
@@ -1003,6 +1008,11 @@ const fr: Dict = {
   'openings.annotatePgn': 'Annoter / éditer',
   'openings.annotateThisPgn': 'Annoter ce PGN',
   'openings.createPgn': 'Créer un PGN',
+  'openings.importOpeningPgn': 'Importer un PGN d’ouverture',
+  'openings.createOpeningPgn': 'Créer un PGN d’ouverture',
+  'openings.editOpeningPgn': 'Éditer un PGN d’ouverture',
+  'openings.createFolderFab': 'Dossier',
+  'openings.createFolderA11y': 'Créer un nouveau dossier',
   'openings.saveToAnyChess': 'Sauvegarder dans AnyChess',
   'openings.exportPgn': 'Exporter en PGN',
   'openings.addComment': 'Ajouter un commentaire',
@@ -2014,6 +2024,11 @@ const en: Dict = {
   'openings.annotatePgn': 'Annotate / edit',
   'openings.annotateThisPgn': 'Annotate this PGN',
   'openings.createPgn': 'Create a PGN',
+  'openings.importOpeningPgn': 'Import an opening PGN',
+  'openings.createOpeningPgn': 'Create an opening PGN',
+  'openings.editOpeningPgn': 'Edit an opening PGN',
+  'openings.createFolderFab': 'Folder',
+  'openings.createFolderA11y': 'Create a new folder',
   'openings.saveToAnyChess': 'Save to AnyChess',
   'openings.exportPgn': 'Export PGN',
   'openings.addComment': 'Add a comment',

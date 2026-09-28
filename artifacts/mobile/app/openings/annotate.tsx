@@ -26,7 +26,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { GameReaderNavControls } from '@/components/gameReader/GameReaderNavControls';
 import { OpeningStudyNotation } from '@/components/openings/OpeningStudyNotation';
 import { OpeningChoiceModal } from '@/components/openings/OpeningChoiceModal';
-import { repertoireService, pgnFileDisplayName } from '@/lib/repertoire';
+import { repertoireService, pgnFileDisplayName, type RepertoireFolder, type RepertoireSide } from '@/lib/repertoire';
 import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
@@ -63,8 +63,12 @@ import {
   openEditorPositionInAnalyzer,
   setParkedOpeningEditor,
   takeParkedOpeningEditor,
+  EXTERNAL_OPENING_EDITOR_HANDOFF,
   type OpeningEditorSession,
 } from '@/lib/openingStudy';
+import { NameModal } from '@/components/openings/NameModal';
+import { FolderPickModal } from '@/components/openings/FolderPickModal';
+import { RepertoireSidePicker } from '@/components/RepertoireSidePicker';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { DesignTokens } from '@/constants/designTokens';
 
@@ -92,11 +96,15 @@ export default function OpeningAnnotateScreen() {
     folderId?: string;
     name?: string;
     nodeId?: string;
+    external?: string;
   }>();
   const fileIdParam = oneParam(params.fileId);
   const folderIdParam = oneParam(params.folderId);
   const nameParam = oneParam(params.name);
   const nodeIdParam = oneParam(params.nodeId);
+  const externalHandoff = oneParam(params.external)
+    ? EXTERNAL_OPENING_EDITOR_HANDOFF
+    : undefined;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +114,13 @@ export default function OpeningAnnotateScreen() {
   const [busy, setBusy] = useState(false);
   const [pendingMove, setPendingMove] = useState<Move | null>(null);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [folderPickOpen, setFolderPickOpen] = useState(false);
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [folders, setFolders] = useState<RepertoireFolder[]>([]);
+  const [nameDraft, setNameDraft] = useState('');
+  const [createSide, setCreateSide] = useState<RepertoireSide | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saveIntent, setSaveIntent] = useState<'save' | 'save-and-leave' | null>(null);
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
@@ -120,6 +135,7 @@ export default function OpeningAnnotateScreen() {
     const parked = takeParkedOpeningEditor({
       fileId: fileIdParam,
       folderId: folderIdParam,
+      handoff: externalHandoff,
     });
     if (!parked) return false;
     setSession(parked.session);
@@ -128,7 +144,7 @@ export default function OpeningAnnotateScreen() {
     setError(null);
     setLoading(false);
     return true;
-  }, [fileIdParam, folderIdParam]);
+  }, [externalHandoff, fileIdParam, folderIdParam]);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +174,11 @@ export default function OpeningAnnotateScreen() {
           setSession(next);
           setCommentDraft(editorNodeComment(next));
           setError(null);
+          setLoading(false);
+          return;
+        }
+        if (externalHandoff) {
+          setError(t('errors.pgnNotFound'));
           setLoading(false);
           return;
         }
@@ -194,7 +215,7 @@ export default function OpeningAnnotateScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileIdParam, folderIdParam, nameParam, nodeIdParam, restoreParked, t]);
+  }, [externalHandoff, fileIdParam, folderIdParam, nameParam, nodeIdParam, restoreParked, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -272,38 +293,106 @@ export default function OpeningAnnotateScreen() {
     });
   }, [chessNotation, node, session, t]);
 
-  const saveToLibrary = useCallback(async (): Promise<boolean> => {
-    if (!session) return false;
-    const flushed = flushComment(session);
-    const pgn = editorExportPgn(flushed);
-    const displayName = flushed.snapshot.displayName.trim() || t('openings.newStudyDefault');
-    setBusy(true);
-    try {
-      if (flushed.fileId) {
-        await repertoireService.replacePgn(flushed.fileId, pgn);
-        const current = repertoireService.getFile(flushed.fileId);
-        if (current && pgnFileDisplayName(current) !== displayName) {
-          await repertoireService.renamePgnDisplayName(flushed.fileId, displayName);
-        }
-        applySession(editorMarkSaved({ ...flushed, snapshot: { ...flushed.snapshot, displayName } }, flushed.fileId));
-        return true;
+  const finishSaveIntent = useCallback(
+    (ok: boolean) => {
+      const intent = saveIntent;
+      setSaveIntent(null);
+      if (ok && intent === 'save-and-leave') {
+        setLeaveOpen(false);
+        router.back();
       }
-      const file = await repertoireService.importPgn(
-        flushed.folderId,
-        `${displayName}.pgn`,
-        pgn,
-        displayName,
-      );
-      applySession(editorMarkSaved({ ...flushed, snapshot: { ...flushed.snapshot, displayName } }, file.id));
-      return true;
+    },
+    [router, saveIntent],
+  );
+
+  const saveToLibrary = useCallback(
+    async (folderIdOverride?: string): Promise<boolean> => {
+      if (!session) return false;
+      const flushed = flushComment(session);
+      const pgn = editorExportPgn(flushed);
+      const displayName = flushed.snapshot.displayName.trim() || t('openings.newStudyDefault');
+      const folderId = folderIdOverride || flushed.folderId;
+      if (!flushed.fileId && !folderId) {
+        try {
+          await repertoireService.ensureLoaded();
+          setFolders(repertoireService.getFolders());
+        } catch {
+          setFolders([]);
+        }
+        setSaveIntent(leaveOpen ? 'save-and-leave' : 'save');
+        setLeaveOpen(false);
+        setFolderPickOpen(true);
+        applySession(flushed);
+        return false;
+      }
+      setBusy(true);
+      try {
+        if (flushed.fileId) {
+          await repertoireService.replacePgn(flushed.fileId, pgn);
+          const current = repertoireService.getFile(flushed.fileId);
+          if (current && pgnFileDisplayName(current) !== displayName) {
+            await repertoireService.renamePgnDisplayName(flushed.fileId, displayName);
+          }
+          applySession(
+            editorMarkSaved({ ...flushed, snapshot: { ...flushed.snapshot, displayName } }, flushed.fileId),
+          );
+          return true;
+        }
+        const file = await repertoireService.importPgn(
+          folderId,
+          `${displayName}.pgn`,
+          pgn,
+          displayName,
+        );
+        applySession(
+          editorMarkSaved(
+            { ...flushed, folderId, snapshot: { ...flushed.snapshot, displayName } },
+            file.id,
+          ),
+        );
+        const folder = repertoireService.getFolder(folderId);
+        if (folder?.side === 'black' || folder?.side === 'white') {
+          setSide(folder.side);
+        }
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setSession(flushed);
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [applySession, flushComment, leaveOpen, session, t],
+  );
+
+  const saveIntoFolder = useCallback(
+    async (folderId: string) => {
+      setFolderPickOpen(false);
+      const ok = await saveToLibrary(folderId);
+      finishSaveIntent(ok);
+    },
+    [finishSaveIntent, saveToLibrary],
+  );
+
+  const submitCreateFolderForSave = useCallback(async () => {
+    if (!createSide) {
+      setFormError(t('openings.sideRequired'));
+      return;
+    }
+    setBusy(true);
+    setFormError(null);
+    try {
+      const folder = await repertoireService.createFolder(nameDraft, createSide, true);
+      setFolders(repertoireService.getFolders());
+      setCreateFolderOpen(false);
+      await saveIntoFolder(folder.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setSession(flushed);
-      return false;
+      setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
-  }, [applySession, flushComment, session, t]);
+  }, [createSide, nameDraft, saveIntoFolder, t]);
 
   const exportPgn = useCallback(() => {
     if (!session) return;
@@ -323,6 +412,7 @@ export default function OpeningAnnotateScreen() {
       side,
       originNodeId: flushed.snapshot.currentNodeId,
       kind: 'analyze-return',
+      handoff: externalHandoff,
     });
     const opened = await openEditorPositionInAnalyzer({
       fen: editorCurrentFen(flushed),
@@ -330,7 +420,7 @@ export default function OpeningAnnotateScreen() {
     });
     if (!opened) return;
     router.push(opened.href as Href);
-  }, [applySession, commentDraft, flushComment, router, session, side]);
+  }, [applySession, commentDraft, externalHandoff, flushComment, router, session, side]);
 
   const requestLeave = useCallback(() => {
     if (!session) {
@@ -679,6 +769,51 @@ export default function OpeningAnnotateScreen() {
           },
         ]}
       />
+
+      <FolderPickModal
+        visible={folderPickOpen}
+        folders={folders}
+        busy={busy}
+        onSelect={(folderId) => {
+          void saveIntoFolder(folderId);
+        }}
+        onCreateFolder={() => {
+          setFolderPickOpen(false);
+          setNameDraft('');
+          setCreateSide(null);
+          setFormError(null);
+          setCreateFolderOpen(true);
+        }}
+        onCancel={() => {
+          setFolderPickOpen(false);
+          setSaveIntent(null);
+        }}
+      />
+
+      <NameModal
+        visible={createFolderOpen}
+        title={t('openings.newRepertoire')}
+        placeholder={t('openings.namePlaceholder')}
+        value={nameDraft}
+        onChangeText={setNameDraft}
+        onCancel={() => {
+          setCreateFolderOpen(false);
+          setFolderPickOpen(true);
+        }}
+        onSubmit={() => {
+          void submitCreateFolderForSave();
+        }}
+        busy={busy}
+        error={formError}
+        submitLabel={t('openings.create')}
+      >
+        <View style={{ gap: 8, marginBottom: 8 }}>
+          <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+            {t('openings.setSide')}
+          </Text>
+          <RepertoireSidePicker value={createSide} onChange={setCreateSide} />
+        </View>
+      </NameModal>
     </KeyboardAvoidingView>
   );
 }

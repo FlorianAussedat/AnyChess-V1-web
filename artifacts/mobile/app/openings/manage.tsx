@@ -29,9 +29,11 @@ import {
   MAX_OPENINGS_PGN_IMPORT_BATCH,
   type PgnGameIndexEntry,
 } from '@/lib/gameLibrary';
+import { parkExternalOpeningPgn } from '@/lib/openingStudy';
 import { confirmAction } from '@/lib/openings/confirmAction';
 import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { DesignTokens } from '@/constants/designTokens';
 import { NameModal } from '@/components/openings/NameModal';
 import { FolderPickModal } from '@/components/openings/FolderPickModal';
 import { RepertoireSidePicker, sideLabel } from '@/components/RepertoireSidePicker';
@@ -46,6 +48,43 @@ type PendingImport = {
   entries: PgnGameIndexEntry[];
   selectedIndices: number[];
 };
+
+type PgnAction = {
+  testID: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+};
+
+function OpeningPgnActionRow({
+  action,
+  colors,
+}: {
+  action: PgnAction;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <Pressable
+      onPress={action.onPress}
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
+      testID={action.testID}
+      style={({ pressed }) => [
+        styles.pgnActionBtn,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+          opacity: pressed ? 0.8 : 1,
+        },
+      ]}
+    >
+      <View style={[styles.pgnActionIcon, { backgroundColor: colors.primary }]}>
+        <Ionicons name={action.icon} size={18} color={colors.primaryForeground} />
+      </View>
+      <Text style={[styles.pgnActionLabel, { color: colors.foreground }]}>{action.label}</Text>
+    </Pressable>
+  );
+}
 
 export default function OpeningsManageScreen() {
   const colors = useColors();
@@ -89,6 +128,7 @@ export default function OpeningsManageScreen() {
   const [createPgn, setCreatePgn] = useState(false);
   const [createPgnFolderId, setCreatePgnFolderId] = useState<string | null>(null);
   const [createPgnNameOpen, setCreatePgnNameOpen] = useState(false);
+  const [pgnPickMode, setPgnPickMode] = useState<'import' | 'edit' | null>(null);
 
   const whiteFolders = useMemo(
     () => folders.filter((f) => f.side === 'white'),
@@ -140,46 +180,98 @@ export default function OpeningsManageScreen() {
     setFolderPickOpen(false);
     setGameCandidates([]);
     setGameSelected(new Set());
+    setPgnPickMode(null);
   }, []);
 
-  const openImport = useCallback(async () => {
-    setFormError(null);
-    setStatusMsg(null);
-    try {
-      const picked = await pickPgnFile();
-      if (!picked) return;
-      const indexed = indexPgnGamesLight(picked.text);
-      if (indexed.entries.length === 0) {
-        setStatusMsg(t('openings.noValidPositions'));
-        return;
-      }
-      if (indexed.entries.length === 1) {
-        beginFolderPick({
+  const displayNameFromFilename = (filename: string) =>
+    filename.replace(/\.pgn$/i, '').trim() || filename;
+
+  const launchExternalEditor = useCallback(
+    (
+      filename: string,
+      sourceText: string,
+      entries: PgnGameIndexEntry[],
+      selectedIndices: number[],
+    ) => {
+      const items = selectedPgnImports(sourceText, entries, selectedIndices, filename);
+      const item = items[0];
+      if (!item) return;
+      parkExternalOpeningPgn({
+        pgnText: item.pgnText,
+        displayName: item.displayName || displayNameFromFilename(filename),
+      });
+      clearImportFlow();
+      router.push('/openings/annotate?external=1' as Href);
+    },
+    [clearImportFlow, router],
+  );
+
+  const pickOpeningPgn = useCallback(
+    async (mode: 'import' | 'edit') => {
+      setFormError(null);
+      setStatusMsg(null);
+      setMoveFile(null);
+      setCreatePgn(false);
+      setPgnPickMode(mode);
+      try {
+        const picked = await pickPgnFile();
+        if (!picked) {
+          setPgnPickMode(null);
+          return;
+        }
+        const indexed = indexPgnGamesLight(picked.text);
+        if (indexed.entries.length === 0) {
+          setStatusMsg(t('openings.noValidPositions'));
+          setPgnPickMode(null);
+          return;
+        }
+        if (indexed.entries.length === 1) {
+          if (mode === 'edit') {
+            launchExternalEditor(
+              picked.filename,
+              picked.text,
+              indexed.entries,
+              [indexed.entries[0]!.index],
+            );
+            return;
+          }
+          beginFolderPick({
+            filename: picked.filename,
+            sourceText: picked.text,
+            entries: indexed.entries,
+            selectedIndices: [indexed.entries[0]!.index],
+          });
+          return;
+        }
+        const candidates: PgnGameSelectCandidate[] = indexed.entries.map((e) => ({
+          ...e,
+          id: `g-${e.index}`,
+          sourceLabel: picked.filename,
+        }));
+        setPendingImport({
           filename: picked.filename,
           sourceText: picked.text,
           entries: indexed.entries,
-          selectedIndices: [indexed.entries[0]!.index],
+          selectedIndices: [],
         });
-        return;
+        setGameCandidates(candidates);
+        setGameSelected(new Set());
+        setGameSelectOpen(true);
+      } catch {
+        setStatusMsg(t('openings.fileReadError'));
+        setPgnPickMode(null);
       }
-      const candidates: PgnGameSelectCandidate[] = indexed.entries.map((e) => ({
-        ...e,
-        id: `g-${e.index}`,
-        sourceLabel: picked.filename,
-      }));
-      setPendingImport({
-        filename: picked.filename,
-        sourceText: picked.text,
-        entries: indexed.entries,
-        selectedIndices: [],
-      });
-      setGameCandidates(candidates);
-      setGameSelected(new Set());
-      setGameSelectOpen(true);
-    } catch {
-      setStatusMsg(t('openings.fileReadError'));
-    }
-  }, [beginFolderPick, t]);
+    },
+    [beginFolderPick, launchExternalEditor, t],
+  );
+
+  const openImport = useCallback(() => {
+    void pickOpeningPgn('import');
+  }, [pickOpeningPgn]);
+
+  const openEditPgn = useCallback(() => {
+    void pickOpeningPgn('edit');
+  }, [pickOpeningPgn]);
 
   const confirmGameSelect = useCallback(() => {
     if (!pendingImport) return;
@@ -188,11 +280,20 @@ export default function OpeningsManageScreen() {
       .filter((n) => Number.isFinite(n))
       .sort((a, b) => a - b);
     if (indices.length === 0) return;
+    if (pgnPickMode === 'edit') {
+      launchExternalEditor(
+        pendingImport.filename,
+        pendingImport.sourceText,
+        pendingImport.entries,
+        [indices[0]!],
+      );
+      return;
+    }
     beginFolderPick({
       ...pendingImport,
       selectedIndices: indices,
     });
-  }, [beginFolderPick, gameSelected, pendingImport]);
+  }, [beginFolderPick, gameSelected, launchExternalEditor, pendingImport, pgnPickMode]);
 
   const importIntoFolder = useCallback(
     async (folderId: string) => {
@@ -528,66 +629,42 @@ export default function OpeningsManageScreen() {
       <ScreenHeader
         onBack={() => router.back()}
         title={t('openings.manageTitle')}
-        subtitle={t('openings.managePgn')}
-        trailing={
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={() => {
-                void openImport();
-              }}
-              style={({ pressed }) => [
-                styles.secondaryBtn,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  opacity: pressed ? 0.75 : 1,
-                },
-              ]}
-              testID="import-pgn-root-btn"
-            >
-              <Ionicons name="cloud-upload-outline" size={16} color={colors.foreground} />
-              <Text style={[styles.btnLabel, { color: colors.foreground }]}>
-                {t('openings.importPgn')}
-              </Text>
-            </Pressable>
-            <Pressable
-              onPress={openCreate}
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
-              ]}
-              testID="create-folder-btn"
-            >
-              <Ionicons name="add" size={18} color={colors.primaryForeground} />
-              <Text style={[styles.btnLabel, { color: colors.primaryForeground }]}>
-                {t('openings.new')}
-              </Text>
-            </Pressable>
-          </View>
-        }
+        titleNumberOfLines={2}
       />
 
       {statusMsg ? (
         <Text style={[styles.status, { color: colors.mutedForeground }]}>{statusMsg}</Text>
       ) : null}
 
-      <Pressable
-        onPress={openCreatePgn}
-        style={({ pressed }) => [
-          styles.createPgnBtn,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-            opacity: pressed ? 0.75 : 1,
-          },
-        ]}
-        testID="create-pgn-btn"
-      >
-        <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-        <Text style={[styles.btnLabel, { color: colors.foreground }]}>
-          {t('openings.createPgn')}
-        </Text>
-      </Pressable>
+      <View style={styles.pgnActionStack} testID="opening-pgn-actions">
+        <OpeningPgnActionRow
+          colors={colors}
+          action={{
+            testID: 'import-pgn-root-btn',
+            icon: 'arrow-up-outline',
+            label: t('openings.importOpeningPgn'),
+            onPress: openImport,
+          }}
+        />
+        <OpeningPgnActionRow
+          colors={colors}
+          action={{
+            testID: 'create-pgn-btn',
+            icon: 'add',
+            label: t('openings.createOpeningPgn'),
+            onPress: openCreatePgn,
+          }}
+        />
+        <OpeningPgnActionRow
+          colors={colors}
+          action={{
+            testID: 'edit-pgn-root-btn',
+            icon: 'create-outline',
+            label: t('openings.editOpeningPgn'),
+            onPress: openEditPgn,
+          }}
+        />
+      </View>
 
       {!ready ? (
         <View style={styles.centered}>
@@ -628,6 +705,25 @@ export default function OpeningsManageScreen() {
           )}
         </ScrollView>
       )}
+
+      <Pressable
+        onPress={openCreate}
+        accessibilityRole="button"
+        accessibilityLabel={t('openings.createFolderA11y')}
+        testID="create-folder-btn"
+        style={({ pressed }) => [
+          styles.folderFab,
+          {
+            backgroundColor: colors.primary,
+            opacity: pressed ? 0.85 : 1,
+          },
+        ]}
+      >
+        <Ionicons name="add" size={20} color={colors.primaryForeground} />
+        <Text style={[styles.folderFabLabel, { color: colors.primaryForeground }]}>
+          {t('openings.createFolderFab')}
+        </Text>
+      </Pressable>
 
       <NameModal
         visible={createOpen}
@@ -714,8 +810,8 @@ export default function OpeningsManageScreen() {
         onChangeSelected={(next) => setGameSelected(next)}
         onCancel={clearImportFlow}
         onConfirm={confirmGameSelect}
-        maxSelection={MAX_OPENINGS_PGN_IMPORT_BATCH}
-        confirmLabel={t('openings.import')}
+        maxSelection={pgnPickMode === 'edit' ? 1 : MAX_OPENINGS_PGN_IMPORT_BATCH}
+        confirmLabel={pgnPickMode === 'edit' ? t('openings.editOpeningPgn') : t('openings.import')}
       />
 
       <FolderPickModal
@@ -757,26 +853,32 @@ export default function OpeningsManageScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 14, gap: 12 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  primaryBtn: {
+  pgnActionStack: { gap: 8 },
+  pgnActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
+    gap: 12,
     borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    minHeight: 52,
   },
-  btnLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
-  list: { gap: 16, paddingBottom: 20 },
+  pgnActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pgnActionLabel: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  list: { gap: 16, paddingBottom: 88 },
   section: { gap: 10 },
   sectionTitle: {
     fontSize: 11,
@@ -809,15 +911,25 @@ const styles = StyleSheet.create({
   pgnMain: { flex: 1, gap: 2 },
   pgnName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   pgnActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
-  createPgnBtn: {
+  status: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  folderFab: {
+    position: 'absolute',
+    right: DesignTokens.spacing.md,
+    bottom: DesignTokens.spacing.md,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    zIndex: 20,
   },
-  status: { fontSize: 12, fontFamily: 'Inter_400Regular' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  folderFabLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
 });
