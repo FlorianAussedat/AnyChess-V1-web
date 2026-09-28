@@ -45,6 +45,9 @@ export type MessageKey =
   | 'game.undoAction'
   | 'game.summary'
   | 'game.newShort'
+  | 'game.abandonShort'
+  | 'game.quitExerciseShort'
+  | 'game.quitTrainingShort'
   | 'game.youPlay'
   | 'openings.noPgnFiles'
   | 'openings.pgnFileCount'
@@ -920,6 +923,24 @@ export type MessageKey =
   | 'activity.discardExerciceTitle'
   | 'activity.discardExerciceBody'
   | 'activity.discardExerciceConfirm'
+  | 'activity.quitCta'
+  | 'activity.endPartieTitle'
+  | 'activity.endPartieBody'
+  | 'activity.endExerciceTitle'
+  | 'activity.endExerciceBody'
+  | 'activity.endAnalyseTitle'
+  | 'activity.endAnalyseBody'
+  | 'activity.endQuizTitle'
+  | 'activity.endQuizBody'
+  | 'activity.endTrainingTitle'
+  | 'activity.endTrainingBody'
+  | 'activity.continueGame'
+  | 'activity.continueExercise'
+  | 'activity.continueTraining'
+  | 'activity.abandonTitle'
+  | 'activity.abandonBody'
+  | 'activity.abandonConfirm'
+  | 'activity.openingTraining'
 
 type Dict = Record<MessageKey, string>;
 
@@ -932,6 +953,7 @@ const fr: Dict = {
   'common.back': 'Retour',
   'common.close': 'Fermer',
   'common.cancel': 'Annuler',
+  'common.continue': 'Continuer',
   'common.confirm': 'Confirmer',
   'common.validate': 'Valider',
   'common.reset': 'Réinitialiser',
@@ -939,7 +961,6 @@ const fr: Dict = {
   'common.save': 'Enregistrer',
   'common.yes': 'Oui',
   'common.no': 'Non',
-  'common.continue': 'Continuer',
   'common.retry': 'Réessayer',
   'common.newGame': 'Nouvelle partie',
   'common.restart': 'Recommencer',
@@ -963,6 +984,9 @@ const fr: Dict = {
   'game.undoAction': 'Annuler',
   'game.summary': 'Résumé',
   'game.newShort': 'Nouvelle',
+  'game.abandonShort': 'Abandonner',
+  'game.quitExerciseShort': 'Quitter l’exercice',
+  'game.quitTrainingShort': 'Quitter l’entraînement',
   'game.youPlay': 'Tu joues :',
   'openings.noPgnFiles': 'Aucun fichier PGN',
   'openings.pgnFileCount': '{{count}} fichier(s) PGN',
@@ -1255,7 +1279,7 @@ const fr: Dict = {
   'parties.parseErrorHint': 'Vérifie le PGN (coups, en-têtes) puis réessaie.',
   'parties.openAnalyzer': 'Ouvrir AnyLyseur',
   'parties.openWorkspace': 'Nouvelle partie / analyse',
-  'parties.workspace': 'Workspace partie',
+  'parties.workspace': 'Analyse de partie',
   'parties.workspaceSubtitle': 'Partie et analyse — un seul état',
   'game.movesPlayed': 'Coups joués',
   'game.exportPgn': 'Exporter en PGN',
@@ -1932,6 +1956,24 @@ const fr: Dict = {
   'activity.discardExerciceBody':
     'Vous allez perdre votre exercice en cours. Voulez-vous vraiment quitter ?',
   'activity.discardExerciceConfirm': 'Quitter l’exercice',
+  'activity.quitCta': 'Quitter',
+  'activity.endPartieTitle': 'Quitter cette partie ?',
+  'activity.endPartieBody': 'La partie en cours ne pourra plus être reprise.',
+  'activity.endExerciceTitle': 'Quitter cet exercice ?',
+  'activity.endExerciceBody': 'Votre progression actuelle sera perdue.',
+  'activity.endAnalyseTitle': 'Quitter cette analyse ?',
+  'activity.endAnalyseBody': 'L’analyse en cours ne pourra plus être reprise.',
+  'activity.endQuizTitle': 'Quitter ce quiz ?',
+  'activity.endQuizBody': 'Votre progression actuelle sera perdue.',
+  'activity.endTrainingTitle': 'Quitter cet entraînement ?',
+  'activity.endTrainingBody': 'Votre progression actuelle sera perdue.',
+  'activity.continueGame': 'Continuer',
+  'activity.continueExercise': 'Continuer l’exercice',
+  'activity.continueTraining': 'Continuer l’entraînement',
+  'activity.abandonTitle': 'Abandonner cette partie ?',
+  'activity.abandonBody': 'La partie en cours ne pourra plus être reprise.',
+  'activity.abandonConfirm': 'Abandonner',
+  'activity.openingTraining': 'Entraînement d’ouverture',
 };
 
 const en: Dict = {
@@ -1974,6 +2016,9 @@ const en: Dict = {
   'game.undoAction': 'Undo',
   'game.summary': 'Summary',
   'game.newShort': 'New',
+  'game.abandonShort': 'Resign',
+  'game.quitExerciseShort': 'Leave exercise',
+  'game.quitTrainingShort': 'Leave training',
   'game.youPlay': 'You play:',
   'openings.noPgnFiles': 'No PGN files',
   'openings.pgnFileCount': '{{count}} PGN file(s)',
@@ -2265,7 +2310,7 @@ const en: Dict = {
   'parties.parseErrorHint': 'Check the PGN (moves, headers) and try again.',
   'parties.openAnalyzer': 'Open AnyLyseur',
   'parties.openWorkspace': 'New game / analysis',
-  'parties.workspace': 'Game workspace',
+  'parties.workspace': 'Game analysis',
   'parties.workspaceSubtitle': 'Game and analysis — one shared state',
   'game.movesPlayed': 'Moves played',
   'game.exportPgn': 'Export PGN',
@@ -2937,6 +2982,24 @@ const en: Dict = {
   'activity.discardExerciceBody':
     'You will lose your current exercise. Do you really want to quit?',
   'activity.discardExerciceConfirm': 'Quit exercise',
+  'activity.quitCta': 'Quit',
+  'activity.endPartieTitle': 'Leave this game?',
+  'activity.endPartieBody': 'The current game can no longer be resumed.',
+  'activity.endExerciceTitle': 'Leave this exercise?',
+  'activity.endExerciceBody': 'Your current progress will be lost.',
+  'activity.endAnalyseTitle': 'Leave this analysis?',
+  'activity.endAnalyseBody': 'The current analysis can no longer be resumed.',
+  'activity.endQuizTitle': 'Leave this quiz?',
+  'activity.endQuizBody': 'Your current progress will be lost.',
+  'activity.endTrainingTitle': 'Leave this training?',
+  'activity.endTrainingBody': 'Your current progress will be lost.',
+  'activity.continueGame': 'Continue',
+  'activity.continueExercise': 'Continue the exercise',
+  'activity.continueTraining': 'Continue training',
+  'activity.abandonTitle': 'Resign this game?',
+  'activity.abandonBody': 'The current game can no longer be resumed.',
+  'activity.abandonConfirm': 'Resign',
+  'activity.openingTraining': 'Opening training',
 };
 
 const DICTS: Record<AppLanguage, Dict> = { fr, en };

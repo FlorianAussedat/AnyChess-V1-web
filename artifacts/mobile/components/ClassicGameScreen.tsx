@@ -32,7 +32,7 @@ import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import { useGame, type ClassicPlaySnapshot } from '@/contexts/GameContext';
-import { confirmDiscardActivity } from '@/lib/activitySessions';
+import { confirmAbandonGame, endActivity } from '@/lib/activitySessions';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import type { PlayerColor, SideChoice } from '@/lib/game/types';
 import { beginGameFromCampChoice, pairMoveHistory, resolveSideChoice } from '@/lib/game';
@@ -115,6 +115,7 @@ export function ClassicGameScreen() {
     downloadPgn,
     exportPlaySnapshot,
     hydratePlaySnapshot,
+    returnToCampSetup,
   } = useGame();
 
   const params = useLocalSearchParams<{ sessionId?: string }>();
@@ -147,15 +148,21 @@ export function ClassicGameScreen() {
     boardVisible: boolean;
   };
 
-  const { discard } = usePersistedActivity<ClassicActivityPayload>({
+  const activeBand = getStrengthBand(setupBandId);
+  const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
+  const contextLine = campLocked
+    ? `${campLabel} · adversaire ${activeBand.label}`
+    : t('game.configure');
+
+  const { sessionId } = usePersistedActivity<ClassicActivityPayload>({
     kind: 'classic',
     modeId: 'classic',
     resumeSessionId,
     title: t('modes.classic.title'),
-    summary: history.length > 0 ? history.slice(-4).join(' ') : t('game.configure'),
+    summary: contextLine,
     routeFor: (id) => `/classic?sessionId=${encodeURIComponent(id)}`,
     enabled: campLocked,
-    revision: `${history.join(',')}|${playerColor}|${campLocked}|${boardVisible}`,
+    revision: `${history.join(',')}|${playerColor}|${campLocked}|${boardVisible}|${setupBandId}`,
     capture: () => ({
       play: exportPlaySnapshot(),
       campLocked,
@@ -245,21 +252,17 @@ export function ClassicGameScreen() {
   }, [setupBandId, setStrengthBandId, pendingSide, playerColor, applySide, changeColor, newGame]);
 
   const onNewGamePress = useCallback(() => {
-    if (campLocked && history.length > 0) {
-      confirmDiscardActivity('partie', () => {
-        void discard();
-        resetCurrentGame();
+    if (campLocked) {
+      confirmAbandonGame(() => {
+        void endActivity(sessionId);
+        setCampLocked(false);
+        setDraftMove('');
+        returnToCampSetup();
       });
       return;
     }
     resetCurrentGame();
-  }, [campLocked, history.length, discard, resetCurrentGame]);
-
-  const activeBand = getStrengthBand(setupBandId);
-  const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
-  const contextLine = campLocked
-    ? `${campLabel} · adversaire ${activeBand.label}`
-    : t('game.configure');
+  }, [campLocked, sessionId, returnToCampSetup, resetCurrentGame]);
 
   const moveRows = pairMoveHistory(history);
 
@@ -333,6 +336,7 @@ export function ClassicGameScreen() {
               onUndo={undoMove}
               onSummarize={summarizeGame}
               onNewGame={onNewGamePress}
+              abandonActive={campLocked}
             />
 
             {/* Status + board toggles (Canva: same row, above the board). */}
@@ -452,6 +456,7 @@ export function ClassicGameScreen() {
             displayName: openingIdentity?.name || 'Partie classique',
             flipped: playerColor === 'b',
             tab: 'analysis',
+            source: 'live',
           });
           if (!opened) return;
           router.push(opened.href);

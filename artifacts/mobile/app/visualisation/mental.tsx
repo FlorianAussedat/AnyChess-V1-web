@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -50,6 +50,7 @@ import {
   type SynchronizedSequenceHandle,
 } from '@/lib/presentation/synchronizedSequence';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { confirmLeaveToHub } from '@/lib/activitySessions';
 
 const RECENT_KEY = StorageKeys.mentalRecent.key;
 
@@ -93,7 +94,7 @@ export default function MentalPositionScreen() {
     fullMoves: number;
   };
 
-  usePersistedActivity<MentalPayload>({
+  const { sessionId } = usePersistedActivity<MentalPayload>({
     kind: 'mental',
     modeId: 'visualisation',
     resumeSessionId,
@@ -137,14 +138,6 @@ export default function MentalPositionScreen() {
       engineOwnerRef.current.destroy();
     };
   }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        engineOwnerRef.current.destroy();
-      };
-    }, []),
-  );
 
   const cancelPresentation = useCallback(() => {
     sequenceRef.current?.cancel();
@@ -318,7 +311,15 @@ export default function MentalPositionScreen() {
       testID="mental-screen"
     >
       <ScreenHeader
-        onBack={() => router.navigate('/')}
+        onBack={() => {
+          if (questioning || showing) {
+            confirmLeaveToHub('mental', sessionId, () => {
+              router.replace('/visualisation' as Href);
+            });
+            return;
+          }
+          router.navigate('/');
+        }}
         title={t('vision.mental')}
         showSound
       />

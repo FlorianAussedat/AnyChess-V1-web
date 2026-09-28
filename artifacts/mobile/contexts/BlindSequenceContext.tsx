@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Chess } from 'chess.js';
 import type { Move, Square } from 'chess.js';
 import { createOpponentEngine } from '@/lib/engines';
@@ -40,7 +40,7 @@ import { formatSanForDisplay } from '@/lib/chess/notation';
 import { tMsg } from '@/lib/i18n';
 import { defaultKeyValueStorage } from '@/lib/storage';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { chessFromSanHistory } from '@/lib/activitySessions';
+import { chessFromSanHistory, confirmLeaveToHub } from '@/lib/activitySessions';
 
 const blindRecordsStore = new BlindRecordsStore(defaultKeyValueStorage);
 
@@ -116,12 +116,11 @@ type BlindActivityPayload = {
 };
 
 export function BlindSequenceProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const resumeSessionId =
     typeof params.sessionId === 'string' ? params.sessionId : undefined;
-  // Created on focus / cleared on blur — avoid orphan Workers when Stack keeps
-  // this route mounted after the user leaves Blind mode.
+  const sessionIdRef = useRef('');
+  // Created with the provider — keep the process across Analyse push, destroy on unmount.
   const engineRef = useRef<ChessEngine | null>(null);
 
   const gameRef = useRef(new Chess());
@@ -228,20 +227,18 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     submodeRef.current = submode;
   }, [submode]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!engineRef.current) {
-        engineRef.current = createOpponentEngine();
-      }
-      engineRef.current.init?.().catch(() => {});
-      return () => {
-        const engine = engineRef.current;
-        engineRef.current = null;
-        engine?.cancel?.();
-        engine?.destroy?.();
-      };
-    }, []),
-  );
+  useEffect(() => {
+    if (!engineRef.current) {
+      engineRef.current = createOpponentEngine();
+    }
+    engineRef.current.init?.().catch(() => {});
+    return () => {
+      const engine = engineRef.current;
+      engineRef.current = null;
+      engine?.cancel?.();
+      engine?.destroy?.();
+    };
+  }, []);
 
   const syncBoard = useCallback(() => {
     setBoard(gameRef.current.board() as (BoardPiece | null)[][]);
@@ -398,16 +395,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     void refreshModeRecord(m);
   }, [refreshModeRecord]);
 
-  const backToHub = useCallback(() => {
-    if (
-      phase === 'dictation' ||
-      phase === 'observing' ||
-      phase === 'reconstruction' ||
-      phase === 'recitation'
-    ) {
-      router.navigate('/');
-      return;
-    }
+  const resetToHub = useCallback(() => {
     speechService.cancel('back-hub');
     replayRef.current.cancel();
     resultReplayRef.current?.cancel();
@@ -419,8 +407,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setScore(null);
     resetBoard();
   }, [
-    phase,
-    router,
     resetBoard,
     clearDictationTimer,
     showRecognized,
@@ -428,6 +414,19 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     resultReplayRef,
     setIsReplaying,
   ]);
+
+  const backToHub = useCallback(() => {
+    if (
+      phase === 'dictation' ||
+      phase === 'observing' ||
+      phase === 'reconstruction' ||
+      phase === 'recitation'
+    ) {
+      confirmLeaveToHub('blind', sessionIdRef.current, resetToHub);
+      return;
+    }
+    resetToHub();
+  }, [phase, resetToHub]);
 
   const startSession = useCallback(async () => {
     if (!submode) return;
@@ -835,7 +834,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     playVisualReplay(sequenceRef.current, { after: 'keep-final' });
   }, [playVisualReplay]);
 
-  usePersistedActivity<BlindActivityPayload>({
+  const { sessionId } = usePersistedActivity<BlindActivityPayload>({
     kind: 'blind',
     modeId: 'blind',
     resumeSessionId,
@@ -887,11 +886,12 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       setRecordEligible(payload.recordEligible);
     },
   });
+  sessionIdRef.current = sessionId;
 
   const leaveToHome = useCallback(() => {
     speechService.cancel('blind-leave');
-    router.navigate('/');
-  }, [router]);
+    confirmLeaveToHub('blind', sessionIdRef.current, resetToHub);
+  }, [resetToHub]);
 
   const backToSettings = useCallback(() => {
     speechService.cancel('back-settings');

@@ -87,6 +87,7 @@ export async function openExerciseGameInAnalyzer(input: {
     displayName: input.displayName,
     flipped: input.flipped,
     tab: 'analysis',
+    source: 'live',
     store: input.store,
   });
   if (!opened) return null;

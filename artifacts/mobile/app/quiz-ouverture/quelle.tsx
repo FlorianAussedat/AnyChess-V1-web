@@ -25,6 +25,7 @@ import {
   type OpeningIdentificationRunSnapshot,
 } from '@/lib/openingQuiz';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { confirmLeaveToHub } from '@/lib/activitySessions';
 
 type Phase = 'pick-level' | 'playing' | 'feedback' | 'results' | 'review';
 
@@ -65,7 +66,7 @@ export default function QuelleOuvertureScreen() {
     setPhase(phaseFromSnap(next, prefer ?? phase));
   };
 
-  usePersistedActivity({
+  const { sessionId } = usePersistedActivity({
     kind: 'quelle',
     modeId: 'quiz-ouverture',
     resumeSessionId,
@@ -151,7 +152,19 @@ export default function QuelleOuvertureScreen() {
       keyboardShouldPersistTaps="handled"
       testID="quelle-screen"
     >
-      <ScreenHeader onBack={() => router.navigate('/')} title={t('quiz.quelle')} showSound />
+      <ScreenHeader
+        onBack={() => {
+          if (phase === 'playing' || phase === 'feedback') {
+            confirmLeaveToHub('quelle', sessionId, () => {
+              setPhase('pick-level');
+            });
+            return;
+          }
+          router.navigate('/');
+        }}
+        title={t('quiz.quelle')}
+        showSound
+      />
 
       {phase === 'pick-level' ? (
         <View style={styles.block} testID="quelle-level-picker">

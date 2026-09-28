@@ -8,9 +8,9 @@ import { AppState, type AppStateStatus } from 'react-native';
 import {
   createActivitySessionId,
   getActivitySession,
+  endActivity,
   markActivityFinished,
   nounForKind,
-  removeActivitySession,
   upsertActivitySession,
   type ActivityKind,
   type ActivityNoun,
@@ -114,7 +114,7 @@ export function usePersistedActivity<T>(args: {
   }, [flush]);
 
   const discard = useCallback(async () => {
-    await removeActivitySession(sessionIdRef.current);
+    await endActivity(sessionIdRef.current);
   }, []);
 
   return { sessionId: sessionIdRef.current, noun, discard };

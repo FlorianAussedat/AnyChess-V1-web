@@ -15,7 +15,8 @@ import {
   removeActivitySession,
   upsertActivitySession,
 } from '../ActivitySessionsStore.ts';
-import { createActivitySessionId, nounForKind } from '../types.ts';
+import { endActivity } from '../endActivity.ts';
+import { createActivitySessionId, endCopyForKind, nounForKind } from '../types.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const mobileRoot = join(here, '../../..');
@@ -160,6 +161,51 @@ describe('activity session store', () => {
     assert.equal(getActivitySession('live')?.inProgress, false);
     assert.equal(listInProgressActivities().length, 0);
   });
+
+  it('endActivity removes only the targeted session', async () => {
+    await upsertActivitySession({
+      id: 'keep-me',
+      kind: 'classic',
+      modeId: 'classic',
+      noun: 'partie',
+      title: 'Partie classique',
+      summary: 'Blancs · adversaire <800',
+      route: '/classic?sessionId=keep-me',
+      updatedAt: 1,
+      inProgress: true,
+      payload: { history: ['e4'] },
+    });
+    await upsertActivitySession({
+      id: 'drop-me',
+      kind: 'puzzles-tactical',
+      modeId: 'puzzles',
+      noun: 'probleme',
+      title: 'Entraînement tactique',
+      summary: 'abc · 1400',
+      route: '/puzzles?sessionId=drop-me',
+      updatedAt: 2,
+      inProgress: true,
+      payload: {},
+    });
+    await endActivity('drop-me');
+    assert.equal(getActivitySession('drop-me'), null);
+    assert.ok(getActivitySession('keep-me'));
+    assert.equal(listInProgressActivities().length, 1);
+    assert.equal(listInProgressActivities()[0]?.id, 'keep-me');
+  });
+
+  it('endActivity is a no-op for an unknown id', async () => {
+    await endActivity('missing');
+    assert.equal(listInProgressActivities().length, 0);
+  });
+
+  it('maps kinds onto user-facing quit copy', () => {
+    assert.equal(endCopyForKind('classic'), 'partie');
+    assert.equal(endCopyForKind('parties-analyzer'), 'analyse');
+    assert.equal(endCopyForKind('culture'), 'quiz');
+    assert.equal(endCopyForKind('opening-play'), 'entrainement');
+    assert.equal(endCopyForKind('puzzles-tactical'), 'exercice');
+  });
 });
 
 describe('activity leave paths keep mid-session state', () => {
@@ -170,8 +216,9 @@ describe('activity leave paths keep mid-session state', () => {
     assert.match(nommer, /usePersistedActivity/);
     assert.match(jouer, /usePersistedActivity/);
     assert.match(mental, /usePersistedActivity/);
-    assert.match(nommer, /pauseTimers/);
-    assert.match(jouer, /pauseTimers/);
+    assert.match(nommer, /confirmLeaveToHub/);
+    assert.match(jouer, /confirmLeaveToHub/);
+    assert.match(mental, /confirmLeaveToHub/);
     assert.match(nommer, /router\.navigate\('\/'\)/);
     assert.match(jouer, /router\.navigate\('\/'\)/);
     assert.match(mental, /router\.navigate\('\/'\)/);
@@ -180,5 +227,52 @@ describe('activity leave paths keep mid-session state', () => {
   it('ModeCard descriptions stay untruncated', () => {
     const card = readFileSync(join(mobileRoot, 'components/home/ModeCard.tsx'), 'utf8');
     assert.doesNotMatch(card, /numberOfLines/);
+  });
+
+  it('home resume rows expose Quitter and Reprendre per activity', () => {
+    const src = readFileSync(join(mobileRoot, 'components/home/ResumeActivities.tsx'), 'utf8');
+    assert.match(src, /confirmQuitFromHome\(item\.kind, item\.id\)/);
+    assert.match(src, /resume-activity-quit-\$\{item\.id\}/);
+    assert.match(src, /resume-activity-resume-\$\{item\.id\}/);
+    assert.match(src, /activity\.quitCta/);
+    assert.match(src, /activity\.resumeCta/);
+  });
+
+  it('live Partie/Exercice → Analyse does not persist a second activity', () => {
+    const analyzer = readFileSync(join(mobileRoot, 'app/parties/analyzer.tsx'), 'utf8');
+    assert.match(analyzer, /fromLiveWorkflow/);
+    assert.match(analyzer, /enabled: !!game && !showPaste && !fromLiveWorkflow/);
+    assert.match(analyzer, /useSmartBack\('\/'\)/);
+    const classic = readFileSync(join(mobileRoot, 'components/ClassicGameScreen.tsx'), 'utf8');
+    const opening = readFileSync(join(mobileRoot, 'components/OpeningGameScreen.tsx'), 'utf8');
+    assert.match(classic, /source: 'live'/);
+    assert.match(opening, /source: 'live'/);
+  });
+
+  it('classic abandon ends the session and returns to camp setup', () => {
+    const classic = readFileSync(join(mobileRoot, 'components/ClassicGameScreen.tsx'), 'utf8');
+    assert.match(classic, /confirmAbandonGame/);
+    assert.match(classic, /endActivity\(sessionId\)/);
+    assert.match(classic, /returnToCampSetup/);
+    assert.match(classic, /abandonActive=\{campLocked\}/);
+    assert.doesNotMatch(
+      classic,
+      /confirmAbandonGame\(\(\) => \{[\s\S]*newGame\(\)/,
+    );
+  });
+
+  it('exercise back toward the hub confirms then ends only that session', () => {
+    const puzzle = readFileSync(join(mobileRoot, 'contexts/PuzzleContext.tsx'), 'utf8');
+    const blind = readFileSync(join(mobileRoot, 'contexts/BlindSequenceContext.tsx'), 'utf8');
+    const finales = readFileSync(
+      join(mobileRoot, 'app/puzzles/finales-theoriques-play.tsx'),
+      'utf8',
+    );
+    const nulle = readFileSync(join(mobileRoot, 'app/puzzles/defends-nulle-play.tsx'), 'utf8');
+    assert.match(puzzle, /confirmLeaveToHub\('puzzles-tactical'/);
+    assert.match(blind, /confirmLeaveToHub\('blind'/);
+    assert.match(finales, /confirmLeaveToHub\('theoretical-endgame'/);
+    assert.match(nulle, /confirmLeaveToHub\('defends-nulle'/);
+    assert.doesNotMatch(puzzle, /router\.navigate\('\/'\)/);
   });
 });

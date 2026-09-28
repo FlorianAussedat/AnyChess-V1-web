@@ -20,5 +20,13 @@ export {
   subscribeActivitySessions,
   __setActivitySessionsStorageForTests,
 } from './ActivitySessionsStore.ts';
-export { confirmDiscardActivity } from './confirmDiscard.ts';
+export { endActivity } from './endActivity.ts';
+export { endCopyForKind } from './types.ts';
+export type { ActivityEndCopy } from './types.ts';
+export {
+  confirmDiscardActivity,
+  confirmQuitFromHome,
+  confirmLeaveToHub,
+  confirmAbandonGame,
+} from './confirmDiscard.ts';
 export { chessFromSanHistory, lastMoveFromGame } from './chessHistory.ts';

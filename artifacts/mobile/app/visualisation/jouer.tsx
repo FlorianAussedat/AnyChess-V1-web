@@ -34,6 +34,7 @@ import {
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { confirmLeaveToHub } from '@/lib/activitySessions';
 
 const records = new PlayMoveRecordsStore(defaultKeyValueStorage);
 const styles = timedVisionStyles;
@@ -60,7 +61,7 @@ export default function JouerLeCoupScreen() {
     setSnap(sessionRef.current.snapshot());
   }, []);
 
-  usePersistedActivity({
+  const { sessionId } = usePersistedActivity({
     kind: 'jouer',
     modeId: 'visualisation',
     resumeSessionId,
@@ -202,8 +203,10 @@ export default function JouerLeCoupScreen() {
         onBack={() => {
           speechService.cancel('play-move-leave');
           if (snap.phase === 'playing' || snap.phase === 'countdown') {
-            sessionRef.current.pauseTimers();
-            router.navigate('/');
+            confirmLeaveToHub('jouer', sessionId, () => {
+              sessionRef.current.returnToIdle();
+              sync();
+            });
             return;
           }
           sessionRef.current.returnToIdle();

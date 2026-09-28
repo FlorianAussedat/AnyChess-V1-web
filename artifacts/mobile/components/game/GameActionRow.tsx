@@ -13,6 +13,10 @@ type Props = {
   onUndo: () => void;
   onSummarize: () => void;
   onNewGame: () => void;
+  /** When set, the last action leaves the current activity instead of Nouvelle. */
+  leaveMode?: 'new' | 'abandon' | 'quit-exercise' | 'quit-training';
+  /** @deprecated Use leaveMode="abandon". */
+  abandonActive?: boolean;
 };
 
 type Action = {
@@ -26,9 +30,41 @@ type Action = {
 /**
  * Compact in-game action bar — smaller footprint, still labeled.
  */
-export function GameActionRow({ onRepeat, onUndo, onSummarize, onNewGame }: Props) {
+export function GameActionRow({
+  onRepeat,
+  onUndo,
+  onSummarize,
+  onNewGame,
+  leaveMode,
+  abandonActive = false,
+}: Props) {
   const colors = useColors();
   const { t } = useTranslation();
+  const mode = leaveMode ?? (abandonActive ? 'abandon' : 'new');
+  const leave =
+    mode === 'abandon'
+      ? {
+          label: t('game.abandonShort'),
+          icon: 'flag-outline' as IoniconName,
+          testID: 'abandon-game-btn',
+        }
+      : mode === 'quit-exercise'
+        ? {
+            label: t('game.quitExerciseShort'),
+            icon: 'exit-outline' as IoniconName,
+            testID: 'quit-exercise-btn',
+          }
+        : mode === 'quit-training'
+          ? {
+              label: t('game.quitTrainingShort'),
+              icon: 'exit-outline' as IoniconName,
+              testID: 'quit-training-btn',
+            }
+          : {
+              label: t('game.newShort'),
+              icon: 'refresh-outline' as IoniconName,
+              testID: 'new-game-btn',
+            };
   const actions: Action[] = [
     {
       id: 'repeat',
@@ -53,10 +89,10 @@ export function GameActionRow({ onRepeat, onUndo, onSummarize, onNewGame }: Prop
     },
     {
       id: 'new',
-      label: t('game.newShort'),
-      icon: 'refresh-outline',
+      label: leave.label,
+      icon: leave.icon,
       onPress: onNewGame,
-      testID: 'new-game-btn',
+      testID: leave.testID,
     },
   ];
 

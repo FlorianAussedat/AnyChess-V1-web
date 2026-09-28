@@ -34,6 +34,7 @@ import {
 } from '@/lib/moveNaming';
 import { sideToMoveLabel } from '@/lib/playMove';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { confirmLeaveToHub } from '@/lib/activitySessions';
 
 const records = new MoveNamingRecordsStore(defaultKeyValueStorage);
 const styles = timedVisionStyles;
@@ -60,7 +61,7 @@ export default function NommerLeCoupScreen() {
     setSnap(sessionRef.current.snapshot());
   }, []);
 
-  usePersistedActivity({
+  const { sessionId } = usePersistedActivity({
     kind: 'nommer',
     modeId: 'visualisation',
     resumeSessionId,
@@ -200,8 +201,10 @@ export default function NommerLeCoupScreen() {
       <ScreenHeader
         onBack={() => {
           if (snap.phase === 'playing' || snap.phase === 'countdown') {
-            sessionRef.current.pauseTimers();
-            router.navigate('/');
+            confirmLeaveToHub('nommer', sessionId, () => {
+              sessionRef.current.returnToIdle();
+              sync();
+            });
             return;
           }
           sessionRef.current.returnToIdle();
