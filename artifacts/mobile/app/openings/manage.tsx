@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -716,6 +717,9 @@ export default function OpeningsManageScreen() {
           {
             backgroundColor: colors.primary,
             opacity: pressed ? 0.85 : 1,
+            bottom:
+              DesignTokens.spacing.md +
+              (Platform.OS === 'web' ? DesignTokens.bottomNavContentHeight : 0),
           },
         ]}
       >
@@ -916,7 +920,6 @@ const styles = StyleSheet.create({
   folderFab: {
     position: 'absolute',
     right: DesignTokens.spacing.md,
-    bottom: DesignTokens.spacing.md,
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
