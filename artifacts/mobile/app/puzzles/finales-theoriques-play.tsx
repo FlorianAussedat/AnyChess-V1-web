@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { confirmLeaveToHub } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 import { Chess } from 'chess.js';
 import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
@@ -189,19 +189,21 @@ export default function TheoreticalEndgamePlayScreen() {
     );
   }, [snap.result]);
 
-  const confirmExit = () => {
-    const goHub = () =>
-      router.replace('/puzzles/finales-theoriques' as Href);
-    if (
+  const goHub = useCallback(
+    () => router.replace('/puzzles/finales-theoriques' as Href),
+    [router],
+  );
+  const confirmExit = useActiveSessionBack({
+    sessionActive:
       snap.phase === 'playing' ||
       snap.phase === 'thinking' ||
-      snap.phase === 'verifying'
-    ) {
-      confirmLeaveToHub('theoretical-endgame', sessionId, goHub);
-      return;
-    }
-    goHub();
-  };
+      snap.phase === 'verifying',
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: goHub,
+    onNavigateBack: goHub,
+    captureHardwareBack: true,
+  });
 
   const playUserMove = async (from: string, to: string, promotion?: string) => {
     if (busy || !engineReady) return;

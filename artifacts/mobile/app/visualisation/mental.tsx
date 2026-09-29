@@ -50,7 +50,7 @@ import {
   type SynchronizedSequenceHandle,
 } from '@/lib/presentation/synchronizedSequence';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { confirmLeaveToHub } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 
 const RECENT_KEY = StorageKeys.mentalRecent.key;
 
@@ -118,6 +118,15 @@ export default function MentalPositionScreen() {
       setShowBoard(next.showBoardDuringSequence);
       setSnap({ ...next });
     },
+  });
+
+  const onBack = useActiveSessionBack({
+    sessionActive: questioning || showing,
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: () => router.replace('/visualisation' as Href),
+    onNavigateBack: () => router.navigate('/'),
+    captureHardwareBack: true,
   });
 
   const sideToMove = useMemo(() => {
@@ -311,15 +320,7 @@ export default function MentalPositionScreen() {
       testID="mental-screen"
     >
       <ScreenHeader
-        onBack={() => {
-          if (questioning || showing) {
-            confirmLeaveToHub('mental', sessionId, () => {
-              router.replace('/visualisation' as Href);
-            });
-            return;
-          }
-          router.navigate('/');
-        }}
+        onBack={onBack}
         title={t('vision.mental')}
         showSound
       />

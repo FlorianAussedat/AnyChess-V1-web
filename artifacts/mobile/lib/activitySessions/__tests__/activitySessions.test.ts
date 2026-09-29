@@ -216,9 +216,9 @@ describe('activity leave paths keep mid-session state', () => {
     assert.match(nommer, /usePersistedActivity/);
     assert.match(jouer, /usePersistedActivity/);
     assert.match(mental, /usePersistedActivity/);
-    assert.match(nommer, /confirmLeaveToHub/);
-    assert.match(jouer, /confirmLeaveToHub/);
-    assert.match(mental, /confirmLeaveToHub/);
+    assert.match(nommer, /useActiveSessionBack/);
+    assert.match(jouer, /useActiveSessionBack/);
+    assert.match(mental, /useActiveSessionBack/);
     assert.match(nommer, /router\.navigate\('\/'\)/);
     assert.match(jouer, /router\.navigate\('\/'\)/);
     assert.match(mental, /router\.navigate\('\/'\)/);
@@ -242,7 +242,7 @@ describe('activity leave paths keep mid-session state', () => {
     const analyzer = readFileSync(join(mobileRoot, 'app/parties/analyzer.tsx'), 'utf8');
     assert.match(analyzer, /fromLiveWorkflow/);
     assert.match(analyzer, /enabled: !!game && !showPaste && !fromLiveWorkflow/);
-    assert.match(analyzer, /useSmartBack\('\/'\)/);
+    assert.doesNotMatch(analyzer, /useActiveSessionBack/);
     const classic = readFileSync(join(mobileRoot, 'components/ClassicGameScreen.tsx'), 'utf8');
     const opening = readFileSync(join(mobileRoot, 'components/OpeningGameScreen.tsx'), 'utf8');
     assert.match(classic, /source: 'live'/);
@@ -269,10 +269,14 @@ describe('activity leave paths keep mid-session state', () => {
       'utf8',
     );
     const nulle = readFileSync(join(mobileRoot, 'app/puzzles/defends-nulle-play.tsx'), 'utf8');
-    assert.match(puzzle, /confirmLeaveToHub\('puzzles-tactical'/);
-    assert.match(blind, /confirmLeaveToHub\('blind'/);
-    assert.match(finales, /confirmLeaveToHub\('theoretical-endgame'/);
-    assert.match(nulle, /confirmLeaveToHub\('defends-nulle'/);
+    assert.match(puzzle, /useActiveSessionBack/);
+    assert.doesNotMatch(puzzle, /captureHardwareBack/);
+    assert.match(blind, /useActiveSessionBack/);
+    assert.doesNotMatch(blind, /captureHardwareBack/);
+    assert.match(puzzle, /sessionActive: phase === 'playing' \|\| phase === 'solution-replay'/);
+    assert.match(blind, /useActiveSessionBack/);
+    assert.match(finales, /useActiveSessionBack/);
+    assert.match(nulle, /useActiveSessionBack/);
     assert.doesNotMatch(puzzle, /router\.navigate\('\/'\)/);
   });
 });

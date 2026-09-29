@@ -2,6 +2,11 @@ import { confirmAction } from '../openings/confirmAction.ts';
 import { tMsg } from '../i18n/tMsg.ts';
 import { endActivity } from './endActivity.ts';
 import {
+  activeSessionBackCopy,
+  handleActiveSessionBackConfirm,
+  type ActiveSessionBackKind,
+} from './sessionBack.ts';
+import {
   endCopyForKind,
   type ActivityEndCopy,
   type ActivityKind,
@@ -143,6 +148,27 @@ export function confirmAbandonGame(onConfirm: () => void): void {
   confirmAction(tMsg('activity.abandonTitle'), tMsg('activity.abandonBody'), onConfirm, {
     cancelLabel: tMsg('activity.continueGame'),
     confirmLabel: tMsg('activity.abandonConfirm'),
+    destructive: true,
+  });
+}
+
+export type { ActiveSessionBackKind } from './sessionBack.ts';
+
+/**
+ * Header / Android back while a live game or exercise is on screen.
+ * Cancel stays put. Confirm ends that persisted session then runs onLeave.
+ */
+export function confirmActiveSessionBack(
+  kind: ActiveSessionBackKind,
+  activityId: string | undefined,
+  onLeave: () => void,
+): void {
+  const copy = activeSessionBackCopy(kind);
+  confirmAction(copy.title, '', () => {
+    void handleActiveSessionBackConfirm(activityId, onLeave);
+  }, {
+    cancelLabel: copy.cancelLabel,
+    confirmLabel: copy.confirmLabel,
     destructive: true,
   });
 }

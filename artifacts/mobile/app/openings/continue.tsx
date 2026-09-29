@@ -25,6 +25,7 @@ import { ChessMoveInput } from '@/components/game/ChessMoveInput';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { sideLabel } from '@/components/RepertoireSidePicker';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide, ephemeralSessionForOrigin, repertoireFromSans, leaveEphemeralOpeningExercise, applyReviewPick, pickReviewLineFromMemory, listReviewPoolEntries } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
 import { getOpeningDisplayName } from '@/lib/openings';
@@ -466,6 +467,18 @@ export default function ContinueLineScreen() {
   const finished =
     snap.phase === 'completed' || snap.phase === 'failed' || snap.phase === 'error';
 
+  const leaveContinue = useCallback(() => {
+    leaveEphemeralOpeningExercise();
+    router.back();
+  }, [router]);
+  const onBack = useActiveSessionBack({
+    sessionActive: !loading && snap.phase === 'reciting',
+    kind: 'exercice',
+    onLeave: leaveContinue,
+    onNavigateBack: leaveContinue,
+    captureHardwareBack: true,
+  });
+
   const continueOpeningLabel = useMemo(
     () =>
       getOpeningDisplayName({
@@ -535,10 +548,7 @@ export default function ContinueLineScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <ScreenHeader
-        onBack={() => {
-          leaveEphemeralOpeningExercise();
-          router.back();
-        }}
+        onBack={onBack}
         title={t('openings.continueLine')}
         subtitle={`${snap.repertoireName}${
           snap.trainingSide ? ` · ${sideLabel(snap.trainingSide)}` : ''

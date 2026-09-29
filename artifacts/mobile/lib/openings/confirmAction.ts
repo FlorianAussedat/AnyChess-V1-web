@@ -7,13 +7,14 @@ export function confirmAction(
   onConfirm: () => void,
   options?: { confirmLabel?: string; cancelLabel?: string; destructive?: boolean },
 ): void {
+  const body = message.trim();
   if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`)) {
+    if (typeof window !== 'undefined' && window.confirm(body ? `${title}\n\n${body}` : title)) {
       onConfirm();
     }
     return;
   }
-  Alert.alert(title, message, [
+  Alert.alert(title, body || undefined, [
     { text: options?.cancelLabel ?? 'Annuler', style: 'cancel' },
     {
       text: options?.confirmLabel ?? 'OK',

@@ -37,8 +37,9 @@ import {
   type ChessCultureFeedbackVote,
   type ChessCultureSessionQuestion,
 } from '@/lib/chessCulture';
-import { getActivitySession, confirmLeaveToHub } from '@/lib/activitySessions';
+import { getActivitySession } from '@/lib/activitySessions';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 
 type Phase = 'loading' | 'playing' | 'finished';
 
@@ -134,6 +135,15 @@ export default function CultureGeneraleQuizScreen() {
     },
   });
 
+  const onBack = useActiveSessionBack({
+    sessionActive: phase === 'playing',
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: () => router.replace('/quiz-ouverture' as Href),
+    onNavigateBack: () => router.navigate('/'),
+    captureHardwareBack: true,
+  });
+
   useEffect(() => {
     if (resumeSessionId && getActivitySession(resumeSessionId)) return;
     void startSession();
@@ -210,15 +220,7 @@ export default function CultureGeneraleQuizScreen() {
       ]}
     >
       <ScreenHeader
-        onBack={() => {
-          if (phase === 'playing') {
-            confirmLeaveToHub('culture', sessionId, () => {
-              router.replace('/quiz-ouverture' as Href);
-            });
-            return;
-          }
-          router.navigate('/');
-        }}
+        onBack={onBack}
         title={t('quiz.quiz')}
         subtitle={t('quiz.cultureMixed')}
         backTestID="culture-quiz-back"

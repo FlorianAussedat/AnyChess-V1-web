@@ -53,6 +53,10 @@ describe('i18n dictionaries', () => {
     assert.equal(translate('fr', 'activity.discardQuizConfirm'), 'Quitter le quiz');
     assert.equal(translate('fr', 'activity.discardCoursConfirm'), 'Quitter le cours');
     assert.equal(translate('fr', 'activity.discardExerciceConfirm'), 'Quitter l’exercice');
+    assert.equal(translate('fr', 'activity.backPartieTitle'), 'Quitter la partie ?');
+    assert.equal(translate('fr', 'activity.backExerciceTitle'), 'Abandonner l’exercice ?');
+    assert.equal(translate('fr', 'activity.backExerciceConfirm'), 'Abandonner');
+    assert.equal(translate('fr', 'activity.quitCta'), 'Quitter');
     assert.equal(translate('fr', 'common.cancel'), 'Annuler');
     assert.equal(translate('en', 'activity.resumeTitle'), 'Activities in progress');
     assert.match(translate('en', 'activity.discardPartieBody'), /lose your current game/i);

@@ -40,7 +40,8 @@ import { formatSanForDisplay } from '@/lib/chess/notation';
 import { tMsg } from '@/lib/i18n';
 import { defaultKeyValueStorage } from '@/lib/storage';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { chessFromSanHistory, confirmLeaveToHub } from '@/lib/activitySessions';
+import { chessFromSanHistory } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 
 const blindRecordsStore = new BlindRecordsStore(defaultKeyValueStorage);
 
@@ -415,18 +416,27 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     setIsReplaying,
   ]);
 
+  const playingBlind =
+    phase === 'dictation' ||
+    phase === 'observing' ||
+    phase === 'reconstruction' ||
+    phase === 'recitation';
+
+  const leaveToHome = useActiveSessionBack({
+    sessionActive: playingBlind,
+    kind: 'exercice',
+    activityId: sessionIdRef.current,
+    onLeave: resetToHub,
+    onNavigateBack: resetToHub,
+  });
+
   const backToHub = useCallback(() => {
-    if (
-      phase === 'dictation' ||
-      phase === 'observing' ||
-      phase === 'reconstruction' ||
-      phase === 'recitation'
-    ) {
-      confirmLeaveToHub('blind', sessionIdRef.current, resetToHub);
+    if (playingBlind) {
+      leaveToHome();
       return;
     }
     resetToHub();
-  }, [phase, resetToHub]);
+  }, [playingBlind, leaveToHome, resetToHub]);
 
   const startSession = useCallback(async () => {
     if (!submode) return;
@@ -887,11 +897,6 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     },
   });
   sessionIdRef.current = sessionId;
-
-  const leaveToHome = useCallback(() => {
-    speechService.cancel('blind-leave');
-    confirmLeaveToHub('blind', sessionIdRef.current, resetToHub);
-  }, [resetToHub]);
 
   const backToSettings = useCallback(() => {
     speechService.cancel('back-settings');

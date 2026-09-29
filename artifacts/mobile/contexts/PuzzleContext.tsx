@@ -54,7 +54,7 @@ import {
 } from '@/lib/puzzles';
 import { puzzleStreakBandId } from '@/lib/puzzles/streakBand';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { confirmLeaveToHub } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 
 export type PuzzleSpokenResult =
   | PuzzleAttemptResult
@@ -384,37 +384,38 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
     setLoadError(null);
   }, [resetPresentation]);
 
-  const backToHub = useCallback(() => {
-    const resetToHub = () => {
-      if (sessionRef.current.isLoaded && !streakRecordedRef.current) {
-        void recordStreak(false);
-      }
-      speechService.stop();
-      replayRef.current.cancel();
-      resetPresentation();
-      setIsReplaying(false);
-      setSubmode(null);
-      submodeRef.current = null;
-      setPhase('hub');
-      setPuzzle(null);
-      setStats(null);
-      setLastMove(null);
-      setLastFeedback(null);
-      setSolutionLine(null);
-      setNextMoveHint(null);
-      setPositionNarration(null);
-      setLoadError(null);
-      setBoardVisible(true);
-      setBoard(new Chess().board() as (BoardPiece | null)[][]);
-      setCurrentFen(new Chess().fen());
-      setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
-    };
-    if (phase === 'playing' || phase === 'solution-replay') {
-      confirmLeaveToHub('puzzles-tactical', sessionIdRef.current, resetToHub);
-      return;
+  const resetToHub = useCallback(() => {
+    if (sessionRef.current.isLoaded && !streakRecordedRef.current) {
+      void recordStreak(false);
     }
-    resetToHub();
-  }, [phase, recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
+    speechService.stop();
+    replayRef.current.cancel();
+    resetPresentation();
+    setIsReplaying(false);
+    setSubmode(null);
+    submodeRef.current = null;
+    setPhase('hub');
+    setPuzzle(null);
+    setStats(null);
+    setLastMove(null);
+    setLastFeedback(null);
+    setSolutionLine(null);
+    setNextMoveHint(null);
+    setPositionNarration(null);
+    setLoadError(null);
+    setBoardVisible(true);
+    setBoard(new Chess().board() as (BoardPiece | null)[][]);
+    setCurrentFen(new Chess().fen());
+    setFiltersState(filtersFromBands(ratingBandId, pieceCountBandId, null));
+  }, [recordStreak, resetPresentation, ratingBandId, pieceCountBandId]);
+
+  const backToHub = useActiveSessionBack({
+    sessionActive: phase === 'playing' || phase === 'solution-replay',
+    kind: 'exercice',
+    activityId: sessionIdRef.current,
+    onLeave: resetToHub,
+    onNavigateBack: resetToHub,
+  });
 
   const announceBlindPosition = useCallback((fen: string, opts?: { flush?: boolean }) => {
     const text = narratePosition(fen);

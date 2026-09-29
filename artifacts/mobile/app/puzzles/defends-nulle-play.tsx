@@ -42,7 +42,7 @@ import { pairMoveHistory } from '@/lib/game';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { confirmLeaveToHub } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 import {
   EndgameEngineStatusBanner,
   useSharedStockfishRuntime,
@@ -482,18 +482,21 @@ export default function EndgameTrainingPlayScreen() {
     setTryAgainPromptVisible(false);
   };
 
-  const leaveToHub = () => router.replace('/puzzles/defends-nulle' as Href);
-  const onPlayBack = () => {
-    if (
+  const leaveToHub = useCallback(
+    () => router.replace('/puzzles/defends-nulle' as Href),
+    [router],
+  );
+  const onPlayBack = useActiveSessionBack({
+    sessionActive:
       snap.phase === 'playing' ||
       snap.phase === 'thinking' ||
-      snap.phase === 'verifying-loss'
-    ) {
-      confirmLeaveToHub('defends-nulle', sessionId, leaveToHub);
-      return;
-    }
-    leaveToHub();
-  };
+      snap.phase === 'verifying-loss',
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: leaveToHub,
+    onNavigateBack: leaveToHub,
+    captureHardwareBack: true,
+  });
 
   if (positionMissing) {
     return (
