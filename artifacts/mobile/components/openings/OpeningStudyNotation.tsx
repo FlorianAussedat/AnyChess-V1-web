@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { usePreferences } from '@/hooks/usePreferences';
 import { formatSanForDisplay } from '@/lib/chess/notation';
@@ -20,45 +20,42 @@ export function OpeningStudyNotation({ game, currentNodeId, onSelectNode }: Prop
   const entries = useMemo(() => flattenNotationTree(game), [game]);
 
   return (
-    <ScrollView style={styles.list} testID="opening-study-notation">
-      <View style={styles.wrap}>
-        {entries.map((entry) => {
-          const node = game.nodesById[entry.nodeId];
-          const active = entry.nodeId === currentNodeId;
-          const prefix = entry.prefix ?? '';
-          const nags = formatNags(node?.nags);
-          return (
-            <Pressable
-              key={entry.key}
-              onPress={() => onSelectNode(entry.nodeId)}
+    <View style={styles.wrap} testID="opening-study-notation">
+      {entries.map((entry) => {
+        const node = game.nodesById[entry.nodeId];
+        const active = entry.nodeId === currentNodeId;
+        const prefix = entry.prefix ?? '';
+        const nags = formatNags(node?.nags);
+        return (
+          <Pressable
+            key={entry.key}
+            onPress={() => onSelectNode(entry.nodeId)}
+            style={[
+              styles.move,
+              active && { backgroundColor: colors.primary },
+            ]}
+          >
+            <Text
               style={[
-                styles.move,
-                active && { backgroundColor: colors.primary },
+                styles.text,
+                {
+                  color: active ? colors.primaryForeground : colors.foreground,
+                  fontFamily: entry.depth > 0 ? 'Inter_400Regular' : 'Inter_600SemiBold',
+                },
               ]}
             >
-              <Text
-                style={[
-                  styles.text,
-                  {
-                    color: active ? colors.primaryForeground : colors.foreground,
-                    fontFamily: entry.depth > 0 ? 'Inter_400Regular' : 'Inter_600SemiBold',
-                  },
-                ]}
-              >
-                {prefix}
-                {formatSanForDisplay(entry.san, chessNotation)}
-                {nags}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </ScrollView>
+              {prefix}
+              {formatSanForDisplay(entry.san, chessNotation)}
+              {nags}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { maxHeight: 220 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingBottom: 8 },
   move: {
     borderRadius: 6,

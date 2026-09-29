@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -258,7 +259,6 @@ export default function OpeningStudyScreen() {
         {
           backgroundColor: colors.background,
           paddingTop: contentTop,
-          paddingBottom: contentBottom,
         },
       ]}
     >
@@ -286,6 +286,12 @@ export default function OpeningStudyScreen() {
         }
       />
 
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottom + 12 }]}
+        keyboardShouldPersistTaps="handled"
+        testID="opening-study-scroll"
+      >
       <ChessBoardSection boardSize={boardSize} testID="opening-study-board">
         <ChessBoard
           board={board}
@@ -363,7 +369,7 @@ export default function OpeningStudyScreen() {
       </View>
 
       {tab === 'comments' ? (
-        <View style={styles.commentBox} testID="opening-study-comments">
+        <View testID="opening-study-comments">
           <OpeningStudyCommentText
             tokens={tokens.length ? tokens : [{ kind: 'text', text: comment }]}
             emptyLabel={t('openings.noComment')}
@@ -398,6 +404,7 @@ export default function OpeningStudyScreen() {
           </Text>
         </Pressable>
       </View>
+      </ScrollView>
 
       <OpeningStudyBranchPicker
         visible={Boolean(pending)}
@@ -409,7 +416,9 @@ export default function OpeningStudyScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 12, gap: 8, paddingBottom: 8 },
+  root: { flex: 1, paddingHorizontal: 12 },
+  scroll: { flex: 1 },
+  scrollContent: { gap: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   moveStatus: {
     fontSize: 14,
@@ -431,8 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 8,
   },
-  commentBox: { flex: 1, minHeight: 80 },
-  actions: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  actions: { flexDirection: 'row', gap: 8 },
   actionBtn: {
     flex: 1,
     alignItems: 'center',
