@@ -34,7 +34,7 @@ import {
 import { speechService } from '@/services/SpeechService';
 import { audioSettings } from '@/services/AudioSettings';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { confirmLeaveToHub } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 
 const records = new PlayMoveRecordsStore(defaultKeyValueStorage);
 const styles = timedVisionStyles;
@@ -89,6 +89,26 @@ export default function JouerLeCoupScreen() {
       setBoardFen(payload.challenge.initialFen);
       sync();
     },
+  });
+
+  const returnJouerToIdle = useCallback(() => {
+    sessionRef.current.returnToIdle();
+    sync();
+  }, [sync]);
+  const onBack = useActiveSessionBack({
+    sessionActive: snap.phase === 'playing' || snap.phase === 'countdown',
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: () => {
+      speechService.cancel('play-move-leave');
+      returnJouerToIdle();
+    },
+    onNavigateBack: () => {
+      speechService.cancel('play-move-leave');
+      returnJouerToIdle();
+      router.navigate('/');
+    },
+    captureHardwareBack: true,
   });
 
   useEffect(() => () => sessionRef.current.pauseTimers(), []);
@@ -200,19 +220,7 @@ export default function JouerLeCoupScreen() {
       testID="jouer-screen"
     >
       <ScreenHeader
-        onBack={() => {
-          speechService.cancel('play-move-leave');
-          if (snap.phase === 'playing' || snap.phase === 'countdown') {
-            confirmLeaveToHub('jouer', sessionId, () => {
-              sessionRef.current.returnToIdle();
-              sync();
-            });
-            return;
-          }
-          sessionRef.current.returnToIdle();
-          sync();
-          router.navigate('/');
-        }}
+        onBack={onBack}
         title={t('vision.jouer')}
         showSound
       />

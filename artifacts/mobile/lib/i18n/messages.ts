@@ -974,6 +974,9 @@ export type MessageKey =
   | 'activity.abandonTitle'
   | 'activity.abandonBody'
   | 'activity.abandonConfirm'
+  | 'activity.backPartieTitle'
+  | 'activity.backExerciceTitle'
+  | 'activity.backExerciceConfirm'
   | 'activity.openingTraining'
 
 type Dict = Record<MessageKey, string>;
@@ -2047,6 +2050,9 @@ const fr: Dict = {
   'activity.abandonTitle': 'Abandonner cette partie ?',
   'activity.abandonBody': 'La partie en cours ne pourra plus être reprise.',
   'activity.abandonConfirm': 'Abandonner',
+  'activity.backPartieTitle': 'Quitter la partie ?',
+  'activity.backExerciceTitle': 'Abandonner l’exercice ?',
+  'activity.backExerciceConfirm': 'Abandonner',
   'activity.openingTraining': 'Entraînement d’ouverture',
 };
 
@@ -3113,6 +3119,9 @@ const en: Dict = {
   'activity.abandonTitle': 'Resign this game?',
   'activity.abandonBody': 'The current game can no longer be resumed.',
   'activity.abandonConfirm': 'Resign',
+  'activity.backPartieTitle': 'Quit the game?',
+  'activity.backExerciceTitle': 'Abandon the exercise?',
+  'activity.backExerciceConfirm': 'Abandon',
   'activity.openingTraining': 'Opening training',
 };
 

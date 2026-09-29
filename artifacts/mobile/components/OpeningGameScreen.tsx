@@ -37,7 +37,8 @@ import { GameMicButton } from '@/components/game/GameMicButton';
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
-import { confirmDiscardActivity, confirmLeaveToHub } from '@/lib/activitySessions';
+import { confirmDiscardActivity, confirmLeaveToHub, endActivity } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import { flagsFromPlayTurn, pairMoveHistory } from '@/lib/game';
 import {
@@ -231,6 +232,27 @@ export function OpeningGameScreen() {
     void setChessInputMode(inputMode === 'classic' ? 'keypad' : 'classic');
   }, [inputMode, setChessInputMode]);
 
+  const goHome = useCallback(() => {
+    router.navigate('/');
+  }, [router]);
+  const leaveOpeningSession = useCallback(() => {
+    router.replace('/openings' as Href);
+  }, [router]);
+  const onBack = useActiveSessionBack({
+    sessionActive: ready && history.length > 0 && !isGameOver,
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: leaveOpeningSession,
+    onNavigateBack: () => {
+      if (history.length > 0) {
+        void endActivity(sessionId).then(leaveOpeningSession);
+        return;
+      }
+      goHome();
+    },
+    captureHardwareBack: true,
+  });
+
   if (loadError) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
@@ -270,15 +292,7 @@ export function OpeningGameScreen() {
   return (
     <>
       <ChessScreenScaffold
-        onBack={() => {
-          if (history.length > 0) {
-            confirmLeaveToHub('opening-play', sessionId, () => {
-              router.replace('/openings' as Href);
-            });
-            return;
-          }
-          router.navigate('/');
-        }}
+        onBack={onBack}
         title={headerTitle}
         subtitle={headerSubtitle}
         showSound

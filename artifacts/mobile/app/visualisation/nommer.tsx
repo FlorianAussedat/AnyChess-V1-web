@@ -34,7 +34,7 @@ import {
 } from '@/lib/moveNaming';
 import { sideToMoveLabel } from '@/lib/playMove';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { confirmLeaveToHub } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 
 const records = new MoveNamingRecordsStore(defaultKeyValueStorage);
 const styles = timedVisionStyles;
@@ -88,6 +88,22 @@ export default function NommerLeCoupScreen() {
       sessionRef.current.restorePlaying(payload);
       sync();
     },
+  });
+
+  const returnNommerToIdle = useCallback(() => {
+    sessionRef.current.returnToIdle();
+    sync();
+  }, [sync]);
+  const onBack = useActiveSessionBack({
+    sessionActive: snap.phase === 'playing' || snap.phase === 'countdown',
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: returnNommerToIdle,
+    onNavigateBack: () => {
+      returnNommerToIdle();
+      router.navigate('/');
+    },
+    captureHardwareBack: true,
   });
 
   useEffect(() => () => sessionRef.current.pauseTimers(), []);
@@ -199,18 +215,7 @@ export default function NommerLeCoupScreen() {
       testID="nommer-screen"
     >
       <ScreenHeader
-        onBack={() => {
-          if (snap.phase === 'playing' || snap.phase === 'countdown') {
-            confirmLeaveToHub('nommer', sessionId, () => {
-              sessionRef.current.returnToIdle();
-              sync();
-            });
-            return;
-          }
-          sessionRef.current.returnToIdle();
-          sync();
-          router.navigate('/');
-        }}
+        onBack={onBack}
         title={t('vision.nommer')}
         showSound
       />

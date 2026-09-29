@@ -33,6 +33,7 @@ import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import { useGame, type ClassicPlaySnapshot } from '@/contexts/GameContext';
 import { confirmAbandonGame, endActivity } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import type { PlayerColor, SideChoice } from '@/lib/game/types';
 import { beginGameFromCampChoice, pairMoveHistory, resolveSideChoice } from '@/lib/game';
@@ -290,10 +291,25 @@ export function ClassicGameScreen() {
     void setChessInputMode(inputMode === 'classic' ? 'keypad' : 'classic');
   }, [inputMode, setChessInputMode]);
 
+  const goHome = useCallback(() => {
+    router.navigate('/');
+  }, [router]);
+  const leaveClassicSession = useCallback(() => {
+    void endActivity(sessionId).then(goHome);
+  }, [sessionId, goHome]);
+  const onBack = useActiveSessionBack({
+    sessionActive: campLocked && !isGameOver,
+    kind: 'partie',
+    activityId: sessionId,
+    onLeave: goHome,
+    onNavigateBack: campLocked ? leaveClassicSession : goHome,
+    captureHardwareBack: true,
+  });
+
   return (
     <>
       <ChessScreenScaffold
-        onBack={() => router.navigate('/')}
+        onBack={onBack}
         title={t('modes.classic.title')}
         subtitle={contextLine}
         showSound

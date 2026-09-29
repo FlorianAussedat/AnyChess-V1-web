@@ -28,5 +28,11 @@ export {
   confirmQuitFromHome,
   confirmLeaveToHub,
   confirmAbandonGame,
+  confirmActiveSessionBack,
 } from './confirmDiscard.ts';
+export {
+  activeSessionBackCopy,
+  handleActiveSessionBackConfirm,
+} from './sessionBack.ts';
+export type { ActiveSessionBackKind } from './sessionBack.ts';
 export { chessFromSanHistory, lastMoveFromGame } from './chessHistory.ts';

@@ -25,7 +25,7 @@ import {
   type OpeningIdentificationRunSnapshot,
 } from '@/lib/openingQuiz';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
-import { confirmLeaveToHub } from '@/lib/activitySessions';
+import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 
 type Phase = 'pick-level' | 'playing' | 'feedback' | 'results' | 'review';
 
@@ -81,6 +81,15 @@ export default function QuelleOuvertureScreen() {
       setDifficulty(next.difficulty);
       applySnap(next, next.answered ? 'feedback' : 'playing');
     },
+  });
+
+  const onBack = useActiveSessionBack({
+    sessionActive: phase === 'playing' || phase === 'feedback',
+    kind: 'exercice',
+    activityId: sessionId,
+    onLeave: () => setPhase('pick-level'),
+    onNavigateBack: () => router.navigate('/'),
+    captureHardwareBack: true,
   });
 
   const startLevel = (level: AnyChessDifficultyId) => {
@@ -153,15 +162,7 @@ export default function QuelleOuvertureScreen() {
       testID="quelle-screen"
     >
       <ScreenHeader
-        onBack={() => {
-          if (phase === 'playing' || phase === 'feedback') {
-            confirmLeaveToHub('quelle', sessionId, () => {
-              setPhase('pick-level');
-            });
-            return;
-          }
-          router.navigate('/');
-        }}
+        onBack={onBack}
         title={t('quiz.quelle')}
         showSound
       />
