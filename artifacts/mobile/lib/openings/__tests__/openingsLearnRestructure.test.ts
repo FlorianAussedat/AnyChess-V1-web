@@ -124,6 +124,30 @@ describe('opening PGN editor', () => {
     assert.match(study, /openings\.annotateThisPgn/);
   });
 
+  it('study comments and notation share one page scroll with actions after the tab', () => {
+    const study = read('app/openings/study.tsx');
+    const comments = read('components/openings/OpeningStudyCommentText.tsx');
+    const notation = read('components/openings/OpeningStudyNotation.tsx');
+    assert.match(study, /testID="opening-study-scroll"/);
+    assert.match(study, /<ScrollView/);
+    assert.doesNotMatch(study, /commentBox/);
+    assert.doesNotMatch(study, /flex: 1, minHeight: 80/);
+    assert.doesNotMatch(study, /position:\s*'absolute'/);
+    assert.doesNotMatch(study, /position:\s*'sticky'/);
+    const commentsIdx = study.indexOf('opening-study-comments');
+    const notationComp = study.indexOf('<OpeningStudyNotation');
+    const playIdx = study.indexOf('opening-study-play-line');
+    const continueIdx = study.indexOf('opening-study-continue-line');
+    const scrollClose = study.lastIndexOf('</ScrollView>');
+    assert.ok(commentsIdx > 0 && commentsIdx < playIdx);
+    assert.ok(notationComp > 0 && notationComp < playIdx);
+    assert.ok(playIdx < continueIdx);
+    assert.ok(continueIdx < scrollClose);
+    assert.doesNotMatch(comments, /numberOfLines/);
+    assert.doesNotMatch(notation, /ScrollView/);
+    assert.doesNotMatch(notation, /maxHeight/);
+  });
+
   it('manage offers create, annotate and export without hiding other actions', () => {
     const manage = read('app/openings/manage.tsx');
     assert.match(manage, /create-pgn-btn/);
