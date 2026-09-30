@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
 import { defaultKeyValueStorage } from '@/lib/storage';
@@ -41,18 +42,11 @@ export default function VisualisationRecordsScreen() {
   const hasLegacy = Object.values(legacy).some((v) => (v ?? 0) > 0);
 
   const resetAll = () =>
-    Alert.alert(
+    confirmAction(
       t('records.visionResetTitle'),
       t('records.visionResetBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.reset'),
-          style: 'destructive',
-          onPress: () =>
-            Promise.all([moveNamingStore.reset(), playMoveStore.reset()]).then(load),
-        },
-      ],
+      () => { void Promise.all([moveNamingStore.reset(), playMoveStore.reset()]).then(load); },
+      { destructive: true, confirmLabel: t('common.reset') },
     );
 
   return (

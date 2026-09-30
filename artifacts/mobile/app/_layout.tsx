@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AnyChessSplashScreen } from '@/components/AnyChessSplashScreen';
 import { BottomNavigation } from '@/components/navigation/BottomNavigation';
+import { AppDialogHost } from '@/components/ui/AppDialogHost';
 import { DesignTokens } from '@/constants/designTokens';
 import { ANYCHESS_NAVY } from '@/lib/brand/splashTiming';
 import {
@@ -123,6 +124,7 @@ export default function RootLayout() {
 
                 {/* Prepare home + nav under the fading overlay so they do not pop in. */}
                 {appReady ? <BottomNavigation /> : null}
+                {appReady ? <AppDialogHost /> : null}
 
                 {!introDone ? (
                   <AnyChessSplashScreen

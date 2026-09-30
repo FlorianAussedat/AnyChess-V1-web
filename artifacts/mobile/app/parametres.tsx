@@ -3,7 +3,6 @@
  */
 import React, { useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -19,6 +18,7 @@ import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ProfilNavRow } from '@/components/profil/ProfilNavRow';
 import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
@@ -80,16 +80,14 @@ export default function ParametresScreen() {
   const strengthLabel = getStrengthBand(stockfishStrengthBandId).label;
 
   const resetPrefs = () => {
-    Alert.alert(t('profil.resetPrefsTitle'), t('profil.resetPrefsBody'), [
-      { text: t('profil.cancel'), style: 'cancel' },
-      {
-        text: t('profil.reset'),
-        style: 'destructive',
-        onPress: () => {
-          void resetPreferences();
-        },
+    confirmAction(
+      t('profil.resetPrefsTitle'),
+      t('profil.resetPrefsBody'),
+      () => {
+        void resetPreferences();
       },
-    ]);
+      { destructive: true, confirmLabel: t('profil.reset') },
+    );
   };
 
   return (
