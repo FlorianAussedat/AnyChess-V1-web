@@ -64,10 +64,23 @@ describe('PGN translation probe', () => {
 
   it('settings expose a copyable diagnostic and the client never embeds a DeepL key', () => {
     const settings = read('components/pgn/PgnTranslationSettingsSection.tsx');
+    const page = read('app/parametres.tsx');
     const live = read('lib/pgnComments/liveProvider.ts');
     const classify = read('lib/pgnComments/classifyMyMemory.ts');
+    assert.match(settings, /parametres-translation-status/);
+    assert.match(settings, /parametres-translation-needs-account/);
+    assert.match(settings, /guest\.translationNeedsAccount/);
+    assert.match(settings, /settings\.translationProgress/);
+    assert.match(settings, /parametres-technical-diagnostic-link/);
+    assert.match(settings, /settings\.technicalDiagnostic/);
+    assert.match(settings, /open \?/);
     assert.match(settings, /parametres-translation-diag/);
+    assert.match(settings, /parametres-translation-diag-copy/);
+    assert.match(settings, /settings\.translationDiagCopy/);
     assert.match(settings, /formatPgnTranslateProbe/);
+    assert.match(settings, /__DEV__/);
+    assert.match(page, /PgnTranslationTechnicalDiagnostic/);
+    assert.match(page, /__DEV__/);
     assert.match(live, /recordPgnTranslateCall/);
     assert.match(live, /X-AnyChess-Client/);
     assert.match(live, /hostUri/);

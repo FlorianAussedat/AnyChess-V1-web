@@ -983,6 +983,7 @@ export type MessageKey =
   | 'settings.translationDiagTitle'
   | 'settings.translationDiagCopy'
   | 'settings.translationDiagCopied'
+  | 'settings.technicalDiagnostic'
   | 'settings.translationTimeout'
   | 'settings.translationRateLimited'
   | 'settings.translationCounts'
@@ -2234,6 +2235,7 @@ const fr: Dict = {
   'settings.translationDiagTitle': 'Diagnostic traduction (à copier)',
   'settings.translationDiagCopy': 'Copier le diagnostic',
   'settings.translationDiagCopied': 'Diagnostic copié',
+  'settings.technicalDiagnostic': 'Diagnostic technique',
   'settings.translationTimeout':
     'Délai dépassé — la requête de traduction n’a pas abouti.',
   'settings.translationRateLimited':
@@ -3494,6 +3496,7 @@ const en: Dict = {
   'settings.translationDiagTitle': 'Translation diagnostic (copy this)',
   'settings.translationDiagCopy': 'Copy diagnostic',
   'settings.translationDiagCopied': 'Diagnostic copied',
+  'settings.technicalDiagnostic': 'Technical diagnostic',
   'settings.translationTimeout':
     'The translation request timed out.',
   'settings.translationRateLimited':
