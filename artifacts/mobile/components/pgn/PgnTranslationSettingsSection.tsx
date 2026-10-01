@@ -8,9 +8,12 @@ import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
 import { DesignTokens } from '@/constants/designTokens';
 import {
   applyPgnTranslationPreferences,
+  formatPgnTranslateProbe,
+  getPgnTranslateProbeSnapshot,
   retryPgnTranslation,
 } from '@/lib/pgnComments';
 import { defaultPgnTranslationProvider } from '@/lib/pgnComments/provider.ts';
+import { copyToClipboard } from '@/lib/clipboard';
 
 export function PgnTranslationSettingsSection() {
   const colors = useColors();
@@ -25,6 +28,12 @@ export function PgnTranslationSettingsSection() {
   const lastError = queue.getLastError();
   const configured = defaultPgnTranslationProvider.configured;
   const [busy, setBusy] = useState<'existing' | 'import' | 'retry' | null>(null);
+  const [copied, setCopied] = useState(false);
+  const probe = getPgnTranslateProbeSnapshot(queue);
+  const diagnostic = formatPgnTranslateProbe(probe);
+  const nextAvailable = probe.lastCall?.nextAvailable;
+  const usageCount = probe.lastCall?.usageCharacterCount;
+  const usageLimit = probe.lastCall?.usageCharacterLimit;
 
   const toggleExisting = async () => {
     if (busy) return;
@@ -65,7 +74,9 @@ export function PgnTranslationSettingsSection() {
   const statusText = !configured
     ? t('pgn.serviceNotConfigured')
     : lastError === 'quota'
-      ? t('pgn.translationQuota')
+      ? nextAvailable
+        ? `${t('pgn.translationQuota')} ${t('pgn.translationQuotaResume', { delay: nextAvailable })}`
+        : t('pgn.translationQuota')
       : lastError === 'rate_limited'
         ? t('settings.translationRateLimited')
       : lastError === 'timeout'
@@ -129,6 +140,14 @@ export function PgnTranslationSettingsSection() {
       >
         {statusText}
       </Text>
+      {usageCount != null && usageLimit != null ? (
+        <Text
+          style={[styles.hint, { color: colors.mutedForeground }]}
+          testID="parametres-translation-usage"
+        >
+          {t('pgn.translationUsage', { used: usageCount, limit: usageLimit })}
+        </Text>
+      ) : null}
       {progress.total > 0 ? (
         <Text
           style={[styles.hint, { color: colors.mutedForeground }]}
@@ -169,6 +188,35 @@ export function PgnTranslationSettingsSection() {
           </Text>
         </Pressable>
       ) : null}
+      <Text style={[styles.diagTitle, { color: colors.mutedForeground }]}>
+        {t('settings.translationDiagTitle')}
+      </Text>
+      <Text
+        selectable
+        style={[styles.diag, { color: colors.foreground, backgroundColor: colors.card }]}
+        testID="parametres-translation-diag"
+      >
+        {diagnostic}
+      </Text>
+      <Pressable
+        onPress={() => {
+          void copyToClipboard(diagnostic).then((ok) => {
+            if (ok) {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }
+          });
+        }}
+        testID="parametres-translation-diag-copy"
+        style={({ pressed }) => [
+          styles.retry,
+          { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+        ]}
+      >
+        <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightSemiBold }}>
+          {copied ? t('settings.translationDiagCopied') : t('settings.translationDiagCopy')}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -200,5 +248,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     minHeight: DesignTokens.minTouchTarget,
     justifyContent: 'center',
+  },
+  diagTitle: {
+    marginTop: DesignTokens.spacing.sm,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  diag: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: 'Inter_400Regular',
+    borderRadius: DesignTokens.radius.sm,
+    padding: 10,
   },
 });

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   pgnCommentTranslationStore,
   pgnTranslationQueue,
+  subscribePgnTranslateProbe,
 } from '@/lib/pgnComments';
 
 export function usePgnCommentTranslations() {
@@ -12,9 +13,11 @@ export function usePgnCommentTranslations() {
     void pgnTranslationQueue.ensureLoaded();
     const unsubStore = pgnCommentTranslationStore.subscribe(() => bump((n) => n + 1));
     const unsubQueue = pgnTranslationQueue.subscribe(() => bump((n) => n + 1));
+    const unsubProbe = subscribePgnTranslateProbe(() => bump((n) => n + 1));
     return () => {
       unsubStore();
       unsubQueue();
+      unsubProbe();
     };
   }, []);
 

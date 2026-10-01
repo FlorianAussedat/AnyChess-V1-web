@@ -1,6 +1,10 @@
 export type { KeyValueStorage } from './KeyValueStorage.ts';
 export { MemoryKeyValueStorage } from './KeyValueStorage.ts';
-export { AsyncKeyValueStorage, defaultKeyValueStorage } from './AsyncKeyValueStorage.ts';
+export {
+  AsyncKeyValueStorage,
+  defaultKeyValueStorage,
+  subscribeKeyValueWrites,
+} from './AsyncKeyValueStorage.ts';
 export {
   StorageKeys,
   CORRUPT_BACKUP_SUFFIX,

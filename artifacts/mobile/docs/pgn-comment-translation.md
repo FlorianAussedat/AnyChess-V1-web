@@ -1,43 +1,68 @@
-# Commentaires PGN bilingues — service réel
+# Commentaires PGN bilingues — DeepL API Free
 
 L’application traduit les commentaires anglais vers le français à l’import, et propose le rattrapage des fichiers déjà enregistrés. Les commentaires originaux restent dans le PGN source. Le lecteur affiche **Original / Français**.
 
-## État actuel (cette branche)
+## État actuel
 
 | Élément | État |
 |---|---|
-| Fournisseur client par défaut | **MyMemory** (API publique, aucune clé) |
+| Fournisseur client | **Supabase Edge Function** `POST /functions/v1/pgn-translate` |
+| Fournisseur serveur | **DeepL API Free** (`api-free.deepl.com` si la clé finit par `:fx`) |
+| Clé `DEEPL_API_KEY` | **Edge Function Secret uniquement** — jamais dans l’APK, `EXPO_PUBLIC_*`, le dépôt ou les logs |
 | Fournisseur de test | `FakePgnTranslationProvider` |
-| Fournisseur « non configuré » | conservé pour les tests / repli |
+| Sans URL publique | `UnconfiguredPgnTranslationProvider` (originaux affichés) |
 | Sidecar | `anychess.pgnCommentTranslations.v1` |
 | File | `anychess.pgnTranslationQueue.v1` |
-| Endpoint serveur (optionnel) | `POST /api/pgn-comments/translate` dans `artifacts/api-server` |
-| Clé payante dans cet environnement | **absente** |
-| Hébergement du api-server | **non déployé** (stub local) |
+| Backend | Edge Function `supabase/functions/pgn-translate` (clé dans Project Settings → Edge Functions → Secrets) |
 
-Le client n’embarque aucun secret. `EXPO_PUBLIC_*` n’est pas utilisé pour une clé.
+Les commentaires déjà `ready` / `done` ne sont pas renvoyés. Pause, reprise et progression restent dans AsyncStorage.
 
-## Ce qui manque pour un service de production
+## Protection de l’endpoint
 
-1. **Fournisseur** — aujourd’hui MyMemory (qualité variable, quota). DeepL Free / Pro ou Google Cloud Translation donneraient un meilleur français d’échecs.
-2. **Hébergement serveur** — `artifacts/api-server` n’est pas publié. Pour éviter l’appel direct MyMemory depuis l’APK, déployer le proxy (`POST /api/pgn-comments/translate`) et pointer `ANYCHESS_PGN_TRANSLATE_URL` vers cette URL publique.
-3. **Clé** — aucune `DEEPL_API_KEY` / clé Google n’est présente. À poser uniquement sur le serveur, jamais dans l’APK.
-4. **Coût estimé** (ordre de grandeur, 2026) :
+- Session **utilisateur connecté** obligatoire (`role=authenticated` + `GET /auth/v1/user`). La clé **anon** est refusée.
+- En-tête `X-AnyChess-Client: anychess-pgn-1` en plus de la session (insuffisant tout seul).
+- 8 commentaires max / requête, 500 caractères / commentaire
+- Quota DeepL Free 500 000 caractères / mois
 
-| Option | Quota indicatif | Coût |
-|---|---|---|
-| MyMemory sans clé | ~5 000 caractères / jour / IP | 0 € |
-| MyMemory + e-mail | ~50 000 caractères / jour | 0 € |
-| DeepL Free | 500 000 caractères / mois | 0 € (clé personnelle) |
-| DeepL Pro | au-delà, selon volume | à partir d’environ 5–7 € / mois + usage |
-| Google Cloud Translation | facturé au million de caractères | ~20 $ / million |
-| LibreTranslate auto-hébergé | illimité | VPS ~5 € / mois |
+## Consommation DeepL
 
-Pour une bibliothèque d’ouvertures annotée (quelques milliers de commentaires courts), DeepL Free suffit en général.
+`GET /functions/v1/pgn-translate` et le champ `usage` des réponses de traduction exposent `characterCount`, `characterLimit`, `remaining`. La clé n’est jamais renvoyée.
 
-## Où l’utiliser dans l’app
+Quota documenté DeepL API Free : **500 000 caractères / mois**.
 
-- Ouvertures → Mes PGN : bouton par fichier + « Traduire la sélection » / « Traduire tous les PGN existants »
-- Parties : mêmes actions
-- Import ouvertures / bibliothèque : enqueue automatique
-- Lecteur d’étude et AnyLyseur : bascule Original / Français
+## Serveur et secret `DEEPL_API_KEY`
+
+L’endpoint de production est la Edge Function **`pgn-translate`** du projet Supabase :
+
+- URL : `https://<project-ref>.supabase.co/functions/v1/pgn-translate`
+- Processus : `supabase/functions/pgn-translate`
+- En-tête `X-AnyChess-Client: anychess-pgn-1` **et** JWT d’un utilisateur connecté (pas la clé anon)
+- Ne pas mettre la clé dans GitHub Secrets, EAS, `EXPO_PUBLIC_*` ni dans Cursor
+
+### Publier depuis le tableau de bord (téléphone, sans CLI)
+
+Télécharger le fichier (zip, ~9 ko) :
+https://github.com/FlorianAussedat/AnyChess-V1-web/raw/cursor/cloud-account-sync-025c/docs/pgn-translate-dashboard.zip
+
+Texte brut à coller :
+https://github.com/FlorianAussedat/AnyChess-V1-web/raw/cursor/cloud-account-sync-025c/docs/pgn-translate-dashboard/pgn-translate-a-coller.txt
+
+1. Ouvrir [https://supabase.com/dashboard](https://supabase.com/dashboard) → projet `zqfxnzwtptepulmgpxhb`.
+2. Menu **Edge Functions** → **Deploy a new function** / **Create function**.
+3. Nom exact : `pgn-translate`.
+4. Laisser **Verify JWT** activé (ON).
+5. Effacer le modèle, coller **tout** le fichier `index.ts` (dans le zip).
+6. **Deploy**.
+7. Secrets : `DEEPL_API_KEY` déjà enregistré ; ne pas le recoller.
+
+Un appel avec seulement l’anon key doit renvoyer 401. AnyChess n’envoie le JWT utilisateur qu’après connexion sur l’écran Utilisateur.
+
+`GET /functions/v1/pgn-translate` (même en-tête client) expose `usage` sans renvoyer la clé.
+
+Le proxy Replit `artifacts/api-server` reste un repli de dev si `EXPO_PUBLIC_PGN_TRANSLATE_URL` est défini.
+
+## Hébergement
+
+La traduction de production tourne sur **Supabase Edge Functions** (offre gratuite du projet déjà créé). DeepL API Free : 500 000 caractères / mois, 0 €.
+
+Le proxy Express `artifacts/api-server` reste disponible en local si `EXPO_PUBLIC_PGN_TRANSLATE_URL` pointe vers lui.

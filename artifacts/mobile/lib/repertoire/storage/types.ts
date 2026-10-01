@@ -85,6 +85,8 @@ export interface RepertoireStoreSnapshot {
   version: 2;
   folders: RepertoireFolder[];
   files: StoredPgnFile[];
+  /** Tombstones so a deleted PGN/folder is not resurrected by another device. */
+  syncDeletedIds?: string[];
 }
 
 /** Legacy on-disk shape (v1) before repertoire side metadata. */
@@ -106,7 +108,14 @@ export function normalizeRepertoireStore(raw: unknown): RepertoireStoreSnapshot 
     return emptyRepertoireStore();
   }
   if (parsed.version === 1 || parsed.version === 2) {
-    return { version: 2, folders: parsed.folders, files: parsed.files };
+    const deleted = Array.isArray((parsed as RepertoireStoreSnapshot).syncDeletedIds)
+      ? (parsed as RepertoireStoreSnapshot).syncDeletedIds!.filter(
+          (id): id is string => typeof id === 'string' && id.length > 0,
+        )
+      : undefined;
+    return deleted?.length
+      ? { version: 2, folders: parsed.folders, files: parsed.files, syncDeletedIds: deleted }
+      : { version: 2, folders: parsed.folders, files: parsed.files };
   }
   return emptyRepertoireStore();
 }

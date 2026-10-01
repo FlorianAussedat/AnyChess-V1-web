@@ -21,6 +21,16 @@ function read(rel: string): string {
 }
 
 describe('i18n dictionaries', () => {
+  it('explains the confirmed DeepL monthly quota without inventing a resume time', () => {
+    assert.match(translate('fr', 'pgn.translationQuota'), /500 000/);
+    assert.match(translate('fr', 'pgn.translationQuota'), /DeepL/);
+    assert.match(translate('fr', 'pgn.translationQuota'), /déjà traduits/);
+    assert.match(translate('fr', 'pgn.serviceNotConfigured'), /clé serveur|DeepL/);
+    assert.match(translate('fr', 'pgn.translationQuotaResume', { delay: '13 h 31 min 45 s' }), /13 h 31 min 45 s/);
+    assert.match(translate('fr', 'pgn.translationUsage', { used: 1200, limit: 500000 }), /1200/);
+    assert.doesNotMatch(translate('fr', 'pgn.translationQuota'), /heure|demain|24/);
+  });
+
   it('Profile preference labels differ FR vs EN', () => {
     assert.equal(translate('fr', 'profil.language'), "Langue de l'application");
     assert.equal(translate('en', 'profil.language'), 'App language');
@@ -30,6 +40,16 @@ describe('i18n dictionaries', () => {
     assert.equal(translate('en', 'profil.notationFr'), 'French');
     assert.equal(translate('fr', 'profil.notationEn'), 'Anglaise / Internationale');
     assert.equal(translate('en', 'profil.notationEn'), 'English / International');
+  });
+
+  it('exposes account sync copy in FR and EN', () => {
+    assert.equal(translate('fr', 'cloud.signUp'), 'Créer un compte');
+    assert.equal(translate('en', 'cloud.signUp'), 'Create account');
+    assert.equal(translate('fr', 'cloud.statusSynced'), 'Synchronisé');
+    assert.equal(translate('fr', 'cloud.statusPending'), 'En attente');
+    assert.equal(translate('fr', 'cloud.statusError'), 'Erreur de synchronisation');
+    assert.match(translate('fr', 'cloud.unconfiguredHint'), /EXPO_PUBLIC_SUPABASE/);
+    assert.doesNotMatch(translate('fr', 'cloud.unconfiguredHint'), /DEEPL_API_KEY/);
   });
 
   it('reset confirmation copy clarifies scope', () => {

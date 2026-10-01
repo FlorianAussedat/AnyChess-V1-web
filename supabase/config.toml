@@ -1,0 +1,6 @@
+# AnyChess hosted project. DeepL stays in Edge Function secrets, never in the client.
+
+project_id = "zqfxnzwtptepulmgpxhb"
+
+[functions.pgn-translate]
+verify_jwt = true

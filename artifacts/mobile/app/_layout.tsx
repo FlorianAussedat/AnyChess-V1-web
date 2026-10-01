@@ -22,6 +22,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { preferencesStore } from '@/lib/preferences';
+import { bindCloudLifecycle, hydrateCloudSession } from '@/lib/cloud';
 import { runStorageMigrations } from '@/lib/storage';
 import { loadActivitySessions } from '@/lib/activitySessions';
 import {
@@ -97,6 +98,8 @@ export default function RootLayout() {
         setPrefsHydrated(true);
         bindPgnTranslationLifecycle();
         void reconcilePgnTranslationAfterBoot();
+        bindCloudLifecycle();
+        void hydrateCloudSession();
       })
       .catch(() => setPrefsHydrated(true));
   }, []);

@@ -24,6 +24,7 @@ export function migrateGameLibrarySnapshot(
     version?: unknown;
     games?: unknown;
     folders?: unknown;
+    syncDeletedIds?: unknown;
   };
 
   if (o.version === 1 && Array.isArray(o.games)) {
@@ -92,7 +93,12 @@ export function migrateGameLibrarySnapshot(
     }
   }
 
-  return { version: 2, folders, games };
+  const syncDeletedIds = Array.isArray(o.syncDeletedIds)
+    ? o.syncDeletedIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : undefined;
+  return syncDeletedIds?.length
+    ? { version: 2, folders, games, syncDeletedIds }
+    : { version: 2, folders, games };
 }
 
 export function listChildFolders(

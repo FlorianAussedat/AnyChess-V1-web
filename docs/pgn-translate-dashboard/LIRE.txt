@@ -1,0 +1,25 @@
+AnyChess — pgn-translate (téléphone, sans CLI)
+==============================================
+
+Fichiers
+--------
+- index.ts                  à coller dans l’éditeur Edge Function
+- pgn-translate-a-coller.txt  même contenu, plus simple à ouvrir sur mobile
+
+Publier
+-------
+1. Ouvrir https://supabase.com/dashboard → projet zqfxnzwtptepulmgpxhb
+2. Edge Functions → Deploy a new function / Create function
+3. Nom exact : pgn-translate
+4. Verify JWT = ON
+5. Effacer le modèle, coller TOUT le fichier index.ts (ou le .txt)
+6. Deploy
+7. Ne pas retoucher le secret DEEPL_API_KEY
+
+Auth
+----
+Un utilisateur connecté est obligatoire. La clé anon + X-AnyChess-Client
+est refusée (401). Dans AnyChess : écran Utilisateur → se connecter,
+puis rouvrir l’app.
+
+La file et les traductions déjà ready/done ne sont pas effacées.

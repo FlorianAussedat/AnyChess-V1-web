@@ -284,7 +284,19 @@ export class GameLibraryStore {
       : snap.games.map((g) =>
           g.folderId && ids.has(g.folderId) ? { ...g, folderId: unfiledId } : g,
         );
-    const persisted = await this.persist({ version: 2, folders, games });
+    const tombstones = [
+      ...new Set([
+        ...(snap.syncDeletedIds ?? []),
+        ...[...ids],
+        ...removed.map((game) => game.id),
+      ]),
+    ];
+    const persisted = await this.persist({
+      version: 2,
+      folders,
+      games,
+      syncDeletedIds: tombstones,
+    });
     for (const game of removed) {
       await prunePgnCommentFile('gameLibrary', game.id);
     }
@@ -394,6 +406,7 @@ export class GameLibraryStore {
       version: 2,
       folders: snap.folders,
       games: [...result.imported, ...snap.games],
+      syncDeletedIds: snap.syncDeletedIds,
     };
     await this.persist(next);
     for (const game of result.imported) {
@@ -427,6 +440,7 @@ export class GameLibraryStore {
       version: 2,
       folders: snap.folders,
       games: [...fresh, ...snap.games],
+      syncDeletedIds: snap.syncDeletedIds,
     };
     const persisted = await this.persist(next);
     for (const game of fresh) {
@@ -442,6 +456,7 @@ export class GameLibraryStore {
       version: 2,
       folders: snap.folders,
       games: snap.games.filter((g) => g.id !== id),
+      syncDeletedIds: [...new Set([...(snap.syncDeletedIds ?? []), id])],
     };
     const persisted = await this.persist(next);
     await prunePgnCommentFile('gameLibrary', id);
@@ -465,7 +480,12 @@ export class GameLibraryStore {
     delete updated.analysis;
     const games = [...snap.games];
     games[index] = updated;
-    await this.persist({ version: 2, folders: snap.folders, games });
+    await this.persist({
+      version: 2,
+      folders: snap.folders,
+      games,
+      syncDeletedIds: snap.syncDeletedIds,
+    });
     return updated;
   }
 }

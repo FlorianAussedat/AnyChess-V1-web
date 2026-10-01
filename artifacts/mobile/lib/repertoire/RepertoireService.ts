@@ -199,6 +199,9 @@ export class RepertoireService {
       .filter((f) => f.folderId === folderId)
       .map((f) => f.id);
     this.snapshot!.files = this.snapshot!.files.filter((f) => f.folderId !== folderId);
+    this.snapshot!.syncDeletedIds = [
+      ...new Set([...(this.snapshot!.syncDeletedIds ?? []), folderId, ...removedIds]),
+    ];
     invalidateFolderRepertoireCache(folderId);
     await this.persist();
     await openingMasteryStore.pruneFiles(removedIds);
@@ -356,6 +359,9 @@ export class RepertoireService {
     if (!file) return;
 
     this.snapshot!.files = this.snapshot!.files.filter((f) => f.id !== fileId);
+    this.snapshot!.syncDeletedIds = [
+      ...new Set([...(this.snapshot!.syncDeletedIds ?? []), fileId]),
+    ];
     const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
     if (folder) folder.updatedAt = nowIso();
     invalidateFolderRepertoireCache(file.folderId);

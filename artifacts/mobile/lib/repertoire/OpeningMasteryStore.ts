@@ -28,6 +28,7 @@ export type OpeningLineMasteryRecord = {
 export type OpeningLineMasterySnapshot = {
   version: 1;
   lines: Record<string, OpeningLineMasteryRecord>;
+  syncDeletedIds?: string[];
 };
 
 function emptySnapshot(): OpeningLineMasterySnapshot {
@@ -53,9 +54,15 @@ function validateRecord(raw: unknown): OpeningLineMasteryRecord | null {
   };
 }
 
+function readDeletedIds(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids = raw.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  return ids.length ? ids : undefined;
+}
+
 function validate(parsed: unknown): OpeningLineMasterySnapshot | null {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  const row = parsed as { version?: unknown; lines?: unknown };
+  const row = parsed as { version?: unknown; lines?: unknown; syncDeletedIds?: unknown };
   if (row.version !== 1) return null;
   if (!row.lines || typeof row.lines !== 'object' || Array.isArray(row.lines)) return null;
   const lines: Record<string, OpeningLineMasteryRecord> = {};
@@ -64,7 +71,17 @@ function validate(parsed: unknown): OpeningLineMasterySnapshot | null {
     if (!rec) continue;
     lines[key] = rec;
   }
-  return { version: 1, lines };
+  const syncDeletedIds = readDeletedIds(row.syncDeletedIds);
+  return syncDeletedIds ? { version: 1, lines, syncDeletedIds } : { version: 1, lines };
+}
+
+function withLines(
+  prev: OpeningLineMasterySnapshot,
+  lines: Record<string, OpeningLineMasteryRecord>,
+  extraDeleted: string[] = [],
+): OpeningLineMasterySnapshot {
+  const syncDeletedIds = [...new Set([...(prev.syncDeletedIds ?? []), ...extraDeleted])];
+  return syncDeletedIds.length ? { version: 1, lines, syncDeletedIds } : { version: 1, lines };
 }
 
 export class OpeningMasteryStore {
@@ -130,10 +147,7 @@ export class OpeningMasteryStore {
       totalSuccesses: (prev?.totalSuccesses ?? 0) + (result === 'success' ? 1 : 0),
       lastRevisionAt: at,
     };
-    this.snapshot = {
-      version: 1,
-      lines: { ...this.snapshot!.lines, [key]: next },
-    };
+    this.snapshot = withLines(this.snapshot!, { ...this.snapshot!.lines, [key]: next });
     await this.persist();
     this.emit();
     return next;
@@ -143,15 +157,15 @@ export class OpeningMasteryStore {
     await this.ensureLoaded();
     const prefix = `${fileId}:`;
     const lines = { ...this.snapshot!.lines };
-    let changed = false;
+    const removed: string[] = [];
     for (const key of Object.keys(lines)) {
       if (key.startsWith(prefix)) {
         delete lines[key];
-        changed = true;
+        removed.push(key);
       }
     }
-    if (!changed) return;
-    this.snapshot = { version: 1, lines };
+    if (removed.length === 0) return;
+    this.snapshot = withLines(this.snapshot!, lines, removed);
     await this.persist();
     this.emit();
   }
@@ -168,15 +182,15 @@ export class OpeningMasteryStore {
     const keep = new Set(livePathIds.map((pathId) => openingLineKey(fileId, pathId)));
     const prefix = `${fileId}:`;
     const lines = { ...this.snapshot!.lines };
-    let changed = false;
+    const removed: string[] = [];
     for (const key of Object.keys(lines)) {
       if (key.startsWith(prefix) && !keep.has(key)) {
         delete lines[key];
-        changed = true;
+        removed.push(key);
       }
     }
-    if (!changed) return;
-    this.snapshot = { version: 1, lines };
+    if (removed.length === 0) return;
+    this.snapshot = withLines(this.snapshot!, lines, removed);
     await this.persist();
     this.emit();
   }
