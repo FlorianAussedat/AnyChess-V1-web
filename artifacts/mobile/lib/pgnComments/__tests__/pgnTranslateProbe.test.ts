@@ -70,8 +70,13 @@ describe('PGN translation probe', () => {
     assert.match(settings, /formatPgnTranslateProbe/);
     assert.match(live, /recordPgnTranslateCall/);
     assert.match(live, /X-AnyChess-Client/);
+    assert.match(live, /hostUri/);
+    assert.match(read('metro.config.js'), /\/api\//);
     assert.match(classify, /http === 429/);
     assert.doesNotMatch(live, /api\.mymemory|DEEPL_API_KEY|api-free\.deepl/);
     assert.doesNotMatch(settings, /DEEPL_API_KEY/);
+    const lifecycle = read('lib/pgnComments/lifecycle.ts');
+    assert.doesNotMatch(lifecycle, /lifecycle\.skip/);
+    assert.match(lifecycle, /processUntilIdle/);
   });
 });

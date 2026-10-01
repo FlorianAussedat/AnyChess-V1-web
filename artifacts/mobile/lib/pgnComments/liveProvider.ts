@@ -40,8 +40,28 @@ export function resolvePgnTranslateUrl(): string | null {
   const explicit = firstEnv('EXPO_PUBLIC_PGN_TRANSLATE_URL', 'ANYCHESS_PGN_TRANSLATE_URL');
   if (explicit) return explicit.replace(/\/$/, '');
   const domain = firstEnv('EXPO_PUBLIC_DOMAIN');
-  if (!domain) return null;
-  return `https://${hostFromDomain(domain)}/api/pgn-comments/translate`;
+  if (domain) return `https://${hostFromDomain(domain)}/api/pgn-comments/translate`;
+  const devHost = resolveDevMetroHost();
+  if (devHost) return `${devHost}/api/pgn-comments/translate`;
+  return null;
+}
+
+function resolveDevMetroHost(): string | null {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return null;
+  try {
+    const Constants = require('expo-constants') as {
+      default?: { expoConfig?: { hostUri?: string } };
+      expoConfig?: { hostUri?: string };
+    };
+    const hostUri =
+      Constants.default?.expoConfig?.hostUri ?? Constants.expoConfig?.hostUri;
+    if (!hostUri?.trim()) return null;
+    const host = hostUri.replace(/\/$/, '').replace(/:\d+$/, '');
+    const secure = /\.(exp\.direct|ngrok|replit|repl\.co)/i.test(host);
+    return `${secure ? 'https' : 'http'}://${host}`;
+  } catch {
+    return null;
+  }
 }
 
 function translateToken(): string | null {

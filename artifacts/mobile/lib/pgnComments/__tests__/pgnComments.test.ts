@@ -197,6 +197,51 @@ describe('quota and service failure keep originals', () => {
     assert.equal(store.getSnapshot().records['repertoire:file-a:0:n1:after'], undefined);
     assert.equal(PGN.includes('A strong central pawn.'), true);
   });
+
+  it('resumes remaining jobs after quota without rewriting ready translations', async () => {
+    const kv = new MemoryKeyValueStorage();
+    const store = new PgnCommentTranslationStore(kv);
+    const queue = new PgnTranslationQueue(kv, store);
+    const units = collectPgnCommentUnits(PGN, 'repertoire', 'file-a');
+    const first = units[0]!;
+    await store.upsert({
+      anchor: first.anchor,
+      sourceLang: 'en',
+      targetLang: 'fr',
+      originalFingerprint: first.fingerprint,
+      originalText: first.original,
+      translatedText: 'Un pion central fort.',
+      status: 'ready',
+      method: 'automatic',
+    });
+    let calls = 0;
+    queue.setProvider({
+      configured: true,
+      async translateComments(batch) {
+        calls += 1;
+        if (calls === 1) {
+          return batch.map((item) => ({ id: item.id, error: 'quota' as const }));
+        }
+        return batch.map((item) => ({
+          id: item.id,
+          text: item.text === 'White develops the knight toward the center.'
+            ? 'Les Blancs développent le cavalier vers le centre.'
+            : `FR ${item.text}`,
+        }));
+      },
+    });
+    const added = await queue.enqueuePgn(PGN, 'repertoire', 'file-a');
+    assert.equal(added, 1);
+    const blocked = await queue.processUntilIdle();
+    assert.equal(blocked.blocked, 'quota');
+    assert.equal(store.getRecord(first.anchor)?.translatedText, 'Un pion central fort.');
+    await queue.retryBlocked();
+    const resumed = await queue.processUntilIdle();
+    assert.equal(resumed.done, 1);
+    assert.equal(store.getRecord(first.anchor)?.translatedText, 'Un pion central fort.');
+    assert.match(store.getRecord(units[1]!.anchor)?.translatedText ?? '', /\[%eval 0\.12\]/);
+    assert.match(store.getRecord(units[1]!.anchor)?.translatedText ?? '', /Noirs|répondent|FR /);
+  });
 });
 
 const FRENCH: Record<string, string> = {

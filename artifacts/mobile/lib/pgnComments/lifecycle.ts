@@ -8,10 +8,9 @@ let unbind: (() => void) | null = null;
 export function resumePgnTranslationIfAllowed(): void {
   const policy = pgnTranslationQueue.getPolicy();
   if (!policy.catchup && !policy.import) return;
-  if (pgnTranslationQueue.getLastError() === 'quota') {
-    logPgnTranslate('lifecycle.skip', { reason: 'quota' });
-    return;
-  }
+  // A leftover MyMemory daily quota must not freeze the queue after DeepL
+  // is available. Completed jobs stay `done`; processNext will stop again
+  // if the live backend itself reports quota.
   void pgnTranslationQueue.processUntilIdle();
 }
 
