@@ -5,12 +5,13 @@ import { useColors } from '@/hooks/useColors';
 import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { DeleteAccountControl } from '@/components/cloud/DeleteAccountControl';
 import { confirmationResendWaitSeconds } from '@/lib/cloud';
 import { consumeAuthReturn } from '@/lib/cloud/authReturn';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
 import type { MessageKey } from '@/lib/i18n/messages';
 
-const AUTH_ERROR_KEYS: Record<CloudAuthError, MessageKey> = {
+export const AUTH_ERROR_KEYS: Record<CloudAuthError, MessageKey> = {
   invalid_credentials: 'cloud.errorInvalid',
   email_taken: 'cloud.errorTaken',
   weak_password: 'cloud.errorWeak',
@@ -208,7 +209,7 @@ export function CloudAccountSection() {
               testID="cloud-signup"
               disabled={busy}
               onPress={() => {
-                void run(() => cloud.signUp(email.trim(), password));
+                router.push('/creer-compte' as Href);
               }}
               style={[styles.btn, { borderColor: colors.border }]}
             >
@@ -254,6 +255,7 @@ export function CloudAccountSection() {
           </Pressable>
         </View>
       ) : null}
+      {cloud.user ? <DeleteAccountControl /> : null}
       {cloud.lastError === 'schema_missing' ? (
         <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-schema-missing">
           {t('cloud.errorSchema')}

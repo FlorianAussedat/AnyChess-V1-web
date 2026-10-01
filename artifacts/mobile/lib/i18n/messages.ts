@@ -240,6 +240,28 @@ export type MessageKey =
   | 'cloud.resendSent'
   | 'cloud.backToSignIn'
   | 'cloud.backupLabel'
+  | 'account.createTitle'
+  | 'account.createSubmit'
+  | 'account.alreadyHave'
+  | 'account.showPassword'
+  | 'account.hidePassword'
+  | 'account.avatarAdd'
+  | 'account.avatarChange'
+  | 'account.avatarRemove'
+  | 'account.avatarCrop'
+  | 'account.avatarUseFull'
+  | 'account.avatarZoom'
+  | 'account.usernameRequired'
+  | 'account.delete'
+  | 'account.deleteTitle'
+  | 'account.deleteBody'
+  | 'account.deleteExport'
+  | 'account.deleteReauth'
+  | 'account.deleteConfirm'
+  | 'account.deleteReauthFailed'
+  | 'account.deleteFailed'
+  | 'account.deleteOffline'
+  | 'account.deleteDone'
   | 'settings.title'
   | 'settings.dictationPace'
   | 'settings.dictationPaceHint'
@@ -1408,6 +1430,30 @@ const fr: Dict = {
   'cloud.resendSent': 'E-mail renvoyé.',
   'cloud.backToSignIn': 'Revenir à la connexion',
   'cloud.backupLabel': 'SAUVEGARDE',
+  'account.createTitle': 'Créer mon compte',
+  'account.createSubmit': 'Créer mon compte',
+  'account.alreadyHave': 'J’ai déjà un compte — Se connecter',
+  'account.showPassword': 'Afficher le mot de passe',
+  'account.hidePassword': 'Masquer le mot de passe',
+  'account.avatarAdd': 'Ajouter une photo ou un logo',
+  'account.avatarChange': 'Modifier la photo',
+  'account.avatarRemove': 'Supprimer la photo',
+  'account.avatarCrop': 'Recadrer',
+  'account.avatarUseFull': 'Image entière',
+  'account.avatarZoom': 'Recadrage',
+  'account.usernameRequired': 'Indique un pseudo.',
+  'account.delete': 'Supprimer mon compte',
+  'account.deleteTitle': 'Supprimer le compte ?',
+  'account.deleteBody':
+    'Cette action supprime définitivement ton compte AnyChess et ses données : PGN, dossiers, traductions, historiques, statistiques et préférences cloud.',
+  'account.deleteExport': 'Exporter les PGN',
+  'account.deleteReauth': 'Confirme avec ton mot de passe',
+  'account.deleteConfirm': 'Supprimer définitivement',
+  'account.deleteReauthFailed': 'Mot de passe incorrect. Le compte n’a pas été supprimé.',
+  'account.deleteFailed': 'La suppression n’a pas abouti. Tes données sont toujours là.',
+  'account.deleteOffline':
+    'La réponse du serveur n’est pas arrivée. Tes données restent sur cet appareil. Rouvre l’application pour terminer le nettoyage si le compte a bien été supprimé.',
+  'account.deleteDone': 'Ton compte a été supprimé.',
   'cloud.errorSchema':
     'Exécutez supabase/user_documents.sql dans l’éditeur SQL du projet (table absente).',
   'settings.title': 'Paramètres',
@@ -2675,6 +2721,30 @@ const en: Dict = {
   'cloud.resendSent': 'Email sent again.',
   'cloud.backToSignIn': 'Back to sign in',
   'cloud.backupLabel': 'BACKUP',
+  'account.createTitle': 'Create my account',
+  'account.createSubmit': 'Create my account',
+  'account.alreadyHave': 'I already have an account — Sign in',
+  'account.showPassword': 'Show password',
+  'account.hidePassword': 'Hide password',
+  'account.avatarAdd': 'Add a photo or a logo',
+  'account.avatarChange': 'Change photo',
+  'account.avatarRemove': 'Remove photo',
+  'account.avatarCrop': 'Crop',
+  'account.avatarUseFull': 'Full image',
+  'account.avatarZoom': 'Crop',
+  'account.usernameRequired': 'Enter a username.',
+  'account.delete': 'Delete my account',
+  'account.deleteTitle': 'Delete the account?',
+  'account.deleteBody':
+    'This permanently deletes your AnyChess account and its data: PGN files, folders, translations, histories, statistics and cloud preferences.',
+  'account.deleteExport': 'Export PGNs',
+  'account.deleteReauth': 'Confirm with your password',
+  'account.deleteConfirm': 'Delete permanently',
+  'account.deleteReauthFailed': 'Incorrect password. The account was not deleted.',
+  'account.deleteFailed': 'Deletion did not go through. Your data is still here.',
+  'account.deleteOffline':
+    'The server response did not arrive. Your data stays on this device. Reopen the app to finish cleanup if the account was deleted.',
+  'account.deleteDone': 'Your account was deleted.',
   'cloud.errorSchema':
     'Run supabase/user_documents.sql in the project SQL editor (table missing).',
   'settings.title': 'Settings',

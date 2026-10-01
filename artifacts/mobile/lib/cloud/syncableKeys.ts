@@ -34,6 +34,8 @@ export function isSyncableStorageKey(key: string): key is SyncableStorageKey {
 export const CLOUD_ACTIVE_USER_KEY = 'anychess.cloud.activeUser.v1';
 export const CLOUD_SESSION_KEY = 'anychess.cloud.session.v1';
 export const CLOUD_LAST_BACKUP_KEY = 'anychess.cloud.lastBackup.v1';
+export const CLOUD_BACKUP_INDEX_KEY = 'anychess.cloud.backup.index.v1';
+export const ACCOUNT_DELETION_PENDING_KEY = 'anychess.account.deletion.pending.v1';
 export const CLOUD_STATUS_KEY = 'anychess.cloud.status.v1';
 
 export function cloudWorkspaceKey(ownerId: string): string {

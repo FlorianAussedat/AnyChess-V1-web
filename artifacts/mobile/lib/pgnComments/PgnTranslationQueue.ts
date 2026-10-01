@@ -103,6 +103,8 @@ export class PgnTranslationQueue {
   private pumping = false;
   private pumpQueued = false;
   private cancelled = false;
+  /** Set while an account deletion is in flight so results cannot be written back. */
+  private sealed = false;
   private runGeneration = 0;
   private lastError: PgnTranslationServiceError = null;
   private retryAfterMs: number | null = null;
@@ -306,6 +308,65 @@ export class PgnTranslationQueue {
     return this.enqueueUnits(collectPgnCommentUnits(pgnText, source, fileId), origin);
   }
 
+  /**
+   * Pause queued work and refuse new writes until the deletion finishes or is cancelled.
+   * Returns the job ids this call paused so a failed deletion can queue only those.
+   */
+  holdForAccountDeletion(): string[] {
+    this.sealed = true;
+    this.cancelled = true;
+    this.runGeneration += 1;
+    if (!this.snapshot) return [];
+    const now = new Date().toISOString();
+    const jobs = { ...this.snapshot.jobs };
+    const held: string[] = [];
+    for (const job of Object.values(jobs)) {
+      if (job.status === 'queued' || job.status === 'running') {
+        jobs[job.id] = { ...job, status: 'paused', updatedAt: now };
+        held.push(job.id);
+      }
+    }
+    this.snapshot = { version: 1, jobs };
+    return held;
+  }
+
+  releaseDeletionHold(jobIds: readonly string[]): void {
+    this.sealed = false;
+    this.cancelled = false;
+    if (!this.snapshot || jobIds.length === 0) return;
+    const allow = new Set(jobIds);
+    const now = new Date().toISOString();
+    const jobs = { ...this.snapshot.jobs };
+    for (const id of allow) {
+      const job = jobs[id];
+      if (job && job.status === 'paused') {
+        jobs[id] = { ...job, status: 'queued', updatedAt: now };
+      }
+    }
+    this.snapshot = { version: 1, jobs };
+    void this.persist();
+  }
+
+  /** Drop in-memory jobs after the account's storage has been replaced. */
+  discardHeldWork(): void {
+    this.sealed = false;
+    this.cancelled = true;
+    this.runGeneration += 1;
+    this.snapshot = null;
+    this.running = false;
+    this.pumping = false;
+    this.pumpQueued = false;
+  }
+
+  async reloadFromStorage(): Promise<void> {
+    this.sealed = false;
+    this.cancelled = false;
+    this.snapshot = null;
+    this.running = false;
+    this.pumping = false;
+    await this.ensureLoaded();
+  }
+
   /** Sync pause so in-flight work cannot resume the queue. */
   cancel(): void {
     this.cancelled = true;
@@ -384,7 +445,9 @@ export class PgnTranslationQueue {
   }
 
   async processNext(limit = BATCH): Promise<{ done: number; failed: number; blocked: string | null }> {
+    if (this.sealed) return { done: 0, failed: 0, blocked: 'held' };
     await this.ensureLoaded();
+    if (this.sealed) return { done: 0, failed: 0, blocked: 'held' };
     if (this.running) return { done: 0, failed: 0, blocked: null };
     if (!this.appForeground) return { done: 0, failed: 0, blocked: 'held' };
     this.running = true;
@@ -430,9 +493,11 @@ export class PgnTranslationQueue {
           foreground: this.appForeground,
           budgetMs,
         });
+        if (this.sealed) return { done: 0, failed: 0, blocked: 'held' };
         await this.restoreInFlight(queued, generation);
         return { done, failed, blocked };
       }
+      if (this.sealed) return { done: 0, failed: 0, blocked: 'held' };
 
       const late = generation !== this.runGeneration;
       const jobs = { ...this.snapshot!.jobs };
@@ -543,6 +608,7 @@ export class PgnTranslationQueue {
   }
 
   async processUntilIdle(): Promise<{ done: number; failed: number; blocked: string | null }> {
+    if (this.sealed) return { done: 0, failed: 0, blocked: 'held' };
     await this.ensureLoaded();
     if (this.pumping) {
       this.pumpQueued = true;
@@ -559,6 +625,10 @@ export class PgnTranslationQueue {
         const generation = this.runGeneration;
         blocked = null;
         while (generation === this.runGeneration) {
+          if (this.sealed) {
+            blocked = 'held';
+            break;
+          }
           if (!this.appForeground) {
             blocked = 'held';
             break;
@@ -632,7 +702,7 @@ export class PgnTranslationQueue {
   }
 
   private async persist(): Promise<void> {
-    if (!this.snapshot) return;
+    if (this.sealed || !this.snapshot) return;
     await this.storage.setItem(KEY, JSON.stringify(this.snapshot));
     this.emit();
   }

@@ -33,6 +33,12 @@ export function isSupabaseConfigured(): boolean {
  * `*.supabase.co` function stays the target: it is text/plain, because that
  * domain rewrites HTML.
  */
+export function deleteAccountFunctionUrl(): string | null {
+  const url = resolveSupabaseUrl();
+  if (!url) return null;
+  return `${url.replace(/\/$/, '')}/functions/v1/delete-account`;
+}
+
 export function authConfirmRedirectUrl(): string | null {
   const page = readPublic(process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL);
   if (page && /^https:\/\//i.test(page)) return page.replace(/\/$/, '');
