@@ -14,6 +14,7 @@ import {
   type OpeningRevisionResult,
 } from './openingMastery.ts';
 import type { OpeningMasteryStore } from './OpeningMasteryStore.ts';
+import { isGenericReviewLineName } from './reviewLineName.ts';
 import { pgnFileDisplayName, type StoredPgnFile } from './storage/types.ts';
 
 export type OpeningLineMasteryView = {
@@ -34,7 +35,8 @@ export type OpeningPgnMasteryView = OpeningPgnMastery & {
 };
 
 function lineLabel(path: ContinueLinePath): string {
-  if (path.sourceLabel?.trim()) return path.sourceLabel.trim();
+  const stored = path.sourceLabel?.trim();
+  if (stored && !isGenericReviewLineName(stored)) return stored;
   return path.sans.join(' ');
 }
 

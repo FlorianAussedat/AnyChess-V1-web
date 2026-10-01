@@ -100,6 +100,21 @@ describe('opening training states', () => {
     assert.match(screen, /BoardCoordinatesToggle/);
     assert.match(screen, /trainingState === 'lineComplete'/);
     assert.match(screen, /trainingState === 'outOfTheory'/);
+    assert.match(screen, /trainingState === 'lineComplete'/);
+    assert.match(screen, /confirmDiscardActivity\('cours'/);
+    assert.match(screen, /onShowFinalComment/);
+    assert.match(screen, /opening-expected-pgn-comment/);
+  });
+
+  it('skips discard confirm on next line only after theory is finished', () => {
+    const screen = read('components/OpeningGameScreen.tsx');
+    const nextBlock = screen.slice(screen.indexOf('onNextLine='));
+    assert.match(nextBlock, /trainingState === 'lineComplete'/);
+    assert.match(nextBlock, /confirmDiscardActivity\('cours'/);
+    assert.ok(
+      nextBlock.indexOf("trainingState === 'lineComplete'") <
+        nextBlock.indexOf("confirmDiscardActivity('cours'"),
+    );
   });
 
   it('context exposes continue / undo / expected / restart / next', () => {

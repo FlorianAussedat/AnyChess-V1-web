@@ -118,7 +118,25 @@ export {
   ephemeralSessionForOrigin,
 } from './ephemeralOpeningSession';
 export type { EphemeralOpeningSession } from './ephemeralOpeningSession';
-export { recordOpeningRevisionResult } from './recordOpeningRevision';
+export {
+  recordOpeningRevisionResult,
+  commitOpeningReviewAttempt,
+  resetOpeningReviewRecordedFlag,
+} from './recordOpeningRevision';
+export {
+  OpeningReviewAttempt,
+  countUserMovesToFind,
+  emptyReviewAttemptSnapshot,
+  reviewResultFromAttempt,
+} from './openingReviewAttempt';
+export type { OpeningReviewAttemptSnapshot, ReviewSide } from './openingReviewAttempt';
+export { reviewLineDisplayName, isGenericReviewLineName, sourceLabelFromPgnHeaders } from './reviewLineName';
+export {
+  commentOnReviewedLinePly,
+  commentOnReviewedLineLastMove,
+  resolvedCommentOnReviewedLinePly,
+  resolvedFinalLineComment,
+} from './reviewLineComment';
 export { repertoireFromSans } from './repertoireFromSans';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';

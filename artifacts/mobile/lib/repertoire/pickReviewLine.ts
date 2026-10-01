@@ -14,6 +14,7 @@ import {
   setEphemeralOpeningSession,
   type EphemeralOpeningSession,
 } from './ephemeralOpeningSession.ts';
+import { reviewLineDisplayName } from './reviewLineName.ts';
 
 export type ReviewPoolEntry = {
   file: StoredPgnFile;
@@ -128,6 +129,10 @@ export function reviewPickToSession(
     pathId: pick.path.id,
     sourcePgn: pick.file.pgnText,
     displayName: pgnFileDisplayName(pick.file),
+    lineName: reviewLineDisplayName({
+      pathLabel: pick.path.sourceLabel,
+      fileDisplayName: pgnFileDisplayName(pick.file),
+    }),
     side: pick.side,
     origin,
   };

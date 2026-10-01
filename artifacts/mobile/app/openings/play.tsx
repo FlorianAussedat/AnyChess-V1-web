@@ -20,13 +20,22 @@ import {
   pickUnmasteredLearningPath,
   repertoireFromSans,
   repertoireService,
-  recordOpeningRevisionResult,
+  commitOpeningReviewAttempt,
   openingMasteryStore,
   setEphemeralOpeningSession,
   trainingPathsForPgn,
   type EphemeralOpeningSession,
   type ParsedRepertoire,
 } from '@/lib/repertoire';
+import {
+  reviewResultFromAttempt,
+  type OpeningReviewAttemptSnapshot,
+} from '@/lib/repertoire/openingReviewAttempt';
+import {
+  presentPgnCommentDialog,
+  presentReviewLineBilan,
+} from '@/lib/openings/presentReviewLineBilan';
+import { tMsg } from '@/lib/i18n';
 import {
   DEFAULT_STRENGTH_BAND_ID,
   getStrengthBand,
@@ -75,6 +84,8 @@ export default function OpeningPlayRoute() {
   const parkedRef = useRef<EphemeralOpeningSession | null>(null);
   const autoUnmasteredRef = useRef(false);
   const [revisionIds, setRevisionIds] = useState<{ fileId: string; pathId: string } | null>(null);
+  const [lineLabel, setLineLabel] = useState<string | null>(null);
+  const [trainingPathSans, setTrainingPathSans] = useState<string[] | null>(null);
 
   const rememberParked = useCallback((session: EphemeralOpeningSession) => {
     parkedRef.current = session;
@@ -85,6 +96,8 @@ export default function OpeningPlayRoute() {
     } else {
       setRevisionIds(null);
     }
+    setLineLabel(session.lineName?.trim() || session.displayName);
+    setTrainingPathSans(session.pathSans);
   }, []);
 
   const applyLine = useCallback(
@@ -172,6 +185,8 @@ export default function OpeningPlayRoute() {
             ),
             folder.side === 'black' ? 'b' : color === 'b' ? 'b' : 'w',
           );
+          setLineLabel(null);
+          setTrainingPathSans(null);
         }
       } catch (err) {
         if (!cancelled) {
@@ -268,6 +283,21 @@ export default function OpeningPlayRoute() {
       repertoireName={repertoireName}
       sourcePgn={sourcePgn}
       strengthBandId={strengthBandId}
+      lineLabel={lineLabel}
+      trainingPathSans={trainingPathSans}
+      reviewFileId={revisionIds?.fileId ?? parkedRef.current?.fileId ?? null}
+      onPersistReviewResult={
+        originRef.current !== 'review'
+          ? undefined
+          : async (stats: OpeningReviewAttemptSnapshot) => {
+              await commitOpeningReviewAttempt(
+                'review',
+                revisionIds?.fileId,
+                revisionIds?.pathId,
+                reviewResultFromAttempt(stats),
+              );
+            }
+      }
       onRequestNextLine={
         originRef.current === 'review' || autoUnmasteredRef.current ? requestNextLine : undefined
       }
@@ -293,33 +323,40 @@ function ReviewAttemptRecorder({
   fileId?: string;
   pathId?: string;
 }) {
-  const { theoryExit } = useOpeningGame();
-  const recorded = useRef(false);
-  const hadError = useRef(false);
+  const { trainingState, reviewStats, getFinalLineComment, openingLabel } = useOpeningGame();
+  const bilanKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    recorded.current = false;
-    hadError.current = false;
+    bilanKeyRef.current = null;
   }, [pathId]);
 
   useEffect(() => {
-    if (origin !== 'review' || recorded.current || !theoryExit) return;
-    if (theoryExit.kind === 'player-deviation') {
-      hadError.current = true;
-      recorded.current = true;
-      void recordOpeningRevisionResult('review', fileId, pathId, 'failure');
+    if (origin !== 'review' || trainingState !== 'lineComplete' || !fileId || !pathId) {
       return;
     }
-    if (theoryExit.kind === 'repertoire-end') {
-      recorded.current = true;
-      void recordOpeningRevisionResult(
+    const key = `${fileId}:${pathId}`;
+    void (async () => {
+      const totals = await commitOpeningReviewAttempt(
         'review',
         fileId,
         pathId,
-        hadError.current ? 'failure' : 'success',
+        reviewResultFromAttempt(reviewStats),
       );
-    }
-  }, [fileId, origin, pathId, theoryExit]);
+      if (bilanKeyRef.current === key) return;
+      bilanKeyRef.current = key;
+      const finalComment = getFinalLineComment();
+      presentReviewLineBilan({
+        lineName: openingLabel ?? '',
+        stats: reviewStats,
+        totalAttempts: totals.totalAttempts,
+        totalSuccesses: totals.totalSuccesses,
+        hasFinalComment: Boolean(finalComment),
+        onShowFinalComment: finalComment
+          ? () => presentPgnCommentDialog(tMsg('openings.finalCommentTitle'), finalComment)
+          : undefined,
+      });
+    })();
+  }, [fileId, getFinalLineComment, openingLabel, origin, pathId, reviewStats, trainingState]);
 
   return null;
 }

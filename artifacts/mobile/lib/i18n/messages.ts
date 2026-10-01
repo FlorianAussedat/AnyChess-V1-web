@@ -494,6 +494,17 @@ export type MessageKey =
   | 'openings.returnToRepertoire'
   | 'openings.yourTurnContinue'
   | 'openings.lineComplete'
+  | 'openings.lineFinishedTitle'
+  | 'openings.lineFinishedErrors'
+  | 'openings.lineFinishedRevealed'
+  | 'openings.lineFinishedLifetime'
+  | 'openings.reviewMoveSingular'
+  | 'openings.reviewMovePlural'
+  | 'openings.reviewRevealedSingular'
+  | 'openings.reviewRevealedPlural'
+  | 'openings.pgnCommentHeading'
+  | 'openings.seeFinalComment'
+  | 'openings.finalCommentTitle'
   | 'openings.voiceSpeed'
   | 'openings.startLine'
   | 'openings.positionReached'
@@ -1629,6 +1640,19 @@ const fr: Dict = {
   'openings.returnToRepertoire': 'Retour au répertoire',
   'openings.yourTurnContinue': 'À toi de continuer',
   'openings.lineComplete': 'Ligne complète',
+  'openings.lineFinishedTitle': 'Ligne terminée',
+  'openings.lineFinishedErrors':
+    '{{errors}} {{errorWord}} avec erreur sur {{moves}} {{moveWord}} à trouver',
+  'openings.lineFinishedRevealed': '{{count}} {{moveWord}} {{revealed}}',
+  'openings.lineFinishedLifetime':
+    'Cette ligne : {{completed}} révisions terminées · {{successes}} réussites',
+  'openings.reviewMoveSingular': 'coup',
+  'openings.reviewMovePlural': 'coups',
+  'openings.reviewRevealedSingular': 'révélé',
+  'openings.reviewRevealedPlural': 'révélés',
+  'openings.pgnCommentHeading': 'Commentaire du PGN',
+  'openings.seeFinalComment': 'Voir le commentaire final',
+  'openings.finalCommentTitle': 'Commentaire final',
   'openings.voiceSpeed': 'Vitesse de la voix',
   'openings.startLine': 'Ligne de départ',
   'openings.positionReached': 'Position atteinte',
@@ -2844,6 +2868,19 @@ const en: Dict = {
   'openings.returnToRepertoire': 'Back to repertoire',
   'openings.yourTurnContinue': 'Your turn to continue',
   'openings.lineComplete': 'Line complete',
+  'openings.lineFinishedTitle': 'Line finished',
+  'openings.lineFinishedErrors':
+    '{{errors}} {{errorWord}} with an error out of {{moves}} {{moveWord}} to find',
+  'openings.lineFinishedRevealed': '{{count}} {{moveWord}} {{revealed}}',
+  'openings.lineFinishedLifetime':
+    'This line: {{completed}} completed reviews · {{successes}} successes',
+  'openings.reviewMoveSingular': 'move',
+  'openings.reviewMovePlural': 'moves',
+  'openings.reviewRevealedSingular': 'revealed',
+  'openings.reviewRevealedPlural': 'revealed',
+  'openings.pgnCommentHeading': 'PGN comment',
+  'openings.seeFinalComment': 'View the final comment',
+  'openings.finalCommentTitle': 'Final comment',
   'openings.voiceSpeed': 'Voice speed',
   'openings.startLine': 'Starting line',
   'openings.positionReached': 'Position reached',

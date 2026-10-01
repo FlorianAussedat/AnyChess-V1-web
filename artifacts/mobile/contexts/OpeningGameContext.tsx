@@ -24,6 +24,17 @@ import {
 } from '@/lib/pgn/PgnExporter';
 import { exportOpeningPlayedPgn } from '@/lib/repertoire/playedLineAnnotations';
 import { identifyOpeningFromSans, getOpeningDisplayName } from '@/lib/openings';
+import {
+  OpeningReviewAttempt,
+  countUserMovesToFind,
+  emptyReviewAttemptSnapshot,
+  type OpeningReviewAttemptSnapshot,
+} from '@/lib/repertoire/openingReviewAttempt';
+import {
+  resolvedCommentOnReviewedLinePly,
+  resolvedFinalLineComment,
+} from '@/lib/repertoire/reviewLineComment';
+import { resetOpeningReviewRecordedFlag } from '@/lib/repertoire/recordOpeningRevision';
 import { speechService } from '@/services/SpeechService';
 import {
   shouldEmitMoveRecognizedFeedback,
@@ -87,7 +98,12 @@ interface OpeningGameContextValue {
   /** Undo off-book move and return to theory without revealing. */
   undoAndThinkAgain: () => void;
   /** Show all expected book moves without changing board or turn state. */
-  showExpectedMove: () => string | null;
+  showExpectedMove: () => { label: string; comment: string | null } | null;
+  /** Count show-full-line as a continuation reveal for Review success. */
+  markContinuationRevealed: () => void;
+  reviewStats: OpeningReviewAttemptSnapshot;
+  getFinalLineComment: () => string | null;
+  persistReviewResult: () => Promise<void>;
   /** Restart exact training from the initial position (same side/settings). */
   restartLine: () => void;
   /** Start another line (new game — different random book branches). */
@@ -110,6 +126,14 @@ interface ProviderProps {
    * can copy comments/NAGs from the played branch into the analyzer PGN.
    */
   sourcePgn?: string | null;
+  /** Stable name of the selected line — replaces the live ECO annotation. */
+  lineLabel?: string | null;
+  /** SAN path of the selected line (the branch the computer will play). */
+  trainingPathSans?: readonly string[] | null;
+  /** Repertoire file used to resolve translated PGN comments. */
+  reviewFileId?: string | null;
+  /** Persist a finished Review attempt (idempotent). */
+  onPersistReviewResult?: (stats: OpeningReviewAttemptSnapshot) => Promise<void>;
   /** When set, « Ligne suivante » asks the host to load another line. */
   onRequestNextLine?: () => void;
 }
@@ -126,6 +150,10 @@ export function OpeningGameProvider({
   strengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
     DEFAULT_STRENGTH_BAND_ID,
   sourcePgn = null,
+  lineLabel = null,
+  trainingPathSans = null,
+  reviewFileId = null,
+  onPersistReviewResult,
   onRequestNextLine,
 }: ProviderProps) {
   const opponentRef = useRef<OpeningOpponent | null>(null);
@@ -223,13 +251,39 @@ export function OpeningGameProvider({
     setTheoryExit(opp?.getTheoryExit() ?? null);
   }, []);
 
+  const reviewAttemptRef = useRef<OpeningReviewAttempt | null>(null);
+  const [reviewStats, setReviewStats] = React.useState<OpeningReviewAttemptSnapshot>(
+    emptyReviewAttemptSnapshot(),
+  );
+  const trainingStateRef = useRef(trainingState);
+  trainingStateRef.current = trainingState;
+  const trainingPathRef = useRef(trainingPathSans);
+  trainingPathRef.current = trainingPathSans;
+  const persistRef = useRef(onPersistReviewResult);
+  persistRef.current = onPersistReviewResult;
+
+  const resetReviewAttempt = useCallback(() => {
+    const attempt = new OpeningReviewAttempt(
+      countUserMovesToFind(trainingPathRef.current ?? [], playerColorRef.current),
+    );
+    reviewAttemptRef.current = attempt;
+    setReviewStats(attempt.snapshot());
+  }, [playerColorRef]);
+
+  const bumpReviewStats = useCallback(() => {
+    const attempt = reviewAttemptRef.current;
+    if (attempt) setReviewStats(attempt.snapshot());
+  }, []);
+
   const openingLabel = React.useMemo(() => {
+    const stable = lineLabel?.trim();
+    if (stable) return stable;
     const eco = identifyOpeningFromSans(history);
     return getOpeningDisplayName({
       headersList: repertoire?.headers ?? null,
       ecoName: eco?.name ?? null,
     });
-  }, [history, repertoire]);
+  }, [history, lineLabel, repertoire]);
 
   const summarizeGameHistory = useCallback(() => {
     const moves = gameRef.current.history();
@@ -354,6 +408,12 @@ export function OpeningGameProvider({
       const plyAfter = game.history().length;
       const theoryMsg = opponentRef.current?.onPlayerMove(beforeFen, played, plyAfter) ?? null;
       syncTheoryUi();
+      const exit = opponentRef.current?.getTheoryExit();
+      if (exit?.kind === 'player-deviation') {
+        if (!reviewAttemptRef.current) resetReviewAttempt();
+        reviewAttemptRef.current?.markError(exit.ply);
+        bumpReviewStats();
+      }
 
       const playerAnnouncement = gameStateAnnouncement(game, verbalMove(played));
       speechService.cancel('move');
@@ -392,6 +452,8 @@ export function OpeningGameProvider({
       setStatus,
       setPlayTurn,
       opponentMoveRef,
+      resetReviewAttempt,
+      bumpReviewStats,
     ],
   );
 
@@ -548,6 +610,8 @@ export function OpeningGameProvider({
       setPhase('book');
       setTrainingState('playingTheory');
       setTheoryExit(null);
+      resetOpeningReviewRecordedFlag();
+      resetReviewAttempt();
       syncState();
 
       if (color === 'b') {
@@ -567,6 +631,7 @@ export function OpeningGameProvider({
       setPlayTurn,
       setStatus,
       scheduleOpponentKickoff,
+      resetReviewAttempt,
     ],
   );
 
@@ -578,13 +643,26 @@ export function OpeningGameProvider({
     resetForColor(playerColorRef.current);
   }, [resetForColor, playerColorRef]);
 
+  const persistReviewResult = useCallback(async () => {
+    const attempt = reviewAttemptRef.current;
+    if (!attempt || !persistRef.current) return;
+    await persistRef.current(attempt.snapshot());
+  }, []);
+
   const nextLine = useCallback(() => {
-    if (onRequestNextLine) {
-      onRequestNextLine();
+    const go = () => {
+      if (onRequestNextLine) {
+        onRequestNextLine();
+        return;
+      }
+      resetForColor(playerColorRef.current);
+    };
+    if (trainingStateRef.current === 'lineComplete') {
+      void persistReviewResult().finally(go);
       return;
     }
-    resetForColor(playerColorRef.current);
-  }, [onRequestNextLine, resetForColor, playerColorRef]);
+    go();
+  }, [onRequestNextLine, persistReviewResult, resetForColor, playerColorRef]);
 
   const continueVsEngine = useCallback(() => {
     const opp = opponentRef.current;
@@ -654,18 +732,54 @@ export function OpeningGameProvider({
     speak,
   ]);
 
-  const showExpectedMove = useCallback((): string | null => {
+  const showExpectedMove = useCallback((): {
+    label: string;
+    comment: string | null;
+  } | null => {
     const opp = opponentRef.current;
     const exit = opp?.getTheoryExit();
     if (!opp || !exit || exit.kind !== 'player-deviation') return null;
     const expected = exit.analysis?.availableMoves ?? [];
     if (!expected.length) return null;
     // A hint is read-only: keep the board, history and decision state unchanged.
+    const pathSans = trainingPathRef.current;
+    const preferredSan = pathSans?.[exit.ply];
+    const chosen =
+      (preferredSan
+        ? expected.find((move) => move.san === preferredSan)
+        : undefined) ?? expected[0];
     const notation = preferencesStore.getPreferences().chessNotation;
-    const label = expected.map(move => formatSanForDisplay(move.san, notation)).join(tMsg('openings.moveOr'));
+    const label = preferredSan
+      ? formatSanForDisplay(chosen.san, notation)
+      : expected.map((move) => formatSanForDisplay(move.san, notation)).join(tMsg('openings.moveOr'));
+    if (!reviewAttemptRef.current) resetReviewAttempt();
+    reviewAttemptRef.current?.markReveal(exit.ply);
+    bumpReviewStats();
+    const commentLine =
+      pathSans && pathSans.length > exit.ply
+        ? pathSans.slice(0, exit.ply + 1)
+        : [...gameRef.current.history().slice(0, exit.ply), chosen.san];
+    const comment = resolvedCommentOnReviewedLinePly(
+      sourcePgn,
+      commentLine,
+      exit.ply,
+      reviewFileId,
+    );
     setStatus(tMsg('openings.expectedMove', { move: label }));
-    return label;
-  }, [setStatus]);
+    return { label, comment };
+  }, [bumpReviewStats, gameRef, resetReviewAttempt, reviewFileId, setStatus, sourcePgn]);
+
+  const markContinuationRevealed = useCallback(() => {
+    if (!reviewAttemptRef.current) resetReviewAttempt();
+    reviewAttemptRef.current?.markContinuationRevealed();
+    bumpReviewStats();
+  }, [bumpReviewStats, resetReviewAttempt]);
+
+  const getFinalLineComment = useCallback((): string | null => {
+    const pathSans = trainingPathRef.current;
+    if (!pathSans?.length) return null;
+    return resolvedFinalLineComment(sourcePgn, pathSans, reviewFileId);
+  }, [reviewFileId, sourcePgn]);
 
   const changeColor = useCallback(
     (color: PlayerColor) => {
@@ -755,6 +869,10 @@ export function OpeningGameProvider({
         continueVsEngine,
         undoAndThinkAgain,
         showExpectedMove,
+        markContinuationRevealed,
+        reviewStats,
+        getFinalLineComment,
+        persistReviewResult,
         restartLine,
         nextLine,
         exportPgn,
