@@ -60,7 +60,11 @@ import { getStrengthBand } from '@/lib/difficulty/StockfishStrengthBands';
 import { sideToPlayerColor } from '@/lib/repertoire';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { DesignTokens } from '@/constants/designTokens';
-import { resolvePgnComment, type CommentDisplayMode } from '@/lib/pgnComments';
+import {
+  hasUsableFrenchTranslation,
+  resolvePgnComment,
+  type CommentDisplayMode,
+} from '@/lib/pgnComments';
 import { usePgnCommentTranslations } from '@/hooks/usePgnCommentTranslations';
 
 const STUDY_CHROME = 260;
@@ -196,6 +200,23 @@ export default function OpeningStudyScreen() {
       : '';
     return [before, after].filter(Boolean).join('\n\n');
   }, [commentMode, fileId, language, state]);
+  const canToggleCommentLanguage = useMemo(() => {
+    if (!state || !fileId) return false;
+    const parts = commentsForCurrentPosition(state);
+    const nodeId = state.currentNodeId ?? state.game.rootIds[0] ?? 'n1';
+    return Boolean(
+      (parts.before &&
+        hasUsableFrenchTranslation(
+          { source: 'repertoire', fileId, gameIndex: 0, nodeId, slot: 'before' },
+          parts.before,
+        )) ||
+        (parts.after &&
+          hasUsableFrenchTranslation(
+            { source: 'repertoire', fileId, gameIndex: 0, nodeId, slot: 'after' },
+            parts.after,
+          )),
+    );
+  }, [fileId, state]);
   const tokens = useMemo(
     () => (state ? annotatePlayableCommentTokens(comment, studyCommentFens(state)) : []),
     [comment, state],
@@ -425,7 +446,7 @@ export default function OpeningStudyScreen() {
 
       {tab === 'comments' ? (
         <View testID="opening-study-comments">
-          {comment.trim() ? (
+          {comment.trim() && canToggleCommentLanguage ? (
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
               <Pressable
                 onPress={() => setCommentMode('original')}

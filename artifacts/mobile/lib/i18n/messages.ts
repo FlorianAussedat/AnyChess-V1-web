@@ -933,6 +933,17 @@ export type MessageKey =
   | 'settings.engineStrength'
   | 'settings.stockfishStrength'
   | 'settings.stockfishStrengthHint'
+  | 'settings.translation'
+  | 'settings.translateExistingPgn'
+  | 'settings.translateImportedPgn'
+  | 'settings.translationNone'
+  | 'settings.translationProgress'
+  | 'settings.translationProgressHint'
+  | 'settings.translationPaused'
+  | 'settings.translationComplete'
+  | 'settings.translationRetry'
+  | 'settings.translationTimeout'
+  | 'settings.translationCounts'
   | 'puzzle.randomAll'
   | 'puzzle.pieceCount'
   | 'puzzle.startBlind'
@@ -2119,6 +2130,23 @@ const fr: Dict = {
   'settings.stockfishStrength': 'Niveau adversaire Stockfish',
   'settings.stockfishStrengthHint':
     'Utilisé en Partie classique et lorsque tu sors du répertoire en Ouvertures.',
+  'settings.translation': 'Traduction',
+  'settings.translateExistingPgn':
+    'Traduire les commentaires des PGN déjà importés',
+  'settings.translateImportedPgn':
+    'Traduire les commentaires des PGN à l’importation',
+  'settings.translationNone': 'Aucun commentaire à traduire.',
+  'settings.translationProgress':
+    'Traduction en cours : {{done}} / {{total}} commentaires.',
+  'settings.translationProgressHint':
+    '{{done}} commentaires déjà traduits sur {{total}} commentaires anglais à traiter (variantes comprises). Un commentaire en attente ou en échec n’est pas compté comme traduit.',
+  'settings.translationPaused': 'Traduction suspendue.',
+  'settings.translationComplete': 'Traduction terminée.',
+  'settings.translationRetry': 'Réessayer',
+  'settings.translationTimeout':
+    'Délai dépassé — la requête de traduction n’a pas abouti.',
+  'settings.translationCounts':
+    '{{done}} traduits · {{pending}} en attente · {{failed}} en échec',
   'puzzle.randomAll': 'Aléatoire / Tous',
   'puzzle.pieceCount': 'Nombre de pièces',
   'puzzle.startBlind': 'Commencer à l’aveugle',
@@ -3311,6 +3339,22 @@ const en: Dict = {
   'settings.stockfishStrength': 'Stockfish opponent level',
   'settings.stockfishStrengthHint':
     'Used in Classic play and when you leave the repertoire in Openings training.',
+  'settings.translation': 'Translation',
+  'settings.translateExistingPgn':
+    'Translate comments in previously imported PGNs',
+  'settings.translateImportedPgn': 'Translate comments when importing PGNs',
+  'settings.translationNone': 'No comments to translate.',
+  'settings.translationProgress':
+    'Translation in progress: {{done}} / {{total}} comments.',
+  'settings.translationProgressHint':
+    '{{done}} comments already translated out of {{total}} English comments to process (variations included). Pending or failed comments are not counted as translated.',
+  'settings.translationPaused': 'Translation paused',
+  'settings.translationComplete': 'Translation complete',
+  'settings.translationRetry': 'Retry',
+  'settings.translationTimeout':
+    'The translation request timed out.',
+  'settings.translationCounts':
+    '{{done}} translated · {{pending}} pending · {{failed}} failed',
   'puzzle.randomAll': 'Random / All',
   'puzzle.pieceCount': 'Number of pieces',
   'puzzle.startBlind': 'Start blindfold',

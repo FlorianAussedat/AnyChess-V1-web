@@ -142,7 +142,9 @@ export class PgnCommentTranslationStore {
       (r) => r.anchor.source === source && r.anchor.fileId === fileId,
     );
     if (englishCount === 0) return 'none';
-    const ready = records.filter((r) => (r.status === 'ready' || r.status === 'manual') && r.translatedText);
+    const ready = records.filter(
+      (r) => (r.status === 'ready' || r.status === 'manual') && Boolean(r.translatedText?.trim()),
+    );
     if (ready.length === 0) return records.some((r) => r.status === 'failed') ? 'failed' : 'pending';
     if (ready.length < englishCount) return 'stale';
     return ready.some((r) => r.method === 'manual') ? 'manual' : 'ready';

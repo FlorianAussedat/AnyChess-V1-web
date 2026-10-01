@@ -3,6 +3,11 @@ export function normalizeCommentText(text: string): string {
 }
 
 /** Portable FNV-1a — no Node crypto (React Native). */
+export function isEchoTranslation(original: string, translated: string): boolean {
+  if (!translated.trim()) return true;
+  return fingerprintComment(original) === fingerprintComment(translated);
+}
+
 export function fingerprintComment(text: string): string {
   const normalized = normalizeCommentText(text);
   let hash = 2166136261;

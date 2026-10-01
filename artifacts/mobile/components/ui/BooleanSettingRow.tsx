@@ -14,6 +14,9 @@ type Props = {
   activeIcon?: IoniconName;
   inactiveIcon?: IoniconName;
   testID?: string;
+  disabled?: boolean;
+  description?: string;
+  disabledReason?: string;
 };
 
 /**
@@ -27,38 +30,54 @@ export function BooleanSettingRow({
   activeIcon = 'checkmark-circle',
   inactiveIcon = 'ellipse-outline',
   testID,
+  disabled = false,
+  description,
+  disabledReason,
 }: Props) {
   const colors = useColors();
+  const hint = disabled ? disabledReason ?? description : description;
   return (
     <Pressable
-      onPress={onToggle}
+      onPress={() => {
+        if (disabled) return;
+        onToggle();
+      }}
+      disabled={disabled}
       testID={testID}
       accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
+      accessibilityState={{ checked: value, disabled }}
       accessibilityLabel={label}
+      accessibilityHint={hint}
       style={({ pressed }) => [
         styles.row,
         {
           borderColor: colors.border,
           backgroundColor: colors.card,
-          opacity: pressed ? 0.75 : 1,
+          opacity: disabled ? 0.45 : pressed ? 0.75 : 1,
         },
       ]}
     >
-      <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+      <View style={styles.copy}>
+        <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+        {hint ? (
+          <Text style={[styles.description, { color: colors.mutedForeground }]}>{hint}</Text>
+        ) : null}
+      </View>
       <View
         style={[
           styles.control,
           {
-            backgroundColor: value ? colors.primary : colors.secondary,
-            borderColor: value ? colors.primary : colors.border,
+            backgroundColor: value && !disabled ? colors.primary : colors.secondary,
+            borderColor: value && !disabled ? colors.primary : colors.border,
           },
         ]}
       >
         <Ionicons
           name={value ? activeIcon : inactiveIcon}
           size={20}
-          color={value ? colors.primaryForeground : colors.mutedForeground}
+          color={
+            value && !disabled ? colors.primaryForeground : colors.mutedForeground
+          }
         />
       </View>
     </Pressable>
@@ -76,10 +95,15 @@ const styles = StyleSheet.create({
     paddingVertical: DesignTokens.spacing.md,
     minHeight: DesignTokens.minTouchTarget,
   },
+  copy: { flex: 1, gap: 4 },
   label: {
-    flex: 1,
     fontSize: 14,
     fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  description: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: DesignTokens.typography.weightRegular,
   },
   control: {
     width: 36,

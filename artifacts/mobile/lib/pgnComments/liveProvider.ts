@@ -3,6 +3,7 @@
  * Optional hosted proxy: ANYCHESS_PGN_TRANSLATE_URL (public URL, not a key).
  */
 import { protectChessTerms, restoreChessTerms } from './chessGlossary.ts';
+import { isEchoTranslation } from './fingerprint.ts';
 import {
   protectCommentTokens,
   restoreCommentTokens,
@@ -12,6 +13,21 @@ import type { PgnTranslationProvider, PgnTranslationProviderResult } from './typ
 
 const MYMEMORY = 'https://api.mymemory.translated.net/get';
 const MAX_CHARS = 500;
+const REQUEST_TIMEOUT_MS = 12_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function translateUrl(): string | null {
   const fromProcess =
@@ -24,7 +40,7 @@ async function translateViaProxy(
   url: string,
   batch: { id: string; text: string; context?: string }[],
 ): Promise<PgnTranslationProviderResult[]> {
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ items: batch }),
@@ -54,14 +70,19 @@ function isQuotaMessage(text: string | undefined, status: number, quotaFinished?
 
 export async function translateViaMyMemory(
   text: string,
-): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' }> {
+): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' | 'timeout' }> {
   const clipped = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
   const url = `${MYMEMORY}?q=${encodeURIComponent(clipped)}&langpair=en|fr`;
   let response: Response;
   try {
-    response = await fetch(url, { headers: { Accept: 'application/json' } });
-  } catch {
-    return { error: 'offline' };
+    response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
+  } catch (error) {
+    const aborted =
+      (error instanceof Error && error.name === 'AbortError') ||
+      (typeof DOMException !== 'undefined' &&
+        error instanceof DOMException &&
+        error.name === 'AbortError');
+    return { error: aborted ? 'timeout' : 'offline' };
   }
   if (response.status === 429 || response.status === 403) return { error: 'quota' };
   if (!response.ok) return { error: 'offline' };
@@ -83,7 +104,7 @@ export async function translateViaMyMemory(
 
 export async function translateEnglishComment(
   original: string,
-): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' | 'invalid' }> {
+): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' | 'invalid' | 'timeout' }> {
   const protectedText = protectCommentTokens(original);
   const glossed = protectChessTerms(protectedText.masked);
   const translated = await translateViaMyMemory(glossed.masked);
@@ -91,6 +112,7 @@ export async function translateEnglishComment(
   const withTerms = restoreChessTerms(translated.text, glossed.terms);
   const restored = restoreCommentTokens(withTerms, protectedText.tokens);
   if (!tokensUnchanged(original, restored)) return { error: 'invalid' };
+  if (isEchoTranslation(original, restored)) return { error: 'rejected' };
   return { text: restored };
 }
 

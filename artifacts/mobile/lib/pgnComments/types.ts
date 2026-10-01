@@ -42,6 +42,16 @@ export type PgnCommentTranslationRecord = {
   updatedAt: string;
 };
 
+export type PgnTranslationJobOrigin = 'catchup' | 'import';
+
+export type PgnTranslationJobStatus =
+  | 'queued'
+  | 'running'
+  | 'paused'
+  | 'done'
+  | 'failed'
+  | 'cancelled';
+
 export type PgnTranslationJob = {
   id: string;
   source: PgnCommentSource;
@@ -51,7 +61,8 @@ export type PgnTranslationJob = {
   fingerprint: string;
   original: string;
   context: string;
-  status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+  origin: PgnTranslationJobOrigin;
+  status: PgnTranslationJobStatus;
   createdAt: string;
   updatedAt: string;
   error?: string;
@@ -67,10 +78,32 @@ export type PgnTranslationQueueSnapshot = {
   jobs: Record<string, PgnTranslationJob>;
 };
 
+export type PgnTranslationProviderError =
+  | 'not_configured'
+  | 'offline'
+  | 'invalid'
+  | 'rejected'
+  | 'quota'
+  | 'timeout';
+
 export type PgnTranslationProviderResult = {
   id: string;
   text?: string;
-  error?: 'not_configured' | 'offline' | 'invalid' | 'rejected' | 'quota';
+  error?: PgnTranslationProviderError;
+};
+
+export type PgnTranslationPolicy = {
+  catchup: boolean;
+  import: boolean;
+};
+
+export type PgnTranslationProgress = {
+  translated: number;
+  pending: number;
+  failed: number;
+  total: number;
+  phase: 'empty' | 'running' | 'paused' | 'complete' | 'error';
+  error: PgnTranslationProviderError | 'failed' | null;
 };
 
 export type PgnTranslationProvider = {

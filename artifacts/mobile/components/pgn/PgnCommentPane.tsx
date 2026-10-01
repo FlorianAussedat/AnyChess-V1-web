@@ -4,6 +4,7 @@ import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePgnCommentTranslations } from '@/hooks/usePgnCommentTranslations';
 import {
+  hasUsableFrenchTranslation,
   resolvePgnComment,
   type CommentDisplayMode,
   type PgnCommentAnchor,
@@ -35,19 +36,15 @@ export function PgnCommentPane({
 }: Props) {
   const colors = useColors();
   const { t, language } = useTranslation();
-  const { queue } = usePgnCommentTranslations();
+  usePgnCommentTranslations();
   const [mode, setMode] = useState<CommentDisplayMode>('auto');
+  const anchor = { source, fileId, gameIndex, nodeId, slot };
 
   const resolved = useMemo(
-    () =>
-      resolvePgnComment(
-        { source, fileId, gameIndex, nodeId, slot },
-        original,
-        language,
-        mode,
-      ),
+    () => resolvePgnComment(anchor, original, language, mode),
     [fileId, gameIndex, language, mode, nodeId, original, slot, source],
   );
+  const canToggle = hasUsableFrenchTranslation(anchor, original);
 
   if (!original.trim()) {
     return emptyLabel ? (
@@ -57,57 +54,38 @@ export function PgnCommentPane({
     ) : null;
   }
 
-  const serviceError = queue.getLastError();
-  const statusLabel =
-    resolved.status === 'pending'
-      ? t('pgn.translationPending')
-      : resolved.status === 'stale'
-        ? t('pgn.translationPartial')
-        : resolved.status === 'unavailable' && serviceError === 'quota'
-          ? t('pgn.translationQuota')
-          : resolved.status === 'unavailable' && serviceError === 'offline'
-            ? t('pgn.offlineQueued')
-            : resolved.status === 'unavailable' && serviceError === 'failed'
-              ? t('pgn.translationFailed')
-              : resolved.status === 'unavailable'
-                ? t('pgn.translationUnavailable')
-                : resolved.status === 'manual'
-                  ? t('pgn.commentFrench')
-                  : null;
-
   return (
     <View testID={testID}>
-      <View style={styles.toggleRow}>
-        <Pressable
-          onPress={() => setMode('original')}
-          style={[
-            styles.chip,
-            {
-              borderColor: resolved.showing === 'original' ? colors.primary : colors.border,
-              backgroundColor:
-                resolved.showing === 'original' ? colors.secondary : colors.card,
-            },
-          ]}
-          testID={testID ? `${testID}-original` : undefined}
-        >
-          <Text style={{ color: colors.foreground }}>{t('pgn.commentOriginal')}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setMode('french')}
-          style={[
-            styles.chip,
-            {
-              borderColor: resolved.showing === 'french' ? colors.primary : colors.border,
-              backgroundColor: resolved.showing === 'french' ? colors.secondary : colors.card,
-            },
-          ]}
-          testID={testID ? `${testID}-french` : undefined}
-        >
-          <Text style={{ color: colors.foreground }}>{t('pgn.commentFrench')}</Text>
-        </Pressable>
-      </View>
-      {statusLabel ? (
-        <Text style={[styles.status, { color: colors.mutedForeground }]}>{statusLabel}</Text>
+      {canToggle ? (
+        <View style={styles.toggleRow}>
+          <Pressable
+            onPress={() => setMode('original')}
+            style={[
+              styles.chip,
+              {
+                borderColor: resolved.showing === 'original' ? colors.primary : colors.border,
+                backgroundColor:
+                  resolved.showing === 'original' ? colors.secondary : colors.card,
+              },
+            ]}
+            testID={testID ? `${testID}-original` : undefined}
+          >
+            <Text style={{ color: colors.foreground }}>{t('pgn.commentOriginal')}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setMode('french')}
+            style={[
+              styles.chip,
+              {
+                borderColor: resolved.showing === 'french' ? colors.primary : colors.border,
+                backgroundColor: resolved.showing === 'french' ? colors.secondary : colors.card,
+              },
+            ]}
+            testID={testID ? `${testID}-french` : undefined}
+          >
+            <Text style={{ color: colors.foreground }}>{t('pgn.commentFrench')}</Text>
+          </Pressable>
+        </View>
       ) : null}
       {renderText ? (
         renderText(resolved.text)
@@ -126,7 +104,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  status: { fontSize: 12, marginBottom: 6, fontFamily: 'Inter_400Regular' },
   body: { fontSize: 16, lineHeight: 24, fontFamily: 'Inter_400Regular' },
   empty: { fontSize: 15, lineHeight: 22, fontFamily: 'Inter_400Regular' },
 });

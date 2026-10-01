@@ -1,7 +1,21 @@
 import type { AppLanguage } from '../preferences/types.ts';
 import { fingerprintComment } from './fingerprint.ts';
-import { pgnCommentTranslationStore } from './PgnCommentTranslationStore.ts';
+import {
+  PgnCommentTranslationStore,
+  pgnCommentTranslationStore,
+} from './PgnCommentTranslationStore.ts';
 import type { PgnCommentAnchor } from './types.ts';
+
+export function hasUsableFrenchTranslation(
+  anchor: PgnCommentAnchor,
+  original: string,
+  translations: PgnCommentTranslationStore = pgnCommentTranslationStore,
+): boolean {
+  const rec = translations.resolveFrench(anchor, original);
+  if (!rec?.translatedText?.trim()) return false;
+  if (rec.originalFingerprint !== fingerprintComment(original)) return false;
+  return rec.status === 'ready' || rec.status === 'manual';
+}
 
 export type CommentDisplayMode = 'auto' | 'original' | 'french';
 
@@ -22,8 +36,9 @@ export function resolvePgnComment(
   original: string,
   language: AppLanguage,
   mode: CommentDisplayMode = 'auto',
+  translations: PgnCommentTranslationStore = pgnCommentTranslationStore,
 ): ResolvedPgnComment {
-  const rec = pgnCommentTranslationStore.resolveFrench(anchor, original);
+  const rec = translations.resolveFrench(anchor, original);
   const wantFrench =
     mode === 'french' || (mode === 'auto' && language === 'fr');
 
