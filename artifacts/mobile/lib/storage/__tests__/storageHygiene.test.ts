@@ -44,6 +44,7 @@ describe('StorageKeys registry', () => {
       'anychess.openingQuiz.records.v1',
     );
     assert.equal(StorageKeys.continueLineRecent.key, 'anychess.continueLine.recent.v1');
+    assert.equal(StorageKeys.openingLineMastery.key, 'anychess.openingLineMastery.v1');
     assert.equal(StorageKeys.mentalRecent.key, 'anychess.mental.recent.v1');
     assert.equal(StorageKeys.boardCoordinatesVisible.key, 'anychess.board.coordinatesVisible.v1');
     assert.equal(StorageKeys.voiceEnabled.key, 'anychess.audio.voiceEnabled.v1');

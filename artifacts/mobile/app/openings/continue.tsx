@@ -26,7 +26,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
-import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide, ephemeralSessionForOrigin, repertoireFromSans, leaveEphemeralOpeningExercise, applyReviewPick, pickReviewLineFromMemory, listReviewPoolEntries } from '@/lib/repertoire';
+import { repertoireService, mixedTrainingKey, pickMixedLine, filterEntriesByReviewSide, ephemeralSessionForOrigin, repertoireFromSans, leaveEphemeralOpeningExercise, applyReviewPick, pickReviewLineFromMemory, listReviewPoolEntries, recordOpeningRevisionResult } from '@/lib/repertoire';
 import type { ReviewSideFilter } from '@/lib/repertoire';
 import { getOpeningDisplayName } from '@/lib/openings';
 import { formatNumberedSan } from '@/lib/moves/formatNumberedSan';
@@ -111,6 +111,8 @@ export default function ContinueLineScreen() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const folderIdRef = useRef(mixedFolderIds[0]);
   const activeFolderIdRef = useRef<string | null>(null);
+  const reviewLineRef = useRef<{ fileId: string; pathId: string } | null>(null);
+  const reviewRecordedRef = useRef(false);
 
   useEffect(() => {
     folderIdRef.current = mixedFolderIds[0];
@@ -145,6 +147,8 @@ export default function ContinueLineScreen() {
     setFeedback(null);
     try {
       await repertoireService.ensureLoaded();
+      reviewRecordedRef.current = false;
+      reviewLineRef.current = null;
       const eph = ephemeralSessionForOrigin(fromOrigin);
       if (eph?.origin === 'study') {
         const rep = repertoireFromSans(eph.pathSans);
@@ -197,6 +201,10 @@ export default function ContinueLineScreen() {
             trainingSide: sessionData.side,
             sourceLabel: sessionData.displayName,
           });
+          reviewLineRef.current = {
+            fileId: sessionData.fileId,
+            pathId: path?.id ?? sessionData.pathId,
+          };
           const begun = session.beginRecitation();
           setSnap(begun.snapshot);
           setLoading(false);
@@ -405,6 +413,23 @@ export default function ContinueLineScreen() {
       const result = session.applyChessMove(move);
       setSnap(result.snapshot);
 
+      if (
+        fromOrigin === 'review' &&
+        !reviewRecordedRef.current &&
+        reviewLineRef.current &&
+        (result.snapshot.phase === 'completed' || result.snapshot.phase === 'failed')
+      ) {
+        reviewRecordedRef.current = true;
+        void recordOpeningRevisionResult(
+          'review',
+          reviewLineRef.current.fileId,
+          reviewLineRef.current.pathId,
+          result.snapshot.phase === 'completed' && !result.snapshot.incorrectSan
+            ? 'success'
+            : 'failure',
+        );
+      }
+
       if (result.kind === 'correct') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         if (result.snapshot.phase === 'completed') {
@@ -456,7 +481,7 @@ export default function ContinueLineScreen() {
         speak(verbal);
       }
     },
-    [chessNotation, soundEnabled, speak, t],
+    [chessNotation, fromOrigin, soundEnabled, speak, t],
   );
 
   const applyRef = useRef(applyRaw);

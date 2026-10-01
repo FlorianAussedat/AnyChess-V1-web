@@ -17,8 +17,14 @@ import {
   leaveEphemeralOpeningExercise,
   listReviewPoolEntries,
   pickReviewLineFromMemory,
+  pickUnmasteredLearningPath,
   repertoireFromSans,
   repertoireService,
+  recordOpeningRevisionResult,
+  openingMasteryStore,
+  setEphemeralOpeningSession,
+  trainingPathsForPgn,
+  type EphemeralOpeningSession,
   type ParsedRepertoire,
 } from '@/lib/repertoire';
 import {
@@ -66,6 +72,20 @@ export default function OpeningPlayRoute() {
   const originRef = useRef<'review' | 'study' | null>(
     fromOrigin === 'review' || fromOrigin === 'study' ? fromOrigin : null,
   );
+  const parkedRef = useRef<EphemeralOpeningSession | null>(null);
+  const autoUnmasteredRef = useRef(false);
+  const [revisionIds, setRevisionIds] = useState<{ fileId: string; pathId: string } | null>(null);
+
+  const rememberParked = useCallback((session: EphemeralOpeningSession) => {
+    parkedRef.current = session;
+    autoUnmasteredRef.current = session.autoUnmastered === true;
+    originRef.current = session.origin;
+    if (session.origin === 'review') {
+      setRevisionIds({ fileId: session.fileId, pathId: session.pathId });
+    } else {
+      setRevisionIds(null);
+    }
+  }, []);
 
   const applyLine = useCallback(
     (rep: ParsedRepertoire, name: string, pgn: string, nextColor: PlayerColor) => {
@@ -88,6 +108,7 @@ export default function OpeningPlayRoute() {
         const eph = ephemeralSessionForOrigin(fromOrigin);
         if (eph) {
           originRef.current = eph.origin;
+          rememberParked(eph);
           if (cancelled) return;
           applyLine(
             repertoireFromSans(eph.pathSans),
@@ -106,6 +127,7 @@ export default function OpeningPlayRoute() {
           );
           if (pick) {
             const session = applyReviewPick(pick, 'review');
+            rememberParked(session);
             originRef.current = 'review';
             if (cancelled) return;
             applyLine(
@@ -162,9 +184,35 @@ export default function OpeningPlayRoute() {
     return () => {
       cancelled = true;
     };
-  }, [applyLine, color, fileId, folderId, fromOrigin, gameIndex, t]);
+  }, [applyLine, color, fileId, folderId, fromOrigin, gameIndex, rememberParked, t]);
 
   const requestNextLine = useCallback(() => {
+    const eph = parkedRef.current;
+    if (originRef.current === 'study' && eph?.autoUnmastered) {
+      const file = repertoireService.getFile(eph.fileId);
+      if (!file) return;
+      const pick = pickUnmasteredLearningPath(
+        file.id,
+        trainingPathsForPgn(file.pgnText),
+        (key) => openingMasteryStore.historyByKey(key),
+      );
+      if (!pick) return;
+      const next: EphemeralOpeningSession = {
+        ...eph,
+        pathSans: pick.sans,
+        pathId: pick.id,
+        autoUnmastered: true,
+      };
+      setEphemeralOpeningSession(next);
+      rememberParked(next);
+      applyLine(
+        repertoireFromSans(pick.sans),
+        eph.displayName,
+        eph.sourcePgn,
+        eph.side === 'black' ? 'b' : 'w',
+      );
+      return;
+    }
     if (originRef.current !== 'review') return;
     const entries = listReviewPoolEntries(
       repertoireService.getFolders(),
@@ -173,13 +221,14 @@ export default function OpeningPlayRoute() {
     const pick = pickReviewLineFromMemory(entries);
     if (!pick) return;
     const session = applyReviewPick(pick, 'review');
+    rememberParked(session);
     applyLine(
       repertoireFromSans(session.pathSans),
       session.displayName,
       session.sourcePgn,
       session.side === 'black' ? 'b' : 'w',
     );
-  }, [applyLine]);
+  }, [applyLine, rememberParked]);
 
   if (loading) {
     return (
@@ -219,13 +268,60 @@ export default function OpeningPlayRoute() {
       repertoireName={repertoireName}
       sourcePgn={sourcePgn}
       strengthBandId={strengthBandId}
-      onRequestNextLine={originRef.current === 'review' ? requestNextLine : undefined}
+      onRequestNextLine={
+        originRef.current === 'review' || autoUnmasteredRef.current ? requestNextLine : undefined
+      }
     >
       <ApplyInitialColor initialColor={playerColor}>
+        <ReviewAttemptRecorder
+          origin={originRef.current}
+          fileId={revisionIds?.fileId}
+          pathId={revisionIds?.pathId}
+        />
         <OpeningGameScreen />
       </ApplyInitialColor>
     </OpeningGameProvider>
   );
+}
+
+function ReviewAttemptRecorder({
+  origin,
+  fileId,
+  pathId,
+}: {
+  origin: 'review' | 'study' | null;
+  fileId?: string;
+  pathId?: string;
+}) {
+  const { theoryExit } = useOpeningGame();
+  const recorded = useRef(false);
+  const hadError = useRef(false);
+
+  useEffect(() => {
+    recorded.current = false;
+    hadError.current = false;
+  }, [pathId]);
+
+  useEffect(() => {
+    if (origin !== 'review' || recorded.current || !theoryExit) return;
+    if (theoryExit.kind === 'player-deviation') {
+      hadError.current = true;
+      recorded.current = true;
+      void recordOpeningRevisionResult('review', fileId, pathId, 'failure');
+      return;
+    }
+    if (theoryExit.kind === 'repertoire-end') {
+      recorded.current = true;
+      void recordOpeningRevisionResult(
+        'review',
+        fileId,
+        pathId,
+        hadError.current ? 'failure' : 'success',
+      );
+    }
+  }, [fileId, origin, pathId, theoryExit]);
+
+  return null;
 }
 
 function ApplyInitialColor({

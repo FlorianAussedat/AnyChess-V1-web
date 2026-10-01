@@ -22,7 +22,9 @@ import { GameReaderNavControls } from '@/components/gameReader/GameReaderNavCont
 import { OpeningStudyBranchPicker } from '@/components/openings/OpeningStudyBranchPicker';
 import { OpeningStudyCommentText } from '@/components/openings/OpeningStudyCommentText';
 import { OpeningStudyNotation } from '@/components/openings/OpeningStudyNotation';
-import { repertoireService, pgnFileDisplayName, setEphemeralOpeningSession } from '@/lib/repertoire';
+import { OpeningLineMasteryRow } from '@/components/openings/OpeningLineMasteryRow';
+import { useOpeningMastery } from '@/hooks/useOpeningMastery';
+import { repertoireService, pgnFileDisplayName, setEphemeralOpeningSession, describeOpeningPgnMastery, pickUnmasteredLearningPath, openingMasteryStore } from '@/lib/repertoire';
 import { parseReaderPgn } from '@/lib/gameReader';
 import {
   annotatePlayableCommentTokens,
@@ -82,7 +84,9 @@ export default function OpeningStudyScreen() {
   const [sourcePgn, setSourcePgn] = useState('');
   const [state, setState] = useState<OpeningStudyState | null>(null);
   const [tab, setTab] = useState<'comments' | 'notation'>('notation');
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const lastAutoTabNodeId = useRef<string | null>(null);
+  const mastery = useOpeningMastery();
 
   const boardSize = useMemo(() => {
     const wide = computeBoardSize(windowWidth, 'wide');
@@ -170,6 +174,14 @@ export default function OpeningStudyScreen() {
     [comment, state],
   );
 
+  const masteryView = useMemo(() => {
+    void mastery.tick;
+    if (!fileId) return null;
+    const file = repertoireService.getFile(fileId);
+    if (!file) return null;
+    return describeOpeningPgnMastery(file, openingMasteryStore);
+  }, [fileId, mastery.tick, sourcePgn]);
+
   const moveLabel = useMemo(() => {
     if (!state) return '';
     if (state.exploringSans?.length) {
@@ -202,19 +214,25 @@ export default function OpeningStudyScreen() {
   );
 
   const launchLine = useCallback(
-    (mode: 'play' | 'continue') => {
+    (mode: 'play' | 'continue', options?: { autoUnmastered?: boolean; sans?: string[]; pathId?: string }) => {
       if (!state || !fileId || !folderId) return;
-      const sans = lineSansToLeaf(state);
+      const selected = masteryView?.paths.find((p) => p.id === selectedPathId);
+      const sans = options?.sans ?? selected?.sans ?? lineSansToLeaf(state);
       if (sans.length === 0) return;
+      const matched =
+        masteryView?.paths.find((p) => p.id === options?.pathId) ??
+        masteryView?.paths.find((p) => p.sans.join(' ') === sans.join(' ')) ??
+        selected;
       setEphemeralOpeningSession({
         fileId,
         folderId,
         pathSans: sans,
-        pathId: sans.join(' '),
+        pathId: matched?.id ?? options?.pathId ?? sans.join(' '),
         sourcePgn,
         displayName: title,
         side,
         origin: 'study',
+        autoUnmastered: options?.autoUnmastered === true,
       });
       const color = sideToPlayerColor(side);
       if (mode === 'play') {
@@ -230,8 +248,18 @@ export default function OpeningStudyScreen() {
         `/openings/continue?folderId=${encodeURIComponent(folderId)}&fileId=${encodeURIComponent(fileId)}&from=study` as Href,
       );
     },
-    [fileId, folderId, router, side, sourcePgn, state, title],
+    [fileId, folderId, masteryView, router, selectedPathId, side, sourcePgn, state, title],
   );
+
+  const launchUnmastered = useCallback(() => {
+    if (!fileId || !masteryView) return;
+    const pick = pickUnmasteredLearningPath(fileId, masteryView.paths, (key) =>
+      openingMasteryStore.historyByKey(key),
+    );
+    if (!pick) return;
+    setSelectedPathId(pick.id);
+    launchLine('play', { autoUnmastered: true, sans: pick.sans, pathId: pick.id });
+  }, [fileId, launchLine, masteryView]);
 
   if (loading) {
     return (
@@ -384,6 +412,39 @@ export default function OpeningStudyScreen() {
         />
       )}
 
+      {masteryView ? (
+        <View style={styles.lineList} testID="opening-study-lines">
+          {masteryView.lines.map((line) => (
+            <OpeningLineMasteryRow
+              key={line.key}
+              line={line}
+              selected={selectedPathId === line.path.id}
+              onPress={() => setSelectedPathId(line.path.id)}
+              testID={`opening-study-line-${line.path.id}`}
+            />
+          ))}
+          <Pressable
+            onPress={launchUnmastered}
+            disabled={!masteryView.lines.some((l) => !l.mastered)}
+            style={[
+              styles.trainBtn,
+              {
+                backgroundColor: colors.secondary,
+                borderColor: colors.border,
+                opacity: masteryView.lines.some((l) => !l.mastered) ? 1 : 0.45,
+              },
+            ]}
+            testID="opening-study-train-unmastered"
+          >
+            <Text style={{ color: colors.foreground, fontFamily: 'Inter_600SemiBold', fontSize: 13 }}>
+              {masteryView.lines.some((l) => !l.mastered)
+                ? t('openings.trainUnmastered')
+                : t('openings.noUnmasteredLines')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.actions}>
         <Pressable
           onPress={() => launchLine('play')}
@@ -441,6 +502,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   actions: { flexDirection: 'row', gap: 8 },
+  lineList: { gap: 8, marginTop: 4 },
+  trainBtn: {
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+  },
   actionBtn: {
     flex: 1,
     alignItems: 'center',

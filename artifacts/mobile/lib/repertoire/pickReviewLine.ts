@@ -1,8 +1,8 @@
 /**
- * Balanced Review pick: first a PGN, then a line inside that PGN.
- * Large files cannot drown small ones.
+ * Review pick: uniform over every training line in the selected pool.
+ * A 100-line PGN is ten times as likely as a 10-line PGN.
+ * Mastery and Learning priority never change these odds.
  */
-import { pickBalanced } from '../continueLine/RepertoireBranchSelector.ts';
 import type { ContinueLinePath } from '../continueLine/types.ts';
 import { buildRepertoire } from './repertoireTree.ts';
 import { isFileEnabledForReview } from './reviewActivation.ts';
@@ -53,42 +53,40 @@ export function countReviewLines(entries: readonly ReviewPoolEntry[]): number {
 
 export type PickReviewLineOptions = {
   rng?: () => number;
-  /** Recent file ids, newest first. */
+  /** @deprecated Ignored — Review is uniform per line, not per file. */
   recentFileIds?: string[];
-  /** Recent path ids scoped as `${fileId}:${pathId}`. */
+  /** @deprecated Ignored — Review is uniform per line. */
   recentPathIds?: string[];
 };
 
+export function flattenReviewLines(entries: readonly ReviewPoolEntry[]): ReviewLinePick[] {
+  const out: ReviewLinePick[] = [];
+  for (const entry of entries) {
+    for (const path of entry.paths) {
+      out.push({
+        file: entry.file,
+        folder: entry.folder,
+        side: entry.side,
+        path,
+      });
+    }
+  }
+  return out;
+}
+
 /**
- * 1) pick a PGN uniformly among active files (avoiding recent files first)
- * 2) pick a path uniformly inside that PGN
+ * Uniform draw among every line in the pool (1 / N).
+ * Does not filter by mastery, priority, or recent history.
  */
 export function pickReviewLine(
   entries: readonly ReviewPoolEntry[],
   options: PickReviewLineOptions = {},
 ): ReviewLinePick | null {
-  if (entries.length === 0) return null;
+  const pool = flattenReviewLines(entries);
+  if (pool.length === 0) return null;
   const rng = options.rng ?? Math.random;
-  const filePick = pickBalanced(
-    [...entries],
-    (e) => e.file.id,
-    options.recentFileIds ?? [],
-    rng,
-  );
-  if (!filePick) return null;
-  const path = pickBalanced(
-    filePick.paths,
-    (p) => `${filePick.file.id}:${p.id}`,
-    options.recentPathIds ?? [],
-    rng,
-  );
-  if (!path) return null;
-  return {
-    file: filePick.file,
-    folder: filePick.folder,
-    side: filePick.side,
-    path,
-  };
+  const index = Math.min(pool.length - 1, Math.floor(rng() * pool.length));
+  return pool[index] ?? null;
 }
 
 const recentFileIds: string[] = [];

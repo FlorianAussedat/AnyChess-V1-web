@@ -1,21 +1,23 @@
 import React, { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
-import { isFileVisibleInLearning, pgnFileDisplayName } from '@/lib/repertoire';
+import { useOpeningMastery } from '@/hooks/useOpeningMastery';
+import { useLearningPgnList } from '@/hooks/useLearningPgnList';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { sideLabel } from '@/components/RepertoireSidePicker';
+import { LearningMasteryFilters, emptyFilterCopy } from '@/components/openings/LearningMasteryFilters';
+import { LearningPgnCard } from '@/components/openings/LearningPgnCard';
+import { DesignTokens } from '@/constants/designTokens';
 
 export default function LearnFolderScreen() {
   const colors = useColors();
@@ -23,12 +25,18 @@ export default function LearnFolderScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { folderId } = useLocalSearchParams<{ folderId: string }>();
-  const { ready, getFolder, getFiles } = useRepertoireLibrary();
+  const { ready, getFolder, getFiles, folders, setFilePriority } = useRepertoireLibrary();
+  const mastery = useOpeningMastery();
 
   const folder = folderId ? getFolder(folderId) : null;
   const files = useMemo(
-    () => (folderId ? getFiles(folderId).filter(isFileVisibleInLearning) : []),
+    () => (folderId ? getFiles(folderId) : []),
     [folderId, getFiles],
+  );
+  const { filter, setFilter, visible, counts } = useLearningPgnList(
+    folders,
+    files,
+    mastery.tick,
   );
 
   return (
@@ -58,35 +66,29 @@ export default function LearnFolderScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {files.map((file) => (
-            <Pressable
-              key={file.id}
-              onPress={() =>
-                router.push(`/openings/study?fileId=${encodeURIComponent(file.id)}` as Href)
-              }
-              style={({ pressed }) => [
-                styles.card,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  opacity: pressed ? 0.75 : 1,
-                },
-              ]}
-              testID={`learn-pgn-${file.id}`}
+          <LearningMasteryFilters value={filter} counts={counts} onChange={setFilter} />
+          {visible.length === 0 ? (
+            <Text
+              style={[styles.empty, { color: colors.mutedForeground }]}
+              testID="learn-folder-filter-empty"
             >
-              <Ionicons name="document-text-outline" size={20} color={colors.primary} />
-              <View style={styles.body}>
-                <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>
-                  {pgnFileDisplayName(file)}
-                </Text>
-                <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                  {t('openings.linesShort', { count: file.summary.branchCount })}
-                  {file.enabled === false ? ` · ${t('openings.folderInactive')}` : ''}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-            </Pressable>
-          ))}
+              {t(emptyFilterCopy(filter))}
+            </Text>
+          ) : (
+            visible.map((item) => (
+              <LearningPgnCard
+                key={item.id}
+                view={item}
+                onPress={() =>
+                  router.push(`/openings/study?fileId=${encodeURIComponent(item.id)}` as Href)
+                }
+                onTogglePriority={() => {
+                  void setFilePriority(item.id, !item.priority);
+                }}
+                testID={`learn-pgn-${item.id}`}
+              />
+            ))
+          )}
         </ScrollView>
       )}
     </View>
@@ -96,16 +98,12 @@ export default function LearnFolderScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 14, gap: 12 },
   list: { gap: 10, paddingBottom: 20 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
+  empty: {
+    fontSize: 14,
+    fontFamily: DesignTokens.typography.weightRegular,
+    textAlign: 'center',
+    paddingVertical: 28,
+    lineHeight: 20,
   },
-  body: { flex: 1, gap: 2 },
-  name: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
-  meta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
