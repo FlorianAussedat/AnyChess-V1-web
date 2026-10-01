@@ -1,0 +1,25 @@
+<!-- AnyChess DesignTokens: background #0B1728, card #102040, text #DCE8F5, button #F5A623 / #0B1728 -->
+<div style="margin:0;padding:32px 16px;background:#0B1728;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0B1728;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#102040;border-radius:20px;border:1px solid #1C3558;">
+          <tr>
+            <td style="padding:28px 24px;font-family:Arial,sans-serif;color:#DCE8F5;">
+              <p style="margin:0 0 8px;font-size:13px;letter-spacing:0.08em;color:#F5A623;">ANYCHESS</p>
+              <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#DCE8F5;">Confirme ton adresse</h1>
+              <p style="margin:0 0 24px;font-size:15px;line-height:1.5;color:#DCE8F5;">
+                Pour activer ton compte AnyChess, confirme cette adresse e-mail. Ensuite, reviens dans l’application pour te connecter.
+              </p>
+              <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#F5A623;color:#0B1728;text-decoration:none;font-weight:700;font-size:15px;padding:14px 22px;border-radius:12px;">Confirmer mon adresse e-mail</a>
+              <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#5B7FA0;">
+                Si le bouton ne s’ouvre pas, copie ce lien dans ton navigateur :<br>
+                {{ .ConfirmationURL }}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</div>

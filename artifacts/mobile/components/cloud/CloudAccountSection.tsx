@@ -1,27 +1,34 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { confirmationResendWaitSeconds } from '@/lib/cloud';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
+import type { MessageKey } from '@/lib/i18n/messages';
 
-function statusKey(status: CloudSyncStatus): 'cloud.statusSynced' | 'cloud.statusPending' | 'cloud.statusError' | 'cloud.statusOffline' | 'cloud.statusSignedOut' | 'cloud.statusUnconfigured' {
+const AUTH_ERROR_KEYS: Record<CloudAuthError, MessageKey> = {
+  invalid_credentials: 'cloud.errorInvalid',
+  email_taken: 'cloud.errorTaken',
+  weak_password: 'cloud.errorWeak',
+  confirm_email: 'cloud.confirmSent',
+  email_not_confirmed: 'cloud.errorEmailNotConfirmed',
+  email_invalid: 'cloud.errorEmailInvalid',
+  rate_limited: 'cloud.errorRateLimit',
+  offline: 'cloud.errorOffline',
+  rejected: 'cloud.errorUnexpected',
+  unexpected: 'cloud.errorUnexpected',
+  unconfigured: 'cloud.errorUnexpected',
+};
+
+function backupStatusKey(
+  status: CloudSyncStatus,
+): 'cloud.statusSynced' | 'cloud.statusPending' | 'cloud.statusError' | 'cloud.statusOffline' {
   if (status === 'synced') return 'cloud.statusSynced';
-  if (status === 'pending') return 'cloud.statusPending';
   if (status === 'error') return 'cloud.statusError';
   if (status === 'offline') return 'cloud.statusOffline';
-  if (status === 'unconfigured') return 'cloud.statusUnconfigured';
-  return 'cloud.statusSignedOut';
-}
-
-function authErrorKey(error?: CloudAuthError): 'cloud.errorInvalid' | 'cloud.errorTaken' | 'cloud.errorWeak' | 'cloud.errorConfirmEmail' | 'cloud.errorOffline' | 'cloud.errorRejected' {
-  if (error === 'email_taken') return 'cloud.errorTaken';
-  if (error === 'weak_password') return 'cloud.errorWeak';
-  if (error === 'confirm_email') return 'cloud.errorConfirmEmail';
-  if (error === 'offline') return 'cloud.errorOffline';
-  if (error === 'invalid_credentials') return 'cloud.errorInvalid';
-  return 'cloud.errorRejected';
+  return 'cloud.statusPending';
 }
 
 export function CloudAccountSection() {
@@ -33,6 +40,17 @@ export function CloudAccountSection() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  const pending = cloud.pendingConfirmationEmail;
+
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [pending]);
+
+  const waitSeconds = confirmationResendWaitSeconds(now);
 
   const run = async (action: () => Promise<{ ok: boolean; error?: CloudAuthError }>) => {
     if (busy) return;
@@ -41,11 +59,25 @@ export function CloudAccountSection() {
     setInfo(null);
     try {
       const result = await action();
-      if (!result.ok) setFormError(t(authErrorKey(result.error)));
+      if (!result.ok && result.error !== 'confirm_email' && result.error !== 'email_not_confirmed') {
+        setFormError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+      }
     } finally {
       setBusy(false);
     }
   };
+
+  const accountText =
+    cloud.status === 'unconfigured'
+      ? t('cloud.statusUnconfigured')
+      : cloud.user
+        ? t('cloud.signedInAs', { email: cloud.user.email })
+        : t('cloud.statusSignedOut');
+
+  const confirmText =
+    cloud.pendingConfirmationReason === 'signin'
+      ? t('cloud.errorEmailNotConfirmed')
+      : t('cloud.confirmSent');
 
   return (
     <View style={styles.wrap} testID="cloud-account-section">
@@ -53,22 +85,84 @@ export function CloudAccountSection() {
         {t('cloud.section')}
       </Text>
       <Text
-        style={[styles.status, { color: cloud.status === 'error' ? colors.destructive : colors.mutedForeground }]}
-        testID="cloud-sync-status"
+        style={[styles.status, { color: cloud.user ? colors.foreground : colors.mutedForeground }]}
+        testID="cloud-account-status"
       >
-        {t(statusKey(cloud.status))}
+        {accountText}
       </Text>
       {cloud.user ? (
-        <Text style={[styles.hint, { color: colors.foreground }]} testID="cloud-signed-in">
-          {t('cloud.signedInAs', { email: cloud.user.email })}
-        </Text>
+        <View>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+            {t('cloud.backupLabel')}
+          </Text>
+          <Text
+            style={[
+              styles.status,
+              {
+                color:
+                  cloud.status === 'error' || cloud.status === 'offline'
+                    ? colors.destructive
+                    : colors.mutedForeground,
+              },
+            ]}
+            testID="cloud-backup-status"
+          >
+            {t(backupStatusKey(cloud.status))}
+          </Text>
+        </View>
       ) : null}
       {cloud.status === 'unconfigured' ? (
         <Text style={[styles.hint, { color: colors.mutedForeground }]} testID="cloud-unconfigured">
           {t('cloud.unconfiguredHint')}
         </Text>
       ) : null}
-      {!cloud.user && cloud.status !== 'unconfigured' ? (
+      {pending && !cloud.user ? (
+        <View style={styles.form} testID="cloud-confirm-panel">
+          <Text style={[styles.hint, { color: colors.foreground }]} testID="cloud-confirm-message">
+            {confirmText}
+          </Text>
+          <View style={styles.row}>
+            <Pressable
+              testID="cloud-resend"
+              disabled={busy || waitSeconds > 0}
+              onPress={() => {
+                void (async () => {
+                  if (busy || confirmationResendWaitSeconds() > 0) return;
+                  setBusy(true);
+                  setFormError(null);
+                  setInfo(null);
+                  try {
+                    const result = await cloud.resendSignupConfirmation(pending);
+                    if (result.ok) setInfo(t('cloud.resendSent'));
+                    else setFormError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+                  } finally {
+                    setNow(Date.now());
+                    setBusy(false);
+                  }
+                })();
+              }}
+              style={[styles.btn, { borderColor: colors.border, opacity: waitSeconds > 0 ? 0.55 : 1 }]}
+            >
+              <Text style={{ color: colors.primary }}>
+                {waitSeconds > 0 ? t('cloud.resendWait', { seconds: waitSeconds }) : t('cloud.resendEmail')}
+              </Text>
+            </Pressable>
+            <Pressable
+              testID="cloud-back-to-signin"
+              disabled={busy}
+              onPress={() => {
+                cloud.dismissPendingConfirmation();
+                setFormError(null);
+                setInfo(null);
+              }}
+              style={[styles.btn, { borderColor: colors.border }]}
+            >
+              <Text style={{ color: colors.primary }}>{t('cloud.backToSignIn')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+      {!cloud.user && !pending && cloud.status !== 'unconfigured' ? (
         <View style={styles.form}>
           <TextInput
             value={email}
@@ -118,7 +212,7 @@ export function CloudAccountSection() {
               void (async () => {
                 const result = await cloud.recoverPassword(email.trim());
                 if (result.ok) setInfo(t('cloud.recoverSent'));
-                else setFormError(t(authErrorKey(result.error)));
+                else setFormError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
               })();
             }}
           >

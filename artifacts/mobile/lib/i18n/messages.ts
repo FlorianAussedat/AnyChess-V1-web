@@ -225,7 +225,17 @@ export type MessageKey =
   | 'cloud.errorConfirmEmail'
   | 'cloud.errorOffline'
   | 'cloud.errorRejected'
+  | 'cloud.errorEmailNotConfirmed'
+  | 'cloud.errorEmailInvalid'
+  | 'cloud.errorRateLimit'
+  | 'cloud.errorUnexpected'
   | 'cloud.errorSchema'
+  | 'cloud.confirmSent'
+  | 'cloud.resendEmail'
+  | 'cloud.resendWait'
+  | 'cloud.resendSent'
+  | 'cloud.backToSignIn'
+  | 'cloud.backupLabel'
   | 'settings.title'
   | 'settings.dictationPace'
   | 'settings.dictationPaceHint'
@@ -1360,8 +1370,8 @@ const fr: Dict = {
   'cloud.signOut': 'Déconnexion',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
-  'cloud.statusSynced': 'Synchronisé',
-  'cloud.statusPending': 'En attente',
+  'cloud.statusSynced': 'Données synchronisées',
+  'cloud.statusPending': 'Synchronisation en cours…',
   'cloud.statusError': 'Erreur de synchronisation',
   'cloud.statusOffline': 'Hors ligne — synchro au retour du réseau',
   'cloud.statusSignedOut': 'Non connecté',
@@ -1374,8 +1384,20 @@ const fr: Dict = {
   'cloud.errorTaken': 'Un compte existe déjà pour cet e-mail.',
   'cloud.errorWeak': 'Mot de passe trop court (6 caractères minimum).',
   'cloud.errorConfirmEmail': 'Confirmez votre e-mail, puis reconnectez-vous.',
-  'cloud.errorOffline': 'Réseau indisponible.',
+  'cloud.errorOffline': 'Problème de réseau. Vérifie ta connexion, puis réessaie.',
   'cloud.errorRejected': 'La demande a été refusée.',
+  'cloud.errorEmailNotConfirmed':
+    'Ton adresse n’est pas encore confirmée. Ouvre l’e-mail reçu, puis reviens te connecter.',
+  'cloud.errorEmailInvalid': 'Cette adresse e-mail n’est pas acceptée.',
+  'cloud.errorRateLimit': 'Trop de tentatives. Patiente un moment avant de réessayer.',
+  'cloud.errorUnexpected': 'La demande n’a pas abouti. Réessaie dans un instant.',
+  'cloud.confirmSent':
+    'Un e-mail de confirmation t’a été envoyé. Ouvre-le pour activer ton compte, puis reviens te connecter.',
+  'cloud.resendEmail': 'Renvoyer l’e-mail',
+  'cloud.resendWait': 'Renvoyer l’e-mail ({{seconds}} s)',
+  'cloud.resendSent': 'E-mail renvoyé.',
+  'cloud.backToSignIn': 'Revenir à la connexion',
+  'cloud.backupLabel': 'SAUVEGARDE',
   'cloud.errorSchema':
     'Exécutez supabase/user_documents.sql dans l’éditeur SQL du projet (table absente).',
   'settings.title': 'Paramètres',
@@ -2609,8 +2631,8 @@ const en: Dict = {
   'cloud.signOut': 'Sign out',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
-  'cloud.statusSynced': 'Synced',
-  'cloud.statusPending': 'Pending',
+  'cloud.statusSynced': 'Data synced',
+  'cloud.statusPending': 'Syncing…',
   'cloud.statusError': 'Sync error',
   'cloud.statusOffline': 'Offline — will sync when the network returns',
   'cloud.statusSignedOut': 'Signed out',
@@ -2623,8 +2645,20 @@ const en: Dict = {
   'cloud.errorTaken': 'An account already exists for this email.',
   'cloud.errorWeak': 'Password too short (6 characters minimum).',
   'cloud.errorConfirmEmail': 'Confirm your email, then sign in again.',
-  'cloud.errorOffline': 'Network unavailable.',
+  'cloud.errorOffline': 'Network problem. Check your connection, then try again.',
   'cloud.errorRejected': 'The request was rejected.',
+  'cloud.errorEmailNotConfirmed':
+    'Your address is not confirmed yet. Open the email you received, then come back and sign in.',
+  'cloud.errorEmailInvalid': 'This email address is not accepted.',
+  'cloud.errorRateLimit': 'Too many attempts. Wait a moment before trying again.',
+  'cloud.errorUnexpected': 'The request did not go through. Try again in a moment.',
+  'cloud.confirmSent':
+    'A confirmation email was sent. Open it to activate your account, then come back and sign in.',
+  'cloud.resendEmail': 'Resend email',
+  'cloud.resendWait': 'Resend email ({{seconds}} s)',
+  'cloud.resendSent': 'Email sent again.',
+  'cloud.backToSignIn': 'Back to sign in',
+  'cloud.backupLabel': 'BACKUP',
   'cloud.errorSchema':
     'Run supabase/user_documents.sql in the project SQL editor (table missing).',
   'settings.title': 'Settings',

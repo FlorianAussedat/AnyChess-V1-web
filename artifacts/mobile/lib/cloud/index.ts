@@ -1,4 +1,6 @@
 export * from './types.ts';
+export * from './authErrors.ts';
+export * from './confirmCooldown.ts';
 export * from './syncableKeys.ts';
 export * from './mergeDocuments.ts';
 export * from './CloudSyncEngine.ts';

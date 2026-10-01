@@ -44,6 +44,9 @@ Thumbs.db
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
+# Supabase CLI local cache
+supabase/.temp/
+
 # Replit
 .cache/
 scripts/.cache/

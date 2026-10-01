@@ -23,6 +23,13 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(resolveSupabaseUrl() && resolveSupabaseAnonKey());
 }
 
+/** Public page Supabase redirects to after it verifies the email link. */
+export function authConfirmRedirectUrl(): string | null {
+  const url = resolveSupabaseUrl();
+  if (!url) return null;
+  return `${url.replace(/\/$/, '')}/functions/v1/auth-confirm`;
+}
+
 export function assertNoDeepLKeyInCloudConfig(): boolean {
   const url = resolveSupabaseUrl() ?? '';
   const anon = resolveSupabaseAnonKey() ?? '';

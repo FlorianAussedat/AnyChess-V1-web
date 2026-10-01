@@ -45,9 +45,20 @@ describe('i18n dictionaries', () => {
   it('exposes account sync copy in FR and EN', () => {
     assert.equal(translate('fr', 'cloud.signUp'), 'Créer un compte');
     assert.equal(translate('en', 'cloud.signUp'), 'Create account');
-    assert.equal(translate('fr', 'cloud.statusSynced'), 'Synchronisé');
-    assert.equal(translate('fr', 'cloud.statusPending'), 'En attente');
+    assert.equal(translate('fr', 'cloud.statusSynced'), 'Données synchronisées');
+    assert.equal(translate('fr', 'cloud.statusPending'), 'Synchronisation en cours…');
     assert.equal(translate('fr', 'cloud.statusError'), 'Erreur de synchronisation');
+    assert.equal(
+      translate('fr', 'cloud.confirmSent'),
+      'Un e-mail de confirmation t’a été envoyé. Ouvre-le pour activer ton compte, puis reviens te connecter.',
+    );
+    assert.equal(translate('fr', 'cloud.resendEmail'), 'Renvoyer l’e-mail');
+    assert.equal(translate('fr', 'cloud.backToSignIn'), 'Revenir à la connexion');
+    assert.match(translate('fr', 'cloud.errorEmailNotConfirmed'), /pas encore confirmée/);
+    assert.match(translate('fr', 'cloud.errorInvalid'), /incorrect/);
+    assert.match(translate('fr', 'cloud.errorOffline'), /réseau/);
+    assert.match(translate('fr', 'cloud.errorRateLimit'), /Trop de tentatives/);
+    assert.doesNotMatch(translate('fr', 'cloud.errorUnexpected'), /refusée/);
     assert.match(translate('fr', 'cloud.unconfiguredHint'), /EXPO_PUBLIC_SUPABASE/);
     assert.doesNotMatch(translate('fr', 'cloud.unconfiguredHint'), /DEEPL_API_KEY/);
   });
