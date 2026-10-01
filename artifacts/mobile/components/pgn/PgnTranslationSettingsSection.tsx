@@ -29,7 +29,9 @@ export function PgnTranslationSettingsSection() {
   const configured = defaultPgnTranslationProvider.configured;
   const [busy, setBusy] = useState<'existing' | 'import' | 'retry' | null>(null);
   const [copied, setCopied] = useState(false);
-  const diagnostic = formatPgnTranslateProbe(getPgnTranslateProbeSnapshot(queue));
+  const probe = getPgnTranslateProbeSnapshot(queue);
+  const diagnostic = formatPgnTranslateProbe(probe);
+  const nextAvailable = probe.lastCall?.nextAvailable;
 
   const toggleExisting = async () => {
     if (busy) return;
@@ -70,7 +72,9 @@ export function PgnTranslationSettingsSection() {
   const statusText = !configured
     ? t('pgn.serviceNotConfigured')
     : lastError === 'quota'
-      ? t('pgn.translationQuota')
+      ? nextAvailable
+        ? `${t('pgn.translationQuota')} ${t('pgn.translationQuotaResume', { delay: nextAvailable })}`
+        : t('pgn.translationQuota')
       : lastError === 'rate_limited'
         ? t('settings.translationRateLimited')
       : lastError === 'timeout'

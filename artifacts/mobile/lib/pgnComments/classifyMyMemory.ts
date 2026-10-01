@@ -27,6 +27,10 @@ export type MyMemoryClassifyResult = {
 };
 
 const QUOTA_TEXT = /YOU USED ALL AVAILABLE FREE TRANSLATIONS/i;
+const OFFICIAL_QUOTA_CHUNK =
+  /(?:MYMEMORY WARNING:\s*)?YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY(?:\.\s*NEXT AVAILABLE IN\s+\d+\s+HOURS?\s+\d+\s+MINUTES?\s+\d+\s+SECONDS?)?(?:[\s.]*VISIT\s+HTTPS?:\/\/MYMEMORY\.TRANSLATED\.NET\/DOC\/[A-Z0-9./?#-]+\s+TO TRANSLATE MORE)?/i;
+const NEXT_AVAILABLE =
+  /NEXT AVAILABLE IN\s+(\d+)\s+HOURS?\s+(\d+)\s+MINUTES?\s+(\d+)\s+SECONDS?/i;
 
 export function isExhaustedQuotaSignal(
   details?: string,
@@ -34,6 +38,24 @@ export function isExhaustedQuotaSignal(
 ): boolean {
   if (quotaFinished === true) return true;
   return Boolean(details && QUOTA_TEXT.test(details));
+}
+
+/**
+ * Official MyMemory quota sentence only — never comment / PGN / e-mail / query text.
+ */
+export function extractOfficialMyMemoryQuotaMessage(details?: string): string | null {
+  if (!details || !QUOTA_TEXT.test(details)) return null;
+  const match = details.match(OFFICIAL_QUOTA_CHUNK);
+  if (!match?.[0]) return null;
+  return match[0].replace(/\s+/g, ' ').trim();
+}
+
+/** Human delay from the official "NEXT AVAILABLE IN …" clause, if present. */
+export function parseMyMemoryNextAvailableLabel(details?: string): string | null {
+  if (!details) return null;
+  const match = details.match(NEXT_AVAILABLE);
+  if (!match) return null;
+  return `${match[1]} h ${match[2]} min ${match[3]} s`;
 }
 
 export function parseRetryAfterMs(raw: string | null | undefined): number | undefined {

@@ -3,10 +3,17 @@
  * Never stores comment text, query strings, or keys.
  */
 import type { PgnTranslationQueue } from './PgnTranslationQueue.ts';
-import { isExhaustedQuotaSignal } from './classifyMyMemory.ts';
+import {
+  extractOfficialMyMemoryQuotaMessage,
+  isExhaustedQuotaSignal,
+  parseMyMemoryNextAvailableLabel,
+} from './classifyMyMemory.ts';
 
 /** Visible in Settings — if the phone does not show this, it is not on this bundle. */
-export const PGN_TRANSLATE_CLIENT_BUILD = 'pgn-diag-2026-10-01a';
+export const PGN_TRANSLATE_CLIENT_BUILD = 'pgn-diag-2026-10-01b';
+
+/** Documented anonymous Get limit: no `de` e-mail and no key in our client URL. */
+export const MYMEMORY_ANONYMOUS_DAILY_LIMIT_CHARS = 5000;
 
 export type PgnTranslateCallProbe = {
   httpStatus: number | null;
@@ -18,6 +25,9 @@ export type PgnTranslateCallProbe = {
   detailsHasOfficialQuotaText: boolean | null;
   detailsLength: number | null;
   durationMs: number | null;
+  /** Official quota sentence only. Never comment, PGN, e-mail, or query text. */
+  providerMessage: string | null;
+  nextAvailable: string | null;
 };
 
 export type PgnTranslateProbeSnapshot = {
@@ -55,6 +65,8 @@ const emptyCall = (): PgnTranslateCallProbe => ({
   detailsHasOfficialQuotaText: null,
   detailsLength: null,
   durationMs: null,
+  providerMessage: null,
+  nextAvailable: null,
 });
 
 const state: InternalState = {
@@ -115,6 +127,10 @@ export function recordPgnTranslateCall(input: {
       details === undefined ? null : isExhaustedQuotaSignal(details, false),
     detailsLength: details === undefined ? null : details.length,
     durationMs: input.durationMs ?? null,
+    providerMessage:
+      details === undefined ? null : extractOfficialMyMemoryQuotaMessage(details),
+    nextAvailable:
+      details === undefined ? null : parseMyMemoryNextAvailableLabel(details),
   };
   emit();
 }
@@ -167,6 +183,10 @@ export function formatPgnTranslateProbe(snapshot: PgnTranslateProbeSnapshot): st
     `detailsHasOfficialQuotaText=${call?.detailsHasOfficialQuotaText ?? 'null'}`,
     `detailsLength=${call?.detailsLength ?? 'null'}`,
     `durationMs=${call?.durationMs ?? 'null'}`,
+    `providerMessage=${call?.providerMessage ?? 'null'}`,
+    `nextAvailable=${call?.nextAvailable ?? 'null'}`,
+    `hasEmailParam=false`,
+    `anonymousDailyLimitChars=${MYMEMORY_ANONYMOUS_DAILY_LIMIT_CHARS}`,
     `jobs.done=${snapshot.jobs.done}`,
     `jobs.queued=${snapshot.jobs.queued}`,
     `jobs.failed=${snapshot.jobs.failed}`,

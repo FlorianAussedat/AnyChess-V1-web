@@ -60,24 +60,35 @@ describe('PGN translation probe', () => {
     assert.doesNotMatch(text, /centre/);
     assert.doesNotMatch(text, /api\.mymemory/);
     assert.doesNotMatch(text, /q=/);
+    assert.match(text, /providerMessage=null/);
+    assert.match(text, /nextAvailable=null/);
+    assert.match(text, /hasEmailParam=false/);
+    assert.match(text, /anonymousDailyLimitChars=5000/);
   });
 
-  it('marks official quota text without storing it', () => {
+  it('keeps only the official quota sentence and parsed resume delay', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
     recordPgnTranslateCall({
-      httpStatus: 200,
+      httpStatus: 429,
       responseStatus: 429,
-      quotaFinished: true,
-      reason: 'quotaFinished',
+      quotaFinished: false,
+      reason: 'quotaText',
       classifiedError: 'quota',
-      details: 'YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY',
+      details:
+        '1. e4 {White occupies the centre.} MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY. NEXT AVAILABLE IN 13 HOURS 31 MINUTES 45 SECONDS VISIT HTTPS://MYMEMORY.TRANSLATED.NET/DOC/USAGELIMITS.PHP TO TRANSLATE MORE',
     });
-    const text = formatPgnTranslateProbe(getPgnTranslateProbeSnapshot(queue));
-    assert.match(text, /quotaFinished=true/);
+    const snap = getPgnTranslateProbeSnapshot(queue);
+    const text = formatPgnTranslateProbe(snap);
+    assert.match(text, /quotaFinished=false/);
     assert.match(text, /detailsHasOfficialQuotaText=true/);
-    assert.doesNotMatch(text, /YOU USED ALL AVAILABLE/);
+    assert.match(text, /reason=quotaText/);
+    assert.match(text, /YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY/);
+    assert.match(text, /nextAvailable=13 h 31 min 45 s/);
+    assert.doesNotMatch(text, /occupies the centre/);
+    assert.doesNotMatch(text, /1\. e4/);
+    assert.equal(snap.lastCall?.nextAvailable, '13 h 31 min 45 s');
   });
 
   it('settings expose a copyable diagnostic and retry does not change classify rules', () => {
@@ -89,5 +100,8 @@ describe('PGN translation probe', () => {
     assert.match(live, /recordPgnTranslateCall/);
     assert.match(classify, /isExhaustedQuotaSignal/);
     assert.match(classify, /http === 429/);
+    assert.match(live, /langpair=en\|fr/);
+    assert.doesNotMatch(live, /[?&]de=/);
+    assert.doesNotMatch(live, /key=/);
   });
 });

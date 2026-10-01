@@ -21,6 +21,13 @@ function read(rel: string): string {
 }
 
 describe('i18n dictionaries', () => {
+  it('explains the confirmed MyMemory daily quota without inventing a resume time', () => {
+    assert.match(translate('fr', 'pgn.translationQuota'), /5 000/);
+    assert.match(translate('fr', 'pgn.translationQuota'), /déjà traduits/);
+    assert.match(translate('fr', 'pgn.translationQuotaResume', { delay: '13 h 31 min 45 s' }), /13 h 31 min 45 s/);
+    assert.doesNotMatch(translate('fr', 'pgn.translationQuota'), /heure|demain|24/);
+  });
+
   it('Profile preference labels differ FR vs EN', () => {
     assert.equal(translate('fr', 'profil.language'), "Langue de l'application");
     assert.equal(translate('en', 'profil.language'), 'App language');

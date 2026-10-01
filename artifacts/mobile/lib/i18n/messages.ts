@@ -1080,6 +1080,7 @@ export type MessageKey =
   | 'pgn.translationQueued'
   | 'pgn.serviceNotConfigured'
   | 'pgn.translationQuota'
+  | 'pgn.translationQuotaResume'
   | 'pgn.translationFailed'
   | 'pgn.importNotice'
   | 'pgn.batchProgress'
@@ -2298,7 +2299,8 @@ const fr: Dict = {
   'pgn.translationQueued': 'Traduction en file d’attente',
   'pgn.serviceNotConfigured': 'La traduction automatique attend la configuration du service.',
   'pgn.translationQuota':
-    'Quota de traduction atteint. Les commentaires originaux sont conservés.',
+    'Quota quotidien gratuit atteint (5 000 caractères par jour sans compte, selon MyMemory). Les commentaires déjà traduits sont conservés. Les autres restent en file, avec l’original affiché.',
+  'pgn.translationQuotaResume': 'Le fournisseur indique une reprise dans {{delay}}.',
   'pgn.translationFailed':
     'La traduction a échoué. Les commentaires originaux sont conservés.',
   'pgn.importNotice': 'Les commentaires textuels en anglais seront envoyés au service de traduction pour préparer une version française. L’import reste disponible tout de suite.',
@@ -3511,7 +3513,8 @@ const en: Dict = {
   'pgn.translationQueued': 'Translation queued',
   'pgn.serviceNotConfigured': 'Automatic translation is waiting for the service to be configured.',
   'pgn.translationQuota':
-    'Translation quota reached. Original comments are kept.',
+    'Daily free translation quota reached (5,000 characters per day without an account, according to MyMemory). Already translated comments are kept. The rest stay queued, with the original shown.',
+  'pgn.translationQuotaResume': 'The provider says it will resume in {{delay}}.',
   'pgn.translationFailed':
     'Translation failed. Original comments are kept.',
   'pgn.importNotice': 'English comments will be sent to the translation service to prepare a French version. You can use the import immediately.',
