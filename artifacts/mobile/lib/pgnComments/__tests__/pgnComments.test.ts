@@ -13,10 +13,14 @@ import {
   isTechnicalOnlyComment,
   applyFrenchToPgnText,
   FakePgnTranslationProvider,
+  MyMemoryPgnTranslationProvider,
   UnconfiguredPgnTranslationProvider,
   PgnCommentTranslationStore,
   PgnTranslationQueue,
+  protectChessTerms,
+  restoreChessTerms,
 } from '../index.ts';
+import { StorageKeys } from '../../storage/StorageKeys.ts';
 
 const PGN = `[Event "Test"]
 
@@ -33,7 +37,7 @@ describe('comment language and tokens', () => {
   it('protects directives and SAN then restores them', () => {
     const raw = 'After Nf3 [%eval 0.20] White develops.';
     const protectedText = protectCommentTokens(raw);
-    assert.match(protectedText.masked, /⟦T/);
+    assert.match(protectedText.masked, /__T/);
     assert.ok(!protectedText.masked.includes('[%eval'));
     const restored = restoreCommentTokens(protectedText.masked, protectedText.tokens);
     assert.equal(restored.includes('[%eval 0.20]'), true);
@@ -158,5 +162,59 @@ describe('existing-file catch-up', () => {
     queue.cancel();
     const result = await queue.processNext();
     assert.ok(result.done === 0 || result.done === 1);
+  });
+});
+
+describe('chess glossary', () => {
+  it('restores cavalier / les Blancs instead of leaving English piece names', () => {
+    const glossed = protectChessTerms('White develops the knight.');
+    assert.match(glossed.masked, /__C/);
+    assert.doesNotMatch(glossed.masked, /knight/i);
+    const restored = restoreChessTerms('__C0__ développe le __C1__.', glossed.terms);
+    assert.match(restored, /Blancs/);
+    assert.match(restored, /cavalier/);
+  });
+});
+
+describe('live MyMemory translation persists after reload', () => {
+  it('translates an English comment and keeps French after a storage remount', async () => {
+    const kv = new MemoryKeyValueStorage();
+    const store = new PgnCommentTranslationStore(kv);
+    const queue = new PgnTranslationQueue(kv, store);
+    queue.setProvider(new MyMemoryPgnTranslationProvider());
+    const pgn = `[Event "Live"]\n\n1. e4 {White develops the knight toward the center.} *`;
+    const added = await queue.enqueuePgn(pgn, 'gameLibrary', 'live-1');
+    assert.equal(added, 1);
+    const result = await queue.processNext(1);
+    assert.equal(result.blocked, null);
+    assert.equal(result.done, 1, JSON.stringify(result));
+    const rec = store.getRecord({
+      source: 'gameLibrary',
+      fileId: 'live-1',
+      gameIndex: 0,
+      nodeId: 'n1',
+      slot: 'after',
+    });
+    assert.ok(rec);
+    assert.equal(rec?.status, 'ready');
+    assert.equal(rec?.originalText, 'White develops the knight toward the center.');
+    assert.notEqual(rec?.translatedText, rec?.originalText);
+    assert.match(rec?.translatedText ?? '', /cavalier|centre|Blancs|développe/i);
+
+    const raw = await kv.getItem(StorageKeys.pgnCommentTranslations.key);
+    assert.ok(raw);
+    assert.match(raw, /translatedText/);
+
+    const remounted = new PgnCommentTranslationStore(kv);
+    await remounted.ensureLoaded();
+    const again = remounted.getRecord({
+      source: 'gameLibrary',
+      fileId: 'live-1',
+      gameIndex: 0,
+      nodeId: 'n1',
+      slot: 'after',
+    });
+    assert.equal(again?.translatedText, rec?.translatedText);
+    assert.equal(again?.originalText, 'White develops the knight toward the center.');
   });
 });

@@ -1,36 +1,43 @@
-# Commentaires PGN bilingues — configuration du service
+# Commentaires PGN bilingues — service réel
 
-L’application prépare automatiquement une version française des commentaires anglais à l’import, et propose le rattrapage des fichiers déjà enregistrés. **Aucun fournisseur réel n’est activé dans cette livraison.**
+L’application traduit les commentaires anglais vers le français à l’import, et propose le rattrapage des fichiers déjà enregistrés. Les commentaires originaux restent dans le PGN source. Le lecteur affiche **Original / Français**.
 
-## État actuel
+## État actuel (cette branche)
 
-- Stockage séparé : `anychess.pgnCommentTranslations.v1`
-- File d’attente persistante : `anychess.pgnTranslationQueue.v1`
-- Fournisseur de production : `UnconfiguredPgnTranslationProvider` (aucun faux succès)
-- Fournisseur de test uniquement : `FakePgnTranslationProvider`
-- L’import, la lecture et l’export restent disponibles si la traduction attend ou échoue
-- Le rattrapage des anciens PGN n’est lancé que par une action utilisateur
-
-## Pour activer un vrai service (côté serveur)
-
-Ne placez **aucun secret** dans l’APK, le bundle web ou une variable `EXPO_PUBLIC_*`.
-
-Paramètres attendus, à fournir hors client :
-
-| Paramètre | Rôle |
+| Élément | État |
 |---|---|
-| URL du endpoint serveur (ex. `POST /api/pgn-comments/translate`) | Le client n’appelle que ce proxy |
-| Clé / jeton du fournisseur | Uniquement sur le serveur |
-| Langues | source `en`, cible `fr` |
-| Taille max d’un lot | 8 commentaires (déjà borné côté client) |
-| Taille max d’un commentaire | à définir côté serveur (rejet si trop long) |
-| Quota / débit | retries limités, pas de balayage automatique de toute la bibliothèque |
-| Glossaire | knight/cavalier, bishop/fou, rook/tour, queen/dame, pin/clouage, fork/fourchette |
+| Fournisseur client par défaut | **MyMemory** (API publique, aucune clé) |
+| Fournisseur de test | `FakePgnTranslationProvider` |
+| Fournisseur « non configuré » | conservé pour les tests / repli |
+| Sidecar | `anychess.pgnCommentTranslations.v1` |
+| File | `anychess.pgnTranslationQueue.v1` |
+| Endpoint serveur (optionnel) | `POST /api/pgn-comments/translate` dans `artifacts/api-server` |
+| Clé payante dans cet environnement | **absente** |
+| Hébergement du api-server | **non déployé** (stub local) |
 
-Le serveur doit :
+Le client n’embarque aucun secret. `EXPO_PUBLIC_*` n’est pas utilisé pour une clé.
 
-1. Recevoir `{ id, text, context }[]` déjà protégés (directives `[%eval]`, SAN, FEN).
-2. Renvoyer `{ id, text }[]` avec les mêmes jetons inchangés.
-3. Rejeter une réponse invalide plutôt que de l’enregistrer comme succès.
+## Ce qui manque pour un service de production
 
-Tant que ces paramètres manquent, l’UI affiche honnêtement : « La traduction automatique attend la configuration du service. »
+1. **Fournisseur** — aujourd’hui MyMemory (qualité variable, quota). DeepL Free / Pro ou Google Cloud Translation donneraient un meilleur français d’échecs.
+2. **Hébergement serveur** — `artifacts/api-server` n’est pas publié. Pour éviter l’appel direct MyMemory depuis l’APK, déployer le proxy (`POST /api/pgn-comments/translate`) et pointer `ANYCHESS_PGN_TRANSLATE_URL` vers cette URL publique.
+3. **Clé** — aucune `DEEPL_API_KEY` / clé Google n’est présente. À poser uniquement sur le serveur, jamais dans l’APK.
+4. **Coût estimé** (ordre de grandeur, 2026) :
+
+| Option | Quota indicatif | Coût |
+|---|---|---|
+| MyMemory sans clé | ~5 000 caractères / jour / IP | 0 € |
+| MyMemory + e-mail | ~50 000 caractères / jour | 0 € |
+| DeepL Free | 500 000 caractères / mois | 0 € (clé personnelle) |
+| DeepL Pro | au-delà, selon volume | à partir d’environ 5–7 € / mois + usage |
+| Google Cloud Translation | facturé au million de caractères | ~20 $ / million |
+| LibreTranslate auto-hébergé | illimité | VPS ~5 € / mois |
+
+Pour une bibliothèque d’ouvertures annotée (quelques milliers de commentaires courts), DeepL Free suffit en général.
+
+## Où l’utiliser dans l’app
+
+- Ouvertures → Mes PGN : bouton par fichier + « Traduire la sélection » / « Traduire tous les PGN existants »
+- Parties : mêmes actions
+- Import ouvertures / bibliothèque : enqueue automatique
+- Lecteur d’étude et AnyLyseur : bascule Original / Français

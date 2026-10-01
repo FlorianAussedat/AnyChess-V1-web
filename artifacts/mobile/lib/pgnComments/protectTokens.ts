@@ -14,7 +14,7 @@ export function protectCommentTokens(text: string): ProtectedComment {
   const mask = (match: string) => {
     const idx = tokens.length;
     tokens.push(match);
-    return `⟦T${idx}⟧`;
+    return `__T${idx}__`;
   };
   let masked = text.replace(DIRECTIVE_RE, mask);
   masked = masked.replace(FEN_RE, mask);
@@ -23,7 +23,7 @@ export function protectCommentTokens(text: string): ProtectedComment {
 }
 
 export function restoreCommentTokens(masked: string, tokens: readonly string[]): string {
-  return masked.replace(/⟦T(\d+)⟧/g, (_, raw: string) => {
+  return masked.replace(/__T(\d+)__/g, (_, raw: string) => {
     const idx = Number(raw);
     return tokens[idx] ?? '';
   });

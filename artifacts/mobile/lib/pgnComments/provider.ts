@@ -1,3 +1,4 @@
+import { createLivePgnTranslationProvider } from './liveProvider.ts';
 import { tokensUnchanged } from './protectTokens.ts';
 import type { PgnTranslationProvider, PgnTranslationProviderResult } from './types.ts';
 
@@ -34,5 +35,12 @@ export class FakePgnTranslationProvider implements PgnTranslationProvider {
   }
 }
 
+export {
+  MyMemoryPgnTranslationProvider,
+  HttpPgnTranslationProvider,
+  createLivePgnTranslationProvider,
+  translateEnglishComment,
+} from './liveProvider.ts';
+
 export const defaultPgnTranslationProvider: PgnTranslationProvider =
-  new UnconfiguredPgnTranslationProvider();
+  createLivePgnTranslationProvider();

@@ -1,6 +1,7 @@
 export * from './types.ts';
 export * from './fingerprint.ts';
 export * from './protectTokens.ts';
+export * from './chessGlossary.ts';
 export * from './detectLanguage.ts';
 export * from './collectComments.ts';
 export * from './provider.ts';
