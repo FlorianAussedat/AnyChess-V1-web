@@ -57,6 +57,17 @@ export type UserPreferences = {
    * Off by default unless a legacy auto-import flag was already stored.
    */
   translateImportedPgnComments: boolean;
+  /**
+   * `device` — created from the phone locale, not yet a confirmed account preference.
+   * `user` — the person changed or reset these settings.
+   * Absent on documents saved before this flag: those keep last-write-wins.
+   */
+  preferencesOrigin?: 'device' | 'user';
+  /**
+   * Fields the person changed while the document was still a phone default.
+   * Empty means nothing here should replace an existing cloud preference.
+   */
+  manualFields?: string[];
   updatedAt: string;
 };
 

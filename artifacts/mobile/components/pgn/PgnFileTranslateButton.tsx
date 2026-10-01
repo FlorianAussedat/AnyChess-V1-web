@@ -1,7 +1,10 @@
 import React from 'react';
 import { Pressable, Text } from 'react-native';
+import { usePathname, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { useTranslation } from '@/hooks/useTranslation';
+import { setAuthReturn } from '@/lib/cloud/authReturn';
 import { usePgnCommentTranslations } from '@/hooks/usePgnCommentTranslations';
 import {
   describePgnFileTranslation,
@@ -25,6 +28,9 @@ export function PgnFileTranslateButton({
   testID,
 }: Props) {
   const colors = useColors();
+  const router = useRouter();
+  const pathname = usePathname();
+  const cloud = useCloudAccount();
   const { t } = useTranslation();
   usePgnCommentTranslations();
   const info = describePgnFileTranslation(source, fileId, pgnText);
@@ -35,6 +41,12 @@ export function PgnFileTranslateButton({
     <Pressable
       disabled={disabled}
       onPress={() => {
+        if (!cloud.sessionReady) return;
+        if (!cloud.user) {
+          setAuthReturn(pathname || '/');
+          router.push('/utilisateur' as Href);
+          return;
+        }
         void enqueueExistingPgns([{ source, fileId, pgnText }]);
       }}
       testID={testID}

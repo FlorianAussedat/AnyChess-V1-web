@@ -26,6 +26,8 @@ export type CloudEngineState = {
   lastSyncedAt: string | null;
   pendingConfirmationEmail: string | null;
   pendingConfirmationReason: PendingConfirmationReason | null;
+  /** False until the saved session has been read. Avoids flashing the guest screen. */
+  sessionReady: boolean;
 };
 
 const emptyState = (): CloudEngineState => ({
@@ -36,6 +38,7 @@ const emptyState = (): CloudEngineState => ({
   lastSyncedAt: null,
   pendingConfirmationEmail: null,
   pendingConfirmationReason: null,
+  sessionReady: false,
 });
 
 async function readDocs(storage: KeyValueStorage): Promise<Record<string, string | null>> {
@@ -71,7 +74,10 @@ export class CloudSyncEngine {
     this.storage = storage;
     this.auth = auth;
     this.remote = remote;
-    if (!auth.configured) this.state.status = 'unconfigured';
+    if (!auth.configured) {
+      this.state.status = 'unconfigured';
+      this.state.sessionReady = true;
+    }
   }
 
   subscribe(listener: () => void): () => void {
@@ -145,20 +151,43 @@ export class CloudSyncEngine {
     });
   }
 
+  /** Pull merged preferences into the in-memory store when it uses this storage. */
+  private async mirrorPreferences(): Promise<void> {
+    try {
+      const { preferencesStore } = await import('../preferences/PreferencesStore.ts');
+      if (!preferencesStore.usesStorage(this.storage)) return;
+      await preferencesStore.reloadFromStorage();
+    } catch {
+      // The stored document is already updated. The next launch reads it.
+    }
+  }
+
   async hydrate(): Promise<CloudEngineState> {
-    if (!this.auth.configured) {
-      this.setState({ status: 'unconfigured', user: null });
-      return this.getState();
+    try {
+      if (!this.auth.configured) {
+        this.setState({ status: 'unconfigured', user: null });
+      } else {
+        if (this.auth.hydrate) await this.auth.hydrate();
+        const user = await this.auth.getUser();
+        const backup = await this.storage.getItem(CLOUD_LAST_BACKUP_KEY);
+        if (!user) {
+          this.setState({ status: 'signed_out', user: null, lastBackupKey: backup });
+        } else {
+          this.setState({ user, lastBackupKey: backup, status: 'pending' });
+          await this.sync();
+        }
+      }
+    } catch (error) {
+      if (this.state.user) {
+        const offline = error instanceof Error && /network|fetch|offline/i.test(error.message);
+        this.setState({
+          status: offline ? 'offline' : 'error',
+          lastError: error instanceof Error ? error.message : 'sync_failed',
+        });
+      }
+    } finally {
+      if (!this.state.sessionReady) this.setState({ sessionReady: true });
     }
-    if (this.auth.hydrate) await this.auth.hydrate();
-    const user = await this.auth.getUser();
-    const backup = await this.storage.getItem(CLOUD_LAST_BACKUP_KEY);
-    if (!user) {
-      this.setState({ status: 'signed_out', user: null, lastBackupKey: backup });
-      return this.getState();
-    }
-    this.setState({ user, lastBackupKey: backup, status: 'pending' });
-    await this.sync();
     return this.getState();
   }
 
@@ -196,6 +225,7 @@ export class CloudSyncEngine {
     await this.auth.signOut();
     await this.storage.removeItem(CLOUD_SESSION_KEY);
     await this.restoreWorkspace(GUEST_OWNER_ID);
+    await this.withSilentWrites(() => this.mirrorPreferences());
     await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
     this.setState({
       user: null,
@@ -203,6 +233,7 @@ export class CloudSyncEngine {
       pendingConfirmationEmail: null,
       pendingConfirmationReason: null,
       lastError: null,
+      sessionReady: true,
     });
   }
 
@@ -236,6 +267,7 @@ export class CloudSyncEngine {
         lastError: null,
         pendingConfirmationEmail: needsConfirm ? email.trim() : null,
         pendingConfirmationReason: needsConfirm ? source : null,
+        sessionReady: true,
       });
       return result;
     }
@@ -247,6 +279,7 @@ export class CloudSyncEngine {
         lastError: null,
         pendingConfirmationEmail: email.trim(),
         pendingConfirmationReason: 'signup',
+        sessionReady: true,
       });
       return { ok: false as const, error: 'confirm_email' as const, email: email.trim() };
     }
@@ -268,6 +301,7 @@ export class CloudSyncEngine {
       lastError: null,
       pendingConfirmationEmail: null,
       pendingConfirmationReason: null,
+      sessionReady: true,
     });
     await this.sync();
     return result;
@@ -313,7 +347,10 @@ export class CloudSyncEngine {
           });
         }
       }
-      await this.withSilentWrites(() => writeDocs(this.storage, merged));
+      await this.withSilentWrites(async () => {
+        await writeDocs(this.storage, merged);
+        await this.mirrorPreferences();
+      });
       this.setState({
         status: 'synced',
         lastSyncedAt: new Date().toISOString(),

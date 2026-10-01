@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { usePreferences } from '@/hooks/usePreferences';
 import { usePgnCommentTranslations } from '@/hooks/usePgnCommentTranslations';
 import { useTranslation } from '@/hooks/useTranslation';
+import { setAuthReturn } from '@/lib/cloud/authReturn';
 import { BooleanSettingRow } from '@/components/ui/BooleanSettingRow';
 import { DesignTokens } from '@/constants/designTokens';
 import {
@@ -17,6 +20,8 @@ import { copyToClipboard } from '@/lib/clipboard';
 
 export function PgnTranslationSettingsSection() {
   const colors = useColors();
+  const router = useRouter();
+  const cloud = useCloudAccount();
   const { t } = useTranslation();
   const {
     translateExistingPgnComments,
@@ -35,8 +40,16 @@ export function PgnTranslationSettingsSection() {
   const usageCount = probe.lastCall?.usageCharacterCount;
   const usageLimit = probe.lastCall?.usageCharacterLimit;
 
+  const requireAccount = (): boolean => {
+    if (!cloud.sessionReady || cloud.user) return Boolean(cloud.user);
+    setAuthReturn('/parametres');
+    router.push('/utilisateur' as Href);
+    return false;
+  };
+
   const toggleExisting = async () => {
     if (busy) return;
+    if (!requireAccount()) return;
     setBusy('existing');
     try {
       await updatePreferences({
@@ -50,6 +63,7 @@ export function PgnTranslationSettingsSection() {
 
   const toggleImport = async () => {
     if (busy) return;
+    if (!requireAccount()) return;
     setBusy('import');
     try {
       await updatePreferences({
@@ -63,6 +77,7 @@ export function PgnTranslationSettingsSection() {
 
   const retry = async () => {
     if (busy) return;
+    if (!requireAccount()) return;
     setBusy('retry');
     try {
       await retryPgnTranslation();
@@ -112,6 +127,14 @@ export function PgnTranslationSettingsSection() {
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
         {t('settings.translation')}
       </Text>
+      {cloud.sessionReady && !cloud.user ? (
+        <Text
+          style={[styles.hint, { color: colors.mutedForeground }]}
+          testID="parametres-translation-needs-account"
+        >
+          {t('guest.translationNeedsAccount')}
+        </Text>
+      ) : null}
       <View style={styles.section}>
         <BooleanSettingRow
           label={t('settings.translateExistingPgn')}

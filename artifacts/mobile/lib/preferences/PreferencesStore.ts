@@ -17,6 +17,7 @@ import {
   DEFAULT_DICTATION_PACE,
   isDictationPace,
 } from './dictationPace.ts';
+import { languageFromDevice } from './deviceLanguage.ts';
 import {
   DEFAULT_APP_LANGUAGE,
   DEFAULT_CHESS_NOTATION,
@@ -157,6 +158,16 @@ export function mergePreferencesDocument(
   if (typeof o.updatedAt === 'string' && o.updatedAt) {
     next.updatedAt = o.updatedAt;
   }
+  if (o.preferencesOrigin === 'device' || o.preferencesOrigin === 'user') {
+    next.preferencesOrigin = o.preferencesOrigin;
+  }
+  if (Array.isArray(o.manualFields)) {
+    next.manualFields = [
+      ...new Set(
+        o.manualFields.filter((item): item is string => typeof item === 'string' && item.length > 0),
+      ),
+    ];
+  }
   next.version = USER_PREFERENCES_DOCUMENT_VERSION;
   return next;
 }
@@ -170,9 +181,18 @@ export class PreferencesStore {
   private loadPromise: Promise<UserPreferences> | null = null;
   private listeners = new Set<PrefsListener>();
   private readonly storage: KeyValueStorage;
+  private readonly deviceLanguage: () => AppLanguage;
 
-  constructor(storage: KeyValueStorage = defaultKeyValueStorage) {
+  constructor(
+    storage: KeyValueStorage = defaultKeyValueStorage,
+    options?: { deviceLanguage?: () => AppLanguage },
+  ) {
     this.storage = storage;
+    this.deviceLanguage = options?.deviceLanguage ?? languageFromDevice;
+  }
+
+  usesStorage(storage: KeyValueStorage): boolean {
+    return storage === this.storage;
   }
 
   isHydrated(): boolean {
@@ -202,6 +222,24 @@ export class PreferencesStore {
       })();
     }
     return this.loadPromise;
+  }
+
+  /**
+   * Re-read the document after cloud sync or account switch.
+   * Does not invent a new document when the key is missing: a deliberate
+   * clear must not be replaced by phone defaults.
+   */
+  async reloadFromStorage(): Promise<UserPreferences> {
+    let raw: string | null = null;
+    try {
+      raw = await this.storage.getItem(StorageKeys.userPreferences.key);
+    } catch {
+      return this.prefs;
+    }
+    if (raw == null || raw === '') return this.prefs;
+    this.loaded = false;
+    this.loadPromise = null;
+    return this.ensureLoaded();
   }
 
   private async loadOrMigrate(): Promise<UserPreferences> {
@@ -236,13 +274,22 @@ export class PreferencesStore {
         ? base.voiceSpeed
         : (legacy.voiceSpeed ?? base.voiceSpeed),
       dictationPace: fromDoc?.dictationPace ?? base.dictationPace,
-      updatedAt: nowIso(),
+      updatedAt: fromDoc ? base.updatedAt : nowIso(),
     };
 
-    // Persist unified document when missing, or when we migrated from legacy.
+    // First launch only. An existing document — including a language chosen
+    // before this flag existed — is left untouched.
     if (!fromDoc) {
-      await this.writeDocument(merged);
-      await this.writeLegacyMirrors(merged);
+      const created: UserPreferences = {
+        ...merged,
+        language: this.deviceLanguage(),
+        preferencesOrigin: 'device',
+        manualFields: [],
+        updatedAt: nowIso(),
+      };
+      await this.writeDocument(created);
+      await this.writeLegacyMirrors(created);
+      return created;
     }
 
     return merged;
@@ -390,6 +437,17 @@ export class PreferencesStore {
       version: USER_PREFERENCES_DOCUMENT_VERSION,
     };
 
+    const touched = (Object.keys(patch) as (keyof UserPreferencesPatch)[]).filter(
+      (key) => patch[key] !== undefined,
+    );
+    if (current.preferencesOrigin === 'device') {
+      next.preferencesOrigin = 'device';
+      next.manualFields = [...new Set([...(current.manualFields ?? []), ...touched])];
+    } else {
+      next.preferencesOrigin = 'user';
+      delete next.manualFields;
+    }
+
     this.prefs = next;
     this.listeners.forEach((l) => l(next));
     await this.writeDocument(next);
@@ -399,7 +457,10 @@ export class PreferencesStore {
 
   async resetPreferences(): Promise<UserPreferences> {
     await this.ensureLoaded();
-    const next = defaultUserPreferences();
+    const next: UserPreferences = {
+      ...defaultUserPreferences(),
+      preferencesOrigin: 'user',
+    };
     this.prefs = next;
     this.listeners.forEach((l) => l(next));
     await this.writeDocument(next);

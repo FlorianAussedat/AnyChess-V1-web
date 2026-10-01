@@ -3,6 +3,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -15,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { confirmAction } from '@/lib/openings/confirmAction';
@@ -46,6 +48,7 @@ export default function UtilisateurScreen() {
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { profile, updateProfile } = useUserProfile();
+  const cloud = useCloudAccount();
   const { t } = useTranslation();
 
   const [editor, setEditor] = useState<EditorKind>(null);
@@ -60,8 +63,9 @@ export default function UtilisateurScreen() {
   }, []);
 
   useEffect(() => {
+    if (!cloud.user) return;
     reloadSummaries().catch(() => {});
-  }, [reloadSummaries]);
+  }, [reloadSummaries, cloud.user]);
 
   const summaryLine = useMemo(() => {
     if (profile.username) return profile.username;
@@ -91,6 +95,48 @@ export default function UtilisateurScreen() {
       { destructive: true, confirmLabel: t('profil.erase') },
     );
   };
+
+  if (!cloud.sessionReady) {
+    return (
+      <View
+        style={[styles.loading, { backgroundColor: colors.background, paddingTop: topPad }]}
+        testID="utilisateur-session-loading"
+        accessibilityLabel={t('guest.restoring')}
+      >
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!cloud.user) {
+    return (
+      <ScrollView
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={[
+          styles.page,
+          {
+            paddingTop: topPad + DesignTokens.spacing.xl,
+            paddingBottom: bottomPad + DesignTokens.spacing.xl,
+          },
+        ]}
+        testID="utilisateur-screen"
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          {t('utilisateur.title')}
+        </Text>
+        <View
+          style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
+          testID="utilisateur-guest-card"
+        >
+          <Text style={[styles.guestText, { color: colors.foreground }]}>
+            {t('guest.userPrompt')}
+          </Text>
+        </View>
+        <CloudAccountSection />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -365,6 +411,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: DesignTokens.typography.title,
     fontFamily: DesignTokens.typography.weightBold,
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: DesignTokens.typography.weightRegular,
   },
   summaryCard: {
     borderWidth: 1,

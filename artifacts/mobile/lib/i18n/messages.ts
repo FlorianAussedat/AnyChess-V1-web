@@ -202,6 +202,10 @@ export type MessageKey =
   | 'profil.langFr'
   | 'profil.langEn'
   | 'utilisateur.title'
+  | 'guest.userPrompt'
+  | 'guest.settingsNotice'
+  | 'guest.restoring'
+  | 'guest.translationNeedsAccount'
   | 'cloud.section'
   | 'cloud.email'
   | 'cloud.password'
@@ -1362,10 +1366,16 @@ const fr: Dict = {
   'profil.langFr': 'Français',
   'profil.langEn': 'English',
   'utilisateur.title': 'Utilisateur',
+  'guest.userPrompt':
+    'Connecte-toi pour gérer ton profil, personnaliser l’application et retrouver tes données sur tes appareils.',
+  'guest.settingsNotice':
+    'Tes réglages sont enregistrés sur cet appareil. Connecte-toi pour les retrouver sur tes autres appareils.',
+  'guest.restoring': 'Chargement…',
+  'guest.translationNeedsAccount': 'Connecte-toi pour traduire les commentaires.',
   'cloud.section': 'COMPTE',
   'cloud.email': 'E-mail',
   'cloud.password': 'Mot de passe',
-  'cloud.signIn': 'Connexion',
+  'cloud.signIn': 'Se connecter',
   'cloud.signUp': 'Créer un compte',
   'cloud.signOut': 'Déconnexion',
   'cloud.recover': 'Mot de passe oublié',
@@ -2623,6 +2633,12 @@ const en: Dict = {
   'profil.langFr': 'Français',
   'profil.langEn': 'English',
   'utilisateur.title': 'User',
+  'guest.userPrompt':
+    'Sign in to manage your profile, customize the app, and find your data on your devices.',
+  'guest.settingsNotice':
+    'Your settings are saved on this device. Sign in to find them on your other devices.',
+  'guest.restoring': 'Loading…',
+  'guest.translationNeedsAccount': 'Sign in to translate comments.',
   'cloud.section': 'ACCOUNT',
   'cloud.email': 'Email',
   'cloud.password': 'Password',

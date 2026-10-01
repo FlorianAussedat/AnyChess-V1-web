@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { confirmationResendWaitSeconds } from '@/lib/cloud';
+import { consumeAuthReturn } from '@/lib/cloud/authReturn';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
 import type { MessageKey } from '@/lib/i18n/messages';
 
@@ -33,6 +35,7 @@ function backupStatusKey(
 
 export function CloudAccountSection() {
   const colors = useColors();
+  const router = useRouter();
   const { t } = useTranslation();
   const cloud = useCloudAccount();
   const [email, setEmail] = useState('');
@@ -49,6 +52,13 @@ export function CloudAccountSection() {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [pending]);
+
+  useEffect(() => {
+    if (!cloud.user) return;
+    const back = consumeAuthReturn();
+    if (!back) return;
+    router.replace(back as Href);
+  }, [cloud.user, router]);
 
   const waitSeconds = confirmationResendWaitSeconds(now);
 

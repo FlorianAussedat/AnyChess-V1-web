@@ -194,6 +194,47 @@ function mergeKeyedRecords(local: unknown, remote: unknown): unknown {
   return lastWriteWins(a, b);
 }
 
+const PREFERENCE_META_KEYS = new Set(['preferencesOrigin', 'manualFields', 'updatedAt', 'version']);
+
+/**
+ * New account (no remote document): the caller keeps the guest document.
+ * Existing account: phone defaults must not replace cloud preferences.
+ * Fields the guest actually changed are copied onto the cloud document.
+ * Older documents without `preferencesOrigin` stay last-write-wins.
+ */
+export function mergeUserPreferences(local: unknown, remote: unknown): unknown {
+  const a = asRecord(local);
+  const b = asRecord(remote);
+  if (!a) return b;
+  if (!b) return a;
+  if (a.preferencesOrigin !== 'device') return lastWriteWins(local, remote);
+
+  const manual = Array.isArray(a.manualFields)
+    ? a.manualFields.filter(
+        (key): key is string =>
+          typeof key === 'string' && key.length > 0 && !PREFERENCE_META_KEYS.has(key),
+      )
+    : [];
+  if (manual.length === 0) return b;
+
+  const out: Record<string, unknown> = { ...b };
+  for (const key of manual) {
+    if (key in a) out[key] = a[key];
+  }
+  const remoteManual = Array.isArray(b.manualFields)
+    ? b.manualFields.filter((key): key is string => typeof key === 'string' && key.length > 0)
+    : [];
+  out.manualFields = [...new Set([...remoteManual, ...manual])];
+  if (b.preferencesOrigin === 'user' || b.preferencesOrigin === 'device') {
+    out.preferencesOrigin = b.preferencesOrigin;
+  }
+  out.updatedAt = newerIso(
+    typeof a.updatedAt === 'string' ? a.updatedAt : '',
+    typeof b.updatedAt === 'string' ? b.updatedAt : '',
+  );
+  return out;
+}
+
 function lastWriteWins(local: unknown, remote: unknown): unknown {
   const a = asRecord(local);
   const b = asRecord(remote);
@@ -266,6 +307,8 @@ export function mergeDocumentPayload(
     docKey === StorageKeys.blindMemoryRecords.key
   ) {
     merged = mergeBestScores(local, remote);
+  } else if (docKey === StorageKeys.userPreferences.key) {
+    merged = mergeUserPreferences(local, remote);
   } else {
     merged = lastWriteWins(local, remote);
   }
