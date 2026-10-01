@@ -14,7 +14,11 @@ export class UnconfiguredPgnTranslationProvider implements PgnTranslationProvide
 /** Test-only provider. Never used as a production success path. */
 export class FakePgnTranslationProvider implements PgnTranslationProvider {
   readonly configured = true;
-  constructor(private readonly map: Record<string, string> = {}) {}
+  private readonly map: Record<string, string>;
+
+  constructor(map: Record<string, string> = {}) {
+    this.map = map;
+  }
 
   async translateComments(
     batch: { id: string; text: string; context?: string }[],

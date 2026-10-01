@@ -3,7 +3,10 @@ import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
 import { loadStoredJson } from '../storage/safeParse.ts';
 import { commentsToQueue, collectPgnCommentUnits, commentAnchorKey } from './collectComments.ts';
-import { pgnCommentTranslationStore } from './PgnCommentTranslationStore.ts';
+import {
+  PgnCommentTranslationStore,
+  pgnCommentTranslationStore,
+} from './PgnCommentTranslationStore.ts';
 import { defaultPgnTranslationProvider } from './provider.ts';
 import { fingerprintComment } from './fingerprint.ts';
 import type {
@@ -35,11 +38,13 @@ export class PgnTranslationQueue {
   private cancelled = false;
   private provider: PgnTranslationProvider = defaultPgnTranslationProvider;
   private readonly translations: PgnCommentTranslationStore;
+  private readonly storage: KeyValueStorage;
 
   constructor(
-    private readonly storage: KeyValueStorage,
+    storage: KeyValueStorage,
     translations: PgnCommentTranslationStore = pgnCommentTranslationStore,
   ) {
+    this.storage = storage;
     this.translations = translations;
   }
 

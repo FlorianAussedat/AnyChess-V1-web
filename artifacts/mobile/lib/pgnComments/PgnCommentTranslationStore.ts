@@ -28,8 +28,11 @@ function validate(parsed: unknown): PgnTranslationSnapshot | null {
 export class PgnCommentTranslationStore {
   private snapshot: PgnTranslationSnapshot | null = null;
   private readonly listeners = new Set<() => void>();
+  private readonly storage: KeyValueStorage;
 
-  constructor(private readonly storage: KeyValueStorage) {}
+  constructor(storage: KeyValueStorage) {
+    this.storage = storage;
+  }
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);

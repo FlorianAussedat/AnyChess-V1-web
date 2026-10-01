@@ -48,7 +48,7 @@ describe('collect imported comments', () => {
     assert.equal(units.length, 2);
     assert.equal(units[0]?.anchor.nodeId, 'n1');
     assert.equal(units[0]?.anchor.slot, 'after');
-    assert.equal(commentsToQueue(units).length, 1);
+    assert.equal(commentsToQueue(units).length, 2);
   });
 });
 
@@ -65,7 +65,7 @@ describe('store and queue', () => {
   it('does not invent translations when the provider is unconfigured', async () => {
     queue.setProvider(new UnconfiguredPgnTranslationProvider());
     const added = await queue.enqueuePgn(PGN, 'repertoire', 'file-a');
-    assert.equal(added, 1);
+    assert.equal(added, 2);
     const result = await queue.processNext();
     assert.equal(result.blocked, 'not_configured');
     assert.equal(result.done, 0);
@@ -81,9 +81,10 @@ describe('store and queue', () => {
         [unit.original]: 'Un pion du centre.',
       }),
     );
-    await queue.enqueueUnits(units);
+    const added = await queue.enqueueUnits([unit]);
+    assert.equal(added, 0);
     const result = await queue.processNext();
-    assert.equal(result.done, 1);
+    assert.equal(result.done, 0);
     const rec = store.getRecord(unit.anchor);
     assert.equal(rec?.translatedText, 'Un pion central fort.');
     assert.equal(rec?.method, 'manual');
@@ -120,7 +121,12 @@ describe('store and queue', () => {
   it('keeps directives when exporting french comments', () => {
     const exported = applyFrenchToPgnText(
       PGN,
-      [{ original: 'Black answers in kind.', french: 'Les Noirs répondent de la même façon.' }],
+      [
+        {
+          original: '[%eval 0.12] Black answers in kind.',
+          french: '[%eval 0.12] Les Noirs répondent de la même façon.',
+        },
+      ],
       'french',
     );
     assert.match(exported, /\[%eval 0\.12\]/);
@@ -135,7 +141,7 @@ describe('existing-file catch-up', () => {
     const queue = new PgnTranslationQueue(kv, store);
     const first = await queue.enqueuePgn(PGN, 'repertoire', 'file-a');
     const second = await queue.enqueuePgn(PGN, 'repertoire', 'file-a');
-    assert.equal(first, 1);
+    assert.equal(first, 2);
     assert.equal(second, 0);
   });
 

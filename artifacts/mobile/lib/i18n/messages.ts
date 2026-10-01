@@ -1092,9 +1092,6 @@ export type MessageKey =
   | 'game.exportNo'
   | 'game.exportYes'
   | 'blind.reciteSequence'
-  | 'blind.wrongPiece'
-  | 'blind.wrongDestination'
-  | 'blind.wrongOrder'
   | 'puzzle.illegalHere'
   | 'activity.openingTraining'
 
@@ -2227,10 +2224,10 @@ const fr: Dict = {
   'endgame.drawAltOne': 'La nulle pouvait être conservée avec : {{san}}.',
   'endgame.drawAltTwo': 'La nulle pouvait être conservée avec : {{first}} ou {{second}}.',
   'endgame.drawAltThree': 'La nulle pouvait être conservée avec : {{first}}, {{second}} ou {{third}}.',
-  'endgame.drawAltThreeMore': 'Parmi les coups qui permettaient de conserver la nulle : {{first}}, {{second}} et {{third}}.
-D’autres coups maintenaient également l’équilibre.',
-  'endgame.noMajorMistake': 'Aucune grosse erreur.
-La position s’est détériorée petit à petit.',
+  'endgame.drawAltThreeMore':
+    'Parmi les coups qui permettaient de conserver la nulle : {{first}}, {{second}} et {{third}}. D’autres coups maintenaient également l’équilibre.',
+  'endgame.noMajorMistake':
+    'Aucune grosse erreur. La position s’est détériorée petit à petit.',
   'endgame.firstTurn': 'Premier tournant : {{move}}.{{san}}',
   'endgame.stockfishUnavailable': 'Stockfish indisponible.',
   'endgame.engineError': 'Erreur moteur.',
@@ -2290,9 +2287,6 @@ La position s’est détériorée petit à petit.',
   'game.exportNo': 'Non',
   'game.exportYes': 'Oui',
   'blind.reciteSequence': 'Récite la séquence à voix haute, coup par coup.',
-  'blind.wrongPiece': 'Erreur de pièce',
-  'blind.wrongDestination': "Erreur de case d'arrivée",
-  'blind.wrongOrder': "Erreur d'ordre",
   'puzzle.illegalHere': 'Illégal ici ({{detail}}). Non compté comme erreur de coup.',
   'activity.openingTraining': 'Entraînement d’ouverture',
 };
@@ -3418,10 +3412,10 @@ const en: Dict = {
   'endgame.drawAltOne': 'The draw could have been maintained with {{san}}.',
   'endgame.drawAltTwo': 'The draw could have been maintained with {{first}} or {{second}}.',
   'endgame.drawAltThree': 'The draw could have been maintained with {{first}}, {{second}} or {{third}}.',
-  'endgame.drawAltThreeMore': 'Moves that kept the draw include {{first}}, {{second}} and {{third}}.
-Other moves also kept the balance.',
-  'endgame.noMajorMistake': 'No major mistake.
-The position gradually deteriorated.',
+  'endgame.drawAltThreeMore':
+    'Moves that kept the draw include {{first}}, {{second}} and {{third}}. Other moves also kept the balance.',
+  'endgame.noMajorMistake':
+    'No major mistake. The position gradually deteriorated.',
   'endgame.firstTurn': 'First turning point: {{move}}.{{san}}',
   'endgame.stockfishUnavailable': 'Stockfish is unavailable.',
   'endgame.engineError': 'Engine error.',
@@ -3481,9 +3475,6 @@ The position gradually deteriorated.',
   'game.exportNo': 'No',
   'game.exportYes': 'Yes',
   'blind.reciteSequence': 'Recite the sequence aloud, move by move.',
-  'blind.wrongPiece': 'Wrong piece',
-  'blind.wrongDestination': 'Wrong destination square',
-  'blind.wrongOrder': 'Wrong order',
   'puzzle.illegalHere': 'Illegal here ({{detail}}). Not counted as a move error.',
   'activity.openingTraining': 'Opening training',
 };

@@ -228,8 +228,8 @@ describe('native Alert.alert is gone from confirmation paths', () => {
     assert.match(choice, /from '@\/components\/ui\/AppDialog'/);
     assert.doesNotMatch(choice, /from 'react-native'/);
     assert.match(retry, /from '@\/components\/ui\/AppDialog'/);
-    assert.match(retry, /cancelLabel="Non"/);
-    assert.match(retry, /confirmLabel="Oui"/);
+    assert.match(retry, /cancelLabel=\{t\('common\.no'\)\}/);
+    assert.match(retry, /confirmLabel=\{t\('common\.yes'\)\}/);
   });
 
   it('no Alert.alert( or window.confirm( remains in mobile source', () => {
