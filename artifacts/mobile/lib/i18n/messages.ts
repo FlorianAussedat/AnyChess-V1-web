@@ -792,6 +792,7 @@ export type MessageKey =
   | 'openings.newRepertoire'
   | 'openings.renameRepertoire'
   | 'openings.create'
+  | 'openings.edit'
   | 'openings.namePlaceholder'
   | 'openings.renamePlaceholder'
   | 'openings.delete'
@@ -1178,7 +1179,7 @@ const fr: Dict = {
   'openings.hubReviewHint': 'Retrouve les bons coups de tes ouvertures.',
   'openings.hubLearnHint':
     'Parcours tes ouvertures à ton rythme, coup par coup.',
-  'openings.reviewPoolSummary': '{{pgn}} PGN actifs · {{lines}} lignes disponibles',
+  'openings.reviewPoolSummary': 'PGN actifs · {{files}} fichiers · {{lines}} lignes',
   'openings.activePgnList': 'PGN qui participent à la Révision',
   'openings.noActivePgn':
     'Aucun PGN actif. Active un dossier et au moins un PGN dans la gestion.',
@@ -1966,6 +1967,7 @@ const fr: Dict = {
   'openings.newRepertoire': 'Nouveau répertoire',
   'openings.renameRepertoire': 'Renommer le répertoire',
   'openings.create': 'Créer',
+  'openings.edit': 'Éditer',
   'openings.namePlaceholder': 'Ex. Dragon accéléré',
   'openings.renamePlaceholder': 'Nouveau nom',
   'openings.delete': 'Supprimer',
@@ -2395,7 +2397,7 @@ const en: Dict = {
   'openings.hubReviewHint': 'Find the right moves of your openings.',
   'openings.hubLearnHint':
     'Browse your openings at your own pace, move by move.',
-  'openings.reviewPoolSummary': '{{pgn}} active PGNs · {{lines}} lines available',
+  'openings.reviewPoolSummary': 'Active PGNs · {{files}} files · {{lines}} lines',
   'openings.activePgnList': 'PGNs included in Review',
   'openings.noActivePgn':
     'No active PGN. Enable a folder and at least one PGN in the library.',
@@ -3178,6 +3180,7 @@ const en: Dict = {
   'openings.newRepertoire': 'New repertoire',
   'openings.renameRepertoire': 'Rename repertoire',
   'openings.create': 'Create',
+  'openings.edit': 'Edit',
   'openings.namePlaceholder': 'e.g. Accelerated Dragon',
   'openings.renamePlaceholder': 'New name',
   'openings.delete': 'Delete',

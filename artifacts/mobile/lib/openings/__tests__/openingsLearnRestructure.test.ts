@@ -14,6 +14,30 @@ function read(rel: string): string {
   return readFileSync(join(mobileRoot, rel), 'utf8');
 }
 
+describe('learning folder scope', () => {
+  it('asks for a folder before listing PGNs', () => {
+    const learn = read('app/openings/learn.tsx');
+    assert.match(learn, /learn-folder-/);
+    assert.match(learn, /openings\.pgnFileCount/);
+    assert.match(learn, /\/openings\/\$\{encodeURIComponent\(folder\.id\)\}/);
+    assert.doesNotMatch(learn, /getAllFiles/);
+    assert.doesNotMatch(learn, /LearningPgnCard/);
+    assert.doesNotMatch(learn, /recordOpeningRevisionResult/);
+  });
+
+  it('lists only the opened folder and titles it with Apprentissage', () => {
+    const folder = read('app/openings/[folderId].tsx');
+    assert.match(folder, /learningFilesInFolder\(getFiles\(folderId\), folderId\)/);
+    assert.match(folder, /openings\.learn/);
+    assert.match(folder, /learn-folder-title/);
+    assert.match(folder, /\/openings\/study\?fileId=/);
+    assert.doesNotMatch(folder, /getAllFiles/);
+    assert.doesNotMatch(folder, /openings\.learnPgns/);
+    assert.doesNotMatch(folder, /folderName=/);
+    assert.doesNotMatch(folder, /recordOpeningRevisionResult/);
+  });
+});
+
 describe('openings hub', () => {
   it('offers Review, Learning and PGN management only', () => {
     const index = read('app/openings/index.tsx');
@@ -33,8 +57,14 @@ describe('review screen', () => {
     assert.match(src, /review-play-btn/);
     assert.match(src, /review-continue-btn/);
     assert.match(src, /review-pool-summary/);
+    assert.match(src, /useState\(false\)/);
+    assert.match(src, /chevron-down/);
+    assert.match(src, /files: entries\.length/);
     assert.match(src, /pickReviewLineFromMemory/);
     assert.match(src, /review-manage-link/);
+    const playAt = src.indexOf('review-play-btn');
+    const poolAt = src.indexOf('review-pool-summary');
+    assert.ok(playAt > 0 && poolAt > playAt);
     assert.doesNotMatch(src, /importPgn/);
     assert.doesNotMatch(src, /deletePgn/);
     assert.doesNotMatch(src, /NameModal/);
@@ -171,6 +201,14 @@ describe('opening PGN editor', () => {
     assert.match(manage, /import-pgn-root-btn/);
     assert.match(manage, /create-pgn-btn/);
     assert.match(manage, /edit-pgn-root-btn/);
+    const createAt = manage.indexOf('create-pgn-btn');
+    const editAt = manage.indexOf('edit-pgn-root-btn');
+    const importAt = manage.indexOf('import-pgn-root-btn');
+    assert.ok(createAt > 0 && createAt < editAt && editAt < importAt);
+    const whiteAt = manage.indexOf('openings.sectionWhite');
+    const blackAt = manage.indexOf('openings.sectionBlack');
+    const unfiledAt = manage.indexOf('openings-unfiled-section');
+    assert.ok(whiteAt > 0 && whiteAt < blackAt && blackAt < unfiledAt);
     assert.match(manage, /openings\.importOpeningPgn/);
     assert.match(manage, /openings\.createOpeningPgn/);
     assert.match(manage, /openings\.editOpeningPgn/);
