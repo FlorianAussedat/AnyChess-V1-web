@@ -43,6 +43,7 @@ import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatSanForDisplay } from '@/lib/chess/notation';
+import { renderMentalPrompt } from '@/lib/mentalPosition/renderMentalPrompt.ts';
 import { useSpeechInput } from '@/services/SpeechRecognitionService';
 import { defaultKeyValueStorage, StorageKeys } from '@/lib/storage';
 import {
@@ -60,7 +61,7 @@ function fenToBoard(fen: string): (BoardPiece | null)[][] {
 
 export default function MentalPositionScreen() {
   const colors = useColors();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId?: string }>();
@@ -83,6 +84,10 @@ export default function MentalPositionScreen() {
   const [displayFen, setDisplayFen] = useState<string | null>(null);
   const [lastMove, setLastMove] = useState<LastMove | null>(null);
   const [showRecognizedFlash, setShowRecognizedFlash] = useState(false);
+
+  useEffect(() => {
+    setSnap(sessionRef.current.snapshot());
+  }, [language]);
 
   const questioning = snap.phase === 'questioning';
   const showing = snap.phase === 'showing';
@@ -522,7 +527,9 @@ export default function MentalPositionScreen() {
                 color={entry.correct ? '#3a7' : '#c44'}
               />
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={{ color: colors.foreground }}>{entry.question.promptFr}</Text>
+                <Text style={{ color: colors.foreground }}>
+                  {renderMentalPrompt(entry.question, language)}
+                </Text>
                 <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
                   {t('vision.yourAnswer', { answer: entry.userAnswer || '—' })}
                 </Text>

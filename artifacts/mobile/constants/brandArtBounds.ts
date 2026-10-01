@@ -31,6 +31,14 @@ export const HORIZONTAL_LOGO_ART: ArtBounds = {
   bottom: 595 / HORIZONTAL_LOGO_CANVAS.height,
 };
 
+/** Knight + wordmark only — slogan is rendered as localized text. */
+export const HORIZONTAL_LOGO_WORDMARK: ArtBounds = {
+  left: 322 / HORIZONTAL_LOGO_CANVAS.width,
+  top: 347 / HORIZONTAL_LOGO_CANVAS.height,
+  right: 1165 / HORIZONTAL_LOGO_CANVAS.width,
+  bottom: 548 / HORIZONTAL_LOGO_CANVAS.height,
+};
+
 /**
  * Launch portrait artwork (knight + AnyChess + slogan) inside the
  * supplied 936×1024 PNG. Transparent margins are cropped at layout time.

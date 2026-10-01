@@ -12,6 +12,7 @@ import {
 } from '@/lib/preferences';
 import { replayLine, type ReplayLineHandle } from '@/lib/replay';
 import type { LastMove } from '@/contexts/GameContext';
+import { tMsg } from '@/lib/i18n';
 
 type SyncBoard = () => void;
 
@@ -81,7 +82,7 @@ export function useBlindVisualReplay(opts: {
             syncBoard();
             setExpectedIndex(0);
             setPhase('recitation');
-            setLastFeedback('Récite la séquence à voix haute, coup par coup.');
+            setLastFeedback(tMsg('blind.reciteSequence'));
           }
         },
       });

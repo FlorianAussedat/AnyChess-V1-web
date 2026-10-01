@@ -43,6 +43,7 @@ describe('launch intro and home logo wiring', () => {
     assert.match(layout, /paddingBottom: DesignTokens\.bottomNavContentHeight/);
     assert.doesNotMatch(home, /AnyChessSplashScreen/);
     assert.match(home, /BrandAssets\.horizontalLogo/);
-    assert.match(home, /HORIZONTAL_LOGO_ART/);
+    assert.match(home, /HORIZONTAL_LOGO_WORDMARK/);
+    assert.match(home, /home\.tagline/);
   });
 });

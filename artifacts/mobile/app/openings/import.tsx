@@ -3,7 +3,7 @@
  * Saves into the openings “À classer” folder (not the game library).
  */
 import React, { useCallback } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { PgnImportPanel, type PgnImportPayload } from '@/components/library/PgnImportPanel';
@@ -62,6 +62,9 @@ export default function OpeningsImportScreen() {
         titleNumberOfLines={2}
         backTestID="openings-import-back"
       />
+      <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>
+        {t('pgn.importNotice')}
+      </Text>
       <PgnImportPanel
         allowFen={false}
         maxGameSelection={MAX_OPENINGS_PGN_IMPORT_BATCH}

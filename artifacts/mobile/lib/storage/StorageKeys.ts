@@ -121,6 +121,19 @@ export const StorageKeys = {
       'OpeningLineMasterySnapshot { version: 1, lines: Record<fileId:pathId, { recent, totalAttempts, totalSuccesses, lastRevisionAt }> }',
     documentVersion: 1,
   },
+  pgnCommentTranslations: {
+    key: 'anychess.pgnCommentTranslations.v1',
+    feature: 'pgn/comments',
+    shape:
+      'PgnTranslationSnapshot { version: 1, records: Record<anchorKey, PgnCommentTranslationRecord> }',
+    documentVersion: 1,
+  },
+  pgnTranslationQueue: {
+    key: 'anychess.pgnTranslationQueue.v1',
+    feature: 'pgn/comments',
+    shape: 'PgnTranslationQueueSnapshot { version: 1, jobs: Record<id, PgnTranslationJob> }',
+    documentVersion: 1,
+  },
   mentalRecent: {
     key: 'anychess.mental.recent.v1',
     feature: 'visualisation/mental',

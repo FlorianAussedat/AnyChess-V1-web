@@ -10,7 +10,7 @@ export interface PlayerEloRange {
 }
 
 export const PLAYER_ELO_RANGES: PlayerEloRange[] = [
-  { id: 'unrated', label: 'Non classé' },
+  { id: 'unrated', label: 'Non classé' }, // display via t('profil.eloUnrated') when localized
   { id: 'lt600', label: '<600' },
   ...PUZZLE_RATING_BANDS_SELECTABLE.map((b) => ({ id: b.id, label: b.label })),
 ];

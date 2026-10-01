@@ -10,6 +10,7 @@ import {
   type FirstMajorTurn,
   type OfficialDrawReason,
 } from './types.ts';
+import { tMsg } from '../../i18n/tMsg.ts';
 
 export type CounterState = {
   /** Safe player moves that counted toward the score. */
@@ -112,7 +113,10 @@ export function findFirstMajorTurn(
         scoreBefore: before.scoreCp,
         scoreAfter: after.scoreCp,
         delta,
-        message: `Premier tournant : ${after.playerMoveNumber}.${san}`,
+        message: tMsg('endgame.firstTurn', {
+          move: after.playerMoveNumber,
+          san,
+        }),
       };
     }
   }
@@ -120,7 +124,7 @@ export function findFirstMajorTurn(
 }
 
 export function progressiveDeteriorationMessage(): string {
-  return 'Aucune grosse erreur.\nLa position s’est détériorée petit à petit.';
+  return tMsg('endgame.noMajorMistake');
 }
 
 export function buildAttemptResult(input: {

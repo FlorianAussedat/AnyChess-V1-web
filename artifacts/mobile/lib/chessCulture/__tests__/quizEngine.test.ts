@@ -109,6 +109,32 @@ describe('chessCulture question bank', () => {
     assert.deepEqual(validateChessCultureQuestion(textOnly[0]!), []);
   });
 
+  it('ships complete English copy for every culture question', () => {
+    const missing = missingChessCultureEnglishIds(CHESS_CULTURE_QUESTIONS);
+    assert.deepEqual(missing, []);
+    for (const q of CHESS_CULTURE_QUESTIONS) {
+      const en = q.i18nEn!;
+      assert.ok(en.question.trim(), q.id);
+      assert.equal(en.answers.length, 4, q.id);
+      assert.ok(en.explanation.trim(), q.id);
+      assert.ok(!en.question.startsWith('[EN unavailable]'), q.id);
+      const localized = localizeChessCultureQuestion(q, 'en');
+      assert.equal(localized.correctAnswer, q.correctAnswer, q.id);
+      assert.equal(localized.answers.length, 4, q.id);
+      assert.notEqual(localized.question, `[EN unavailable] ${q.question}`, q.id);
+    }
+  });
+
+  it('keeps the canonical SAN/answer index when language changes', () => {
+    for (const q of CHESS_CULTURE_QUESTIONS) {
+      const fr = localizeChessCultureQuestion(q, 'fr');
+      const en = localizeChessCultureQuestion(q, 'en');
+      assert.equal(fr.correctAnswer, en.correctAnswer, q.id);
+      assert.equal(fr.id, en.id);
+      assert.equal(fr.revision, en.revision);
+    }
+  });
+
   it('preserves bilingual portraits', () => {
     const bilingual = CHESS_CULTURE_QUESTIONS.filter((q) =>
       q.id.startsWith('player-photo-'),

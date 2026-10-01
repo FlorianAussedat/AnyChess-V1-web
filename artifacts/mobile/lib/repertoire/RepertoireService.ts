@@ -33,6 +33,7 @@ import {
   makeUnfiledOpeningFolder,
 } from './unfiledFolder';
 import { openingMasteryStore } from './OpeningMasteryStore';
+import { prunePgnCommentFile, scheduleImportedPgnComments } from '../pgnComments/schedule.ts';
 
 export { normaliseFilename, uniquePgnFilename } from './pgnFilename';
 
@@ -294,6 +295,7 @@ export class RepertoireService {
     folder.updatedAt = nowIso();
     invalidateFolderRepertoireCache(folderId);
     await this.persist();
+    void scheduleImportedPgnComments(file.pgnText, 'repertoire', file.id);
     return file;
   }
 
@@ -318,6 +320,7 @@ export class RepertoireService {
     await this.persist();
     const liveIds = buildRepertoire(file.pgnText).trainingPaths?.map((p) => p.id) ?? [];
     await openingMasteryStore.pruneOrphans(file.id, liveIds);
+    void scheduleImportedPgnComments(file.pgnText, 'repertoire', file.id);
     return file;
   }
 
@@ -325,7 +328,7 @@ export class RepertoireService {
   async setFileEnabled(fileId: string, enabled: boolean): Promise<StoredPgnFile> {
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
-    if (!file) throw new Error('Fichier PGN introuvable.');
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
     file.enabled = enabled;
     const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
     if (folder) folder.updatedAt = nowIso();
@@ -358,6 +361,7 @@ export class RepertoireService {
     invalidateFolderRepertoireCache(file.folderId);
     await this.persist();
     await openingMasteryStore.pruneFile(fileId);
+    await prunePgnCommentFile('repertoire', fileId);
   }
 
   /** Rename display name only (AnyChess UI) — does not touch disk filename. */

@@ -11,6 +11,12 @@ import {
   pieceById,
   squareAtHalfMove,
 } from './PositionHistoryAnalyzer.ts';
+import {
+  inferMentalFact,
+  mentalAnswerSynonyms,
+  renderMentalPrompt,
+  type MentalPromptFact,
+} from './renderMentalPrompt.ts';
 
 export type QuestionCategory =
   | 'opening'
@@ -61,11 +67,26 @@ export type PositionQuestion = {
   /** Dedup key for the underlying fact. */
   factKey: string;
   promptFr: string;
+  /** Structured fact used to render FR/EN prompts without storing a single language. */
+  fact?: MentalPromptFact;
   /** Canonical answers (normalized lowercase). */
   accepted: string[];
   /** Human-readable correct answer for feedback. */
   displayAnswer: string;
 };
+
+function finalizeQuestion(question: PositionQuestion): PositionQuestion {
+  const fact =
+    question.fact ??
+    inferMentalFact(question.kind, question.factKey, question.displayAnswer, question.promptFr);
+  const accepted = [...new Set([...question.accepted, ...mentalAnswerSynonyms(fact)])];
+  return {
+    ...question,
+    fact,
+    accepted,
+    promptFr: renderMentalPrompt({ ...question, fact }, 'fr'),
+  };
+}
 
 const PIECE_FR: Record<string, string> = {
   p: 'pion',
@@ -650,7 +671,7 @@ export function buildQuestionPool(analysis: HistoryAnalysis): PositionQuestion[]
     }
   }
 
-  return pool;
+  return pool.map(finalizeQuestion);
 }
 
 const CATEGORY_ORDER: QuestionCategory[] = [

@@ -58,7 +58,7 @@ function buildTheoryExit(
       ply,
       san,
       message: tMsg('openings.leftTheory'),
-      pgnComment: `Sortie du répertoire avec ${numbered}`,
+      pgnComment: tMsg('openings.leftRepertoire', { move: numbered }),
       analysis,
     };
   }
@@ -67,7 +67,7 @@ function buildTheoryExit(
     ply,
     san,
     message: tMsg('openings.endOfTheoreticalLine'),
-    pgnComment: `Fin de la ligne théorique importée après ${numbered}`,
+    pgnComment: tMsg('openings.endOfTheory', { move: numbered }),
   };
 }
 

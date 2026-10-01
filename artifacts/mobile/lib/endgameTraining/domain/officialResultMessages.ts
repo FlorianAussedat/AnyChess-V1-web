@@ -1,8 +1,11 @@
 /**
  * Official regulatory result messages (session layer — not UI).
+ * Domain returns localizable keys; `officialResultMessage` renders with tMsg.
  */
 import type { OfficialDrawReason } from './types.ts';
 import type { AttemptOutcome } from './types.ts';
+import { tMsg } from '../../i18n/tMsg.ts';
+import type { MessageKey, MessageParams } from '../../i18n/messages.ts';
 
 export type OfficialResultContext = {
   outcome: AttemptOutcome;
@@ -13,29 +16,34 @@ export type OfficialResultContext = {
   checkmateWinner?: 'w' | 'b';
 };
 
-const DRAW_MESSAGES: Record<OfficialDrawReason, string> = {
-  stalemate: 'Nulle obtenue par pat. Bien joué !',
-  threefold: 'Nulle obtenue par répétition. Bien joué !',
-  insufficient: 'Nulle par matériel insuffisant. Bien joué !',
-  fifty: 'Nulle obtenue par la règle des 50 coups. Bien joué !',
-  'position-defended': 'Nulle — position défendue',
+export type LocalizableCopy = {
+  key: MessageKey;
+  params?: MessageParams;
 };
 
-export function officialResultMessage(ctx: OfficialResultContext): string | null {
+const DRAW_KEYS: Record<OfficialDrawReason, MessageKey> = {
+  stalemate: 'endgame.drawStalemate',
+  threefold: 'endgame.drawThreefold',
+  insufficient: 'endgame.drawInsufficient',
+  fifty: 'endgame.drawFifty',
+  'position-defended': 'endgame.drawDefended',
+};
+
+export function officialResultCopy(ctx: OfficialResultContext): LocalizableCopy | null {
   if (ctx.outcome === 'win-official-draw' && ctx.officialDrawReason) {
-    return DRAW_MESSAGES[ctx.officialDrawReason] ?? 'Nulle obtenue. Bien joué !';
+    return { key: DRAW_KEYS[ctx.officialDrawReason] ?? 'endgame.drawGeneric' };
   }
 
   if (ctx.outcome === 'win-30-moves') {
-    return 'Finale défendue ! Tu as résisté 30 coups.';
+    return { key: 'endgame.defendedThirty' };
   }
 
   if (ctx.checkmateWinner) {
     const playerSide = ctx.playerColor === 'white' ? 'w' : 'b';
     if (ctx.checkmateWinner === playerSide) {
-      return 'Échec et mat. Partie gagnée !';
+      return { key: 'endgame.checkmateWin' };
     }
-    return 'Échec et mat. Partie perdue.';
+    return { key: 'endgame.checkmateLoss' };
   }
 
   if (ctx.outcome === 'loss') {
@@ -43,6 +51,11 @@ export function officialResultMessage(ctx: OfficialResultContext): string | null
   }
 
   return null;
+}
+
+export function officialResultMessage(ctx: OfficialResultContext): string | null {
+  const copy = officialResultCopy(ctx);
+  return copy ? tMsg(copy.key, copy.params) : null;
 }
 
 /** Whether the position is still legally playable (finish-game button eligible). */

@@ -8,7 +8,10 @@ export type PositionRefInput = {
 };
 
 export function formatPositionReference(input: PositionRefInput): string {
-  const ref = input.id.startsWith('Réf.') ? input.id : `Réf. ${input.id}`;
+  const prefix = 'Réf.';
+  const ref = input.id.startsWith(prefix) || input.id.startsWith('Ref.')
+    ? input.id
+    : `${prefix} ${input.id}`;
   if (input.sourceId && input.provider?.includes('lichess')) {
     return `${ref} · Lichess ${input.sourceId}`;
   }

@@ -2,7 +2,7 @@
  * Dedicated PGN/FEN import — loads into AnyLyseur without saving the library.
  */
 import React, { useCallback } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { PgnImportPanel, type PgnImportPayload } from '@/components/library/PgnImportPanel';
@@ -66,6 +66,9 @@ export default function PartiesImportScreen() {
         titleNumberOfLines={2}
         backTestID="parties-import-back"
       />
+      <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>
+        {t('pgn.importNotice')}
+      </Text>
       <PgnImportPanel allowFen maxGameSelection={1} onLoad={onLoad} />
     </ScrollView>
   );

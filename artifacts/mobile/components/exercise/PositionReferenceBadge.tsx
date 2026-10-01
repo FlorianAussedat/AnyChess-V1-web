@@ -5,6 +5,7 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
 import { copyToClipboard } from '@/lib/clipboard';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   copyablePositionReference,
   formatPositionReference,
@@ -17,6 +18,7 @@ type Props = PositionRefInput & {
 
 export function PositionReferenceBadge({ id, sourceId, provider, testID }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const label = formatPositionReference({ id, sourceId, provider });
 
@@ -33,7 +35,7 @@ export function PositionReferenceBadge({ id, sourceId, provider, testID }: Props
       </Pressable>
       {copied && (
         <Text style={[styles.copied, { color: colors.primary }]} testID="position-reference-copied">
-          Référence copiée
+          {t('exercise.referenceCopied')}
         </Text>
       )}
     </>

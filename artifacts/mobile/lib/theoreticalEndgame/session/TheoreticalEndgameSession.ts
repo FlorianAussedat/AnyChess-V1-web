@@ -19,6 +19,7 @@ import { verifyTheoreticalLoss } from '../engine/TheoreticalResultVerifier.ts';
 import {
   theoreticalOfficialResultMessage,
 } from '../domain/officialResultMessages.ts';
+import { tMsg } from '../../i18n/tMsg.ts';
 
 export type SessionPhase =
   | 'idle'
@@ -202,11 +203,11 @@ export class TheoreticalEndgameSession {
         promotion: promotion as 'q' | 'r' | 'b' | 'n',
       }) as Move;
     } catch {
-      this.lastFeedback = 'Coup illégal.';
+      this.lastFeedback = tMsg('endgame.illegalMove');
       return this.snapshot();
     }
     if (!played) {
-      this.lastFeedback = 'Coup illégal.';
+      this.lastFeedback = tMsg('endgame.illegalMove');
       return this.snapshot();
     }
 
@@ -232,7 +233,7 @@ export class TheoreticalEndgameSession {
 
     if (!this.analyzer) {
       this.phase = 'engine-error';
-      this.lastFeedback = 'Stockfish indisponible.';
+      this.lastFeedback = tMsg('endgame.stockfishUnavailable');
       return this.snapshot();
     }
 
@@ -253,11 +254,11 @@ export class TheoreticalEndgameSession {
     try {
       move = clone.move(san) as Move;
     } catch {
-      this.lastFeedback = 'Coup non reconnu.';
+      this.lastFeedback = tMsg('endgame.moveNotRecognized');
       return this.snapshot();
     }
     if (!move) {
-      this.lastFeedback = 'Coup non reconnu.';
+      this.lastFeedback = tMsg('endgame.moveNotRecognized');
       return this.snapshot();
     }
     return this.attemptMove(move.from, move.to, move.promotion ?? 'q');
@@ -274,7 +275,7 @@ export class TheoreticalEndgameSession {
           playerColor: pos.playerColor,
           objective: pos.objective,
           checkmateWinner: reg.winner,
-        }) ?? 'Partie terminée.';
+        }) ?? tMsg('theoretical.gameOver');
     } else {
       this.officialEndReason = reg.reason;
       this.lastFeedback =
@@ -283,7 +284,7 @@ export class TheoreticalEndgameSession {
           playerColor: pos.playerColor,
           objective: pos.objective,
           officialEndReason: reg.reason,
-        }) ?? 'Nulle obtenue.';
+        }) ?? tMsg('theoretical.drawObtained');
     }
     this.phase = 'finish-game';
     return this.snapshot();
@@ -395,8 +396,8 @@ export class TheoreticalEndgameSession {
     this.lastFeedback =
       this.result.officialResultMessage ??
       (this.position?.objective === 'WIN'
-        ? 'Position gagnée !'
-        : 'Nulle obtenue !');
+        ? tMsg('endgame.positionWon')
+        : tMsg('endgame.drawAchieved'));
   }
 
   private finishTheoreticalLoss(
@@ -413,10 +414,10 @@ export class TheoreticalEndgameSession {
       fenAfter: this.game.fen(),
       expectedResult: this.position!.objective,
       resultAfter,
-      message: `Premier coup perdant : ${this.userMoves}.${san}`,
+      message: tMsg('endgame.firstTurn', { move: this.userMoves, san }),
     };
     this.result = this.buildResult('theoretical-loss');
-    this.lastFeedback = `Résultat théorique perdu au ${this.userMoves}e coup.`;
+    this.lastFeedback = tMsg('theoretical.lostOnMove', { count: this.userMoves });
   }
 
   private async playOpponent(): Promise<void> {
@@ -439,7 +440,7 @@ export class TheoreticalEndgameSession {
       analysis = await this.analyzer.analyze(this.game.fen(), thinkMs);
     } catch {
       this.phase = 'engine-error';
-      this.lastFeedback = 'Erreur moteur.';
+      this.lastFeedback = tMsg('endgame.engineError');
       return;
     }
 
