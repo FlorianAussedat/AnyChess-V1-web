@@ -18,6 +18,7 @@ import type {
   ReaderMove,
   ReaderNode,
 } from './types.ts';
+import { tMsg } from '../i18n/tMsg.ts';
 
 export const STANDARD_START_FEN =
   'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -140,10 +141,10 @@ function convertSiblings(
     try {
       played = chess.move(step.san);
     } catch {
-      return { ids: [], error: `Coup illégal « ${step.san} ».` };
+      return { ids: [], error: tMsg('errors.illegalSan', { san: step.san }) };
     }
     if (!played) {
-      return { ids: [], error: `Coup illégal « ${step.san} ».` };
+      return { ids: [], error: tMsg('errors.illegalSan', { san: step.san }) };
     }
 
     idSeq.n += 1;
@@ -237,7 +238,7 @@ export function buildReaderGameFromPgnTree(
     return {
       ok: false,
       error: 'Impossible de lire cette partie.',
-      detail: 'FEN de départ invalide.',
+      detail: tMsg('errors.invalidStartFen'),
     };
   }
 
@@ -315,7 +316,7 @@ export function parseReaderPgn(
   try {
     rawBlocks = splitGames(text);
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'PGN mal formé.';
+    const message = e instanceof Error ? e.message : tMsg('errors.malformedPgn');
     return {
       ok: false,
       error: 'Impossible de lire cette partie.',
@@ -327,7 +328,7 @@ export function parseReaderPgn(
     return {
       ok: false,
       error: 'Impossible de lire cette partie.',
-      detail: 'Aucune partie trouvée.',
+      detail: tMsg('errors.noGamesFound'),
     };
   }
 
@@ -340,7 +341,7 @@ export function parseReaderPgn(
         ? e.message
         : e instanceof Error
           ? e.message
-          : 'PGN mal formé.';
+          : tMsg('errors.malformedPgn');
     return {
       ok: false,
       error: 'Impossible de lire cette partie.',
@@ -352,7 +353,7 @@ export function parseReaderPgn(
     return {
       ok: false,
       error: 'Impossible de lire cette partie.',
-      detail: 'Aucune partie trouvée.',
+      detail: tMsg('errors.noGamesFound'),
     };
   }
 

@@ -17,6 +17,8 @@ import { GameReaderNotationList } from './GameReaderNotationList';
 import { GameReaderPlayersBar } from './GameReaderPlayersBar';
 import { ReaderBoardToolbar } from './ReaderBoardToolbar';
 import { useReaderKeyboard } from './useReaderKeyboard';
+import { PgnCommentPane } from '@/components/pgn/PgnCommentPane';
+import type { PgnCommentSource } from '@/lib/pgnComments';
 
 type ToolbarHandlers = {
   voiceActive: boolean;
@@ -49,6 +51,11 @@ type Props = {
   notationMaxHeight?: number;
   desktopSplit?: boolean;
   testID?: string;
+  pgnComment?: {
+    source: PgnCommentSource;
+    fileId: string;
+    gameIndex?: number;
+  };
 };
 
 function boardFromFen(fen: string): (BoardPiece | null)[][] {
@@ -75,6 +82,7 @@ export function SharedGameReaderView({
   notationMaxHeight = 220,
   desktopSplit,
   testID = 'shared-game-reader',
+  pgnComment,
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
@@ -168,12 +176,24 @@ export function SharedGameReaderView({
       />
       {middleSlot}
       {comment ? (
-        <Text
-          style={[styles.comment, { color: colors.mutedForeground }]}
-          testID="game-reader-comment"
-        >
-          {comment}
-        </Text>
+        pgnComment && reader.currentMove?.nodeId ? (
+          <PgnCommentPane
+            original={comment}
+            source={pgnComment.source}
+            fileId={pgnComment.fileId}
+            gameIndex={pgnComment.gameIndex ?? 0}
+            nodeId={reader.currentMove.nodeId}
+            slot="after"
+            testID="game-reader-comment"
+          />
+        ) : (
+          <Text
+            style={[styles.comment, { color: colors.mutedForeground }]}
+            testID="game-reader-comment"
+          >
+            {comment}
+          </Text>
+        )
       ) : null}
     </View>
   );

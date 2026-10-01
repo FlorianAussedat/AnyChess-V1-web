@@ -29,6 +29,7 @@ import { parseReaderPgn } from '@/lib/gameReader';
 import {
   annotatePlayableCommentTokens,
   beginCommentExploration,
+  commentsForCurrentPosition,
   combinedCommentText,
   createOpeningStudyState,
   currentStudyFen,
@@ -59,6 +60,8 @@ import { getStrengthBand } from '@/lib/difficulty/StockfishStrengthBands';
 import { sideToPlayerColor } from '@/lib/repertoire';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { DesignTokens } from '@/constants/designTokens';
+import { resolvePgnComment, type CommentDisplayMode } from '@/lib/pgnComments';
+import { usePgnCommentTranslations } from '@/hooks/usePgnCommentTranslations';
 
 const STUDY_CHROME = 260;
 
@@ -68,13 +71,14 @@ function boardFromFen(fen: string): (BoardPiece | null)[][] {
 
 export default function OpeningStudyScreen() {
   const colors = useColors();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const { showCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
   const { fileId } = useLocalSearchParams<{ fileId: string }>();
+  usePgnCommentTranslations();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,7 +172,30 @@ export default function OpeningStudyScreen() {
     return { from: node.from, to: node.to };
   }, [node, state]);
 
-  const comment = state ? combinedCommentText(state) : '';
+  const [commentMode, setCommentMode] = useState<CommentDisplayMode>('auto');
+  const comment = useMemo(() => {
+    if (!state) return '';
+    if (!fileId) return combinedCommentText(state);
+    const parts = commentsForCurrentPosition(state);
+    const nodeId = state.currentNodeId ?? state.game.rootIds[0] ?? 'n1';
+    const before = parts.before
+      ? resolvePgnComment(
+          { source: 'repertoire', fileId, gameIndex: 0, nodeId, slot: 'before' },
+          parts.before,
+          language,
+          commentMode,
+        ).text
+      : '';
+    const after = parts.after
+      ? resolvePgnComment(
+          { source: 'repertoire', fileId, gameIndex: 0, nodeId, slot: 'after' },
+          parts.after,
+          language,
+          commentMode,
+        ).text
+      : '';
+    return [before, after].filter(Boolean).join('\n\n');
+  }, [commentMode, fileId, language, state]);
   const tokens = useMemo(
     () => (state ? annotatePlayableCommentTokens(comment, studyCommentFens(state)) : []),
     [comment, state],
@@ -398,6 +425,22 @@ export default function OpeningStudyScreen() {
 
       {tab === 'comments' ? (
         <View testID="opening-study-comments">
+          {comment.trim() ? (
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              <Pressable
+                onPress={() => setCommentMode('original')}
+                testID="opening-study-comment-original"
+              >
+                <Text style={{ color: colors.primary }}>{t('pgn.commentOriginal')}</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setCommentMode('french')}
+                testID="opening-study-comment-french"
+              >
+                <Text style={{ color: colors.primary }}>{t('pgn.commentFrench')}</Text>
+              </Pressable>
+            </View>
+          ) : null}
           <OpeningStudyCommentText
             tokens={tokens.length ? tokens : [{ kind: 'text', text: comment }]}
             emptyLabel={t('openings.noComment')}

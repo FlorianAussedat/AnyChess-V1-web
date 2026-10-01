@@ -45,7 +45,7 @@ export function HiddenBoardPlaceholder({
       />
       <Text style={[styles.title, { color: colors.foreground }]}>{hiddenLabel}</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-        La partie continue normalement.
+        {t('board.gameContinues')}
       </Text>
       {onReveal && (
         <Pressable
@@ -60,7 +60,7 @@ export function HiddenBoardPlaceholder({
             style={styles.revealIcon}
             resizeMode="contain"
           />
-          <Text style={[styles.revealLabel, { color: colors.foreground }]}>Afficher</Text>
+          <Text style={[styles.revealLabel, { color: colors.foreground }]}>{t('board.show')}</Text>
         </Pressable>
       )}
     </View>

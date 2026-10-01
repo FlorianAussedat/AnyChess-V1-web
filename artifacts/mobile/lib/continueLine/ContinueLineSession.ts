@@ -21,6 +21,7 @@ import type {
   ContinueLineResult,
   ContinueLineSessionSnapshot,
 } from './types.ts';
+import { tMsg } from '../i18n/tMsg.ts';
 
 export type ContinueLineAttemptResult = {
   kind: ContinueLineAttemptKind;
@@ -121,7 +122,7 @@ export class ContinueLineSession {
 
     if (!path || path.sans.length === 0) {
       this.phase = 'error';
-      this.errorMessage = 'Aucune ligne jouable dans ce répertoire.';
+      this.errorMessage = tMsg('openings.noPlayableLine');
       this.path = null;
       return this.snapshot();
     }

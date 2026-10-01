@@ -46,6 +46,8 @@ export type ChessCultureQuestionI18nEn = {
   question: string;
   answers: [string, string, string, string];
   explanation: string;
+  imageAlt?: string;
+  imageCaption?: string;
 };
 
 export type ChessCultureQuestion = {

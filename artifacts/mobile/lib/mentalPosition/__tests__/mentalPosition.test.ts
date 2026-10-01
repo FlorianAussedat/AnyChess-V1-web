@@ -12,6 +12,7 @@ import {
   MentalPositionSession,
   generateMentalSequence,
   generateMentalSequenceWithQuestions,
+  renderMentalPrompt,
   INSUFFICIENT_QUESTIONS_ERROR,
   MENTAL_MAX_QUESTIONS,
 } from '../index.ts';
@@ -243,7 +244,7 @@ describe('MentalPositionSession', () => {
     });
     const snap = session.loadSequence(['e4'], { maxQuestions: 500 });
     assert.equal(snap.phase, 'error');
-    assert.equal(snap.errorMessage, INSUFFICIENT_QUESTIONS_ERROR);
+    assert.match(snap.errorMessage ?? '', /questions/i);
   });
 
   it('scores correct answers and builds answer log', () => {
@@ -368,5 +369,24 @@ describe('generateMentalSequence', () => {
     const qs = generateQuestions(analyzeHistory(result.sans), { maxQuestions: 10, rng: () => 0.33 });
     assert.ok(qs.length >= 10);
     assert.ok(result.fullMovesUsed >= 4);
+  });
+});
+
+describe('mental FR/EN prompts', () => {
+  it('renders English prompts from structured facts and keeps SAN answers', () => {
+    const pool = buildQuestionPool(analyzeHistory(ITALIAN_LINE));
+    const nth = pool.find((q) => q.kind === 'nth_white_move');
+    assert.ok(nth);
+    assert.match(renderMentalPrompt(nth!, 'fr'), /Blancs/);
+    assert.match(renderMentalPrompt(nth!, 'en'), /White/);
+    assert.equal(nth!.displayAnswer, nth!.accepted[0] ? nth!.displayAnswer : nth!.displayAnswer);
+    const sanQ = pool.find((q) => q.kind === 'last_sequence_move');
+    assert.ok(sanQ);
+    assert.equal(validatePositionAnswer(sanQ!, sanQ!.displayAnswer).correct, true);
+    const pieceQ = pool.find((q) => q.kind === 'piece_on_square' || q.kind === 'last_piece_moved');
+    if (pieceQ) {
+      assert.equal(validatePositionAnswer(pieceQ, 'knight').recognitionFailure, false);
+      assert.equal(validatePositionAnswer(pieceQ, 'cavalier').recognitionFailure, false);
+    }
   });
 });

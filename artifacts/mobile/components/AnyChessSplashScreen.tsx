@@ -19,6 +19,7 @@ import {
   artWidth,
 } from '@/constants/brandArtBounds';
 import { preloadHomeBrandImages } from '@/lib/brand/preloadHomeBrandImages';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   ANYCHESS_NAVY,
   ENTER_FADE_DURATION_MS,
@@ -38,6 +39,7 @@ export function AnyChessSplashScreen({
   onFinished,
   onPainted,
 }: AnyChessSplashScreenProps) {
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const [visible, setVisible] = useState(true);
   const [introStartedAtMs, setIntroStartedAtMs] = useState<number | null>(null);
@@ -110,7 +112,7 @@ export function AnyChessSplashScreen({
       pointerEvents="auto"
       style={[styles.overlay, { opacity: overlayOpacity }]}
       testID="anychess-splash-screen"
-      accessibilityLabel="AnyChess. Jouer. Apprendre. Visualiser."
+      accessibilityLabel={`AnyChess. ${t('home.tagline')}`}
       onLayout={() => {
         laidOut.current = true;
         showArtwork();

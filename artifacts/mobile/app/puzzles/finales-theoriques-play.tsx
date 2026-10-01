@@ -420,7 +420,7 @@ export default function TheoreticalEndgamePlayScreen() {
 
         {snap.finishGameActive && (
           <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
-            Finir la partie
+            {t('review.finishGame')}
           </Text>
         )}
 
@@ -583,7 +583,7 @@ export default function TheoreticalEndgamePlayScreen() {
 
             {showFinishGame && (
               <AppButton
-                label="Finir la partie"
+                label={t('review.finishGame')}
                 onPress={() => setOverlay('finish-game')}
                 variant="secondary"
                 testID="theoretical-finish-game"

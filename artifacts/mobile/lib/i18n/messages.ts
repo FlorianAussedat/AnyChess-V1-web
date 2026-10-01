@@ -994,6 +994,105 @@ export type MessageKey =
   | 'activity.backPartieTitle'
   | 'activity.backExerciceTitle'
   | 'activity.backExerciceConfirm'
+  | 'home.tagline'
+  | 'board.gameContinues'
+  | 'board.show'
+  | 'campPicker.title'
+  | 'campPicker.randomSide'
+  | 'campPicker.hint'
+  | 'exercise.referenceCopied'
+  | 'exercise.tryAgainAlready'
+  | 'exercise.tryAgainAddTitle'
+  | 'review.bestMove'
+  | 'review.returnToPosition'
+  | 'review.finishGameTitle'
+  | 'review.finishGameBody'
+  | 'review.backToResult'
+  | 'review.finishGame'
+  | 'puzzle.bandRandomAll'
+  | 'profil.eloUnrated'
+  | 'openings.noPlayableLine'
+  | 'vision.answerRecorded'
+  | 'vision.insufficientQuestions'
+  | 'endgame.drawStalemate'
+  | 'endgame.drawThreefold'
+  | 'endgame.drawInsufficient'
+  | 'endgame.drawFifty'
+  | 'endgame.drawDefended'
+  | 'endgame.drawGeneric'
+  | 'endgame.defendedThirty'
+  | 'endgame.checkmateWin'
+  | 'endgame.checkmateLoss'
+  | 'endgame.positionWon'
+  | 'endgame.drawAchieved'
+  | 'endgame.illegalMove'
+  | 'endgame.heldMoves'
+  | 'endgame.evalChanged'
+  | 'endgame.noReliableAlternative'
+  | 'endgame.drawAltOne'
+  | 'endgame.drawAltTwo'
+  | 'endgame.drawAltThree'
+  | 'endgame.drawAltThreeMore'
+  | 'endgame.noMajorMistake'
+  | 'endgame.firstTurn'
+  | 'endgame.stockfishUnavailable'
+  | 'endgame.engineError'
+  | 'endgame.moveNotRecognized'
+  | 'endgame.drawDefendedShort'
+  | 'endgame.mateDefended'
+  | 'theoretical.lostOnMove'
+  | 'theoretical.gameOver'
+  | 'theoretical.drawObtained'
+  | 'errors.illegalSan'
+  | 'errors.invalidStartFen'
+  | 'errors.malformedPgn'
+  | 'errors.noGamesFound'
+  | 'openings.leftRepertoire'
+  | 'openings.endOfTheory'
+  | 'position.refPrefix'
+  | 'quiz.defendsNulleDefendNext'
+  | 'pgn.commentOriginal'
+  | 'pgn.commentFrench'
+  | 'pgn.translateComments'
+  | 'pgn.completeTranslation'
+  | 'pgn.retryTranslation'
+  | 'pgn.translateSelection'
+  | 'pgn.translateAllExisting'
+  | 'pgn.translating'
+  | 'pgn.translationPending'
+  | 'pgn.translationPartial'
+  | 'pgn.translationUnavailable'
+  | 'pgn.translationQueued'
+  | 'pgn.serviceNotConfigured'
+  | 'pgn.importNotice'
+  | 'pgn.batchProgress'
+  | 'pgn.exportOriginal'
+  | 'pgn.exportFrench'
+  | 'pgn.exportBilingual'
+  | 'pgn.languageUnknown'
+  | 'pgn.cancelBatch'
+  | 'pgn.resumeBatch'
+  | 'pgn.offlineQueued'
+  | 'pgn.catchupHint'
+  | 'pgn.alreadyFrench'
+  | 'speech.micDenied'
+  | 'speech.micUnavailable'
+  | 'speech.unavailableBrowser'
+  | 'speech.micDeniedBrowser'
+  | 'speech.micUnavailableDevice'
+  | 'speech.micPermissionFailed'
+  | 'speech.startFailed'
+  | 'speech.unsupported'
+  | 'speech.micError'
+  | 'speech.nothingRecognized'
+  | 'vision.answerUnrecognized'
+  | 'errors.folderParentMissing'
+  | 'errors.systemFolderDelete'
+  | 'game.exportOrAnalyze'
+  | 'game.exportNo'
+  | 'game.exportYes'
+  | 'blind.reciteSequence'
+  | 'puzzle.illegalHere'
   | 'activity.openingTraining'
 
 type Dict = Record<MessageKey, string>;
@@ -2087,6 +2186,108 @@ const fr: Dict = {
   'activity.backPartieTitle': 'Quitter la partie ?',
   'activity.backExerciceTitle': 'Abandonner l’exercice ?',
   'activity.backExerciceConfirm': 'Abandonner',
+  'home.tagline': 'Jouer. Apprendre. Visualiser.',
+  'board.gameContinues': 'La partie continue normalement.',
+  'board.show': 'Afficher',
+  'campPicker.title': 'Choix du camp',
+  'campPicker.randomSide': 'Camp aléatoire',
+  'campPicker.hint': 'Touche les pièces Blanches ou Noires, ou choisis un camp aléatoire.',
+  'exercise.referenceCopied': 'Référence copiée',
+  'exercise.tryAgainAlready': 'Déjà dans « Essaie encore ! »',
+  'exercise.tryAgainAddTitle': 'Ajouter cette position à « Essaie encore ! » ?',
+  'review.bestMove': 'Meilleur coup : {{san}}',
+  'review.returnToPosition': 'Retour à la position',
+  'review.finishGameTitle': 'Finir la partie ?',
+  'review.finishGameBody': 'Le résultat de l’exercice ne sera pas modifié.',
+  'review.backToResult': 'Retour au résultat',
+  'review.finishGame': 'Finir la partie',
+  'puzzle.bandRandomAll': 'Aléatoire / Tous',
+  'profil.eloUnrated': 'Non classé',
+  'openings.noPlayableLine': 'Aucune ligne jouable dans ce répertoire.',
+  'vision.answerRecorded': 'Réponse enregistrée',
+  'vision.insufficientQuestions': 'Pas assez de questions fiables.',
+  'endgame.drawStalemate': 'Nulle obtenue par pat. Bien joué !',
+  'endgame.drawThreefold': 'Nulle obtenue par répétition. Bien joué !',
+  'endgame.drawInsufficient': 'Nulle par matériel insuffisant. Bien joué !',
+  'endgame.drawFifty': 'Nulle obtenue par la règle des 50 coups. Bien joué !',
+  'endgame.drawDefended': 'Nulle — position défendue',
+  'endgame.drawGeneric': 'Nulle obtenue. Bien joué !',
+  'endgame.defendedThirty': 'Finale défendue ! Tu as résisté 30 coups.',
+  'endgame.checkmateWin': 'Échec et mat. Partie gagnée !',
+  'endgame.checkmateLoss': 'Échec et mat. Partie perdue.',
+  'endgame.positionWon': 'Position gagnée !',
+  'endgame.drawAchieved': 'Nulle obtenue !',
+  'endgame.illegalMove': 'Coup illégal.',
+  'endgame.heldMoves': 'Tu as résisté {{count}} coups',
+  'endgame.evalChanged': 'L’évaluation est passée de {{before}} à {{after}}.',
+  'endgame.noReliableAlternative': 'Aucune alternative suffisamment fiable n’a pu être confirmée.',
+  'endgame.drawAltOne': 'La nulle pouvait être conservée avec : {{san}}.',
+  'endgame.drawAltTwo': 'La nulle pouvait être conservée avec : {{first}} ou {{second}}.',
+  'endgame.drawAltThree': 'La nulle pouvait être conservée avec : {{first}}, {{second}} ou {{third}}.',
+  'endgame.drawAltThreeMore':
+    'Parmi les coups qui permettaient de conserver la nulle : {{first}}, {{second}} et {{third}}. D’autres coups maintenaient également l’équilibre.',
+  'endgame.noMajorMistake':
+    'Aucune grosse erreur. La position s’est détériorée petit à petit.',
+  'endgame.firstTurn': 'Premier tournant : {{move}}.{{san}}',
+  'endgame.stockfishUnavailable': 'Stockfish indisponible.',
+  'endgame.engineError': 'Erreur moteur.',
+  'endgame.moveNotRecognized': 'Coup non reconnu.',
+  'endgame.drawDefendedShort': 'Nulle ! Finale défendue.',
+  'endgame.mateDefended': 'Mat ! Finale défendue.',
+  'theoretical.lostOnMove': 'Résultat théorique perdu au coup {{count}}.',
+  'theoretical.gameOver': 'Partie terminée.',
+  'theoretical.drawObtained': 'Nulle obtenue.',
+  'errors.illegalSan': 'Coup illégal « {{san}} ».',
+  'errors.invalidStartFen': 'FEN de départ invalide.',
+  'errors.malformedPgn': 'PGN mal formé.',
+  'errors.noGamesFound': 'Aucune partie trouvée.',
+  'openings.leftRepertoire': 'Sortie du répertoire avec {{move}}',
+  'openings.endOfTheory': 'Fin de la ligne théorique importée après {{move}}',
+  'position.refPrefix': 'Réf.',
+  'quiz.defendsNulleDefendNext': 'Défendre la finale suivante',
+  'pgn.commentOriginal': 'Original',
+  'pgn.commentFrench': 'Français',
+  'pgn.translateComments': 'Traduire les commentaires en français',
+  'pgn.completeTranslation': 'Compléter la traduction',
+  'pgn.retryTranslation': 'Réessayer la traduction',
+  'pgn.translateSelection': 'Traduire la sélection',
+  'pgn.translateAllExisting': 'Traduire tous les PGN existants',
+  'pgn.translating': 'Traduction en cours',
+  'pgn.translationPending': 'En attente',
+  'pgn.translationPartial': 'Traduction partielle',
+  'pgn.translationUnavailable': 'Traduction indisponible',
+  'pgn.translationQueued': 'Traduction en file d’attente',
+  'pgn.serviceNotConfigured': 'La traduction automatique attend la configuration du service.',
+  'pgn.importNotice': 'Les commentaires textuels en anglais seront envoyés au service de traduction pour préparer une version française. L’import reste disponible tout de suite.',
+  'pgn.batchProgress': '{{done}} / {{total}} commentaires',
+  'pgn.exportOriginal': 'Exporter l’original',
+  'pgn.exportFrench': 'Exporter avec commentaires français',
+  'pgn.exportBilingual': 'Exporter bilingue',
+  'pgn.languageUnknown': 'Langue indéterminée — original conservé',
+  'pgn.cancelBatch': 'Annuler la traduction',
+  'pgn.resumeBatch': 'Reprendre la traduction',
+  'pgn.offlineQueued': 'Hors ligne — la traduction reprendra lorsque le service sera disponible.',
+  'pgn.catchupHint': 'Des PGN importés n’ont pas encore de version française de leurs commentaires.',
+  'pgn.alreadyFrench': 'Commentaires déjà en français.',
+  'speech.micDenied': 'Microphone refusé. Tu peux autoriser l’accès dans les réglages.',
+  'speech.micUnavailable': 'La reconnaissance vocale n’est pas disponible.',
+  'speech.unavailableBrowser':
+    'La reconnaissance vocale n’est pas disponible dans ce navigateur. Utilise Chrome/Edge, ou saisis le coup au clavier.',
+  'speech.micDeniedBrowser': 'Permission microphone refusée. Autorise le micro dans le navigateur.',
+  'speech.micUnavailableDevice': 'Microphone indisponible sur cet appareil / navigateur.',
+  'speech.micPermissionFailed': 'Impossible de demander la permission microphone.',
+  'speech.startFailed': 'Échec du démarrage de la reconnaissance vocale.',
+  'speech.unsupported': 'Reconnaissance vocale non supportée ici.',
+  'speech.micError': 'Erreur micro : {{code}}',
+  'speech.nothingRecognized': 'Rien d’utilisable reconnu. Réessaie.',
+  'vision.answerUnrecognized': 'Non reconnu — réessaie (non compté).',
+  'errors.folderParentMissing': 'Dossier parent introuvable.',
+  'errors.systemFolderDelete': 'Ce dossier système ne peut pas être supprimé.',
+  'game.exportOrAnalyze': 'Exporter ou analyser…',
+  'game.exportNo': 'Non',
+  'game.exportYes': 'Oui',
+  'blind.reciteSequence': 'Récite la séquence à voix haute, coup par coup.',
+  'puzzle.illegalHere': 'Illégal ici ({{detail}}). Non compté comme erreur de coup.',
   'activity.openingTraining': 'Entraînement d’ouverture',
 };
 
@@ -3173,6 +3374,108 @@ const en: Dict = {
   'activity.backPartieTitle': 'Quit the game?',
   'activity.backExerciceTitle': 'Abandon the exercise?',
   'activity.backExerciceConfirm': 'Abandon',
+  'home.tagline': 'Play. Learn. Visualize.',
+  'board.gameContinues': 'The game continues normally.',
+  'board.show': 'Show board',
+  'campPicker.title': 'Choose your side',
+  'campPicker.randomSide': 'Random side',
+  'campPicker.hint': 'Tap the white or black pieces, or choose a random side.',
+  'exercise.referenceCopied': 'Reference copied',
+  'exercise.tryAgainAlready': 'Already in “Try again!”',
+  'exercise.tryAgainAddTitle': 'Add this position to “Try again!”?',
+  'review.bestMove': 'Best move: {{san}}',
+  'review.returnToPosition': 'Back to the position',
+  'review.finishGameTitle': 'Finish the game?',
+  'review.finishGameBody': 'Your exercise result will stay the same.',
+  'review.backToResult': 'Back to the result',
+  'review.finishGame': 'Finish game',
+  'puzzle.bandRandomAll': 'Random / All',
+  'profil.eloUnrated': 'Unrated',
+  'openings.noPlayableLine': 'No playable line in this repertoire.',
+  'vision.answerRecorded': 'Answer recorded',
+  'vision.insufficientQuestions': 'Not enough reliable questions.',
+  'endgame.drawStalemate': 'Draw by stalemate. Well done!',
+  'endgame.drawThreefold': 'Draw by repetition. Well done!',
+  'endgame.drawInsufficient': 'Draw by insufficient material. Well done!',
+  'endgame.drawFifty': 'Draw under the fifty-move rule. Well done!',
+  'endgame.drawDefended': 'Draw — position defended',
+  'endgame.drawGeneric': 'Draw achieved. Well done!',
+  'endgame.defendedThirty': 'Endgame defended! You held on for 30 moves.',
+  'endgame.checkmateWin': 'Checkmate. You won!',
+  'endgame.checkmateLoss': 'Checkmate. You lost.',
+  'endgame.positionWon': 'Winning position!',
+  'endgame.drawAchieved': 'Draw achieved!',
+  'endgame.illegalMove': 'Illegal move.',
+  'endgame.heldMoves': 'You held on for {{count}} moves',
+  'endgame.evalChanged': 'The evaluation changed from {{before}} to {{after}}.',
+  'endgame.noReliableAlternative': 'No sufficiently reliable alternative could be confirmed.',
+  'endgame.drawAltOne': 'The draw could have been maintained with {{san}}.',
+  'endgame.drawAltTwo': 'The draw could have been maintained with {{first}} or {{second}}.',
+  'endgame.drawAltThree': 'The draw could have been maintained with {{first}}, {{second}} or {{third}}.',
+  'endgame.drawAltThreeMore':
+    'Moves that kept the draw include {{first}}, {{second}} and {{third}}. Other moves also kept the balance.',
+  'endgame.noMajorMistake':
+    'No major mistake. The position gradually deteriorated.',
+  'endgame.firstTurn': 'First turning point: {{move}}.{{san}}',
+  'endgame.stockfishUnavailable': 'Stockfish is unavailable.',
+  'endgame.engineError': 'Engine error.',
+  'endgame.moveNotRecognized': 'Move not recognized.',
+  'endgame.drawDefendedShort': 'Draw! Endgame defended.',
+  'endgame.mateDefended': 'Mate! Endgame defended.',
+  'theoretical.lostOnMove': 'The theoretical outcome was lost on move {{count}}.',
+  'theoretical.gameOver': 'Game over.',
+  'theoretical.drawObtained': 'Draw achieved.',
+  'errors.illegalSan': 'Illegal move “{{san}}”.',
+  'errors.invalidStartFen': 'Invalid starting FEN.',
+  'errors.malformedPgn': 'Malformed PGN.',
+  'errors.noGamesFound': 'No games found.',
+  'openings.leftRepertoire': 'Left the repertoire with {{move}}',
+  'openings.endOfTheory': 'End of the imported theoretical line after {{move}}',
+  'position.refPrefix': 'Ref.',
+  'quiz.defendsNulleDefendNext': 'Defend the next endgame',
+  'pgn.commentOriginal': 'Original',
+  'pgn.commentFrench': 'French',
+  'pgn.translateComments': 'Translate comments into French',
+  'pgn.completeTranslation': 'Complete the translation',
+  'pgn.retryTranslation': 'Retry translation',
+  'pgn.translateSelection': 'Translate selection',
+  'pgn.translateAllExisting': 'Translate all existing PGNs',
+  'pgn.translating': 'Translation in progress',
+  'pgn.translationPending': 'Pending',
+  'pgn.translationPartial': 'Partial translation',
+  'pgn.translationUnavailable': 'Translation unavailable',
+  'pgn.translationQueued': 'Translation queued',
+  'pgn.serviceNotConfigured': 'Automatic translation is waiting for the service to be configured.',
+  'pgn.importNotice': 'English comments will be sent to the translation service to prepare a French version. You can use the import immediately.',
+  'pgn.batchProgress': '{{done}} / {{total}} comments',
+  'pgn.exportOriginal': 'Export original',
+  'pgn.exportFrench': 'Export with French comments',
+  'pgn.exportBilingual': 'Export bilingual',
+  'pgn.languageUnknown': 'Language unclear — original kept',
+  'pgn.cancelBatch': 'Cancel translation',
+  'pgn.resumeBatch': 'Resume translation',
+  'pgn.offlineQueued': 'Offline — translation will resume when the service is available.',
+  'pgn.catchupHint': 'Some imported PGNs do not have a French version of their comments yet.',
+  'pgn.alreadyFrench': 'Comments are already in French.',
+  'speech.micDenied': 'Microphone denied. You can allow access in Settings.',
+  'speech.micUnavailable': 'Speech recognition is not available.',
+  'speech.unavailableBrowser':
+    'Speech recognition is not available in this browser. Use Chrome/Edge, or enter the move on the keyboard.',
+  'speech.micDeniedBrowser': 'Microphone permission denied. Allow the mic in the browser.',
+  'speech.micUnavailableDevice': 'Microphone unavailable on this device / browser.',
+  'speech.micPermissionFailed': 'Could not request microphone permission.',
+  'speech.startFailed': 'Could not start speech recognition.',
+  'speech.unsupported': 'Speech recognition is not supported here.',
+  'speech.micError': 'Microphone error: {{code}}',
+  'speech.nothingRecognized': 'Nothing usable was recognized. Try again.',
+  'vision.answerUnrecognized': 'Not recognized — try again (not counted).',
+  'errors.folderParentMissing': 'Parent folder not found.',
+  'errors.systemFolderDelete': 'This system folder cannot be deleted.',
+  'game.exportOrAnalyze': 'Export or analyze…',
+  'game.exportNo': 'No',
+  'game.exportYes': 'Yes',
+  'blind.reciteSequence': 'Recite the sequence aloud, move by move.',
+  'puzzle.illegalHere': 'Illegal here ({{detail}}). Not counted as a move error.',
   'activity.openingTraining': 'Opening training',
 };
 

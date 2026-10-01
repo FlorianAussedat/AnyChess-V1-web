@@ -806,8 +806,8 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         setStats(session.getStats());
         setLastFeedback(
           parsed.type === 'ambiguous'
-            ? 'Ambigu — reformule le coup (non compté comme erreur de coup).'
-            : 'Non reconnu — réessaie (non compté comme erreur de coup).',
+            ? tMsg('openings.ambiguousRetry')
+            : tMsg('openings.unrecognizedRetry'),
         );
         return 'recognition-failure';
       }
@@ -816,7 +816,7 @@ export function PuzzleProvider({ children }: { children: React.ReactNode }) {
         session.recordRecognitionFailure();
         setStats(session.getStats());
         setLastFeedback(
-          `Illégal ici (${parsed.intendedDescription ?? '?'}). Non compté comme erreur de coup.`,
+          tMsg('puzzle.illegalHere', { detail: parsed.intendedDescription ?? '?' }),
         );
         return 'recognition-failure';
       }

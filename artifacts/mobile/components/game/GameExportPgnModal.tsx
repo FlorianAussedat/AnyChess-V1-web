@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Props = {
   visible: boolean;
@@ -23,6 +24,7 @@ export function GameExportPgnModal({
   onOpenInAnalyzer,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
   const isWeb = Platform.OS === 'web';
   const [opening, setOpening] = useState(false);
 
@@ -39,9 +41,7 @@ export function GameExportPgnModal({
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            {onOpenInAnalyzer
-              ? 'Exporter ou analyser la partie ?'
-              : 'Exporter la partie en PGN ?'}
+            {onOpenInAnalyzer ? t('game.exportOrAnalyze') : t('game.exportPgn')}
           </Text>
           <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>{body}</Text>
           <View style={styles.modalActions}>
@@ -53,7 +53,7 @@ export function GameExportPgnModal({
                 { borderColor: colors.border, opacity: pressed || opening ? 0.6 : 1 },
               ]}
             >
-              <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>Non</Text>
+              <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>{t('game.exportNo')}</Text>
             </Pressable>
             {onOpenInAnalyzer ? (
               <>
@@ -69,7 +69,7 @@ export function GameExportPgnModal({
                   ]}
                 >
                   <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
-                    Exporter
+                    {t('game.export')}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -96,7 +96,7 @@ export function GameExportPgnModal({
                   <Text
                     style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}
                   >
-                    {opening ? 'Ouverture…' : 'Analyser'}
+                    {opening ? t('openings.opening') : t('quiz.theoreticalAnalyse')}
                   </Text>
                 </Pressable>
               </>
@@ -113,7 +113,7 @@ export function GameExportPgnModal({
                 ]}
               >
                 <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
-                  Oui
+                  {t('game.exportYes')}
                 </Text>
               </Pressable>
             )}

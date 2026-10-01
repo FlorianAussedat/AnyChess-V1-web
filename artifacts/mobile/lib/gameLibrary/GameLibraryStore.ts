@@ -31,6 +31,8 @@ import type {
   ImportedChessGame,
   ImportPgnResult,
 } from './types.ts';
+import { tMsg } from '../i18n/tMsg.ts';
+import { prunePgnCommentFile, scheduleImportedPgnComments } from '../pgnComments/schedule.ts';
 
 export const GAME_LIBRARY_STORAGE_KEY = StorageKeys.gameLibrary.key;
 
@@ -227,9 +229,9 @@ export class GameLibraryStore {
   ): Promise<GameLibraryFolder> {
     const snap = await this.getSnapshot();
     const trimmed = name.trim();
-    if (!trimmed) throw new Error('Le nom du dossier est vide.');
+    if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
     if (parentId && !snap.folders.some((f) => f.id === parentId)) {
-      throw new Error('Dossier parent introuvable.');
+      throw new Error(tMsg('errors.folderParentMissing'));
     }
     const now = Date.now();
     const folder: GameLibraryFolder = {
@@ -267,19 +269,26 @@ export class GameLibraryStore {
     const snap = await this.getSnapshot();
     const target = snap.folders.find((f) => f.id === id);
     if (target && isUnfiledGameFolder(target)) {
-      throw new Error('Ce dossier système ne peut pas être supprimé.');
+      throw new Error(tMsg('errors.systemFolderDelete'));
     }
     const deleteContents = options?.deleteContents !== false;
     const ids = new Set(collectDescendantFolderIds(snap.folders, id));
     const folders = snap.folders.filter((f) => !ids.has(f.id));
     const unfiledId =
       snap.folders.find((f) => isUnfiledGameFolder(f))?.id ?? UNFILED_GAME_FOLDER_ID;
+    const removed = deleteContents
+      ? snap.games.filter((g) => g.folderId && ids.has(g.folderId))
+      : [];
     const games = deleteContents
       ? snap.games.filter((g) => !g.folderId || !ids.has(g.folderId))
       : snap.games.map((g) =>
           g.folderId && ids.has(g.folderId) ? { ...g, folderId: unfiledId } : g,
         );
-    return this.persist({ version: 2, folders, games });
+    const persisted = await this.persist({ version: 2, folders, games });
+    for (const game of removed) {
+      await prunePgnCommentFile('gameLibrary', game.id);
+    }
+    return persisted;
   }
 
   async moveGame(
@@ -291,7 +300,7 @@ export class GameLibraryStore {
       snap.folders.find((f) => isUnfiledGameFolder(f))?.id ?? UNFILED_GAME_FOLDER_ID;
     const targetId = folderId ?? unfiledId;
     if (!snap.folders.some((f) => f.id === targetId)) {
-      throw new Error('Dossier introuvable.');
+      throw new Error(tMsg('errors.folderNotFound'));
     }
     const index = snap.games.findIndex((g) => g.id === gameId);
     if (index < 0) return null;
@@ -387,6 +396,10 @@ export class GameLibraryStore {
       games: [...result.imported, ...snap.games],
     };
     await this.persist(next);
+    for (const game of result.imported) {
+      const pgn = game.source.rawPgn;
+      if (pgn) void scheduleImportedPgnComments(pgn, 'gameLibrary', game.id);
+    }
     return { ...result, snapshot: next };
   }
 
@@ -415,7 +428,12 @@ export class GameLibraryStore {
       folders: snap.folders,
       games: [...fresh, ...snap.games],
     };
-    return this.persist(next);
+    const persisted = await this.persist(next);
+    for (const game of fresh) {
+      const pgn = game.source.rawPgn;
+      if (pgn) void scheduleImportedPgnComments(pgn, 'gameLibrary', game.id);
+    }
+    return persisted;
   }
 
   async deleteGame(id: string): Promise<GameLibrarySnapshot> {
@@ -425,7 +443,9 @@ export class GameLibraryStore {
       folders: snap.folders,
       games: snap.games.filter((g) => g.id !== id),
     };
-    return this.persist(next);
+    const persisted = await this.persist(next);
+    await prunePgnCommentFile('gameLibrary', id);
+    return persisted;
   }
 
   /**

@@ -875,6 +875,11 @@ export default function GameWorkspaceScreen() {
             reader={reader}
             boardSize={boardSize}
             showCoordinates={showCoordinates}
+            pgnComment={
+              gameId
+                ? { source: 'gameLibrary', fileId: gameId }
+                : undefined
+            }
             showPlayers
             showNotation={tab === 'game'}
             showToolbar={false}
