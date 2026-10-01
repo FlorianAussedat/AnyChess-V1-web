@@ -1,7 +1,9 @@
 /**
  * Root host that renders the imperative AnyChess confirmation dialog.
+ * useSyncExternalStore reads the current request on mount so a dialog
+ * presented before subscribe is still visible after remount.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useSyncExternalStore } from 'react';
 import { AppDialog } from '@/components/ui/AppDialog';
 import {
   dismissAppDialog,
@@ -11,9 +13,11 @@ import {
 } from '@/lib/ui/appDialogStore';
 
 export function AppDialogHost() {
-  const [, setTick] = useState(0);
-  useEffect(() => subscribeAppDialog(() => setTick((n) => n + 1)), []);
-  const request = getAppDialogRequest();
+  const request = useSyncExternalStore(
+    subscribeAppDialog,
+    getAppDialogRequest,
+    getAppDialogRequest,
+  );
   const actions = useMemo(
     () =>
       request?.actions?.map((action) => ({
