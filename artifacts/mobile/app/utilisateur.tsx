@@ -291,7 +291,7 @@ export default function UtilisateurScreen() {
                 return (
                   <OptionChip
                     key={range.id}
-                    label={range.label}
+                    label={range.id === 'unrated' ? t('profil.eloUnrated') : range.label}
                     active={active}
                     onPress={() => {
                       const patch =

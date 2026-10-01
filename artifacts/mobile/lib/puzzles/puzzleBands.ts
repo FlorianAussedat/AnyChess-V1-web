@@ -40,7 +40,7 @@ export const PUZZLE_RATING_BANDS_SELECTABLE: PuzzleRatingBand[] = [
 
 export const PUZZLE_RATING_BAND_ALL: PuzzleRatingBand = {
   id: 'all',
-  label: 'Aléatoire / Tous',
+  label: 'Aléatoire / Tous', // display via t('puzzle.bandRandomAll') when localized
   ratingMin: 0,
   ratingMax: 4000,
 };

@@ -504,7 +504,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
     showRecognized(null);
     resetBoard();
     setPhase('recitation');
-    setLastFeedback('Récite la séquence à voix haute, coup par coup.');
+    setLastFeedback(tMsg('blind.reciteSequence'));
   }, [resetBoard, clearDictationTimer, showRecognized, replayRef, setIsReplaying]);
 
   const skipExpectedMove = useCallback(() => {
@@ -609,9 +609,9 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       game.undo();
       syncBoard();
       const labels: Record<string, string> = {
-        'wrong-piece': 'Erreur de pièce',
-        'wrong-destination': "Erreur de case d'arrivée",
-        'wrong-order': "Erreur d'ordre",
+        'wrong-piece': tMsg('blind.wrongPiece'),
+        'wrong-destination': tMsg('blind.wrongDestination'),
+        'wrong-order': tMsg('blind.wrongOrder'),
         'wrong-move': tMsg('blind.moveError'),
       };
       const label = labels[verdict.kind] ?? tMsg('blind.moveError');
@@ -779,7 +779,7 @@ export function BlindSequenceProvider({ children }: { children: React.ReactNode 
       markRecordIneligible();
       triedCurrentRef.current = true;
       const label =
-        kind === 'wrong-order' ? "Erreur d'ordre" : tMsg('blind.moveError');
+        kind === 'wrong-order' ? tMsg('blind.wrongOrder') : tMsg('blind.moveError');
       setLastFeedback(label);
       speechService.speak(label, { flush: true });
       return 'wrong';

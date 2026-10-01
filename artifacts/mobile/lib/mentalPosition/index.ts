@@ -26,6 +26,12 @@ export type {
 } from './PositionQuestionGenerator.ts';
 export { validatePositionAnswer } from './PositionAnswerValidator.ts';
 export {
+  renderMentalPrompt,
+  renderMentalDisplayAnswer,
+  inferMentalFact,
+} from './renderMentalPrompt.ts';
+export type { MentalPromptFact, AppMentalLanguage } from './renderMentalPrompt.ts';
+export {
   MentalPositionSession,
   MENTAL_MAX_QUESTIONS,
   INSUFFICIENT_QUESTIONS_ERROR,

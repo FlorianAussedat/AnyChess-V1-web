@@ -33,6 +33,7 @@ import { chooseOpponentMove } from '../engine/PracticalPressurePolicy.ts';
 import { chooseStrictBestMove } from '../../engines/policies/StrictBestPolicy.ts';
 import { verifyLoss, LOSS_CONFIRM_THINK_MS } from '../engine/LossVerifier.ts';
 import { officialResultMessage } from '../domain/officialResultMessages.ts';
+import { tMsg } from '../../i18n/tMsg.ts';
 import {
   findDrawAlternatives,
   type DrawAlternativesResult,
@@ -244,11 +245,11 @@ export class EndgameTrainingSession {
         promotion: promotion as 'q' | 'r' | 'b' | 'n',
       }) as Move;
     } catch {
-      this.lastFeedback = 'Coup illégal.';
+      this.lastFeedback = tMsg('endgame.illegalMove');
       return this.snapshot();
     }
     if (!played) {
-      this.lastFeedback = 'Coup illégal.';
+      this.lastFeedback = tMsg('endgame.illegalMove');
       return this.snapshot();
     }
 
@@ -262,7 +263,7 @@ export class EndgameTrainingSession {
     }
 
     if (!this.analyzer) {
-      this.lastFeedback = 'Stockfish indisponible.';
+      this.lastFeedback = tMsg('endgame.stockfishUnavailable');
       this.phase = 'engine-error';
       return this.snapshot();
     }
@@ -274,7 +275,7 @@ export class EndgameTrainingSession {
     try {
       analysis = await this.analyzer.analyze(this.game.fen(), thinkMs);
     } catch {
-      this.lastFeedback = 'Erreur moteur.';
+      this.lastFeedback = tMsg('endgame.engineError');
       this.phase = 'engine-error';
       return this.snapshot();
     }
@@ -358,7 +359,7 @@ export class EndgameTrainingSession {
               /* alternatives optional */
             }
           }
-          this.lastFeedback = this.result.officialResultMessage ?? `Tu as résisté ${this.counter.movesResisted} coups`;
+          this.lastFeedback = this.result.officialResultMessage ?? tMsg('endgame.heldMoves', { count: this.counter.movesResisted });
           return this.snapshot();
         }
         // Recovered — use confirmation eval
@@ -382,8 +383,7 @@ export class EndgameTrainingSession {
         this.phase = 'won-30';
         this.result = this.buildResult();
         this.lastFeedback =
-          this.result.officialResultMessage ??
-          'Finale défendue !\nTu as résisté 30 coups.';
+          this.result.officialResultMessage ?? tMsg('endgame.defendedThirty');
         return this.snapshot();
       }
     } else {
@@ -410,11 +410,11 @@ export class EndgameTrainingSession {
     try {
       move = clone.move(san) as Move;
     } catch {
-      this.lastFeedback = 'Coup non reconnu.';
+      this.lastFeedback = tMsg('endgame.moveNotRecognized');
       return this.snapshot();
     }
     if (!move) {
-      this.lastFeedback = 'Coup non reconnu.';
+      this.lastFeedback = tMsg('endgame.moveNotRecognized');
       return this.snapshot();
     }
     return this.attemptMove(move.from, move.to, move.promotion ?? 'q');
@@ -469,7 +469,7 @@ export class EndgameTrainingSession {
         this.officialDrawReason = undefined;
         this.result = this.buildResult({ checkmateWinner: reg.winner });
         this.lastFeedback =
-          this.result.officialResultMessage ?? 'Mat ! Finale défendue.';
+          this.result.officialResultMessage ?? tMsg('endgame.mateDefended');
       } else {
         this.pushTimelinePoint(san);
         if (!this.finishGameMode) {
@@ -481,7 +481,7 @@ export class EndgameTrainingSession {
         this.result = this.buildResult({ checkmateWinner: reg.winner });
         this.lastFeedback =
           this.result.officialResultMessage ??
-          `Tu as résisté ${this.counter.movesResisted} coups`;
+          tMsg('endgame.heldMoves', { count: this.counter.movesResisted });
       }
       return this.snapshot();
     }
@@ -497,7 +497,7 @@ export class EndgameTrainingSession {
       this.phase = 'won-draw';
       this.result = this.buildResult();
       this.lastFeedback =
-        this.result.officialResultMessage ?? 'Nulle ! Finale défendue.';
+        this.result.officialResultMessage ?? tMsg('endgame.drawDefendedShort');
     } else {
       this.officialDrawReason = reg.reason;
       this.phase = 'finish-game';
@@ -506,7 +506,7 @@ export class EndgameTrainingSession {
           outcome: 'win-official-draw',
           playerColor: player,
           officialDrawReason: reg.reason,
-        }) ?? 'Nulle !';
+        }) ?? tMsg('endgame.drawDefended');
     }
     return this.snapshot();
   }
@@ -560,7 +560,7 @@ export class EndgameTrainingSession {
         );
       }
     } catch {
-      this.lastFeedback = 'Erreur moteur.';
+      this.lastFeedback = tMsg('endgame.engineError');
       this.phase = 'engine-error';
       return;
     }

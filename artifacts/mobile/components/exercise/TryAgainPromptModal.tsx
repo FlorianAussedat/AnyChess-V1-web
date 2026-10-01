@@ -5,6 +5,7 @@ import React from 'react';
 import { Text } from 'react-native';
 import { AppDialog } from '@/components/ui/AppDialog';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type Props = {
   visible: boolean;
@@ -22,6 +23,7 @@ export function TryAgainPromptModal({
   testID,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
 
   if (alreadyInPool) {
     return visible ? (
@@ -29,7 +31,7 @@ export function TryAgainPromptModal({
         style={{ color: colors.mutedForeground, textAlign: 'center', fontSize: 13 }}
         testID="try-again-already"
       >
-        Déjà dans « Essaie encore ! »
+        {t('exercise.tryAgainAlready')}
       </Text>
     ) : null;
   }
@@ -37,9 +39,9 @@ export function TryAgainPromptModal({
   return (
     <AppDialog
       visible={visible}
-      title={'Ajouter cette position à « Essaie encore ! » ?'}
-      cancelLabel="Non"
-      confirmLabel="Oui"
+      title={t('exercise.tryAgainAddTitle')}
+      cancelLabel={t('common.no')}
+      confirmLabel={t('common.yes')}
       onCancel={onNo}
       onConfirm={onYes}
       testID={testID ?? 'try-again-prompt'}

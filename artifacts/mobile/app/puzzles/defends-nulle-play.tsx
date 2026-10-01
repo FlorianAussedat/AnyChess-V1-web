@@ -584,7 +584,7 @@ export default function EndgameTrainingPlayScreen() {
 
         {snap.finishGameActive && (
           <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
-            Finir la partie
+            {t('review.finishGame')}
           </Text>
         )}
 
@@ -792,7 +792,7 @@ export default function EndgameTrainingPlayScreen() {
 
             {showFinishGame && (
               <AppButton
-                label="Finir la partie"
+                label={t('review.finishGame')}
                 onPress={() => setOverlay('finish-game')}
                 variant="secondary"
                 testID="endgame-finish-game"
@@ -800,7 +800,7 @@ export default function EndgameTrainingPlayScreen() {
             )}
 
             <AppButton
-              label="Défendre la finale suivante"
+              label={t('quiz.defendsNulleDefendNext')}
               onPress={() => void handleNextPosition()}
               testID="endgame-next-position"
             />

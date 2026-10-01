@@ -7,6 +7,9 @@ import {
   type PositionQuestion,
 } from './PositionQuestionGenerator.ts';
 import { validatePositionAnswer } from './PositionAnswerValidator.ts';
+import { renderMentalPrompt, renderMentalDisplayAnswer } from './renderMentalPrompt.ts';
+import { tMsg } from '../i18n/tMsg.ts';
+import { preferencesStore } from '../preferences/PreferencesStore.ts';
 
 export const MENTAL_MAX_QUESTIONS = 10;
 export const INSUFFICIENT_QUESTIONS_ERROR = 'Pas assez de questions fiables';
@@ -83,7 +86,7 @@ export class MentalPositionSession {
       this.phase = 'showing';
       if (this.questions.length < maxQuestions) {
         this.phase = 'error';
-        this.errorMessage = INSUFFICIENT_QUESTIONS_ERROR;
+        this.errorMessage = tMsg('vision.insufficientQuestions');
       }
     } catch (err) {
       this.phase = 'error';
@@ -112,19 +115,22 @@ export class MentalPositionSession {
     const verdict = validatePositionAnswer(q, raw);
     if (verdict.recognitionFailure) {
       // Recognition failures do not reveal the expected answer.
-      this.lastFeedback = 'Non reconnu — réessaie (non compté).';
+      this.lastFeedback = tMsg('vision.answerUnrecognized');
       return this.snapshot();
     }
     this.answered += 1;
     const correct = verdict.correct;
     if (correct) this.score += 1;
     // Defer correctness / expected answers to the final review screen.
-    this.lastFeedback = 'Réponse enregistrée';
+    this.lastFeedback = tMsg('vision.answerRecorded');
     this.answerLog.push({
       question: q,
       userAnswer: raw.trim(),
       correct,
-      expectedDisplay: q.displayAnswer,
+      expectedDisplay: renderMentalDisplayAnswer(
+        q,
+        preferencesStore.getPreferences().language,
+      ),
     });
     this.questionIndex += 1;
     if (this.questionIndex >= this.questions.length) {
@@ -163,7 +169,10 @@ export class MentalPositionSession {
       dictateSequence: this.dictateSequence,
       questionIndex: this.questionIndex,
       questions: this.questions,
-      currentPrompt: this.phase === 'questioning' ? q?.promptFr ?? null : null,
+      currentPrompt:
+        this.phase === 'questioning' && q
+          ? renderMentalPrompt(q, preferencesStore.getPreferences().language)
+          : null,
       lastFeedback: this.lastFeedback,
       score: this.score,
       answered: this.answered,

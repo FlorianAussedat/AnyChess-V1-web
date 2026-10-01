@@ -10,6 +10,7 @@ import {
 import { ENDGAME_TRAINING_CONFIG } from './types.ts';
 import type { DefenderColor } from './types.ts';
 import { verifyLoss } from '../engine/LossVerifier.ts';
+import { tMsg } from '../../i18n/tMsg.ts';
 
 export type DrawAlternativeMove = {
   san: string;
@@ -157,18 +158,26 @@ export function formatDrawAlternativesMessage(
   formatSan: (san: string) => string,
 ): string {
   if (!result.reliable || result.alternatives.length === 0) {
-    return 'Aucune alternative suffisamment fiable n’a pu être confirmée.';
+    return tMsg('endgame.noReliableAlternative');
   }
 
   const sans = result.alternatives.map((a) => formatSan(a.san));
   if (sans.length === 1) {
-    return `La nulle pouvait être conservée avec : ${sans[0]}.`;
+    return tMsg('endgame.drawAltOne', { san: sans[0]! });
   }
   if (sans.length === 2) {
-    return `La nulle pouvait être conservée avec : ${sans[0]} ou ${sans[1]}.`;
+    return tMsg('endgame.drawAltTwo', { first: sans[0]!, second: sans[1]! });
   }
   if (result.hasMoreAlternatives) {
-    return `Parmi les coups qui permettaient de conserver la nulle : ${sans[0]}, ${sans[1]} et ${sans[2]}.\nD’autres coups maintenaient également l’équilibre.`;
+    return tMsg('endgame.drawAltThreeMore', {
+      first: sans[0]!,
+      second: sans[1]!,
+      third: sans[2]!,
+    });
   }
-  return `La nulle pouvait être conservée avec : ${sans[0]}, ${sans[1]} ou ${sans[2]}.`;
+  return tMsg('endgame.drawAltThree', {
+    first: sans[0]!,
+    second: sans[1]!,
+    third: sans[2]!,
+  });
 }

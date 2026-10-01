@@ -83,12 +83,14 @@ export function AnalysisOverlay({ visible, payload, onClose }: Props) {
   const board = useMemo(() => boardFromFen(analysis.line.fen), [analysis.line.fen]);
 
   const bestLabel = useMemo(() => {
-    if (analysis.gameOver) return 'Partie terminée';
+    if (analysis.gameOver) return t('game.gameOver');
     if (!analysis.evalState.bestSan) {
       return analysis.evalState.thinking ? '…' : '—';
     }
-    return `Meilleur coup : ${formatSanForDisplay(analysis.evalState.bestSan, chessNotation)}`;
-  }, [analysis, chessNotation]);
+    return t('review.bestMove', {
+      san: formatSanForDisplay(analysis.evalState.bestSan, chessNotation),
+    });
+  }, [analysis, chessNotation, t]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
 
@@ -151,7 +153,7 @@ export function AnalysisOverlay({ visible, payload, onClose }: Props) {
 
           {analysis.canReturnToBranch && (
             <AppButton
-              label="Retour à la position"
+              label={t('review.returnToPosition')}
               onPress={analysis.returnToBranchRoot}
               variant="secondary"
               testID="analysis-return-branch"

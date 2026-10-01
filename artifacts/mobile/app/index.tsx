@@ -22,7 +22,7 @@ import { formatAppVersionLabel } from '@/lib/app/version';
 import { BrandAssets, modeCardIllustration } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import {
-  HORIZONTAL_LOGO_ART,
+  HORIZONTAL_LOGO_WORDMARK,
   HORIZONTAL_LOGO_CANVAS,
   artHeight,
   artWidth,
@@ -40,8 +40,8 @@ export default function MainMenu() {
   const { t } = useTranslation();
 
   // More prominent logo (~240–290px of VISIBLE artwork).
-  const logoArtW = artWidth(HORIZONTAL_LOGO_ART);
-  const logoArtH = artHeight(HORIZONTAL_LOGO_ART);
+  const logoArtW = artWidth(HORIZONTAL_LOGO_WORDMARK);
+  const logoArtH = artHeight(HORIZONTAL_LOGO_WORDMARK);
   const logoVisibleWidth = Math.min(
     290,
     Math.max(240, width - DesignTokens.spacing.screenX * 2),
@@ -51,8 +51,8 @@ export default function MainMenu() {
   const logoImgHeight = Math.round(
     logoImgWidth * (HORIZONTAL_LOGO_CANVAS.height / HORIZONTAL_LOGO_CANVAS.width),
   );
-  const logoImgLeft = -Math.round(HORIZONTAL_LOGO_ART.left * logoImgWidth);
-  const logoImgTop = -Math.round(HORIZONTAL_LOGO_ART.top * logoImgHeight);
+  const logoImgLeft =     -Math.round(HORIZONTAL_LOGO_WORDMARK.left * logoImgWidth);
+  const logoImgTop = -Math.round(HORIZONTAL_LOGO_WORDMARK.top * logoImgHeight);
 
   return (
     <ScrollView
@@ -76,7 +76,7 @@ export default function MainMenu() {
                 { width: logoVisibleWidth, height: logoVisibleHeight },
               ]}
               testID="home-horizontal-logo"
-              accessibilityLabel="AnyChess"
+              accessibilityLabel={`AnyChess. ${t('home.tagline')}`}
             >
               <Image
                 source={BrandAssets.horizontalLogo}
@@ -93,6 +93,12 @@ export default function MainMenu() {
                 accessibilityIgnoresInvertColors
               />
             </View>
+            <Text
+              style={[styles.tagline, { color: colors.mutedForeground }]}
+              testID="home-tagline"
+            >
+              {t('home.tagline')}
+            </Text>
           </View>
         </View>
       </View>
@@ -151,6 +157,12 @@ const styles = StyleSheet.create({
   logoViewport: {
     overflow: 'hidden',
     position: 'relative',
+  },
+  tagline: {
+    marginTop: 6,
+    fontSize: 13,
+    fontFamily: DesignTokens.typography.weightRegular,
+    letterSpacing: 0.4,
   },
   cards: {
     gap: DesignTokens.spacing.cardGap,

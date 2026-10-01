@@ -28,6 +28,7 @@ import { CHESS_CONTEXT_STRINGS } from '@/lib/voice';
 import { shouldRestartRecognition } from '@/lib/speech/micLifecycle';
 import { preferencesStore } from '@/lib/preferences';
 import { speechLocaleForLanguage } from '@/lib/i18n';
+import { tMsg } from '@/lib/i18n/tMsg.ts';
 
 export type MicStatusCode =
   | 'idle'
@@ -90,7 +91,7 @@ export async function prepareSpeechRecognition(): Promise<MicStatus> {
     const status: MicStatus = {
       code: 'unsupported',
       message:
-        'La reconnaissance vocale n’est pas disponible dans ce navigateur. Utilise Chrome/Edge, ou saisis le coup au clavier.',
+        tMsg('speech.unavailableBrowser'),
     };
     logMic('unsupported');
     return status;
@@ -101,13 +102,13 @@ export async function prepareSpeechRecognition(): Promise<MicStatus> {
     if (web === 'denied') {
       return {
         code: 'permission-denied',
-        message: 'Permission microphone refusée. Autorise le micro dans le navigateur.',
+        message: tMsg('speech.micDeniedBrowser'),
       };
     }
     if (web === 'unavailable') {
       return {
         code: 'unavailable',
-        message: 'Microphone indisponible sur cet appareil / navigateur.',
+        message: tMsg('speech.micUnavailableDevice'),
       };
     }
   } else {
@@ -116,14 +117,14 @@ export async function prepareSpeechRecognition(): Promise<MicStatus> {
       if (!granted) {
         return {
           code: 'permission-denied',
-          message: 'Permission microphone refusée.',
+          message: tMsg('speech.micDenied'),
         };
       }
     } catch (err) {
       logMic('permission-request-failed', err);
       return {
         code: 'start-failed',
-        message: 'Impossible de demander la permission microphone.',
+        message: tMsg('speech.micPermissionFailed'),
         lastError: String(err),
       };
     }
@@ -222,7 +223,7 @@ export function useSpeechInput(options: {
       logMic('start-failed', err);
       setStatus({
         code: 'start-failed',
-        message: 'Échec du démarrage de la reconnaissance vocale.',
+        message: tMsg('speech.startFailed'),
         lastError: String(err),
       });
       setIsListening(false);
@@ -288,7 +289,7 @@ export function useSpeechInput(options: {
     if (code === 'not-allowed') {
       setStatus({
         code: 'permission-denied',
-        message: 'Permission microphone refusée.',
+        message: tMsg('speech.micDenied'),
         lastError: code,
       });
       setMicActive(false);
@@ -297,7 +298,7 @@ export function useSpeechInput(options: {
     if (code === 'service-not-allowed' || code === 'language-not-supported') {
       setStatus({
         code: 'unsupported',
-        message: 'Reconnaissance vocale non supportée ici.',
+        message: tMsg('speech.unsupported'),
         lastError: code,
       });
       setMicActive(false);
@@ -305,7 +306,7 @@ export function useSpeechInput(options: {
     }
     setStatus({
       code: 'error',
-      message: `Erreur micro : ${code}`,
+      message: tMsg('speech.micError', { code }),
       lastError: code,
     });
   });
@@ -318,7 +319,7 @@ export function useSpeechInput(options: {
       logMic('empty-transcript');
       setStatus({
         code: 'empty-transcript',
-        message: 'Rien d’utilisable reconnu. Réessaie.',
+        message: tMsg('speech.nothingRecognized'),
       });
       return;
     }

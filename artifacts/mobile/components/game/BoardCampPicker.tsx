@@ -40,7 +40,7 @@ export function BoardCampPicker({
 
   return (
     <View style={styles.wrap} testID="board-camp-picker">
-      <Text style={[styles.heading, { color: colors.mutedForeground }]}>CHOIX DU CAMP</Text>
+      <Text style={[styles.heading, { color: colors.mutedForeground }]}>{t('campPicker.title')}</Text>
       <View style={[styles.boardHost, { width: boardSize, height: boardSize }]}>
         <ChessBoard
           board={board}
@@ -97,13 +97,12 @@ export function BoardCampPicker({
               },
             ]}
           >
-            <Text style={[styles.randomLine, { color: colors.primary }]}>Camp</Text>
-            <Text style={[styles.randomLine, { color: colors.primary }]}>aléatoire</Text>
+            <Text style={[styles.randomLine, { color: colors.primary }]}>{t('campPicker.randomSide')}</Text>
           </Pressable>
         </View>
       </View>
       <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-        Touche les pièces Blanches ou Noires, ou choisis un camp aléatoire.
+        {t('campPicker.hint')}
       </Text>
     </View>
   );

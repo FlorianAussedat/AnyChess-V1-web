@@ -40,6 +40,7 @@ import {
   type RepertoireFolder,
   type RepertoireSide,
 } from '@/lib/repertoire';
+import { PgnTranslationActions } from '@/components/pgn/PgnTranslationActions';
 
 function importedGameToPgn(game: ImportedChessGame): string | null {
   const raw = game.source.rawPgn?.trim();
@@ -96,6 +97,7 @@ export default function PartiesLibraryScreen() {
   const [folders, setFolders] = useState<GameLibraryFolder[]>([]);
   const [allFolders, setAllFolders] = useState<GameLibraryFolder[]>([]);
   const [games, setGames] = useState<ImportedChessGame[]>([]);
+  const [allGames, setAllGames] = useState<ImportedChessGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [renameEdit, setRenameEdit] = useState<RenameEdit | null>(null);
@@ -130,6 +132,7 @@ export default function PartiesLibraryScreen() {
       ]);
       setFolders(folderList);
       setGames(gameList);
+      setAllGames(snap.games);
       setAllFolders(snap.folders);
     } catch {
       setFolders([]);
@@ -325,6 +328,18 @@ export default function PartiesLibraryScreen() {
             icon="arrow-up-outline"
             label={t('parties.importPgnFen')}
             onPress={() => router.push('/parties/import' as Href)}
+          />
+          <PgnTranslationActions
+            source="gameLibrary"
+            files={allGames
+              .map((game) => ({
+                id: game.id,
+                filename: `${gameLibraryTitle(game)}.pgn`,
+                pgnText: game.source.rawPgn ?? '',
+              }))
+              .filter((file) => file.pgnText.trim())}
+            selectedIds={games.map((game) => game.id)}
+            testID="parties-pgn-translation"
           />
           <LibraryActionRow
             testID="parties-start-initial"

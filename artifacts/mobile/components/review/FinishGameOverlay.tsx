@@ -207,10 +207,10 @@ export function FinishGameOverlay({ visible, payload, onClose }: Props) {
 
   const confirmClose = () => {
     confirmAction(
-      'Quitter Finir la partie ?',
-      'Le résultat de l’exercice ne sera pas modifié.',
+      t('review.finishGameTitle'),
+      t('review.finishGameBody'),
       onClose,
-      { confirmLabel: 'Retour au résultat' },
+      { confirmLabel: t('review.backToResult') },
     );
   };
 
@@ -219,7 +219,7 @@ export function FinishGameOverlay({ visible, payload, onClose }: Props) {
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Text style={[styles.title, { color: colors.foreground }]}>
-            Finir la partie
+            {t('review.finishGame')}
           </Text>
 
           <ChessBoardSection
@@ -304,7 +304,7 @@ export function FinishGameOverlay({ visible, payload, onClose }: Props) {
           )}
 
           <AppButton
-            label="Retour au résultat"
+            label={t('review.backToResult')}
             onPress={confirmClose}
             variant="secondary"
             testID="finish-game-back-result"
