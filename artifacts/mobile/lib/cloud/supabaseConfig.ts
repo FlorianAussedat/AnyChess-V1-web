@@ -28,6 +28,12 @@ export function isSupabaseConfigured(): boolean {
  * On the free *.supabase.co domain this URL is text/plain (HTML is rewritten).
  * The interactive page is renderConfirmationPage in supabase/functions/auth-confirm.
  */
+export function deleteAccountFunctionUrl(): string | null {
+  const url = resolveSupabaseUrl();
+  if (!url) return null;
+  return `${url.replace(/\/$/, '')}/functions/v1/delete-account`;
+}
+
 export function authConfirmRedirectUrl(): string | null {
   const url = resolveSupabaseUrl();
   if (!url) return null;

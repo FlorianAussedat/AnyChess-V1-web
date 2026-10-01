@@ -1,6 +1,8 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
+import { rememberBackup } from './backupIndex.ts';
 import { markConfirmationEmailSent, confirmationResendWaitSeconds } from './confirmCooldown.ts';
 import { mergeDocumentPayload } from './mergeDocuments.ts';
+import { clearDeletionPending, purgeAccountOwnedKeys } from './purgeAccountLocal.ts';
 import {
   CLOUD_ACTIVE_USER_KEY,
   CLOUD_LAST_BACKUP_KEY,
@@ -66,6 +68,7 @@ export class CloudSyncEngine {
   private silentWrites = 0;
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private syncing = false;
+  private deletionLocked = false;
   private readonly storage: KeyValueStorage;
   private readonly auth: CloudAuth;
   private readonly remote: CloudRemote;
@@ -95,6 +98,66 @@ export class CloudSyncEngine {
     return token?.trim() || null;
   }
 
+  storageHandle(): KeyValueStorage {
+    return this.storage;
+  }
+
+  isAccountDeletionLocked(): boolean {
+    return this.deletionLocked;
+  }
+
+  beginAccountDeletion(): void {
+    this.deletionLocked = true;
+    if (this.syncTimer) {
+      clearTimeout(this.syncTimer);
+      this.syncTimer = null;
+    }
+  }
+
+  releaseAccountDeletion(): void {
+    this.deletionLocked = false;
+  }
+
+  async readRefreshToken(): Promise<string | null> {
+    const raw = await this.storage.getItem(CLOUD_SESSION_KEY);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as { refreshToken?: string };
+      return parsed.refreshToken?.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Drop this account's parked copies, then put the guest workspace back if it was active. */
+  async wipeDeletedAccount(userId: string): Promise<void> {
+    const active =
+      this.state.user?.id ?? (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY));
+    await purgeAccountOwnedKeys(this.storage, userId);
+    await clearDeletionPending(this.storage);
+    if (active !== userId) {
+      this.deletionLocked = false;
+      return;
+    }
+    await this.auth.signOut();
+    await this.storage.removeItem(CLOUD_SESSION_KEY);
+    await this.restoreWorkspace(GUEST_OWNER_ID);
+    await this.withSilentWrites(async () => {
+      await this.mirrorPreferences();
+      await this.mirrorProfile();
+    });
+    await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
+    this.deletionLocked = false;
+    this.setState({
+      user: null,
+      status: this.auth.configured ? 'signed_out' : 'unconfigured',
+      pendingConfirmationEmail: null,
+      pendingConfirmationReason: null,
+      lastError: null,
+      sessionReady: true,
+    });
+  }
+
   private emit(): void {
     for (const listener of this.listeners) listener();
   }
@@ -118,10 +181,15 @@ export class CloudSyncEngine {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const key = cloudBackupKey(stamp);
       const docs = await readDocs(this.storage);
+      const ownerId =
+        this.state.user?.id ??
+        (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY)) ??
+        GUEST_OWNER_ID;
       await this.storage.setItem(
         key,
-        JSON.stringify({ version: 1, createdAt: new Date().toISOString(), docs }),
+        JSON.stringify({ version: 2, ownerId, createdAt: new Date().toISOString(), docs }),
       );
+      await rememberBackup(this.storage, key, ownerId);
       await this.storage.setItem(CLOUD_LAST_BACKUP_KEY, key);
       this.setState({ lastBackupKey: key });
       return key;
@@ -162,6 +230,26 @@ export class CloudSyncEngine {
     }
   }
 
+  private async mirrorProfile(): Promise<void> {
+    try {
+      const { profileStore } = await import('../profile/ProfileStore.ts');
+      if (!profileStore.usesStorage(this.storage)) return;
+      await profileStore.reloadFromStorage();
+    } catch {
+      // The stored document is already updated. The next launch reads it.
+    }
+  }
+
+  private async settleAccountLifecycle(): Promise<void> {
+    if (this.deletionLocked) return;
+    try {
+      const { settleAccountLifecycle } = await import('./accountLifecycle.ts');
+      await settleAccountLifecycle(this);
+    } catch {
+      // Avatar upload and deletion resume must not block the session.
+    }
+  }
+
   async hydrate(): Promise<CloudEngineState> {
     try {
       if (!this.auth.configured) {
@@ -175,6 +263,7 @@ export class CloudSyncEngine {
         } else {
           this.setState({ user, lastBackupKey: backup, status: 'pending' });
           await this.sync();
+          await this.settleAccountLifecycle();
         }
       }
     } catch (error) {
@@ -304,10 +393,12 @@ export class CloudSyncEngine {
       sessionReady: true,
     });
     await this.sync();
+    await this.settleAccountLifecycle();
     return result;
   }
 
   async sync(): Promise<CloudEngineState> {
+    if (this.deletionLocked) return this.getState();
     if (typeof this.auth.token === 'function' && !this.auth.token()?.trim()) {
       this.setState({
         status: this.auth.configured ? 'signed_out' : 'unconfigured',
@@ -333,6 +424,7 @@ export class CloudSyncEngine {
       const localDocs = await readDocs(this.storage);
       const merged: Record<string, string | null> = { ...localDocs };
       for (const key of SYNCABLE_STORAGE_KEYS) {
+        if (this.deletionLocked) break;
         const local = localDocs[key] ?? null;
         const remote = remoteMap.get(key)?.payload ?? null;
         const next = mergeDocumentPayload(key, local, remote);
@@ -350,6 +442,7 @@ export class CloudSyncEngine {
       await this.withSilentWrites(async () => {
         await writeDocs(this.storage, merged);
         await this.mirrorPreferences();
+        await this.mirrorProfile();
       });
       this.setState({
         status: 'synced',
@@ -369,18 +462,20 @@ export class CloudSyncEngine {
   }
 
   markPending(): void {
+    if (this.deletionLocked) return;
     if (this.state.user && this.state.status !== 'unconfigured') {
       this.setState({ status: 'pending' });
     }
   }
 
   notifyLocalMutation(): void {
-    if (this.silentWrites > 0 || this.syncing || !this.state.user) return;
+    if (this.deletionLocked || this.silentWrites > 0 || this.syncing || !this.state.user) return;
     this.markPending();
     this.scheduleSync();
   }
 
   scheduleSync(delayMs = 800): void {
+    if (this.deletionLocked) return;
     if (this.syncTimer) clearTimeout(this.syncTimer);
     this.syncTimer = setTimeout(() => {
       this.syncTimer = null;

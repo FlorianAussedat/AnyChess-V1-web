@@ -61,6 +61,7 @@ function RootLayoutNav() {
       <Stack.Screen name="parties" />
       <Stack.Screen name="records" />
       <Stack.Screen name="utilisateur" />
+      <Stack.Screen name="creer-compte" />
       <Stack.Screen name="parametres" />
       <Stack.Screen name="profil" />
       {typeof __DEV__ !== 'undefined' && __DEV__ ? (

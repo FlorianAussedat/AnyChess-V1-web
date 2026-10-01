@@ -21,6 +21,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { confirmAction } from '@/lib/openings/confirmAction';
 import { CloudAccountSection } from '@/components/cloud/CloudAccountSection';
+import { AvatarField } from '@/components/profile/AvatarField';
 import { ProfilNavRow } from '@/components/profil/ProfilNavRow';
 import { OptionChip } from '@/components/ui/OptionChip';
 import {
@@ -29,6 +30,14 @@ import {
   CHESS_YEARS_MAX,
   CHESS_YEARS_MIN,
 } from '@/lib/profile';
+import { cloudSyncEngine } from '@/lib/cloud';
+import {
+  cacheRemoteAvatar,
+  removeLocalAndRemoteAvatar,
+  uploadAvatarObject,
+} from '@/lib/profile/avatarRemote';
+import { readAvatarCache, savePendingAvatar, writeAvatarCache } from '@/lib/profile/avatarLocal';
+import { defaultKeyValueStorage } from '@/lib/storage';
 import { repertoireService } from '@/lib/repertoire';
 import {
   RECORDS_CATEGORIES,
@@ -52,6 +61,7 @@ export default function UtilisateurScreen() {
   const { t } = useTranslation();
 
   const [editor, setEditor] = useState<EditorKind>(null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [draftUsername, setDraftUsername] = useState('');
   const [repertoireCount, setRepertoireCount] = useState(0);
   const [activeRecords, setActiveRecords] = useState(0);
@@ -66,6 +76,61 @@ export default function UtilisateurScreen() {
     if (!cloud.user) return;
     reloadSummaries().catch(() => {});
   }, [reloadSummaries, cloud.user]);
+
+  useEffect(() => {
+    const user = cloud.user;
+    if (!user) {
+      setAvatarUri(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const cached = await readAvatarCache(defaultKeyValueStorage, user.id);
+      if (cancelled) return;
+      if (cached) {
+        setAvatarUri(cached);
+        return;
+      }
+      if (!profile.hasAvatar) {
+        setAvatarUri(null);
+        return;
+      }
+      const downloaded = await cacheRemoteAvatar({
+        storage: defaultKeyValueStorage,
+        userId: user.id,
+        accessToken: cloudSyncEngine.getAccessToken(),
+      });
+      if (!cancelled) setAvatarUri(downloaded);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cloud.user, profile.hasAvatar]);
+
+  const onAvatarChange = async (dataUrl: string | null) => {
+    const user = cloud.user;
+    if (!user) return;
+    const token = cloudSyncEngine.getAccessToken();
+    if (!dataUrl) {
+      setAvatarUri(null);
+      await removeLocalAndRemoteAvatar({
+        storage: defaultKeyValueStorage,
+        userId: user.id,
+        accessToken: token,
+      });
+      return;
+    }
+    setAvatarUri(dataUrl);
+    await writeAvatarCache(defaultKeyValueStorage, user.id, dataUrl);
+    const uploaded = token
+      ? await uploadAvatarObject(user.id, token, dataUrl)
+      : false;
+    if (uploaded) {
+      await updateProfile({ hasAvatar: true });
+      return;
+    }
+    await savePendingAvatar(defaultKeyValueStorage, user.email, dataUrl);
+  };
 
   const summaryLine = useMemo(() => {
     if (profile.username) return profile.username;
@@ -159,10 +224,22 @@ export default function UtilisateurScreen() {
         style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}
         testID="profil-summary"
       >
-        <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>
-        <Text style={[styles.summaryHint, { color: colors.mutedForeground }]}>
-          {t('profil.localData')}
-        </Text>
+        <View style={styles.identity}>
+          <AvatarField
+            username={profile.username}
+            imageUri={avatarUri}
+            onChange={(next) => {
+              void onAvatarChange(next);
+            }}
+            testID="profil-avatar"
+          />
+          <View style={styles.identityText}>
+            <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>
+            <Text style={[styles.summaryHint, { color: colors.mutedForeground }]}>
+              {t('profil.localData')}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
@@ -422,6 +499,12 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: DesignTokens.typography.weightRegular,
   },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  identityText: { flex: 1, gap: 4 },
   summaryCard: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.lg,

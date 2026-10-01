@@ -45,6 +45,7 @@ function validateProfile(raw: unknown): UserProfile | null {
   if (o.blitzRangeId != null && typeof o.blitzRangeId !== 'string') return null;
   if (o.bulletRangeId != null && typeof o.bulletRangeId !== 'string') return null;
   if (o.chessYears != null && typeof o.chessYears !== 'number') return null;
+  if (o.hasAvatar != null && typeof o.hasAvatar !== 'boolean') return null;
   if (typeof o.updatedAt !== 'string') return null;
   if (!isValidPlayerEloRangeId(o.rapidRangeId as string | null)) return null;
   if (!isValidPlayerEloRangeId(o.blitzRangeId as string | null)) return null;
@@ -58,6 +59,7 @@ function validateProfile(raw: unknown): UserProfile | null {
     blitzRangeId: (o.blitzRangeId as string | null) ?? null,
     bulletRangeId: (o.bulletRangeId as string | null) ?? null,
     chessYears: clampYears((o.chessYears as number | null) ?? null),
+    hasAvatar: o.hasAvatar === true,
     updatedAt: o.updatedAt,
   };
 }
@@ -137,6 +139,8 @@ export class ProfileStore {
         patch.chessYears !== undefined
           ? clampYears(patch.chessYears)
           : current.chessYears,
+      hasAvatar:
+        patch.hasAvatar !== undefined ? patch.hasAvatar === true : current.hasAvatar === true,
       updatedAt: nowIso(),
     };
     await this.persist(next);
@@ -153,6 +157,25 @@ export class ProfileStore {
     };
     await this.persist(next);
     return next;
+  }
+
+  usesStorage(storage: KeyValueStorage): boolean {
+    return storage === this.storage;
+  }
+
+  /** Re-read the document after a cloud merge. Does not write storage. */
+  async reloadFromStorage(): Promise<UserProfile> {
+    const result = await loadStoredJson(
+      this.storage,
+      StorageKeys.userProfile.key,
+      emptyUserProfile(),
+      validateProfile,
+    );
+    this.profile = result.status === 'ok' ? result.value : emptyUserProfile();
+    this.loaded = true;
+    this.loadPromise = null;
+    this.listeners.forEach((l) => l(this.profile!));
+    return this.profile;
   }
 
   onChange(listener: ProfileListener): () => void {

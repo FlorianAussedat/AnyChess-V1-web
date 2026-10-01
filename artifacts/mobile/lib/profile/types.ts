@@ -12,13 +12,23 @@ export interface UserProfile {
   bulletRangeId: string | null;
   /** Years of chess practice; null = unset. */
   chessYears: number | null;
+  /**
+   * True when an avatar object exists in the owner's storage folder.
+   * Missing on older documents means no avatar.
+   */
+  hasAvatar: boolean;
   updatedAt: string;
 }
 
 export type UserProfilePatch = Partial<
   Pick<
     UserProfile,
-    'username' | 'rapidRangeId' | 'blitzRangeId' | 'bulletRangeId' | 'chessYears'
+    | 'username'
+    | 'rapidRangeId'
+    | 'blitzRangeId'
+    | 'bulletRangeId'
+    | 'chessYears'
+    | 'hasAvatar'
   >
 >;
 
@@ -36,6 +46,7 @@ export function emptyUserProfile(now: () => string = () => new Date().toISOStrin
     blitzRangeId: null,
     bulletRangeId: null,
     chessYears: null,
+    hasAvatar: false,
     updatedAt: now(),
   };
 }
