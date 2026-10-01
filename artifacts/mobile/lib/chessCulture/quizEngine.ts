@@ -14,6 +14,7 @@ import type {
   ChessCultureQuestionFeedback,
   ChessCultureQuizFilters,
   ChessCultureScore,
+  ChessCultureReviewItem,
   ChessCultureSessionQuestion,
   ChessCultureSourceType,
 } from './types.ts';
@@ -227,6 +228,32 @@ export function calculateChessCultureScore(
   const percentage =
     safeTotal === 0 ? 0 : Math.round((correct / safeTotal) * 100);
   return { correct, total: safeTotal, percentage };
+}
+
+/**
+ * Rebuild the recap from the questions and shuffled answers actually shown.
+ * `selectedDisplayIndices` is aligned with session order (not source bank order).
+ */
+export function buildChessCultureReview(
+  session: readonly ChessCultureSessionQuestion[],
+  selectedDisplayIndices: readonly (number | null | undefined)[],
+): ChessCultureReviewItem[] {
+  return session.map((item, index) => {
+    const selected = selectedDisplayIndices[index];
+    const selectedAnswer =
+      typeof selected === 'number' && item.displayAnswers[selected] != null
+        ? item.displayAnswers[selected]!
+        : '';
+    const correctAnswer = item.displayAnswers[item.correctDisplayIndex] ?? '';
+    return {
+      index,
+      question: item.question.question,
+      explanation: item.question.explanation?.trim() ?? '',
+      selectedAnswer,
+      correctAnswer,
+      correct: selected === item.correctDisplayIndex,
+    };
+  });
 }
 
 export function shouldBlacklistQuestion(downVotes: number): boolean {

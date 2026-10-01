@@ -768,6 +768,12 @@ export type MessageKey =
   | 'quiz.finished'
   | 'quiz.noQuestions'
   | 'quiz.score'
+  | 'quiz.yourAnswers'
+  | 'quiz.yourChoice'
+  | 'quiz.seeExplanation'
+  | 'quiz.hideExplanation'
+  | 'quiz.correctAnswersCount'
+  | 'quiz.incorrectAnswersCount'
   | 'quiz.replay'
   | 'quiz.backToHub'
   | 'quiz.identifyPrompt'
@@ -2006,6 +2012,12 @@ const fr: Dict = {
   'quiz.finished': 'Quiz terminé',
   'quiz.noQuestions': 'Aucune question disponible pour le moment.',
   'quiz.score': 'Score {{correct}} / {{total}}',
+  'quiz.yourAnswers': 'Tes réponses',
+  'quiz.yourChoice': 'Ta réponse : {{answer}}',
+  'quiz.seeExplanation': 'Voir l’explication',
+  'quiz.hideExplanation': 'Masquer l’explication',
+  'quiz.correctAnswersCount': 'Bonnes réponses : {{count}}',
+  'quiz.incorrectAnswersCount': 'Mauvaises réponses : {{count}}',
   'quiz.replay': 'Rejouer',
   'quiz.backToHub': 'Retour à Culture générale',
   'quiz.identifyPrompt': 'Identifie l’ouverture après cette ligne :',
@@ -3305,6 +3317,12 @@ const en: Dict = {
   'quiz.finished': 'Quiz finished',
   'quiz.noQuestions': 'No questions available right now.',
   'quiz.score': 'Score {{correct}} / {{total}}',
+  'quiz.yourAnswers': 'Your answers',
+  'quiz.yourChoice': 'Your answer: {{answer}}',
+  'quiz.seeExplanation': 'See explanation',
+  'quiz.hideExplanation': 'Hide explanation',
+  'quiz.correctAnswersCount': 'Correct answers: {{count}}',
+  'quiz.incorrectAnswersCount': 'Incorrect answers: {{count}}',
   'quiz.replay': 'Play again',
   'quiz.backToHub': 'Back to General knowledge',
   'quiz.identifyPrompt': 'Identify the opening after this line:',

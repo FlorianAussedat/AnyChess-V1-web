@@ -5,6 +5,7 @@ import { CHESS_CULTURE_QUESTIONS } from '../questions.ts';
 import {
   applyQuestionFeedback,
   boardFromFen,
+  buildChessCultureReview,
   calculateChessCultureScore,
   createChessCultureQuizSession,
   emptyChessCultureFeedbackSnapshot,
@@ -242,6 +243,58 @@ describe('chessCulture quiz engine', () => {
       total: 0,
       percentage: 0,
     });
+    assert.deepEqual(calculateChessCultureScore(3, 7), {
+      correct: 3,
+      total: 7,
+      percentage: 43,
+    });
+  });
+
+  it('builds a recap from shuffled display answers for zero, mixed, and perfect scores', () => {
+    const q1 = sampleQuestion({
+      id: 'r1',
+      question: 'Q1',
+      answers: ['A', 'B', 'C', 'D'],
+      correctAnswer: 0,
+      explanation: 'Because A',
+    });
+    const q2 = sampleQuestion({
+      id: 'r2',
+      question: 'Q2',
+      answers: ['W', 'X', 'Y', 'Z'],
+      correctAnswer: 2,
+      explanation: '  ',
+    });
+    const session = createChessCultureQuizSession([q1, q2], 2, () => 0.2);
+    assert.equal(session.length, 2);
+    const allWrong = session.map((item) =>
+      item.displayAnswers.findIndex((_, i) => i !== item.correctDisplayIndex),
+    );
+    const zero = buildChessCultureReview(session, allWrong);
+    assert.equal(zero.every((item) => item.correct === false), true);
+    assert.equal(calculateChessCultureScore(zero.filter((i) => i.correct).length, zero.length).percentage, 0);
+    assert.equal(zero[0]!.correctAnswer, session[0]!.displayAnswers[session[0]!.correctDisplayIndex]);
+    const blankExplain = zero.find((item) => item.question === 'Q2');
+    assert.equal(blankExplain?.explanation, '');
+
+    const mixed = buildChessCultureReview(session, [
+      session[0]!.correctDisplayIndex,
+      allWrong[1],
+    ]);
+    assert.equal(mixed[0]!.correct, true);
+    assert.equal(mixed[1]!.correct, false);
+    assert.equal(mixed[0]!.selectedAnswer, mixed[0]!.correctAnswer);
+    assert.equal(mixed[1]!.selectedAnswer !== mixed[1]!.correctAnswer, true);
+
+    const perfect = buildChessCultureReview(
+      session,
+      session.map((item) => item.correctDisplayIndex),
+    );
+    assert.equal(perfect.every((item) => item.correct), true);
+    assert.equal(
+      calculateChessCultureScore(perfect.length, perfect.length).percentage,
+      100,
+    );
   });
 
   it('keeps the correct answer association after answer shuffling', () => {
@@ -263,6 +316,18 @@ describe('chessCulture quiz engine', () => {
       'Right',
     );
     assert.equal(q.answers[0], 'Right');
+
+    const wrongIndex = sessionQ.displayAnswers.findIndex((a) => a === 'W1');
+    const review = buildChessCultureReview([sessionQ], [wrongIndex]);
+    assert.equal(review.length, 1);
+    assert.equal(review[0]!.selectedAnswer, 'W1');
+    assert.equal(review[0]!.correctAnswer, 'Right');
+    assert.equal(review[0]!.correct, false);
+    assert.equal(
+      buildChessCultureReview([sessionQ], [sessionQ.correctDisplayIndex])[0]
+        ?.correct,
+      true,
+    );
   });
 
   it('excludes blacklisted questions from eligible sessions', () => {

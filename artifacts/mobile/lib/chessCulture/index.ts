@@ -19,6 +19,7 @@ export type {
   ChessCultureQuizFilters,
   ChessCultureSessionQuestion,
   ChessCultureScore,
+  ChessCultureReviewItem,
 } from './types.ts';
 
 export { CHESS_CULTURE_QUESTIONS } from './questions.ts';
@@ -43,6 +44,7 @@ export {
   createChessCultureQuizSession,
   chessCultureQuestionKey,
   calculateChessCultureScore,
+  buildChessCultureReview,
   shouldBlacklistQuestion,
   reconcileFeedbackWithQuestionRevision,
   applyQuestionFeedback,
