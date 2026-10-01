@@ -30,6 +30,33 @@ Les commentaires déjà `ready` / `done` ne sont pas renvoyés. Pause, reprise e
 
 Quota documenté DeepL API Free : **500 000 caractères / mois**.
 
+## Serveur et secret `DEEPL_API_KEY`
+
+Le serveur qui héberge l’endpoint est le service **API Server** de ce projet Replit :
+
+- Projet : [https://replit.com/@florianaussedat/AnyChess-V1-web](https://replit.com/@florianaussedat/AnyChess-V1-web)
+- Processus : `artifacts/api-server` (`POST /api/pgn-comments/translate`)
+- Ne pas mettre la clé dans GitHub Secrets, EAS, `EXPO_PUBLIC_*` ni dans Cursor
+
+### Où saisir la clé (vous seul, dans Replit)
+
+1. Ouvrez le projet Replit ci-dessus (connecté avec le compte `florianaussedat`).
+2. En haut de l’éditeur : **Tools**.
+3. Section **Setup** → **Secrets**.
+4. **New Secret**.
+5. **Key** : `DEEPL_API_KEY` (nom exact).
+6. **Value** : collez la clé DeepL Free uniquement dans ce champ.
+7. **Add Secret**.
+
+Si l’app est déjà publiée (Autoscale), ajoutez **aussi** la même clé ici :
+
+1. **Publishing** (publication).
+2. **Adjust settings**.
+3. **Production app secrets**.
+4. **Key** `DEEPL_API_KEY`, puis enregistrer.
+
+Redémarrez le service API (Run) ou republiez après l’ajout. Ne collez jamais la clé dans le chat ni dans le code.
+
 ## Hébergement
 
 Le backend **existe déjà** dans ce dépôt (`artifacts/api-server`, service Replit `artifact.toml`). Il n’est **pas** publié aujourd’hui.
