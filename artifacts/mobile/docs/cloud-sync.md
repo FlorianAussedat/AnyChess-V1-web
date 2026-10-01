@@ -44,12 +44,13 @@ Voir aussi `docs/pgn-comment-translation.md`.
 
 1. Créez un projet [Supabase](https://supabase.com) **Free** (pas Pro, pas add-ons payants).
 2. **Authentication → Providers → Email** : laissez Email activé et **Confirm email** activé. Le message d’inscription, le renvoi et la page de retour sont décrits dans `docs/auth-confirmation.md`.
-3. **Authentication → URL configuration** : Site URL = la page `functions/v1/auth-confirm` du projet (pas `localhost`). L’adresse de redirection doit rester dans la liste autorisée.
+3. **Authentication → URL configuration** : tant que la page HTTPS n’est pas en ligne, Site URL = `functions/v1/auth-confirm` (texte brut sur `*.supabase.co`, pas `localhost`). Dès que le serveur web répond en `text/html` sur `/auth/confirm`, mettre cette URL en Site URL **et** dans Redirect URLs, puis `EXPO_PUBLIC_AUTH_CONFIRM_URL` au même endroit. Le détail, y compris le mot de passe oublié, est dans `docs/auth-confirmation.md`.
 4. SQL Editor : exécutez `supabase/user_documents.sql` (RLS propriétaire, aucun secret DeepL).
 5. **Project Settings → API** : copiez **Project URL** et **anon public**. Ne copiez pas `service_role`.
 6. Replit → **Tools → Secrets / Configurations** (variables d’environnement de l’app Expo, pas les secrets serveur DeepL) :
    - `EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co`
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...` (clé anon)
+   - `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://<origine-web-déjà-en-ligne>/auth/confirm` (seulement quand cette page répond ; sinon omettre)
 7. Build Android de développement : les variables `EXPO_PUBLIC_*` doivent être présentes **au moment du bundle** (EAS env / `.env` local avant `expo run:android`). Puis relancez le bundler.
 8. Laissez `DEEPL_API_KEY` uniquement dans **Supabase → Edge Functions → Secrets**.
 
@@ -67,6 +68,6 @@ Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non co
 - hors ligne puis synchro ;
 - aucune clé DeepL dans le client cloud.
 
-`lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, et la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton.
+`lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton, le formulaire de nouveau mot de passe sur un lien `type=recovery`, et `GET /auth/confirm` en `text/html` sur le serveur web existant.
 
 À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le build actuel (`scheme` `mobile`, sans App Link https) n’ouvre pas l’app depuis le lien de confirmation.
