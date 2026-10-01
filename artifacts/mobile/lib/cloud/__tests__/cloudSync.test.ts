@@ -172,6 +172,8 @@ describe('account sync engine', () => {
     const config = readFileSync(join(here, '../supabaseConfig.ts'), 'utf8');
     assert.doesNotMatch(live, /DEEPL_API_KEY|api-free\.deepl/);
     assert.doesNotMatch(config, /DEEPL_API_KEY/);
+    assert.match(config, /process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
+    assert.match(config, /process\.env\.EXPO_PUBLIC_SUPABASE_ANON_KEY/);
     const utilisateur = readFileSync(join(here, '../../../app/utilisateur.tsx'), 'utf8');
     assert.match(utilisateur, /CloudAccountSection/);
     const layout = readFileSync(join(here, '../../../app/_layout.tsx'), 'utf8');

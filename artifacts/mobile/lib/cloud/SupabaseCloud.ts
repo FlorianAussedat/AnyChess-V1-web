@@ -206,8 +206,14 @@ export class SupabaseCloudRemote implements CloudRemote {
       `${url}/rest/v1/user_documents?user_id=eq.${encodeURIComponent(userId)}&select=doc_key,payload,updated_at,deleted_at,revision`,
       { method: 'GET' },
     );
-    if (!response.ok) throw new Error(`list ${response.status}`);
-    const rows = (await response.json()) as {
+    const body = await response.text();
+    if (!response.ok) {
+      if (response.status === 404 && /user_documents/i.test(body)) {
+        throw new Error('schema_missing');
+      }
+      throw new Error(`list ${response.status}`);
+    }
+    const rows = JSON.parse(body || '[]') as {
       doc_key: string;
       payload: unknown;
       updated_at: string;
@@ -245,6 +251,12 @@ export class SupabaseCloudRemote implements CloudRemote {
         }),
       },
     );
-    if (!response.ok) throw new Error(`upsert ${response.status}`);
+    if (!response.ok) {
+      const body = await response.text();
+      if (response.status === 404 && /user_documents/i.test(body)) {
+        throw new Error('schema_missing');
+      }
+      throw new Error(`upsert ${response.status}`);
+    }
   }
 }

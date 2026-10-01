@@ -225,6 +225,7 @@ export type MessageKey =
   | 'cloud.errorConfirmEmail'
   | 'cloud.errorOffline'
   | 'cloud.errorRejected'
+  | 'cloud.errorSchema'
   | 'settings.title'
   | 'settings.dictationPace'
   | 'settings.dictationPaceHint'
@@ -1375,6 +1376,8 @@ const fr: Dict = {
   'cloud.errorConfirmEmail': 'Confirmez votre e-mail, puis reconnectez-vous.',
   'cloud.errorOffline': 'Réseau indisponible.',
   'cloud.errorRejected': 'La demande a été refusée.',
+  'cloud.errorSchema':
+    'Exécutez supabase/user_documents.sql dans l’éditeur SQL du projet (table absente).',
   'settings.title': 'Paramètres',
   'settings.dictationPace': "Rythme d'énonciation des coups",
   'settings.dictationPaceHint':
@@ -2622,6 +2625,8 @@ const en: Dict = {
   'cloud.errorConfirmEmail': 'Confirm your email, then sign in again.',
   'cloud.errorOffline': 'Network unavailable.',
   'cloud.errorRejected': 'The request was rejected.',
+  'cloud.errorSchema':
+    'Run supabase/user_documents.sql in the project SQL editor (table missing).',
   'settings.title': 'Settings',
   'settings.dictationPace': 'Move dictation pace',
   'settings.dictationPaceHint':

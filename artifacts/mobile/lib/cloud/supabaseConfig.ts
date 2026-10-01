@@ -1,17 +1,22 @@
-function env(name: string): string | null {
-  if (typeof process === 'undefined') return null;
-  const value = process.env[name]?.trim();
-  return value || null;
+function readPublic(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed || null;
 }
 
 /** Public project URL — not a secret. DeepL key must never be read here. */
 export function resolveSupabaseUrl(): string | null {
-  return env('EXPO_PUBLIC_SUPABASE_URL') ?? env('ANYCHESS_SUPABASE_URL');
+  return (
+    readPublic(process.env.EXPO_PUBLIC_SUPABASE_URL) ??
+    readPublic(process.env.ANYCHESS_SUPABASE_URL)
+  );
 }
 
 /** Anon key is designed for clients and is gated by RLS. Not the service role. */
 export function resolveSupabaseAnonKey(): string | null {
-  return env('EXPO_PUBLIC_SUPABASE_ANON_KEY') ?? env('ANYCHESS_SUPABASE_ANON_KEY');
+  return (
+    readPublic(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) ??
+    readPublic(process.env.ANYCHESS_SUPABASE_ANON_KEY)
+  );
 }
 
 export function isSupabaseConfigured(): boolean {

@@ -150,6 +150,11 @@ export function CloudAccountSection() {
           </Pressable>
         </View>
       ) : null}
+      {cloud.lastError === 'schema_missing' ? (
+        <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-schema-missing">
+          {t('cloud.errorSchema')}
+        </Text>
+      ) : null}
       {formError ? (
         <Text style={{ color: colors.destructive }} testID="cloud-form-error">
           {formError}
