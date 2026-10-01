@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -33,6 +34,7 @@ export default function OpeningsReviewScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { ready, folders, getAllFiles } = useRepertoireLibrary();
+  const [poolOpen, setPoolOpen] = useState(false);
 
   const entries = useMemo(
     () => listReviewPoolEntries(folders, getAllFiles()),
@@ -86,23 +88,7 @@ export default function OpeningsReviewScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          <View
-            style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}
-            testID="review-pool-summary"
-          >
-            <Text style={[styles.summaryText, { color: colors.foreground }]}>
-              {t('openings.reviewPoolSummary', {
-                pgn: entries.length,
-                lines: lineCount,
-              })}
-            </Text>
-          </View>
-
-          {!canTrain ? (
-            <Text style={[styles.empty, { color: colors.mutedForeground }]}>
-              {t('openings.noActivePgn')}
-            </Text>
-          ) : (
+          {canTrain ? (
             <>
               <HubModeCard
                 title={t('openings.playVsRepertoire')}
@@ -118,29 +104,72 @@ export default function OpeningsReviewScreen() {
                 onPress={startContinue}
                 testID="review-continue-btn"
               />
-
-              <Text style={[styles.listTitle, { color: colors.mutedForeground }]}>
-                {t('openings.activePgnList')}
-              </Text>
-              {entries.map((entry) => (
-                <View
-                  key={entry.file.id}
-                  style={[styles.pgnChip, { borderColor: colors.border, backgroundColor: colors.card }]}
-                >
-                  <Text style={[styles.pgnName, { color: colors.foreground }]} numberOfLines={1}>
-                    {pgnFileDisplayName(entry.file)}
-                  </Text>
-                  <Text style={[styles.pgnMeta, { color: colors.mutedForeground }]}>
-                    {entry.folder.name}
-                    {' · '}
-                    {sideLabel(entry.side)}
-                    {' · '}
-                    {t('openings.linesShort', { count: entry.paths.length })}
-                  </Text>
-                </View>
-              ))}
             </>
+          ) : (
+            <Text style={[styles.empty, { color: colors.mutedForeground }]}>
+              {t('openings.noActivePgn')}
+            </Text>
           )}
+
+          <Pressable
+            onPress={() => setPoolOpen((open) => !open)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: poolOpen }}
+            style={({ pressed }) => [
+              styles.disclosure,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+            testID="review-pool-summary"
+          >
+            <Text style={[styles.disclosureText, { color: colors.foreground }]}>
+              {t('openings.reviewPoolSummary', {
+                files: entries.length,
+                lines: lineCount,
+              })}
+            </Text>
+            <Ionicons
+              name={poolOpen ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.mutedForeground}
+            />
+          </Pressable>
+
+          {poolOpen ? (
+            <View style={styles.poolList} testID="review-pool-list">
+              {entries.length === 0 ? (
+                <Text style={[styles.empty, { color: colors.mutedForeground }]}>
+                  {t('openings.noActivePgn')}
+                </Text>
+              ) : (
+                <>
+                  <Text style={[styles.listTitle, { color: colors.mutedForeground }]}>
+                    {t('openings.activePgnList')}
+                  </Text>
+                  {entries.map((entry) => (
+                    <View
+                      key={entry.file.id}
+                      style={[styles.pgnChip, { borderColor: colors.border, backgroundColor: colors.card }]}
+                    >
+                      <Text style={[styles.pgnName, { color: colors.foreground }]}>
+                        {pgnFileDisplayName(entry.file)}
+                      </Text>
+                      <Text style={[styles.pgnMeta, { color: colors.mutedForeground }]}>
+                        {entry.folder.name}
+                        {' · '}
+                        {sideLabel(entry.side)}
+                        {' · '}
+                        {t('openings.linesShort', { count: entry.paths.length })}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              )}
+            </View>
+          ) : null}
         </ScrollView>
       )}
 
@@ -164,12 +193,25 @@ const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 14, gap: 12 },
   list: { gap: 12, paddingBottom: 16 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  summary: {
+  disclosure: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     borderWidth: 1,
     borderRadius: 12,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: DesignTokens.minTouchTarget,
+    marginTop: 4,
   },
-  summaryText: { fontSize: 15, fontFamily: DesignTokens.typography.weightSemiBold },
+  disclosureText: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  poolList: { gap: 8 },
   empty: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
   listTitle: {
     fontSize: 11,
@@ -184,8 +226,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 2,
   },
-  pgnName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
-  pgnMeta: { fontSize: 12, fontFamily: 'Inter_400Regular' },
-  manageLink: { paddingVertical: 12, alignItems: 'center' },
-  manageLabel: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
+  pgnName: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_600SemiBold' },
+  pgnMeta: { fontSize: 12, lineHeight: 16, fontFamily: 'Inter_400Regular' },
+  manageLink: { minHeight: DesignTokens.minTouchTarget, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
+  manageLabel: { fontSize: 14, lineHeight: 18, fontFamily: 'Inter_600SemiBold', textAlign: 'center' },
 });

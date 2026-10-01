@@ -13,8 +13,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
 import { useOpeningMastery } from '@/hooks/useOpeningMastery';
 import { useLearningPgnList } from '@/hooks/useLearningPgnList';
+import { learningFilesInFolder } from '@/lib/repertoire';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { sideLabel } from '@/components/RepertoireSidePicker';
 import { LearningMasteryFilters, emptyFilterCopy } from '@/components/openings/LearningMasteryFilters';
 import { LearningPgnCard } from '@/components/openings/LearningPgnCard';
 import { DesignTokens } from '@/constants/designTokens';
@@ -30,7 +30,7 @@ export default function LearnFolderScreen() {
 
   const folder = folderId ? getFolder(folderId) : null;
   const files = useMemo(
-    () => (folderId ? getFiles(folderId) : []),
+    () => (folderId ? learningFilesInFolder(getFiles(folderId), folderId) : []),
     [folderId, getFiles],
   );
   const { filter, setFilter, visible, counts } = useLearningPgnList(
@@ -51,14 +51,18 @@ export default function LearnFolderScreen() {
       ]}
     >
       <ScreenHeader
-        onBack={() => router.back()}
-        title={folder?.name ?? t('openings.folderMissing')}
-        subtitle={
-          folder?.side
-            ? `${sideLabel(folder.side)} · ${t('openings.learnPgns')}`
-            : t('openings.learnPgns')
-        }
+        onBack={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/openings/learn' as Href);
+        }}
+        title={t('openings.learn')}
       />
+      <Text
+        style={[styles.folderName, { color: colors.foreground }]}
+        testID="learn-folder-title"
+      >
+        {folder?.name ?? t('openings.folderMissing')}
+      </Text>
 
       {!ready ? (
         <View style={styles.centered}>
@@ -97,6 +101,11 @@ export default function LearnFolderScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 14, gap: 12 },
+  folderName: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: DesignTokens.typography.weightBold,
+  },
   list: { gap: 10, paddingBottom: 20 },
   empty: {
     fontSize: 14,

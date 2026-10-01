@@ -119,6 +119,7 @@ export {
 } from './ephemeralOpeningSession';
 export type { EphemeralOpeningSession } from './ephemeralOpeningSession';
 export { recordOpeningRevisionResult } from './recordOpeningRevision';
+export { learningFilesInFolder } from './learningScope';
 export { repertoireFromSans } from './repertoireFromSans';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
