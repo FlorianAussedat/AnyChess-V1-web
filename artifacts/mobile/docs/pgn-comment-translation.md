@@ -41,11 +41,17 @@ L’endpoint de production est la Edge Function **`pgn-translate`** du projet Su
 
 ### Publier depuis le tableau de bord (téléphone, sans CLI)
 
+Télécharger le fichier (zip, ~9 ko) :
+https://github.com/FlorianAussedat/AnyChess-V1-web/raw/cursor/cloud-account-sync-025c/docs/pgn-translate-dashboard.zip
+
+Texte brut à coller :
+https://github.com/FlorianAussedat/AnyChess-V1-web/raw/cursor/cloud-account-sync-025c/docs/pgn-translate-dashboard/pgn-translate-a-coller.txt
+
 1. Ouvrir [https://supabase.com/dashboard](https://supabase.com/dashboard) → projet `zqfxnzwtptepulmgpxhb`.
 2. Menu **Edge Functions** → **Deploy a new function** / **Create function**.
 3. Nom exact : `pgn-translate`.
 4. Laisser **Verify JWT** activé (ON).
-5. Effacer le modèle, coller **tout** `supabase/functions/pgn-translate/index.ts` (un seul fichier).
+5. Effacer le modèle, coller **tout** le fichier `index.ts` (dans le zip).
 6. **Deploy**.
 7. Secrets : `DEEPL_API_KEY` déjà enregistré ; ne pas le recoller.
 
