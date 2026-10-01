@@ -4,6 +4,7 @@ import {
   type UserPreferences,
   type UserPreferencesPatch,
 } from '@/lib/preferences';
+import { applyPgnTranslationPreferences } from '@/lib/pgnComments/schedule.ts';
 import { speechService } from '@/services/SpeechService';
 
 /**
@@ -43,7 +44,9 @@ export function usePreferences() {
   }, []);
 
   const resetPreferences = useCallback(async () => {
-    return preferencesStore.resetPreferences();
+    const next = await preferencesStore.resetPreferences();
+    void applyPgnTranslationPreferences();
+    return next;
   }, []);
 
   return {
@@ -61,5 +64,7 @@ export function usePreferences() {
     blindProblemDifficulty: preferences.blindProblemDifficulty,
     chessInputMode: preferences.chessInputMode,
     stockfishStrengthBandId: preferences.stockfishStrengthBandId,
+    translateExistingPgnComments: preferences.translateExistingPgnComments,
+    translateImportedPgnComments: preferences.translateImportedPgnComments,
   };
 }

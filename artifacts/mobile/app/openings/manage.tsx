@@ -44,8 +44,6 @@ import {
   PgnGameSelectModal,
   type PgnGameSelectCandidate,
 } from '@/components/parties/PgnGameSelectModal';
-import { PgnTranslationActions } from '@/components/pgn/PgnTranslationActions';
-import { PgnFileTranslateButton } from '@/components/pgn/PgnFileTranslateButton';
 
 type PendingImport = {
   filename: string;
@@ -462,13 +460,6 @@ export default function OpeningsManageScreen() {
           >
             <Ionicons name="folder-outline" size={18} color={colors.mutedForeground} />
           </Pressable>
-          <PgnFileTranslateButton
-            source="repertoire"
-            fileId={file.id}
-            filename={file.filename}
-            pgnText={file.pgnText}
-            testID={`translate-pgn-${file.id}`}
-          />
           <Pressable
             onPress={() => downloadPgnFile(file.filename, file.pgnText)}
             hitSlop={8}
@@ -632,11 +623,6 @@ export default function OpeningsManageScreen() {
         <Text style={[styles.status, { color: colors.mutedForeground }]}>{statusMsg}</Text>
       ) : null}
 
-      <PgnTranslationActions
-        source="repertoire"
-        files={folders.flatMap((folder) => getFiles(folder.id))}
-        testID="opening-pgn-translation"
-      />
       <View style={styles.pgnActionStack} testID="opening-pgn-actions">
         <LibraryActionRow
           testID="import-pgn-root-btn"

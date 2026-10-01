@@ -36,6 +36,7 @@ import {
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
+import { PgnTranslationSettingsSection } from '@/components/pgn/PgnTranslationSettingsSection';
 import type { MessageKey } from '@/lib/i18n/messages';
 
 type EditorKind =
@@ -201,6 +202,8 @@ export default function ParametresScreen() {
           testID="profil-row-stockfish-strength"
         />
       </View>
+
+      <PgnTranslationSettingsSection />
 
       <View style={styles.dangerZone}>
         <Pressable

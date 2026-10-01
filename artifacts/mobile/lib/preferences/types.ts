@@ -47,6 +47,16 @@ export type UserPreferences = {
    * (see lib/difficulty/StockfishStrengthBands.ts).
    */
   stockfishStrengthBandId: string;
+  /**
+   * Translate English comments already stored in Openings / Parties libraries.
+   * Off by default. Enabling walks existing files; disabling pauses catch-up.
+   */
+  translateExistingPgnComments: boolean;
+  /**
+   * Translate English comments when a new PGN is imported.
+   * Off by default unless a legacy auto-import flag was already stored.
+   */
+  translateImportedPgnComments: boolean;
   updatedAt: string;
 };
 
@@ -61,6 +71,8 @@ export type UserPreferencesPatch = Partial<{
   blindProblemDifficulty: string;
   chessInputMode: ChessInputMode;
   stockfishStrengthBandId: string;
+  translateExistingPgnComments: boolean;
+  translateImportedPgnComments: boolean;
 }>;
 
 export const DEFAULT_APP_LANGUAGE: AppLanguage = 'fr';

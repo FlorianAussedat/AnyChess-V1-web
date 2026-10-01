@@ -129,4 +129,32 @@ describe('PreferencesStore', () => {
     assert.ok(merged);
     assert.equal(merged!.stockfishStrengthBandId, '1600-1800');
   });
+
+  it('persists the two PGN translation options after remount', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const store = new PreferencesStore(storage);
+    await store.ensureLoaded();
+    assert.equal(store.getPreferences().translateExistingPgnComments, false);
+    assert.equal(store.getPreferences().translateImportedPgnComments, false);
+
+    await store.update({
+      translateExistingPgnComments: true,
+      translateImportedPgnComments: true,
+    });
+    const again = new PreferencesStore(storage);
+    await again.ensureLoaded();
+    assert.equal(again.getPreferences().translateExistingPgnComments, true);
+    assert.equal(again.getPreferences().translateImportedPgnComments, true);
+  });
+
+  it('keeps a legacy auto-import translation flag and defaults missing options off', () => {
+    const merged = mergePreferencesDocument({
+      version: 1,
+      language: 'fr',
+      autoTranslateImportedPgnComments: true,
+    });
+    assert.ok(merged);
+    assert.equal(merged!.translateExistingPgnComments, false);
+    assert.equal(merged!.translateImportedPgnComments, true);
+  });
 });

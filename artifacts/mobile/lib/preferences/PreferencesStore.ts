@@ -87,6 +87,8 @@ export function defaultUserPreferences(): UserPreferences {
     blindProblemDifficulty: DEFAULT_BLIND_PROBLEM_DIFFICULTY,
     chessInputMode: 'classic',
     stockfishStrengthBandId: DEFAULT_STRENGTH_BAND_ID,
+    translateExistingPgnComments: false,
+    translateImportedPgnComments: false,
     updatedAt: nowIso(),
   };
 }
@@ -140,6 +142,16 @@ export function mergePreferencesDocument(
       o.stockfishStrengthBandId,
       next.stockfishStrengthBandId,
     );
+  }
+  if (typeof o.translateExistingPgnComments === 'boolean') {
+    next.translateExistingPgnComments = o.translateExistingPgnComments;
+  }
+  if (typeof o.translateImportedPgnComments === 'boolean') {
+    next.translateImportedPgnComments = o.translateImportedPgnComments;
+  } else if (
+    typeof o.autoTranslateImportedPgnComments === 'boolean'
+  ) {
+    next.translateImportedPgnComments = o.autoTranslateImportedPgnComments;
   }
 
   if (typeof o.updatedAt === 'string' && o.updatedAt) {
@@ -366,6 +378,14 @@ export class PreferencesStore {
               current.stockfishStrengthBandId,
             )
           : current.stockfishStrengthBandId,
+      translateExistingPgnComments:
+        patch.translateExistingPgnComments !== undefined
+          ? Boolean(patch.translateExistingPgnComments)
+          : current.translateExistingPgnComments,
+      translateImportedPgnComments:
+        patch.translateImportedPgnComments !== undefined
+          ? Boolean(patch.translateImportedPgnComments)
+          : current.translateImportedPgnComments,
       updatedAt: nowIso(),
       version: USER_PREFERENCES_DOCUMENT_VERSION,
     };

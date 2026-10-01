@@ -31,7 +31,7 @@ export function fileTranslateLabel(
 ): string {
   if (status === 'failed') return t('pgn.retryTranslation');
   if (status === 'stale' || status === 'pending') return t('pgn.completeTranslation');
-  if (status === 'ready' || status === 'manual' || status === 'none') return t('pgn.alreadyFrench');
+  if (status === 'ready' || status === 'manual') return t('pgn.alreadyFrench');
   return t('pgn.translateComments');
 }
 
