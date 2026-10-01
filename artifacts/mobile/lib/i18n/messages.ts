@@ -942,6 +942,9 @@ export type MessageKey =
   | 'settings.translationPaused'
   | 'settings.translationComplete'
   | 'settings.translationRetry'
+  | 'settings.translationDiagTitle'
+  | 'settings.translationDiagCopy'
+  | 'settings.translationDiagCopied'
   | 'settings.translationTimeout'
   | 'settings.translationRateLimited'
   | 'settings.translationCounts'
@@ -2144,6 +2147,9 @@ const fr: Dict = {
   'settings.translationPaused': 'Traduction suspendue.',
   'settings.translationComplete': 'Traduction terminée.',
   'settings.translationRetry': 'Réessayer',
+  'settings.translationDiagTitle': 'Diagnostic traduction (à copier)',
+  'settings.translationDiagCopy': 'Copier le diagnostic',
+  'settings.translationDiagCopied': 'Diagnostic copié',
   'settings.translationTimeout':
     'Délai dépassé — la requête de traduction n’a pas abouti.',
   'settings.translationRateLimited':
@@ -3354,6 +3360,9 @@ const en: Dict = {
   'settings.translationPaused': 'Translation paused',
   'settings.translationComplete': 'Translation complete',
   'settings.translationRetry': 'Retry',
+  'settings.translationDiagTitle': 'Translation diagnostic (copy this)',
+  'settings.translationDiagCopy': 'Copy diagnostic',
+  'settings.translationDiagCopied': 'Diagnostic copied',
   'settings.translationTimeout':
     'The translation request timed out.',
   'settings.translationRateLimited':

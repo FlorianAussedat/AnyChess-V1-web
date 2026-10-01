@@ -12,3 +12,4 @@ export * from './exportTranslatedPgn.ts';
 export * from './schedule.ts';
 export * from './classifyMyMemory.ts';
 export * from './lifecycle.ts';
+export * from './pgnTranslateProbe.ts';

@@ -8,6 +8,7 @@ import {
   logPgnTranslate,
   parseRetryAfterMs,
 } from './classifyMyMemory.ts';
+import { recordPgnTranslateCall } from './pgnTranslateProbe.ts';
 import { protectChessTerms, restoreChessTerms } from './chessGlossary.ts';
 import { isEchoTranslation } from './fingerprint.ts';
 import {
@@ -124,6 +125,11 @@ export async function translateViaMyMemory(
       reason: classified.reason,
       durationMs: Date.now() - started,
     });
+    recordPgnTranslateCall({
+      classifiedError: classified.error === 'quota' ? 'offline' : classified.error,
+      reason: classified.reason,
+      durationMs: Date.now() - started,
+    });
     return { error: classified.error === 'quota' ? 'offline' : classified.error };
   }
   let body: {
@@ -159,6 +165,16 @@ export async function translateViaMyMemory(
     reason: ok ? 'ok' : classified.reason,
     durationMs: Date.now() - started,
     retryAfterMs: classified.retryAfterMs,
+  });
+  recordPgnTranslateCall({
+    httpStatus: response.status,
+    responseStatus: Number.isFinite(status) ? status : undefined,
+    quotaFinished: Boolean(body.quotaFinished),
+    classifiedError: ok ? 'ok' : classified.error,
+    reason: ok ? 'ok' : classified.reason,
+    retryAfterMs: classified.retryAfterMs,
+    details,
+    durationMs: Date.now() - started,
   });
   if (exhausted) return { error: 'quota' };
   if (throttled) {

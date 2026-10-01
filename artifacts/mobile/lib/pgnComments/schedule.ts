@@ -12,6 +12,7 @@ import type {
   PgnTranslationJobOrigin,
   PgnTranslationPolicy,
 } from './types.ts';
+import { markPgnTranslateRetryStarted } from './pgnTranslateProbe.ts';
 
 export type ExistingPgnRef = {
   source: PgnCommentSource;
@@ -157,6 +158,7 @@ export async function reconcilePgnTranslationAfterBoot(
 export async function retryPgnTranslation(deps?: PgnTranslationScheduleDeps): Promise<void> {
   const { queue, preferences } = resolveDeps(deps);
   await preferences.ensureLoaded();
+  markPgnTranslateRetryStarted(queue.getLastError());
   queue.setPolicy(policyFromPreferences(preferences.getPreferences()));
   await queue.retryBlocked();
   void queue.processUntilIdle();
