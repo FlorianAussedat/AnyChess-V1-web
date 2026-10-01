@@ -49,7 +49,7 @@ describe('balanced training and imports', () => {
   });
   it('hint does not move, undo, or trigger opponent play', () => {
     const src = readFileSync(new URL('../../../contexts/OpeningGameContext.tsx', import.meta.url), 'utf8');
-    const action = src.split('const showExpectedMove =')[1]!.split('const changeColor =')[0]!;
+    const action = src.split('const showExpectedMove =')[1]!.split('const markContinuationRevealed =')[0]!;
     assert.doesNotMatch(action, /game\.move|undoPlayerTurn|opponentMoveRef|syncState|setPlayTurn/);
     assert.match(action, /expected\.map/);
     assert.match(action, /formatSanForDisplay/);

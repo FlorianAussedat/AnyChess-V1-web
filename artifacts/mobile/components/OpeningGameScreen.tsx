@@ -38,6 +38,7 @@ import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameExportPgnModal } from '@/components/game/GameExportPgnModal';
 import { useOpeningGame } from '@/contexts/OpeningGameContext';
 import { confirmDiscardActivity, confirmLeaveToHub, endActivity } from '@/lib/activitySessions';
+import { presentPgnCommentDialog } from '@/lib/openings/presentReviewLineBilan';
 import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import { flagsFromPlayTurn, pairMoveHistory } from '@/lib/game';
@@ -106,6 +107,8 @@ export function OpeningGameScreen() {
     continueVsEngine,
     undoAndThinkAgain,
     showExpectedMove,
+    markContinuationRevealed,
+    getFinalLineComment,
     restartLine,
     nextLine,
     exportPgn,
@@ -198,8 +201,12 @@ export function OpeningGameScreen() {
     trainingState === 'engineContinuation' ? ` · ${strengthBandLabel}` : ''
   }`;
 
-  const [expectedHint, setExpectedHint] = useState<string | null>(null);
+  const [expectedHint, setExpectedHint] = useState<{
+    label: string;
+    comment: string | null;
+  } | null>(null);
   useEffect(() => { setExpectedHint(null); }, [history.length, trainingState]);
+  const finalLineComment = trainingState === 'lineComplete' ? getFinalLineComment() : null;
 
   const statusText =
     trainingState === 'lineComplete'
@@ -409,6 +416,10 @@ export function OpeningGameScreen() {
             restartLine();
           }}
           onNextLine={() => {
+            if (trainingState === 'lineComplete') {
+              nextLine();
+              return;
+            }
             if (history.length > 0) {
               confirmDiscardActivity('cours', () => nextLine());
               return;
@@ -418,12 +429,24 @@ export function OpeningGameScreen() {
           onContinueVsEngine={continueVsEngine}
           onUndoThinkAgain={undoAndThinkAgain}
           onShowExpected={() => {
-            const san = showExpectedMove();
-            if (san) {
-              setExpectedHint(san);
+            const hint = showExpectedMove();
+            if (hint) {
+              setExpectedHint(hint);
             }
           }}
-          onShowFullLine={() => setTheoryOpen(true)}
+          onShowFullLine={() => {
+            markContinuationRevealed();
+            setTheoryOpen(true);
+          }}
+          onShowFinalComment={
+            finalLineComment
+              ? () =>
+                  presentPgnCommentDialog(
+                    t('openings.finalCommentTitle'),
+                    finalLineComment,
+                  )
+              : undefined
+          }
           onAnalyzeGame={async () => {
             const pgn = exportPgn();
             const opened = await openPgnInAnalyzer({
@@ -450,7 +473,23 @@ export function OpeningGameScreen() {
           }}
         />
 
-        {expectedHint && <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>{t('openings.expectedMove', { move: expectedHint })}</Text>}
+        {expectedHint ? (
+          <View style={styles.expectedHint} testID="opening-expected-hint">
+            <Text accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>
+              {t('openings.expectedMove', { move: expectedHint.label })}
+            </Text>
+            {expectedHint.comment ? (
+              <View style={styles.pgnCommentBox} testID="opening-expected-pgn-comment">
+                <Text style={[styles.pgnCommentHeading, { color: colors.primary }]}>
+                  {t('openings.pgnCommentHeading')}
+                </Text>
+                <Text style={[styles.pgnCommentBody, { color: colors.foreground }]}>
+                  {expectedHint.comment}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {!deciding && (
           <>
@@ -570,5 +609,16 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   errorText: { marginTop: 24, fontFamily: 'Inter_500Medium', fontSize: 14, paddingHorizontal: 8 },
+  expectedHint: { gap: 8 },
+  pgnCommentBox: { gap: 4 },
+  pgnCommentHeading: {
+    fontSize: 12,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  pgnCommentBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'Inter_400Regular',
+  },
 });
 

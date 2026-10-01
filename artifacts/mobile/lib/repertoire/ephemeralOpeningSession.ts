@@ -14,10 +14,14 @@ export type EphemeralOpeningSession = {
   pathId: string;
   sourcePgn: string;
   displayName: string;
+  /** Stable name of the selected line/variation (not the live ECO label). */
+  lineName?: string;
   side: 'white' | 'black';
   origin: 'review' | 'study';
   /** When true, next-line in Learning skips mastered lines. Review ignores this. */
   autoUnmastered?: boolean;
+  /** True after this parked attempt has been written to mastery history. */
+  revisionRecorded?: boolean;
 };
 
 let current: EphemeralOpeningSession | null = null;

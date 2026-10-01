@@ -16,6 +16,7 @@ type Props = {
   onShowFullLine: () => void;
   onAnalyzeGame?: () => void;
   onStudyOpening?: () => void;
+  onShowFinalComment?: () => void;
 };
 
 export function TheoryDecisionPanel({
@@ -29,6 +30,7 @@ export function TheoryDecisionPanel({
   onShowFullLine,
   onAnalyzeGame,
   onStudyOpening,
+  onShowFinalComment,
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
@@ -62,6 +64,14 @@ export function TheoryDecisionPanel({
             label={t('openings.studyThisOpening')}
             onPress={onStudyOpening}
             testID="theory-study-opening"
+            primary={false}
+          />
+        ) : null}
+        {onShowFinalComment ? (
+          <ActionBtn
+            label={t('openings.seeFinalComment')}
+            onPress={onShowFinalComment}
+            testID="theory-final-comment"
             primary={false}
           />
         ) : null}

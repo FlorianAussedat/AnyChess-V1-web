@@ -13,8 +13,10 @@
 import { Chess } from 'chess.js';
 import type { Move } from 'chess.js';
 import { parsePgn, PgnSyntaxError, type PgnMoveNode } from './pgnParser.ts';
+import { sourceLabelFromPgnHeaders } from './reviewLineName.ts';
 import type {
   ParsedRepertoire,
+  PgnHeaders,
   RepertoireIssue,
   RepertoireMoveChoice,
   RepertoireNode,
@@ -86,7 +88,14 @@ function addChoice(
  * Recursively ingest a line starting from `startFen`. `chess` is a throwaway
  * working board for this line; variations branch off a fresh clone.
  */
-function ingestLine(ctx: BuildContext, node: PgnMoveNode | null, startFen: string, prefix: RepertoireMoveChoice[] = [], prefixFens: string[] = []): void {
+function ingestLine(
+  ctx: BuildContext,
+  node: PgnMoveNode | null,
+  startFen: string,
+  prefix: RepertoireMoveChoice[] = [],
+  prefixFens: string[] = [],
+  headers: PgnHeaders = {},
+): void {
   const choices = [...prefix];
   const fensBefore = [...prefixFens];
   const chess = new Chess(startFen);
@@ -97,7 +106,7 @@ function ingestLine(ctx: BuildContext, node: PgnMoveNode | null, startFen: strin
 
     // Variations are alternatives to `cur`, so they start from `beforeFen`.
     for (const variation of cur.variations) {
-      ingestLine(ctx, variation, beforeFen, choices, fensBefore);
+      ingestLine(ctx, variation, beforeFen, choices, fensBefore, headers);
     }
 
     let move: Move | null = null;
@@ -124,7 +133,13 @@ function ingestLine(ctx: BuildContext, node: PgnMoveNode | null, startFen: strin
   }
   if (choices.length) {
     const sans = choices.map(c => c.san);
-    ctx.trainingPaths.push({ id: `${fensBefore[0]}|${sans.join(' ')}`, sans, choices, fensBefore });
+    ctx.trainingPaths.push({
+      id: `${fensBefore[0]}|${sans.join(' ')}`,
+      sans,
+      choices,
+      fensBefore,
+      sourceLabel: sourceLabelFromPgnHeaders(headers),
+    });
   }
 }
 
@@ -175,7 +190,7 @@ export function buildRepertoire(pgn: string): ParsedRepertoire {
       return;
     }
 
-    ingestLine(ctx, game.root, setupFen);
+    ingestLine(ctx, game.root, setupFen, [], [], game.headers);
   });
 
   return {

@@ -24,7 +24,7 @@ import { OpeningStudyCommentText } from '@/components/openings/OpeningStudyComme
 import { OpeningStudyNotation } from '@/components/openings/OpeningStudyNotation';
 import { OpeningLineMasteryRow } from '@/components/openings/OpeningLineMasteryRow';
 import { useOpeningMastery } from '@/hooks/useOpeningMastery';
-import { repertoireService, pgnFileDisplayName, setEphemeralOpeningSession, describeOpeningPgnMastery, pickUnmasteredLearningPath, openingMasteryStore } from '@/lib/repertoire';
+import { repertoireService, pgnFileDisplayName, setEphemeralOpeningSession, describeOpeningPgnMastery, pickUnmasteredLearningPath, openingMasteryStore, reviewLineDisplayName } from '@/lib/repertoire';
 import { parseReaderPgn } from '@/lib/gameReader';
 import {
   annotatePlayableCommentTokens,
@@ -278,6 +278,10 @@ export default function OpeningStudyScreen() {
         pathId: matched?.id ?? options?.pathId ?? sans.join(' '),
         sourcePgn,
         displayName: title,
+        lineName: reviewLineDisplayName({
+          pathLabel: matched?.sourceLabel,
+          fileDisplayName: title,
+        }),
         side,
         origin: 'study',
         autoUnmastered: options?.autoUnmastered === true,

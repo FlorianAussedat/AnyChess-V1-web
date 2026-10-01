@@ -232,7 +232,7 @@ describe('Learning screens never write Review history', () => {
   it('study and learn UI do not call recordOpeningRevisionResult', () => {
     assert.doesNotMatch(read('app/openings/study.tsx'), /recordOpeningRevisionResult/);
     assert.doesNotMatch(read('app/openings/learn.tsx'), /recordOpeningRevisionResult/);
-    assert.match(read('app/openings/play.tsx'), /recordOpeningRevisionResult/);
+    assert.match(read('app/openings/play.tsx'), /commitOpeningReviewAttempt/);
     assert.match(read('app/openings/continue.tsx'), /recordOpeningRevisionResult/);
     assert.match(read('lib/repertoire/recordOpeningRevision.ts'), /origin !== 'review'/);
   });

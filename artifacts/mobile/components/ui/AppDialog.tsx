@@ -6,6 +6,7 @@ import {
   Animated,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -143,12 +144,18 @@ export function AppDialog({
             {title}
           </Text>
           {body ? (
-            <Text
-              style={[styles.message, { color: colors.mutedForeground }]}
-              testID="app-dialog-message"
+            <ScrollView
+              style={styles.messageScroll}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
             >
-              {body}
-            </Text>
+              <Text
+                style={[styles.message, { color: colors.mutedForeground }]}
+                testID="app-dialog-message"
+              >
+                {body}
+              </Text>
+            </ScrollView>
           ) : null}
           <View style={[styles.actions, row ? styles.actionsRow : styles.actionsStack]}>
             {visibleActions.map((action) => {
@@ -193,6 +200,9 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.modeTitle,
     lineHeight: 22,
     fontFamily: DesignTokens.typography.weightBold,
+  },
+  messageScroll: {
+    maxHeight: 280,
   },
   message: {
     fontSize: DesignTokens.typography.body,
