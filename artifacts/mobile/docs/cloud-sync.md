@@ -25,9 +25,10 @@ Restent **locaux** (éphémères) : session lecteur/analyseur (`gameSession`) et
 - Première connexion depuis l’invité : les données locales sont fusionnées vers le compte (union par id, dédoublonnage PGN, pas d’écrasement).
 - Changement de compte : l’espace précédent est garé, l’autre compte est restauré ou parti d’un vide (pas de mélange).
 - Suppressions PGN / dossiers / traductions / révisions : tombstones `syncDeletedIds` pour ne pas les ressusciter depuis un autre appareil.
-- Hors ligne : l’app reste utilisable ; statut **Hors ligne** ou **En attente**, synchro au retour du réseau / au premier plan / bouton Synchroniser.
+- Hors ligne : l’app reste utilisable ; la sauvegarde affiche **Hors ligne** ou **Synchronisation en cours…**, puis **Données synchronisées** seulement après un succès. La connexion du compte reste affichée à part.
+- Une inscription qui attend la confirmation d’e-mail n’ouvre pas de session et ne lance pas la synchronisation.
 - RLS : `auth.uid() = user_id`. La clé `anon` ne suffit pas à lire les documents d’un autre compte.
-- Statut : Synchronisé / En attente / Erreur (plus Hors ligne, Non connecté, Cloud non configuré).
+- Compte : Connecté / Non connecté. Sauvegarde : Données synchronisées / Synchronisation en cours… / Erreur de synchronisation (plus Hors ligne, Cloud non configuré).
 
 ## DeepL reste côté serveur
 
@@ -42,8 +43,8 @@ Voir aussi `docs/pgn-comment-translation.md`.
 ## Étapes à votre charge (offre gratuite uniquement)
 
 1. Créez un projet [Supabase](https://supabase.com) **Free** (pas Pro, pas add-ons payants).
-2. **Authentication → Providers → Email** : activez Email. Pour le build Android de développement, décochez **Confirm email** afin de pouvoir vous connecter tout de suite. Sinon, l’app demandera de confirmer l’e-mail.
-3. **Authentication → URL configuration** : Site URL = l’URL Replit/web de l’app (récupération de mot de passe).
+2. **Authentication → Providers → Email** : laissez Email activé et **Confirm email** activé. Le message d’inscription, le renvoi et la page de retour sont décrits dans `docs/auth-confirmation.md`.
+3. **Authentication → URL configuration** : Site URL = la page `functions/v1/auth-confirm` du projet (pas `localhost`). L’adresse de redirection doit rester dans la liste autorisée.
 4. SQL Editor : exécutez `supabase/user_documents.sql` (RLS propriétaire, aucun secret DeepL).
 5. **Project Settings → API** : copiez **Project URL** et **anon public**. Ne copiez pas `service_role`.
 6. Replit → **Tools → Secrets / Configurations** (variables d’environnement de l’app Expo, pas les secrets serveur DeepL) :
@@ -66,4 +67,6 @@ Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non co
 - hors ligne puis synchro ;
 - aucune clé DeepL dans le client cloud.
 
-À vérifier **sur Android** une fois le projet Supabase créé : inscription réelle, e-mail de récupération, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau.
+`lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, et la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton.
+
+À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le build actuel (`scheme` `mobile`, sans App Link https) n’ouvre pas l’app depuis le lien de confirmation.

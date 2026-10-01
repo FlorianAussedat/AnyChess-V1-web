@@ -4,3 +4,7 @@ project_id = "zqfxnzwtptepulmgpxhb"
 
 [functions.pgn-translate]
 verify_jwt = true
+
+# Public page opened from the confirmation email. No user JWT is available yet.
+[functions.auth-confirm]
+verify_jwt = false

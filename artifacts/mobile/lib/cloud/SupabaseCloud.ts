@@ -1,4 +1,14 @@
-import { isSupabaseConfigured, resolveSupabaseAnonKey, resolveSupabaseUrl } from './supabaseConfig.ts';
+import {
+  isPendingEmailConfirmation,
+  mapSupabaseAuthError,
+  readAuthSession,
+} from './authErrors.ts';
+import {
+  authConfirmRedirectUrl,
+  isSupabaseConfigured,
+  resolveSupabaseAnonKey,
+  resolveSupabaseUrl,
+} from './supabaseConfig.ts';
 import type {
   CloudAuth,
   CloudAuthResult,
@@ -17,19 +27,6 @@ function headers(accessToken?: string): Record<string, string> {
   if (accessToken) out.Authorization = `Bearer ${accessToken}`;
   else out.Authorization = `Bearer ${anon}`;
   return out;
-}
-
-function mapAuthError(status: number, message?: string): CloudAuthResult {
-  if (status === 400 && /already|registered|exists/i.test(message ?? '')) {
-    return { ok: false, error: 'email_taken', message };
-  }
-  if (status === 400 && /password/i.test(message ?? '')) {
-    return { ok: false, error: 'weak_password', message };
-  }
-  if (status === 400 || status === 401) {
-    return { ok: false, error: 'invalid_credentials', message };
-  }
-  return { ok: false, error: 'rejected', message };
 }
 
 export class SupabaseCloudAuth implements CloudAuth {
@@ -70,7 +67,7 @@ export class SupabaseCloudAuth implements CloudAuth {
   }
 
   async signUp(email: string, password: string): Promise<CloudAuthResult> {
-    return this.postAuth('/auth/v1/signup', { email, password });
+    return this.postAuth('/auth/v1/signup', { email, password }, authConfirmRedirectUrl());
   }
 
   async signIn(email: string, password: string): Promise<CloudAuthResult> {
@@ -95,6 +92,27 @@ export class SupabaseCloudAuth implements CloudAuth {
     await this.persist?.save(null);
   }
 
+  async resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
+    const url = resolveSupabaseUrl();
+    if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
+    const redirect = authConfirmRedirectUrl();
+    const target = `${url}/auth/v1/resend${
+      redirect ? `?redirect_to=${encodeURIComponent(redirect)}` : ''
+    }`;
+    try {
+      const response = await fetch(target, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ email, type: 'signup' }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (response.ok) return { ok: true };
+      return { ok: false, error: mapSupabaseAuthError(response.status, json).error };
+    } catch {
+      return { ok: false, error: 'offline' };
+    }
+  }
+
   async recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
@@ -104,7 +122,9 @@ export class SupabaseCloudAuth implements CloudAuth {
         headers: headers(),
         body: JSON.stringify({ email }),
       });
-      return response.ok ? { ok: true } : { ok: false, error: 'rejected' };
+      if (response.ok) return { ok: true };
+      const json = await response.json().catch(() => ({}));
+      return { ok: false, error: mapSupabaseAuthError(response.status, json).error };
     } catch {
       return { ok: false, error: 'offline' };
     }
@@ -140,36 +160,42 @@ export class SupabaseCloudAuth implements CloudAuth {
     }
   }
 
-  private async postAuth(path: string, body: { email: string; password: string }): Promise<CloudAuthResult> {
+  private async postAuth(
+    path: string,
+    body: { email: string; password: string },
+    redirectTo?: string | null,
+  ): Promise<CloudAuthResult> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
+    const join = path.includes('?') ? '&' : '?';
+    const target = `${url}${path}${
+      redirectTo ? `${join}redirect_to=${encodeURIComponent(redirectTo)}` : ''
+    }`;
     try {
-      const response = await fetch(`${url}${path}`, {
+      const response = await fetch(target, {
         method: 'POST',
         headers: headers(),
         body: JSON.stringify(body),
       });
-      const json = (await response.json()) as {
-        access_token?: string;
-        refresh_token?: string;
-        user?: { id?: string; email?: string };
-        error_description?: string;
-        msg?: string;
-        error?: string;
-      };
-      if (response.ok && json.user?.id && !json.access_token) {
-        return { ok: false, error: 'confirm_email', message: json.msg ?? json.error_description };
+      const json = await response.json().catch(() => ({}));
+      if (isPendingEmailConfirmation(response.status, json)) {
+        return {
+          ok: false,
+          error: 'confirm_email',
+          email: readAuthSession(json).email ?? body.email,
+        };
       }
-      if (!response.ok || !json.access_token || !json.user?.id) {
-        return mapAuthError(response.status, json.error_description ?? json.msg ?? json.error);
+      const session = readAuthSession(json);
+      if (!response.ok || !session.accessToken || !session.userId) {
+        return mapSupabaseAuthError(response.status, json);
       }
-      const user = { id: json.user.id, email: json.user.email ?? body.email };
-      this.accessToken = json.access_token;
-      this.refreshToken = json.refresh_token ?? null;
+      const user = { id: session.userId, email: session.email ?? body.email };
+      this.accessToken = session.accessToken;
+      this.refreshToken = session.refreshToken;
       this.user = user;
       await this.persist?.save({
-        accessToken: json.access_token,
-        refreshToken: json.refresh_token,
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken ?? undefined,
         user,
       });
       return { ok: true, user };

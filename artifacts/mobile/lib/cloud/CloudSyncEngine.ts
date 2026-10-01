@@ -1,4 +1,5 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
+import { markConfirmationEmailSent, confirmationResendWaitSeconds } from './confirmCooldown.ts';
 import { mergeDocumentPayload } from './mergeDocuments.ts';
 import {
   CLOUD_ACTIVE_USER_KEY,
@@ -9,7 +10,13 @@ import {
   cloudBackupKey,
   cloudWorkspaceKey,
 } from './syncableKeys.ts';
-import type { CloudAuth, CloudRemote, CloudSyncStatus, CloudUser } from './types.ts';
+import type {
+  CloudAuth,
+  CloudRemote,
+  CloudSyncStatus,
+  CloudUser,
+  PendingConfirmationReason,
+} from './types.ts';
 
 export type CloudEngineState = {
   status: CloudSyncStatus;
@@ -17,6 +24,8 @@ export type CloudEngineState = {
   lastError: string | null;
   lastBackupKey: string | null;
   lastSyncedAt: string | null;
+  pendingConfirmationEmail: string | null;
+  pendingConfirmationReason: PendingConfirmationReason | null;
 };
 
 const emptyState = (): CloudEngineState => ({
@@ -25,6 +34,8 @@ const emptyState = (): CloudEngineState => ({
   lastError: null,
   lastBackupKey: null,
   lastSyncedAt: null,
+  pendingConfirmationEmail: null,
+  pendingConfirmationReason: null,
 });
 
 async function readDocs(storage: KeyValueStorage): Promise<Record<string, string | null>> {
@@ -152,11 +163,25 @@ export class CloudSyncEngine {
   }
 
   async signUp(email: string, password: string) {
-    return this.authenticate(() => this.auth.signUp(email, password));
+    return this.authenticate(email, () => this.auth.signUp(email, password), 'signup');
   }
 
   async signIn(email: string, password: string) {
-    return this.authenticate(() => this.auth.signIn(email, password));
+    return this.authenticate(email, () => this.auth.signIn(email, password), 'signin');
+  }
+
+  async resendSignupConfirmation(email: string) {
+    if (!this.auth.configured) return { ok: false as const, error: 'unconfigured' as const };
+    if (confirmationResendWaitSeconds() > 0) {
+      return { ok: false as const, error: 'rate_limited' as const };
+    }
+    const result = await this.auth.resendSignupConfirmation(email);
+    if (result.ok) markConfirmationEmailSent();
+    return result;
+  }
+
+  dismissPendingConfirmation(): void {
+    this.setState({ pendingConfirmationEmail: null, pendingConfirmationReason: null });
   }
 
   async recoverPassword(email: string) {
@@ -172,10 +197,26 @@ export class CloudSyncEngine {
     await this.storage.removeItem(CLOUD_SESSION_KEY);
     await this.restoreWorkspace(GUEST_OWNER_ID);
     await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
-    this.setState({ user: null, status: this.auth.configured ? 'signed_out' : 'unconfigured' });
+    this.setState({
+      user: null,
+      status: this.auth.configured ? 'signed_out' : 'unconfigured',
+      pendingConfirmationEmail: null,
+      pendingConfirmationReason: null,
+      lastError: null,
+    });
   }
 
-  private async authenticate(action: () => ReturnType<CloudAuth['signIn']>) {
+  /** Memory auth has no access token. Supabase must not sync on the anon key. */
+  private hasAuthenticatedSession(): boolean {
+    if (typeof this.auth.token !== 'function') return true;
+    return Boolean(this.auth.token()?.trim());
+  }
+
+  private async authenticate(
+    email: string,
+    action: () => ReturnType<CloudAuth['signIn']>,
+    source: 'signup' | 'signin',
+  ) {
     if (!this.auth.configured) {
       this.setState({ status: 'unconfigured' });
       return { ok: false as const, error: 'unconfigured' as const };
@@ -185,9 +226,29 @@ export class CloudSyncEngine {
       (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID;
     await this.parkWorkspace(previous);
     const result = await action();
+    const needsConfirm =
+      !result.ok && (result.error === 'confirm_email' || result.error === 'email_not_confirmed');
     if (!result.ok) {
-      this.setState({ status: 'error', lastError: result.error });
+      if (result.error === 'confirm_email') markConfirmationEmailSent();
+      this.setState({
+        status: this.auth.configured ? 'signed_out' : 'unconfigured',
+        user: null,
+        lastError: null,
+        pendingConfirmationEmail: needsConfirm ? email.trim() : null,
+        pendingConfirmationReason: needsConfirm ? source : null,
+      });
       return result;
+    }
+    if (!this.hasAuthenticatedSession()) {
+      markConfirmationEmailSent();
+      this.setState({
+        status: 'signed_out',
+        user: null,
+        lastError: null,
+        pendingConfirmationEmail: email.trim(),
+        pendingConfirmationReason: 'signup',
+      });
+      return { ok: false as const, error: 'confirm_email' as const, email: email.trim() };
     }
     await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, result.user.id);
     const hadWorkspace = await this.restoreWorkspace(result.user.id);
@@ -201,12 +262,26 @@ export class CloudSyncEngine {
         ),
       );
     }
-    this.setState({ user: result.user, status: 'pending' });
+    this.setState({
+      user: result.user,
+      status: 'pending',
+      lastError: null,
+      pendingConfirmationEmail: null,
+      pendingConfirmationReason: null,
+    });
     await this.sync();
     return result;
   }
 
   async sync(): Promise<CloudEngineState> {
+    if (typeof this.auth.token === 'function' && !this.auth.token()?.trim()) {
+      this.setState({
+        status: this.auth.configured ? 'signed_out' : 'unconfigured',
+        user: null,
+        lastError: null,
+      });
+      return this.getState();
+    }
     const user = this.state.user ?? (await this.auth.getUser());
     if (!this.auth.configured) {
       this.setState({ status: 'unconfigured' });

@@ -1,5 +1,7 @@
 export type CloudSyncStatus = 'unconfigured' | 'signed_out' | 'synced' | 'pending' | 'error' | 'offline';
 
+export type PendingConfirmationReason = 'signup' | 'signin';
+
 export type CloudUser = {
   id: string;
   email: string;
@@ -24,13 +26,17 @@ export type CloudAuthError =
   | 'email_taken'
   | 'weak_password'
   | 'confirm_email'
+  | 'email_not_confirmed'
+  | 'email_invalid'
+  | 'rate_limited'
   | 'offline'
   | 'rejected'
+  | 'unexpected'
   | 'unconfigured';
 
 export type CloudAuthResult =
   | { ok: true; user: CloudUser }
-  | { ok: false; error: CloudAuthError; message?: string };
+  | { ok: false; error: CloudAuthError; message?: string; email?: string };
 
 export interface CloudAuth {
   configured: boolean;
@@ -40,6 +46,7 @@ export interface CloudAuth {
   signUp(email: string, password: string): Promise<CloudAuthResult>;
   signIn(email: string, password: string): Promise<CloudAuthResult>;
   signOut(): Promise<void>;
+  resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthError }>;
   recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthError }>;
 }
 

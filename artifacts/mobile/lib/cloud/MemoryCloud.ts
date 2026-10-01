@@ -10,9 +10,12 @@ type MemoryUser = CloudUser & { password: string };
 
 export class MemoryCloudAuth implements CloudAuth {
   readonly configured = true;
+  /** When set, sign-up does not open a session (same as Supabase confirm-email). */
+  confirmEmails = false;
   private current: CloudUser | null = null;
   private readonly users = new Map<string, MemoryUser>();
   recoveries: string[] = [];
+  resent: string[] = [];
 
   seed(email: string, password: string, id = `user_${this.users.size + 1}`): CloudUser {
     const user = { id, email: email.trim().toLowerCase(), password };
@@ -29,6 +32,9 @@ export class MemoryCloudAuth implements CloudAuth {
     if (password.length < 6) return { ok: false, error: 'weak_password' };
     if (this.users.has(key)) return { ok: false, error: 'email_taken' };
     const user = this.seed(key, password);
+    if (this.confirmEmails) {
+      return { ok: false, error: 'confirm_email', email: user.email };
+    }
     this.current = user;
     return { ok: true, user };
   }
@@ -42,6 +48,11 @@ export class MemoryCloudAuth implements CloudAuth {
 
   async signOut(): Promise<void> {
     this.current = null;
+  }
+
+  async resendSignupConfirmation(email: string): Promise<{ ok: boolean }> {
+    this.resent.push(email.trim().toLowerCase());
+    return { ok: true };
   }
 
   async recoverPassword(email: string): Promise<{ ok: boolean }> {
