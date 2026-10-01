@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import {
   collectPgnCommentUnits,
@@ -13,7 +13,7 @@ import {
   isTechnicalOnlyComment,
   applyFrenchToPgnText,
   FakePgnTranslationProvider,
-  MyMemoryPgnTranslationProvider,
+  HttpPgnTranslationProvider,
   UnconfiguredPgnTranslationProvider,
   PgnCommentTranslationStore,
   PgnTranslationQueue,
@@ -199,12 +199,47 @@ describe('quota and service failure keep originals', () => {
   });
 });
 
-describe('live MyMemory translation persists after reload', () => {
+const FRENCH: Record<string, string> = {
+  'White develops the knight toward the center.':
+    'Les Blancs développent le cavalier vers le centre.',
+  'White occupies the center.': 'Les Blancs occupent le centre.',
+  '[%eval 0.12] Black answers in kind.':
+    '[%eval 0.12] Les Noirs répondent de la même façon.',
+  'White develops the knight.': 'Les Blancs développent le cavalier.',
+};
+
+function mockDeepLProxy(): typeof fetch {
+  return (async (_url: string, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body ?? '{}')) as {
+      items?: { id: string; text: string }[];
+    };
+    return new Response(
+      JSON.stringify({
+        backend: 'deepl',
+        usage: { characterCount: 1800, characterLimit: 500000, remaining: 498200 },
+        items: (body.items ?? []).map((item) => ({
+          id: item.id,
+          text: FRENCH[item.text] ?? `FR ${item.text}`,
+        })),
+      }),
+      { status: 200 },
+    );
+  }) as typeof fetch;
+}
+
+describe('live DeepL proxy translation persists after reload', () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   it('translates an English comment and keeps French after a storage remount', async () => {
+    globalThis.fetch = mockDeepLProxy();
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
-    queue.setProvider(new MyMemoryPgnTranslationProvider());
+    queue.setProvider(new HttpPgnTranslationProvider('https://example.test/api/pgn-comments/translate'));
     const pgn = `[Event "Live"]\n\n1. e4 {White develops the knight toward the center.} *`;
     const added = await queue.enqueuePgn(pgn, 'gameLibrary', 'live-1');
     assert.equal(added, 1);
@@ -242,10 +277,11 @@ describe('live MyMemory translation persists after reload', () => {
   });
 
   it('covers an already-imported PGN and a new import without touching SAN or eval', async () => {
+    globalThis.fetch = mockDeepLProxy();
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
-    queue.setProvider(new MyMemoryPgnTranslationProvider());
+    queue.setProvider(new HttpPgnTranslationProvider('https://example.test/api/pgn-comments/translate'));
     const existing = `[Event "Old"]\n\n1. e4 {White occupies the center.} e5 {[%eval 0.12] Black answers in kind.} *`;
     const imported = `[Event "New"]\n\n1. e4 e5 2. Nf3 (2. Nc3 {White develops the knight.}) *`;
     const addedExisting = await queue.enqueuePgn(existing, 'repertoire', 'old-file');
@@ -293,7 +329,42 @@ describe('live MyMemory translation persists after reload', () => {
     await remounted.ensureLoaded();
     assert.equal(remounted.getRecord(oldUnits[0]!.anchor)?.translatedText, first?.translatedText);
     assert.equal(remounted.getRecord(newUnits[0]!.anchor)?.translatedText, variation?.translatedText);
+
+    let proxyCalls = 0;
+    globalThis.fetch = (async () => {
+      proxyCalls += 1;
+      throw new Error('must not retranlate done comments');
+    }) as typeof fetch;
+    const again = await queue.enqueuePgn(existing, 'repertoire', 'old-file');
+    assert.equal(again, 0);
+    const second = await queue.processNext(8);
+    assert.equal(second.done, 0);
+    assert.equal(proxyCalls, 0);
     assert.ok(enqueueExistingPgns);
     assert.ok(scheduleImportedPgnComments);
+  });
+
+  it('maps quota, rate limit, network and missing config distinctly', async () => {
+    const cases = [
+      { status: 456, error: 'quota', expected: 'quota' },
+      { status: 429, error: 'rate_limited', expected: 'rate_limited' },
+      { status: 503, error: 'offline', expected: 'offline' },
+      { status: 503, error: 'not_configured', expected: 'not_configured' },
+    ] as const;
+    for (const row of cases) {
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ error: row.error, items: [] }), {
+          status: row.status,
+        })) as typeof fetch;
+      const kv = new MemoryKeyValueStorage();
+      const store = new PgnCommentTranslationStore(kv);
+      const queue = new PgnTranslationQueue(kv, store);
+      queue.setProvider(new HttpPgnTranslationProvider('https://example.test/api/pgn-comments/translate'));
+      await queue.enqueuePgn(`[Event "E"]\n\n1. e4 {White occupies the center.} *`, 'repertoire', row.error);
+      const result = await queue.processNext(1);
+      assert.equal(result.blocked, row.expected);
+      assert.equal(result.done, 0);
+      assert.equal(store.getSnapshot().records[`repertoire:${row.error}:0:n1:after`], undefined);
+    }
   });
 });

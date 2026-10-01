@@ -7,7 +7,10 @@ export const logger = pino({
   redact: [
     "req.headers.authorization",
     "req.headers.cookie",
+    "req.headers['x-anychess-translate-token']",
+    "req.body.items",
     "res.headers['set-cookie']",
+    "DEEPL_API_KEY",
   ],
   ...(isProduction
     ? {}

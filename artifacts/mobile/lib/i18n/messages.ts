@@ -1081,6 +1081,7 @@ export type MessageKey =
   | 'pgn.serviceNotConfigured'
   | 'pgn.translationQuota'
   | 'pgn.translationQuotaResume'
+  | 'pgn.translationUsage'
   | 'pgn.translationFailed'
   | 'pgn.importNotice'
   | 'pgn.batchProgress'
@@ -2297,10 +2298,12 @@ const fr: Dict = {
   'pgn.translationPartial': 'Traduction partielle',
   'pgn.translationUnavailable': 'Traduction indisponible',
   'pgn.translationQueued': 'Traduction en file d’attente',
-  'pgn.serviceNotConfigured': 'La traduction automatique attend la configuration du service.',
+  'pgn.serviceNotConfigured':
+    'La traduction automatique n’est pas configurée : le serveur DeepL n’est pas joignable ou la clé serveur est absente. Les originaux restent affichés.',
   'pgn.translationQuota':
-    'Quota quotidien gratuit atteint (5 000 caractères par jour sans compte, selon MyMemory). Les commentaires déjà traduits sont conservés. Les autres restent en file, avec l’original affiché.',
+    'Quota mensuel DeepL Free atteint (500 000 caractères par mois). Les commentaires déjà traduits sont conservés. Les autres restent en file, avec l’original affiché.',
   'pgn.translationQuotaResume': 'Le fournisseur indique une reprise dans {{delay}}.',
+  'pgn.translationUsage': 'Consommation DeepL : {{used}} / {{limit}} caractères ce mois-ci.',
   'pgn.translationFailed':
     'La traduction a échoué. Les commentaires originaux sont conservés.',
   'pgn.importNotice': 'Les commentaires textuels en anglais seront envoyés au service de traduction pour préparer une version française. L’import reste disponible tout de suite.',
@@ -3511,10 +3514,12 @@ const en: Dict = {
   'pgn.translationPartial': 'Partial translation',
   'pgn.translationUnavailable': 'Translation unavailable',
   'pgn.translationQueued': 'Translation queued',
-  'pgn.serviceNotConfigured': 'Automatic translation is waiting for the service to be configured.',
+  'pgn.serviceNotConfigured':
+    'Automatic translation is not configured: the DeepL server is unreachable or the server key is missing. Originals stay on screen.',
   'pgn.translationQuota':
-    'Daily free translation quota reached (5,000 characters per day without an account, according to MyMemory). Already translated comments are kept. The rest stay queued, with the original shown.',
+    'Monthly DeepL Free quota reached (500,000 characters per month). Already translated comments are kept. The rest stay queued, with the original shown.',
   'pgn.translationQuotaResume': 'The provider says it will resume in {{delay}}.',
+  'pgn.translationUsage': 'DeepL usage: {{used}} / {{limit}} characters this month.',
   'pgn.translationFailed':
     'Translation failed. Original comments are kept.',
   'pgn.importNotice': 'English comments will be sent to the translation service to prepare a French version. You can use the import immediately.',

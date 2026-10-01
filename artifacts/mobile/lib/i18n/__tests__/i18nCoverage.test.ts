@@ -21,10 +21,13 @@ function read(rel: string): string {
 }
 
 describe('i18n dictionaries', () => {
-  it('explains the confirmed MyMemory daily quota without inventing a resume time', () => {
-    assert.match(translate('fr', 'pgn.translationQuota'), /5 000/);
+  it('explains the confirmed DeepL monthly quota without inventing a resume time', () => {
+    assert.match(translate('fr', 'pgn.translationQuota'), /500 000/);
+    assert.match(translate('fr', 'pgn.translationQuota'), /DeepL/);
     assert.match(translate('fr', 'pgn.translationQuota'), /déjà traduits/);
+    assert.match(translate('fr', 'pgn.serviceNotConfigured'), /clé serveur|DeepL/);
     assert.match(translate('fr', 'pgn.translationQuotaResume', { delay: '13 h 31 min 45 s' }), /13 h 31 min 45 s/);
+    assert.match(translate('fr', 'pgn.translationUsage', { used: 1200, limit: 500000 }), /1200/);
     assert.doesNotMatch(translate('fr', 'pgn.translationQuota'), /heure|demain|24/);
   });
 

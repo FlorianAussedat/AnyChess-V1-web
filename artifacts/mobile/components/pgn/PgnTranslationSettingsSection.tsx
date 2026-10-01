@@ -32,6 +32,8 @@ export function PgnTranslationSettingsSection() {
   const probe = getPgnTranslateProbeSnapshot(queue);
   const diagnostic = formatPgnTranslateProbe(probe);
   const nextAvailable = probe.lastCall?.nextAvailable;
+  const usageCount = probe.lastCall?.usageCharacterCount;
+  const usageLimit = probe.lastCall?.usageCharacterLimit;
 
   const toggleExisting = async () => {
     if (busy) return;
@@ -138,6 +140,14 @@ export function PgnTranslationSettingsSection() {
       >
         {statusText}
       </Text>
+      {usageCount != null && usageLimit != null ? (
+        <Text
+          style={[styles.hint, { color: colors.mutedForeground }]}
+          testID="parametres-translation-usage"
+        >
+          {t('pgn.translationUsage', { used: usageCount, limit: usageLimit })}
+        </Text>
+      ) : null}
       {progress.total > 0 ? (
         <Text
           style={[styles.hint, { color: colors.mutedForeground }]}

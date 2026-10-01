@@ -10,10 +10,10 @@ import {
 } from './classifyMyMemory.ts';
 
 /** Visible in Settings — if the phone does not show this, it is not on this bundle. */
-export const PGN_TRANSLATE_CLIENT_BUILD = 'pgn-diag-2026-10-01b';
+export const PGN_TRANSLATE_CLIENT_BUILD = 'pgn-deepl-2026-10-01';
 
-/** Documented anonymous Get limit: no `de` e-mail and no key in our client URL. */
-export const MYMEMORY_ANONYMOUS_DAILY_LIMIT_CHARS = 5000;
+/** DeepL API Free documented monthly cap. The key never leaves the server. */
+export const DEEPL_FREE_MONTHLY_LIMIT_CHARS = 500_000;
 
 export type PgnTranslateCallProbe = {
   httpStatus: number | null;
@@ -28,6 +28,9 @@ export type PgnTranslateCallProbe = {
   /** Official quota sentence only. Never comment, PGN, e-mail, or query text. */
   providerMessage: string | null;
   nextAvailable: string | null;
+  backend: string | null;
+  usageCharacterCount: number | null;
+  usageCharacterLimit: number | null;
 };
 
 export type PgnTranslateProbeSnapshot = {
@@ -67,6 +70,9 @@ const emptyCall = (): PgnTranslateCallProbe => ({
   durationMs: null,
   providerMessage: null,
   nextAvailable: null,
+  backend: null,
+  usageCharacterCount: null,
+  usageCharacterLimit: null,
 });
 
 const state: InternalState = {
@@ -105,6 +111,9 @@ export function recordPgnTranslateCall(input: {
   classifiedError?: string;
   details?: string;
   durationMs?: number;
+  backend?: string;
+  usageCharacterCount?: number;
+  usageCharacterLimit?: number;
 }): void {
   const details = input.details;
   state.lastCallAt = new Date().toISOString();
@@ -131,6 +140,9 @@ export function recordPgnTranslateCall(input: {
       details === undefined ? null : extractOfficialMyMemoryQuotaMessage(details),
     nextAvailable:
       details === undefined ? null : parseMyMemoryNextAvailableLabel(details),
+    backend: input.backend ?? null,
+    usageCharacterCount: input.usageCharacterCount ?? null,
+    usageCharacterLimit: input.usageCharacterLimit ?? null,
   };
   emit();
 }
@@ -185,8 +197,11 @@ export function formatPgnTranslateProbe(snapshot: PgnTranslateProbeSnapshot): st
     `durationMs=${call?.durationMs ?? 'null'}`,
     `providerMessage=${call?.providerMessage ?? 'null'}`,
     `nextAvailable=${call?.nextAvailable ?? 'null'}`,
-    `hasEmailParam=false`,
-    `anonymousDailyLimitChars=${MYMEMORY_ANONYMOUS_DAILY_LIMIT_CHARS}`,
+    `backend=${call?.backend ?? 'null'}`,
+    `usageCharacterCount=${call?.usageCharacterCount ?? 'null'}`,
+    `usageCharacterLimit=${call?.usageCharacterLimit ?? 'null'}`,
+    `deeplKeyInClient=false`,
+    `deeplMonthlyLimitChars=${DEEPL_FREE_MONTHLY_LIMIT_CHARS}`,
     `jobs.done=${snapshot.jobs.done}`,
     `jobs.queued=${snapshot.jobs.queued}`,
     `jobs.failed=${snapshot.jobs.failed}`,
