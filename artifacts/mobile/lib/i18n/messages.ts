@@ -943,6 +943,7 @@ export type MessageKey =
   | 'settings.translationComplete'
   | 'settings.translationRetry'
   | 'settings.translationTimeout'
+  | 'settings.translationRateLimited'
   | 'settings.translationCounts'
   | 'puzzle.randomAll'
   | 'puzzle.pieceCount'
@@ -2145,6 +2146,8 @@ const fr: Dict = {
   'settings.translationRetry': 'Réessayer',
   'settings.translationTimeout':
     'Délai dépassé — la requête de traduction n’a pas abouti.',
+  'settings.translationRateLimited':
+    'Le service limite temporairement les requêtes. Les commentaires déjà traduits sont conservés. Réessayez dans un instant.',
   'settings.translationCounts':
     '{{done}} traduits · {{pending}} en attente · {{failed}} en échec',
   'puzzle.randomAll': 'Aléatoire / Tous',
@@ -3353,6 +3356,8 @@ const en: Dict = {
   'settings.translationRetry': 'Retry',
   'settings.translationTimeout':
     'The translation request timed out.',
+  'settings.translationRateLimited':
+    'The service is temporarily rate-limiting requests. Already translated comments are kept. Try again shortly.',
   'settings.translationCounts':
     '{{done}} translated · {{pending}} pending · {{failed}} failed',
   'puzzle.randomAll': 'Random / All',

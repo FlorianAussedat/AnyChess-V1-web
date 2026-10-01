@@ -369,6 +369,70 @@ describe('PGN translation settings policy', () => {
     assert.equal(empty.alreadyFrench, false);
   });
 
+  it('background hold keeps completed work and resumes remaining jobs', async () => {
+    const kv = new MemoryKeyValueStorage();
+    const store = new PgnCommentTranslationStore(kv);
+    const queue = new PgnTranslationQueue(kv, store);
+    const pgn = englishPgn(4, 'Bg');
+    let calls = 0;
+    queue.setProvider({
+      configured: true,
+      async translateComments(batch) {
+        const out = [];
+        for (const item of batch) {
+          calls += 1;
+          if (calls === 2) queue.setAppForeground(false);
+          if (!queue.isAppForeground() && calls > 2) {
+            out.push({ id: item.id, error: 'held' as const });
+            continue;
+          }
+          out.push({ id: item.id, text: `FR ${item.text}` });
+        }
+        return out;
+      },
+    });
+    await queue.enqueuePgn(pgn, 'repertoire', 'bg', 'catchup');
+    const first = await queue.processUntilIdle();
+    assert.ok(first.done >= 1);
+    assert.equal(queue.getLastError(), null);
+    const afterHold = Object.values(store.getSnapshot().records).filter((r) => r.status === 'ready');
+    assert.ok(afterHold.length >= 1);
+    const pending = Object.values(queue.getSnapshot().jobs).filter((j) => j.status !== 'done');
+    assert.ok(pending.length >= 1);
+    queue.setAppForeground(true);
+    queue.setProvider(
+      new FakePgnTranslationProvider(fakeMapFor(pgn, 'repertoire', 'bg')),
+    );
+    const rest = await queue.processUntilIdle();
+    assert.ok(rest.done + first.done >= 4);
+    assert.equal(queue.getProgress().phase, 'complete');
+    assert.ok(calls < 8, 'must not re-send already translated comments in a tight loop');
+  });
+
+  it('HTTP 429-style throttle is not reported as a quota', async () => {
+    const kv = new MemoryKeyValueStorage();
+    const store = new PgnCommentTranslationStore(kv);
+    const queue = new PgnTranslationQueue(kv, store);
+    const pgn = `[Event "RL"]\n\n1. e4 {White occupies the center.} *`;
+    await queue.enqueuePgn(pgn, 'repertoire', 'rl', 'catchup');
+    queue.setProvider({
+      configured: true,
+      async translateComments(batch) {
+        return batch.map((item) => ({
+          id: item.id,
+          error: 'rate_limited' as const,
+          retryAfterMs: 1,
+        }));
+      },
+    });
+    const result = await queue.processNext(1);
+    assert.equal(result.blocked, 'rate_limited');
+    assert.equal(queue.getLastError(), 'rate_limited');
+    assert.notEqual(queue.getLastError(), 'quota');
+    assert.equal(store.getSnapshot().records['repertoire:rl:0:n1:after'], undefined);
+    assert.equal(queue.getSnapshot().jobs['repertoire:rl:0:n1:after']?.status, 'queued');
+  });
+
   it('12. libraries no longer mount the old translation panels', () => {
     const here = dirname(fileURLToPath(import.meta.url));
     const mobileRoot = join(here, '../../..');

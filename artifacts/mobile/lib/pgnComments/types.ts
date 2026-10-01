@@ -84,12 +84,15 @@ export type PgnTranslationProviderError =
   | 'invalid'
   | 'rejected'
   | 'quota'
-  | 'timeout';
+  | 'timeout'
+  | 'rate_limited'
+  | 'held';
 
 export type PgnTranslationProviderResult = {
   id: string;
   text?: string;
   error?: PgnTranslationProviderError;
+  retryAfterMs?: number;
 };
 
 export type PgnTranslationPolicy = {

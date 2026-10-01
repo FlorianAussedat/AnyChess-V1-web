@@ -66,6 +66,8 @@ export function PgnTranslationSettingsSection() {
     ? t('pgn.serviceNotConfigured')
     : lastError === 'quota'
       ? t('pgn.translationQuota')
+      : lastError === 'rate_limited'
+        ? t('settings.translationRateLimited')
       : lastError === 'timeout'
         ? t('settings.translationTimeout')
         : lastError === 'offline'
@@ -88,6 +90,7 @@ export function PgnTranslationSettingsSection() {
   const retryable =
     configured &&
     (lastError === 'quota' ||
+      lastError === 'rate_limited' ||
       lastError === 'offline' ||
       lastError === 'timeout' ||
       lastError === 'failed' ||

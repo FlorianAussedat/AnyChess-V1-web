@@ -2,6 +2,12 @@
  * Live EN→FR provider. Default path: MyMemory public API (no client secret).
  * Optional hosted proxy: ANYCHESS_PGN_TRANSLATE_URL (public URL, not a key).
  */
+import {
+  classifyMyMemoryResponse,
+  isExhaustedQuotaSignal,
+  logPgnTranslate,
+  parseRetryAfterMs,
+} from './classifyMyMemory.ts';
 import { protectChessTerms, restoreChessTerms } from './chessGlossary.ts';
 import { isEchoTranslation } from './fingerprint.ts';
 import {
@@ -13,7 +19,22 @@ import type { PgnTranslationProvider, PgnTranslationProviderResult } from './typ
 
 const MYMEMORY = 'https://api.mymemory.translated.net/get';
 const MAX_CHARS = 500;
-const REQUEST_TIMEOUT_MS = 12_000;
+const REQUEST_TIMEOUT_MS = 15_000;
+const DEFAULT_GAP_MS = 400;
+
+let translationHold = false;
+
+export function setPgnTranslationHold(hold: boolean): void {
+  translationHold = hold;
+}
+
+export function isPgnTranslationHeld(): boolean {
+  return translationHold;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function fetchWithTimeout(
   url: string,
@@ -40,13 +61,27 @@ async function translateViaProxy(
   url: string,
   batch: { id: string; text: string; context?: string }[],
 ): Promise<PgnTranslationProviderResult[]> {
+  const started = Date.now();
   const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ items: batch }),
   });
+  logPgnTranslate('proxy', {
+    httpStatus: response.status,
+    durationMs: Date.now() - started,
+    batch: batch.length,
+  });
   if (!response.ok) {
-    return batch.map((item) => ({ id: item.id, error: 'offline' as const }));
+    const classified = classifyMyMemoryResponse({
+      httpStatus: response.status,
+      retryAfterMs: parseRetryAfterMs(response.headers.get('retry-after')),
+    });
+    return batch.map((item) => ({
+      id: item.id,
+      error: classified.error,
+      retryAfterMs: classified.retryAfterMs,
+    }));
   }
   const body = (await response.json()) as {
     items?: { id?: string; text?: string; error?: string }[];
@@ -62,17 +97,15 @@ async function translateViaProxy(
   });
 }
 
-function isQuotaMessage(text: string | undefined, status: number, quotaFinished?: boolean): boolean {
-  if (quotaFinished) return true;
-  if (status === 429 || status === 403) return true;
-  return Boolean(text && /YOU USED ALL AVAILABLE FREE TRANSLATIONS/i.test(text));
-}
-
 export async function translateViaMyMemory(
   text: string,
-): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' | 'timeout' }> {
+): Promise<
+  | { text: string }
+  | { error: 'quota' | 'offline' | 'rejected' | 'timeout' | 'rate_limited'; retryAfterMs?: number }
+> {
   const clipped = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
   const url = `${MYMEMORY}?q=${encodeURIComponent(clipped)}&langpair=en|fr`;
+  const started = Date.now();
   let response: Response;
   try {
     response = await fetchWithTimeout(url, { headers: { Accept: 'application/json' } });
@@ -82,20 +115,57 @@ export async function translateViaMyMemory(
       (typeof DOMException !== 'undefined' &&
         error instanceof DOMException &&
         error.name === 'AbortError');
-    return { error: aborted ? 'timeout' : 'offline' };
+    const classified = classifyMyMemoryResponse({
+      aborted,
+      networkError: !aborted,
+    });
+    logPgnTranslate('mymemory', {
+      error: classified.error,
+      reason: classified.reason,
+      durationMs: Date.now() - started,
+    });
+    return { error: classified.error === 'quota' ? 'offline' : classified.error };
   }
-  if (response.status === 429 || response.status === 403) return { error: 'quota' };
-  if (!response.ok) return { error: 'offline' };
-  const body = (await response.json()) as {
+  let body: {
     responseData?: { translatedText?: string };
     responseStatus?: number | string;
     quotaFinished?: boolean;
     responseDetails?: string;
-  };
+  } = {};
+  try {
+    body = (await response.json()) as typeof body;
+  } catch {
+    body = {};
+  }
   const status = Number(body.responseStatus);
   const translated = body.responseData?.translatedText?.trim();
-  if (isQuotaMessage(translated ?? body.responseDetails, status, body.quotaFinished)) {
-    return { error: 'quota' };
+  const details = `${translated ?? ''} ${body.responseDetails ?? ''}`;
+  const retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'));
+  const classified = classifyMyMemoryResponse({
+    httpStatus: response.status,
+    responseStatus: Number.isFinite(status) ? status : undefined,
+    quotaFinished: body.quotaFinished,
+    details,
+    retryAfterMs,
+  });
+  const exhausted = isExhaustedQuotaSignal(details, body.quotaFinished);
+  const throttled = !exhausted && (response.status === 429 || status === 429);
+  const ok = response.ok && (!status || status === 200) && Boolean(translated) && !exhausted && !throttled;
+  logPgnTranslate('mymemory', {
+    httpStatus: response.status,
+    responseStatus: Number.isFinite(status) ? status : undefined,
+    quotaFinished: Boolean(body.quotaFinished),
+    error: ok ? undefined : classified.error,
+    reason: ok ? 'ok' : classified.reason,
+    durationMs: Date.now() - started,
+    retryAfterMs: classified.retryAfterMs,
+  });
+  if (exhausted) return { error: 'quota' };
+  if (throttled) {
+    return { error: 'rate_limited', retryAfterMs: retryAfterMs ?? classified.retryAfterMs ?? 5_000 };
+  }
+  if (!response.ok) {
+    return { error: classified.error, retryAfterMs: classified.retryAfterMs };
   }
   if (status && status !== 200) return { error: 'rejected' };
   if (!translated) return { error: 'rejected' };
@@ -104,7 +174,13 @@ export async function translateViaMyMemory(
 
 export async function translateEnglishComment(
   original: string,
-): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' | 'invalid' | 'timeout' }> {
+): Promise<
+  | { text: string }
+  | {
+      error: 'quota' | 'offline' | 'rejected' | 'invalid' | 'timeout' | 'rate_limited';
+      retryAfterMs?: number;
+    }
+> {
   const protectedText = protectCommentTokens(original);
   const glossed = protectChessTerms(protectedText.masked);
   const translated = await translateViaMyMemory(glossed.masked);
@@ -118,19 +194,57 @@ export async function translateEnglishComment(
 
 export class MyMemoryPgnTranslationProvider implements PgnTranslationProvider {
   readonly configured = true;
+  private readonly gapMs: number;
+  private readonly shouldHold: () => boolean;
+
+  constructor(options?: { gapMs?: number; shouldHold?: () => boolean }) {
+    this.gapMs = options?.gapMs ?? DEFAULT_GAP_MS;
+    this.shouldHold = options?.shouldHold ?? isPgnTranslationHeld;
+  }
 
   async translateComments(
     batch: { id: string; text: string; context?: string }[],
   ): Promise<PgnTranslationProviderResult[]> {
     const out: PgnTranslationProviderResult[] = [];
-    for (const item of batch) {
+    for (const [index, item] of batch.entries()) {
+      if (this.shouldHold()) {
+        logPgnTranslate('hold', { remaining: batch.length - index });
+        for (const leftover of batch.slice(index)) {
+          out.push({ id: leftover.id, error: 'held' });
+        }
+        break;
+      }
+      if (index > 0 && this.gapMs > 0) {
+        await sleep(this.gapMs);
+        if (this.shouldHold()) {
+          for (const leftover of batch.slice(index)) {
+            out.push({ id: leftover.id, error: 'held' });
+          }
+          break;
+        }
+      }
       try {
         const result = await translateEnglishComment(item.text);
         if ('error' in result) {
-          out.push({ id: item.id, error: result.error });
-          if (result.error === 'quota' || result.error === 'offline') {
+          out.push({
+            id: item.id,
+            error: result.error,
+            retryAfterMs: result.retryAfterMs,
+          });
+          if (
+            result.error === 'quota' ||
+            result.error === 'offline' ||
+            result.error === 'timeout' ||
+            result.error === 'rate_limited'
+          ) {
             const rest = batch.slice(out.length);
-            for (const leftover of rest) out.push({ id: leftover.id, error: result.error });
+            for (const leftover of rest) {
+              out.push({
+                id: leftover.id,
+                error: result.error,
+                retryAfterMs: result.retryAfterMs,
+              });
+            }
             break;
           }
           continue;
