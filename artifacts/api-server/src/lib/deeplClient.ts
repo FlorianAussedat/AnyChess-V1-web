@@ -19,6 +19,7 @@ type CachedUsage = { at: number; usage: DeepLUsage };
 let usageCache: CachedUsage | null = null;
 const USAGE_TTL_MS = 60_000;
 
+/** Replit Secrets only: Tools → Setup → Secrets → DEEPL_API_KEY. Never log this. */
 export function readDeepLKey(): string | null {
   const key = process.env.DEEPL_API_KEY?.trim();
   return key || null;
