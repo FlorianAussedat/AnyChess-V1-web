@@ -10,11 +10,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
+import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
@@ -26,11 +27,12 @@ import { OptionChip } from '@/components/ui/OptionChip';
 import { PuzzleRatingBandSlider } from '@/components/puzzles/PuzzleRatingBandSlider';
 import { PuzzleFilterChip } from '@/components/puzzles/PuzzleFilterChip';
 import {
+  APP_LANGUAGE_OPTIONS,
   DICTATION_PACES,
-  type AppLanguage,
   type ChessNotation,
   type DictationPace,
 } from '@/lib/preferences';
+import { setAuthReturn } from '@/lib/cloud/authReturn';
 import { getPuzzleRatingBand } from '@/lib/puzzles';
 import {
   getStrengthBand,
@@ -41,7 +43,6 @@ import type { MessageKey } from '@/lib/i18n/messages';
 
 type EditorKind =
   | null
-  | 'language'
   | 'notation'
   | 'visualDifficulty'
   | 'blindDifficulty'
@@ -72,10 +73,10 @@ export default function ParametresScreen() {
     resetPreferences,
   } = usePreferences();
   const { t } = useTranslation();
+  const cloud = useCloudAccount();
 
   const [editor, setEditor] = useState<EditorKind>(null);
 
-  const languageLabel = language === 'en' ? t('profil.langEn') : t('profil.langFr');
   const notationLabel =
     chessNotation === 'en' ? t('profil.notationEn') : t('profil.notationFr');
   const strengthLabel = getStrengthBand(stockfishStrengthBandId).label;
@@ -110,16 +111,58 @@ export default function ParametresScreen() {
         backTestID="parametres-back"
       />
 
+      {cloud.sessionReady && !cloud.user ? (
+        <View
+          style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}
+          testID="parametres-guest-notice"
+        >
+          <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>
+            {t('guest.settingsNotice')}
+          </Text>
+          <Pressable
+            testID="parametres-sign-in"
+            onPress={() => {
+              setAuthReturn('/parametres');
+              router.push('/utilisateur' as Href);
+            }}
+            style={({ pressed }) => [
+              styles.noticeBtn,
+              { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightSemiBold }}>
+              {t('cloud.signIn')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
         {t('profil.sectionPreferences')}
       </Text>
       <View style={styles.section}>
-        <ProfilNavRow
-          label={t('profil.language')}
-          value={languageLabel}
-          onPress={() => setEditor('language')}
+        <View
           testID="profil-row-language"
-        />
+          style={[styles.languageCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Text style={[styles.languageTitle, { color: colors.foreground }]}>
+            {t('profil.language')}
+          </Text>
+          <View style={styles.chipWrap}>
+            {APP_LANGUAGE_OPTIONS.map((opt) => (
+              <OptionChip
+                key={opt.id}
+                label={opt.nativeName}
+                active={language === opt.id}
+                onPress={() => {
+                  void updatePreferences({ language: opt.id });
+                }}
+                testID={`profil-lang-${opt.id}`}
+                accessibilityLabel={opt.nativeName}
+              />
+            ))}
+          </View>
+        </View>
         <ProfilNavRow
           label={t('profil.notation')}
           value={notationLabel}
@@ -219,40 +262,6 @@ export default function ParametresScreen() {
           </Text>
         </Pressable>
       </View>
-
-      <Modal
-        visible={editor === 'language'}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditor(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {t('profil.language')}
-            </Text>
-            <View style={styles.chipWrap}>
-              {([
-                { id: 'fr' as AppLanguage, label: t('profil.langFr') },
-                { id: 'en' as AppLanguage, label: t('profil.langEn') },
-              ]).map((opt) => (
-                <OptionChip
-                  key={opt.id}
-                  label={opt.label}
-                  active={language === opt.id}
-                  onPress={() => {
-                    void updatePreferences({ language: opt.id }).then(() => setEditor(null));
-                  }}
-                  testID={`profil-lang-${opt.id}`}
-                />
-              ))}
-            </View>
-            <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
 
       <Modal
         visible={editor === 'notation'}
@@ -413,6 +422,36 @@ const styles = StyleSheet.create({
     fontFamily: DesignTokens.typography.weightSemiBold,
   },
   section: { gap: 8 },
+  notice: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.md,
+    padding: DesignTokens.spacing.md,
+    gap: 8,
+  },
+  noticeText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: DesignTokens.typography.weightRegular,
+  },
+  noticeBtn: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: DesignTokens.minTouchTarget,
+    justifyContent: 'center',
+  },
+  languageCard: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.md,
+    padding: DesignTokens.spacing.md,
+    gap: 10,
+  },
+  languageTitle: {
+    fontSize: 15,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
   dangerZone: { gap: 8, marginTop: DesignTokens.spacing.sm },
   dangerBtn: {
     borderWidth: 1,

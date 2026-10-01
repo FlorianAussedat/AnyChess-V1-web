@@ -161,6 +161,17 @@ export async function translateViaProxy(
   batch: { id: string; text: string; context?: string }[],
 ): Promise<PgnTranslationProviderResult[]> {
   const started = Date.now();
+  if (/\/functions\/v1\//.test(url)) {
+    const userToken = await resolveUserAccessToken();
+    if (!userToken) {
+      recordPgnTranslateCall({
+        classifiedError: 'not_configured',
+        reason: 'signed_out',
+        durationMs: 0,
+      });
+      return batch.map((item) => ({ id: item.id, error: 'not_configured' as const }));
+    }
+  }
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',

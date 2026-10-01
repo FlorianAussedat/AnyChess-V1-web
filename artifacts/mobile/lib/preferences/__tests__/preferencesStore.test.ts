@@ -10,6 +10,7 @@ import {
   defaultUserPreferences,
   mergePreferencesDocument,
 } from '../PreferencesStore.ts';
+import { appLanguageFromTag } from '../deviceLanguage.ts';
 import { DEFAULT_VOICE_SPEED } from '../../continueLine/voiceSpeed.ts';
 
 describe('mergePreferencesDocument', () => {
@@ -35,7 +36,7 @@ describe('mergePreferencesDocument', () => {
 describe('PreferencesStore', () => {
   it('defaults and persists language / notation independently', async () => {
     const storage = new MemoryKeyValueStorage();
-    const store = new PreferencesStore(storage);
+    const store = new PreferencesStore(storage, { deviceLanguage: () => 'fr' });
     await store.ensureLoaded();
     const d = defaultUserPreferences();
     assert.equal(store.getPreferences().language, d.language);
@@ -156,5 +157,53 @@ describe('PreferencesStore', () => {
     assert.ok(merged);
     assert.equal(merged!.translateExistingPgnComments, false);
     assert.equal(merged!.translateImportedPgnComments, true);
+  });
+});
+
+describe('device language', () => {
+  it('keeps a supported phone language and falls back to English', () => {
+    assert.equal(appLanguageFromTag('fr-FR'), 'fr');
+    assert.equal(appLanguageFromTag('en_US'), 'en');
+    assert.equal(appLanguageFromTag('de-DE'), 'en');
+    assert.equal(appLanguageFromTag(null), 'en');
+  });
+
+  it('applies the phone language only when nothing is stored yet', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const first = new PreferencesStore(storage, { deviceLanguage: () => 'en' });
+    await first.ensureLoaded();
+    assert.equal(first.getPreferences().language, 'en');
+    assert.equal(first.getPreferences().preferencesOrigin, 'device');
+    assert.deepEqual(first.getPreferences().manualFields, []);
+
+    await first.update({ language: 'fr', voiceEnabled: false });
+    assert.equal(first.getPreferences().preferencesOrigin, 'device');
+    assert.ok(first.getPreferences().manualFields?.includes('language'));
+    assert.ok(first.getPreferences().manualFields?.includes('voiceEnabled'));
+
+    const again = new PreferencesStore(storage, { deviceLanguage: () => 'en' });
+    await again.ensureLoaded();
+    assert.equal(again.getPreferences().language, 'fr');
+    assert.equal(again.getPreferences().voiceEnabled, false);
+  });
+
+  it('does not replace a language already saved on the device', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const saved = JSON.stringify({
+      version: 1,
+      language: 'fr',
+      chessNotation: 'en',
+      updatedAt: '2024-04-01T00:00:00.000Z',
+    });
+    await storage.setItem(StorageKeys.userPreferences.key, saved);
+    const store = new PreferencesStore(storage, { deviceLanguage: () => 'en' });
+    await store.ensureLoaded();
+    assert.equal(store.getPreferences().language, 'fr');
+    assert.equal(store.getPreferences().chessNotation, 'en');
+    assert.equal(store.getPreferences().preferencesOrigin, undefined);
+    assert.equal(
+      await storage.getItem(StorageKeys.userPreferences.key),
+      saved,
+    );
   });
 });

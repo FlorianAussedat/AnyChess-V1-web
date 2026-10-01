@@ -97,6 +97,9 @@ describe('Utilisateur / Paramètres screen scope', () => {
     assert.match(utilisateur, /profil-reset-records/);
     assert.doesNotMatch(utilisateur, /profil-row-language|profil-pref-voice|voiceSpeed/);
     assert.match(utilisateur, /CloudAccountSection/);
+    assert.match(utilisateur, /utilisateur-guest-card/);
+    assert.match(utilisateur, /utilisateur-session-loading/);
+    assert.match(utilisateur, /guest\.userPrompt/);
     assert.doesNotMatch(utilisateur, /localStorage|AsyncStorage/);
 
     assert.match(parametres, /parametres-screen/);
@@ -104,6 +107,13 @@ describe('Utilisateur / Paramètres screen scope', () => {
     assert.match(parametres, /parametres-back/);
     assert.match(parametres, /router\.back\(\)/);
     assert.match(parametres, /profil-row-language/);
+    assert.match(parametres, /profil-lang-\$\{opt\.id\}/);
+    assert.match(parametres, /nativeName/);
+    assert.match(parametres, /APP_LANGUAGE_OPTIONS/);
+    assert.match(parametres, /parametres-guest-notice/);
+    assert.match(parametres, /guest\.settingsNotice/);
+    assert.match(parametres, /parametres-sign-in/);
+    assert.doesNotMatch(parametres, /if \(!cloud\.user\) return/);
     assert.match(parametres, /profil-row-notation/);
     assert.match(parametres, /profil-pref-voice/);
     assert.match(parametres, /profil-pref-coordinates/);

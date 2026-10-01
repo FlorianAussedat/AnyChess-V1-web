@@ -5,6 +5,12 @@ export {
   mergePreferencesDocument,
 } from './PreferencesStore.ts';
 export {
+  APP_LANGUAGE_OPTIONS,
+  appLanguageFromTag,
+  languageFromDevice,
+  readDeviceLanguageTag,
+} from './deviceLanguage.ts';
+export {
   USER_PREFERENCES_DOCUMENT_VERSION,
   DEFAULT_APP_LANGUAGE,
   DEFAULT_CHESS_NOTATION,

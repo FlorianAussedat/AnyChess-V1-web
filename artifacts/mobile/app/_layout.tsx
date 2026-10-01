@@ -96,10 +96,11 @@ export default function RootLayout() {
       .ensureLoaded()
       .then(() => {
         setPrefsHydrated(true);
-        bindPgnTranslationLifecycle();
-        void reconcilePgnTranslationAfterBoot();
         bindCloudLifecycle();
-        void hydrateCloudSession();
+        void hydrateCloudSession().finally(() => {
+          bindPgnTranslationLifecycle();
+          void reconcilePgnTranslationAfterBoot();
+        });
       })
       .catch(() => setPrefsHydrated(true));
   }, []);

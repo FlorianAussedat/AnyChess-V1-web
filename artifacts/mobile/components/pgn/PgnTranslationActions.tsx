@@ -1,7 +1,10 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { usePathname, useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { useTranslation } from '@/hooks/useTranslation';
+import { setAuthReturn } from '@/lib/cloud/authReturn';
 import { usePgnCommentTranslations } from '@/hooks/usePgnCommentTranslations';
 import {
   applyFrenchToPgnText,
@@ -43,6 +46,9 @@ export function PgnTranslationActions({
   testID = 'pgn-translation-actions',
 }: Props) {
   const colors = useColors();
+  const router = useRouter();
+  const pathname = usePathname();
+  const cloud = useCloudAccount();
   const { t } = useTranslation();
   const { store, queue } = usePgnCommentTranslations();
 
@@ -56,6 +62,12 @@ export function PgnTranslationActions({
   const configured = defaultPgnTranslationProvider.configured;
 
   const run = async (targets: FileRef[]) => {
+    if (!cloud.sessionReady) return;
+    if (!cloud.user) {
+      setAuthReturn(pathname || '/');
+      router.push('/utilisateur' as Href);
+      return;
+    }
     await enqueueExistingPgns(
       targets.map((file) => ({ source, fileId: file.id, pgnText: file.pgnText })),
     );

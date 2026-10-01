@@ -43,7 +43,20 @@ describe('i18n dictionaries', () => {
   });
 
   it('exposes account sync copy in FR and EN', () => {
+    assert.equal(translate('fr', 'cloud.signIn'), 'Se connecter');
     assert.equal(translate('fr', 'cloud.signUp'), 'Créer un compte');
+    assert.equal(
+      translate('fr', 'guest.userPrompt'),
+      'Connecte-toi pour gérer ton profil, personnaliser l’application et retrouver tes données sur tes appareils.',
+    );
+    assert.equal(
+      translate('fr', 'guest.settingsNotice'),
+      'Tes réglages sont enregistrés sur cet appareil. Connecte-toi pour les retrouver sur tes autres appareils.',
+    );
+    assert.equal(translate('fr', 'profil.langFr'), 'Français');
+    assert.equal(translate('fr', 'profil.langEn'), 'English');
+    assert.equal(translate('en', 'profil.langFr'), 'Français');
+    assert.equal(translate('en', 'profil.langEn'), 'English');
     assert.equal(translate('en', 'cloud.signUp'), 'Create account');
     assert.equal(translate('fr', 'cloud.statusSynced'), 'Données synchronisées');
     assert.equal(translate('fr', 'cloud.statusPending'), 'Synchronisation en cours…');

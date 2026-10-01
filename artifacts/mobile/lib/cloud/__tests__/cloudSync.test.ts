@@ -7,8 +7,8 @@ import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../../storage/StorageKeys.ts';
 import { CloudSyncEngine, restoreBackup } from '../CloudSyncEngine.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
-import { mergeDocumentPayload } from '../mergeDocuments.ts';
-import type { CloudDocument } from '../types.ts';
+import { mergeDocumentPayload, mergeUserPreferences } from '../mergeDocuments.ts';
+import type { CloudAuth, CloudDocument, CloudUser } from '../types.ts';
 import { assertNoDeepLKeyInCloudConfig } from '../supabaseConfig.ts';
 import { SYNCABLE_STORAGE_KEYS, cloudBackupKey } from '../syncableKeys.ts';
 
@@ -183,5 +183,214 @@ describe('account sync engine', () => {
     assert.match(sql, /auth\.uid\(\) = user_id/);
     assert.doesNotMatch(sql, /service_role/);
     assert.doesNotMatch(sql, /deepl|api-free\.deepl/i);
+  });
+});
+
+function preferenceDoc(partial: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    version: 1,
+    language: 'fr',
+    chessNotation: 'fr',
+    voiceEnabled: true,
+    updatedAt: '2020-01-01T00:00:00.000Z',
+    ...partial,
+  });
+}
+
+describe('preference sync rule', () => {
+  it('keeps the guest document when the account has no remote preferences yet', () => {
+    const local = preferenceDoc({
+      language: 'en',
+      chessNotation: 'en',
+      voiceEnabled: false,
+      preferencesOrigin: 'device',
+      manualFields: [],
+      updatedAt: '2026-10-01T00:00:00.000Z',
+    });
+    assert.equal(
+      mergeDocumentPayload(StorageKeys.userPreferences.key, local, null),
+      local,
+    );
+    const kept = mergeUserPreferences(JSON.parse(local), null) as { language: string };
+    assert.equal(kept.language, 'en');
+  });
+
+  it('does not let phone defaults replace an existing cloud preference', () => {
+    const local = preferenceDoc({
+      language: 'en',
+      chessNotation: 'fr',
+      voiceEnabled: true,
+      preferencesOrigin: 'device',
+      manualFields: [],
+      updatedAt: '2026-10-01T00:00:00.000Z',
+    });
+    const remote = preferenceDoc({
+      language: 'fr',
+      chessNotation: 'en',
+      voiceEnabled: false,
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    });
+    const merged = JSON.parse(
+      mergeDocumentPayload(StorageKeys.userPreferences.key, local, remote) ?? '{}',
+    ) as { language: string; chessNotation: string; voiceEnabled: boolean };
+    assert.equal(merged.language, 'fr');
+    assert.equal(merged.chessNotation, 'en');
+    assert.equal(merged.voiceEnabled, false);
+  });
+
+  it('keeps last-write-wins for preferences saved before the phone-default flag', () => {
+    const local = preferenceDoc({
+      language: 'en',
+      voiceEnabled: false,
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const remote = preferenceDoc({
+      language: 'fr',
+      voiceEnabled: true,
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    });
+    const merged = JSON.parse(
+      mergeDocumentPayload(StorageKeys.userPreferences.key, local, remote) ?? '{}',
+    ) as { language: string; voiceEnabled: boolean };
+    assert.equal(merged.language, 'en');
+    assert.equal(merged.voiceEnabled, false);
+  });
+
+  it('keeps a guest change and the rest of the cloud preferences', () => {
+    const local = preferenceDoc({
+      language: 'en',
+      voiceEnabled: true,
+      chessNotation: 'fr',
+      preferencesOrigin: 'device',
+      manualFields: ['language'],
+      updatedAt: '2026-10-01T00:00:00.000Z',
+    });
+    const remote = preferenceDoc({
+      language: 'fr',
+      voiceEnabled: false,
+      chessNotation: 'en',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+    });
+    const merged = JSON.parse(
+      mergeDocumentPayload(StorageKeys.userPreferences.key, local, remote) ?? '{}',
+    ) as { language: string; chessNotation: string; voiceEnabled: boolean };
+    assert.equal(merged.language, 'en');
+    assert.equal(merged.voiceEnabled, false);
+    assert.equal(merged.chessNotation, 'en');
+  });
+
+  it('uploads guest settings for a new account and preserves cloud settings for an existing one', async () => {
+    const auth = new MemoryCloudAuth();
+    const remote = new MemoryCloudRemote();
+    const firstPhone = new MemoryKeyValueStorage();
+    const existing = new CloudSyncEngine(firstPhone, auth, remote);
+    await firstPhone.setItem(
+      StorageKeys.userPreferences.key,
+      preferenceDoc({
+        language: 'fr',
+        chessNotation: 'en',
+        voiceEnabled: false,
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      }),
+    );
+    const created = await existing.signUp('ada@example.com', 'secret1');
+    assert.equal(created.ok, true);
+
+    const guestPhone = new MemoryKeyValueStorage();
+    const guest = new CloudSyncEngine(guestPhone, auth, remote);
+    await guestPhone.setItem(
+      StorageKeys.userPreferences.key,
+      preferenceDoc({
+        language: 'en',
+        chessNotation: 'fr',
+        voiceEnabled: true,
+        preferencesOrigin: 'device',
+        manualFields: [],
+        updatedAt: '2026-10-01T00:00:00.000Z',
+      }),
+    );
+    const signed = await guest.signIn('ada@example.com', 'secret1');
+    assert.equal(signed.ok, true);
+    const stored = JSON.parse(
+      (await guestPhone.getItem(StorageKeys.userPreferences.key)) ?? '{}',
+    ) as { language: string; chessNotation: string; voiceEnabled: boolean };
+    assert.equal(stored.language, 'fr');
+    assert.equal(stored.chessNotation, 'en');
+    assert.equal(stored.voiceEnabled, false);
+
+    await guest.signOut();
+    const fresh = new MemoryKeyValueStorage();
+    const freshRemote = new MemoryCloudRemote();
+    const createdEngine = new CloudSyncEngine(fresh, new MemoryCloudAuth(), freshRemote);
+    await fresh.setItem(
+      StorageKeys.userPreferences.key,
+      preferenceDoc({
+        language: 'en',
+        chessNotation: 'en',
+        voiceEnabled: false,
+        preferencesOrigin: 'device',
+        manualFields: ['language', 'chessNotation', 'voiceEnabled'],
+        updatedAt: '2026-10-01T00:00:00.000Z',
+      }),
+    );
+    const signup = await createdEngine.signUp('new@example.com', 'secret1');
+    assert.equal(signup.ok, true);
+    if (!signup.ok) return;
+    const uploaded = JSON.parse(
+      freshRemote.peek(signup.user.id, StorageKeys.userPreferences.key)?.payload ?? '{}',
+    ) as { language: string; voiceEnabled: boolean; chessNotation: string };
+    assert.equal(uploaded.language, 'en');
+    assert.equal(uploaded.chessNotation, 'en');
+    assert.equal(uploaded.voiceEnabled, false);
+  });
+});
+
+describe('session restore', () => {
+  it('keeps an established session and local settings when the network fails', async () => {
+    const storage = new MemoryKeyValueStorage();
+    const saved = preferenceDoc({
+      language: 'fr',
+      voiceEnabled: false,
+      updatedAt: '2024-05-01T00:00:00.000Z',
+    });
+    await storage.setItem(StorageKeys.userPreferences.key, saved);
+    const user: CloudUser = { id: 'u1', email: 'a@b.c' };
+    const auth: CloudAuth = {
+      configured: true,
+      token: () => 'token-1',
+      async hydrate() {
+        return user;
+      },
+      async getUser() {
+        return user;
+      },
+      async signUp() {
+        return { ok: false, error: 'unexpected' };
+      },
+      async signIn() {
+        return { ok: true, user };
+      },
+      async signOut() {},
+      async resendSignupConfirmation() {
+        return { ok: true };
+      },
+      async recoverPassword() {
+        return { ok: true };
+      },
+    };
+    const engine = new CloudSyncEngine(storage, auth, {
+      async listDocuments() {
+        throw new Error('network offline');
+      },
+      async upsertDocument() {
+        throw new Error('network offline');
+      },
+    });
+    assert.equal(engine.getState().sessionReady, false);
+    const state = await engine.hydrate();
+    assert.equal(state.sessionReady, true);
+    assert.equal(state.status, 'offline');
+    assert.equal(state.user?.email, 'a@b.c');
+    assert.equal(await storage.getItem(StorageKeys.userPreferences.key), saved);
   });
 });
