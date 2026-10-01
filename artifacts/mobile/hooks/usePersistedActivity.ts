@@ -2,13 +2,18 @@
  * Snapshot an in-progress activity to the multi-session store.
  * Creates a new id unless `resumeSessionId` is provided — never overwrites
  * another activity by kind.
+ *
+ * After endActivity, flush/AppState/unmount must not recreate the old id.
+ * A new game on the same mounted screen mints a fresh session id.
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import {
+  canPersistActivitySession,
   createActivitySessionId,
   getActivitySession,
   endActivity,
+  isActivitySessionEnded,
   markActivityFinished,
   nounForKind,
   upsertActivitySession,
@@ -17,6 +22,8 @@ import {
   type ActivitySessionRecord,
 } from '@/lib/activitySessions';
 import type { MainModeId } from '@/lib/app/modes';
+
+export const ACTIVITY_PERSIST_DEBOUNCE_MS = 250;
 
 export function usePersistedActivity<T>(args: {
   kind: ActivityKind;
@@ -48,8 +55,10 @@ export function usePersistedActivity<T>(args: {
     apply,
   } = args;
   const noun = nounForKind(kind);
-  const sessionIdRef = useRef(resumeSessionId || createActivitySessionId());
-  const restoredRef = useRef(false);
+  const [sessionId, setSessionId] = useState(
+    () => resumeSessionId || createActivitySessionId(),
+  );
+  const sessionIdRef = useRef(sessionId);
   const captureRef = useRef(capture);
   captureRef.current = capture;
   const applyRef = useRef(apply);
@@ -57,28 +66,42 @@ export function usePersistedActivity<T>(args: {
   const metaRef = useRef({ title, summary, routeFor, kind, modeId, noun });
   metaRef.current = { title, summary, routeFor, kind, modeId, noun };
 
+  const assignSessionId = useCallback((next: string) => {
+    if (sessionIdRef.current === next) return;
+    sessionIdRef.current = next;
+    setSessionId(next);
+  }, []);
+
   useEffect(() => {
-    if (restoredRef.current) return;
-    restoredRef.current = true;
     if (!resumeSessionId) return;
+    if (isActivitySessionEnded(resumeSessionId)) return;
+    assignSessionId(resumeSessionId);
     const record = getActivitySession(resumeSessionId);
     if (!record) return;
     applyRef.current?.(record.payload as T);
-  }, [resumeSessionId]);
+  }, [assignSessionId, resumeSessionId]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (!isActivitySessionEnded(sessionIdRef.current)) return;
+    assignSessionId(createActivitySessionId());
+  }, [assignSessionId, enabled]);
 
   const flush = useCallback(async () => {
     if (!enabled) return;
+    const id = sessionIdRef.current;
+    if (!canPersistActivitySession(id)) return;
     const payload = captureRef.current();
     if (payload == null) return;
     const meta = metaRef.current;
     const record: ActivitySessionRecord = {
-      id: sessionIdRef.current,
+      id,
       kind: meta.kind,
       modeId: meta.modeId,
       noun: meta.noun,
       title: meta.title,
       summary: meta.summary,
-      route: meta.routeFor(sessionIdRef.current),
+      route: meta.routeFor(id),
       updatedAt: Date.now(),
       inProgress: true,
       payload,
@@ -90,14 +113,17 @@ export function usePersistedActivity<T>(args: {
     if (!enabled) return;
     const timer = setTimeout(() => {
       void flush();
-    }, 250);
+    }, ACTIVITY_PERSIST_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [enabled, flush, revision, title, summary]);
+  }, [enabled, flush, revision, title, summary, sessionId]);
 
   const wasEnabledRef = useRef(false);
   useEffect(() => {
     if (wasEnabledRef.current && !enabled) {
-      void markActivityFinished(sessionIdRef.current);
+      const id = sessionIdRef.current;
+      if (canPersistActivitySession(id)) {
+        void markActivityFinished(id);
+      }
     }
     wasEnabledRef.current = enabled;
   }, [enabled]);
@@ -117,5 +143,5 @@ export function usePersistedActivity<T>(args: {
     await endActivity(sessionIdRef.current);
   }, []);
 
-  return { sessionId: sessionIdRef.current, noun, discard };
+  return { sessionId, noun, discard };
 }

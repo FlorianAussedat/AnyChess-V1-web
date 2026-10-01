@@ -127,6 +127,34 @@ describe('app dialog store', () => {
     assert.equal(queued?.confirmLabel, 'Quitter');
     assert.equal(queued?.cancelLabel, 'Annuler');
   });
+
+  it('queues a second present instead of replacing the waiting request', () => {
+    let first = 0;
+    let second = 0;
+    presentAppDialog({
+      title: 'First',
+      message: '',
+      variant: 'confirm',
+      onConfirm: () => {
+        first += 1;
+      },
+    });
+    presentAppDialog({
+      title: 'Second',
+      message: '',
+      variant: 'confirm',
+      onConfirm: () => {
+        second += 1;
+      },
+    });
+    assert.equal(getAppDialogRequest()?.title, 'First');
+    resolveAppDialog('confirm');
+    assert.equal(first, 1);
+    assert.equal(getAppDialogRequest()?.title, 'Second');
+    resolveAppDialog('cancel');
+    assert.equal(second, 0);
+    assert.equal(getAppDialogRequest(), null);
+  });
 });
 
 describe('dialog action layout', () => {
@@ -183,7 +211,9 @@ describe('native Alert.alert is gone from confirmation paths', () => {
 
   it('root layout mounts AppDialogHost above the app', () => {
     const layout = read('app/_layout.tsx');
+    const host = read('components/ui/AppDialogHost.tsx');
     assert.match(layout, /AppDialogHost/);
+    assert.match(host, /useSyncExternalStore/);
   });
 
   it('AppDialog uses AnyChess tokens, AppButton, and Android back = cancel', () => {

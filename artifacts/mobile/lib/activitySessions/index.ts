@@ -17,8 +17,12 @@ export {
   upsertActivitySession,
   removeActivitySession,
   markActivityFinished,
+  markActivitySessionEnded,
+  isActivitySessionEnded,
+  canPersistActivitySession,
   subscribeActivitySessions,
   __setActivitySessionsStorageForTests,
+  __hydrateActivitySessionsFromStorageForTests,
 } from './ActivitySessionsStore.ts';
 export { endActivity } from './endActivity.ts';
 export { endCopyForKind } from './types.ts';
