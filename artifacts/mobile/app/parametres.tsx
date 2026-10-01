@@ -38,7 +38,10 @@ import {
   getStrengthBand,
 } from '@/lib/difficulty/StockfishStrengthBands';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
-import { PgnTranslationSettingsSection } from '@/components/pgn/PgnTranslationSettingsSection';
+import {
+  PgnTranslationSettingsSection,
+  PgnTranslationTechnicalDiagnostic,
+} from '@/components/pgn/PgnTranslationSettingsSection';
 import type { MessageKey } from '@/lib/i18n/messages';
 
 type EditorKind =
@@ -262,6 +265,8 @@ export default function ParametresScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {typeof __DEV__ !== 'undefined' && __DEV__ ? <PgnTranslationTechnicalDiagnostic /> : null}
 
       <Modal
         visible={editor === 'notation'}

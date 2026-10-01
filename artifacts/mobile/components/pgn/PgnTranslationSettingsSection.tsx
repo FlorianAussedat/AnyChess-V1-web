@@ -33,9 +33,7 @@ export function PgnTranslationSettingsSection() {
   const lastError = queue.getLastError();
   const configured = defaultPgnTranslationProvider.configured;
   const [busy, setBusy] = useState<'existing' | 'import' | 'retry' | null>(null);
-  const [copied, setCopied] = useState(false);
   const probe = getPgnTranslateProbeSnapshot(queue);
-  const diagnostic = formatPgnTranslateProbe(probe);
   const nextAvailable = probe.lastCall?.nextAvailable;
   const usageCount = probe.lastCall?.usageCharacterCount;
   const usageLimit = probe.lastCall?.usageCharacterLimit;
@@ -211,35 +209,64 @@ export function PgnTranslationSettingsSection() {
           </Text>
         </Pressable>
       ) : null}
-      <Text style={[styles.diagTitle, { color: colors.mutedForeground }]}>
-        {t('settings.translationDiagTitle')}
-      </Text>
-      <Text
-        selectable
-        style={[styles.diag, { color: colors.foreground, backgroundColor: colors.card }]}
-        testID="parametres-translation-diag"
-      >
-        {diagnostic}
-      </Text>
+    </View>
+  );
+}
+
+/**
+ * Dev-only technical dump. Hidden until the discreet link at the bottom of
+ * Settings is pressed. User-facing progress and errors stay in the section above.
+ */
+export function PgnTranslationTechnicalDiagnostic() {
+  const colors = useColors();
+  const { t } = useTranslation();
+  const { queue } = usePgnCommentTranslations();
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return null;
+  const diagnostic = open ? formatPgnTranslateProbe(getPgnTranslateProbeSnapshot(queue)) : '';
+
+  return (
+    <View style={styles.devDiag} testID="parametres-technical-diagnostic">
       <Pressable
-        onPress={() => {
-          void copyToClipboard(diagnostic).then((ok) => {
-            if (ok) {
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }
-          });
-        }}
-        testID="parametres-translation-diag-copy"
-        style={({ pressed }) => [
-          styles.retry,
-          { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
-        ]}
+        onPress={() => setOpen((value) => !value)}
+        testID="parametres-technical-diagnostic-link"
+        accessibilityRole="button"
       >
-        <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightSemiBold }}>
-          {copied ? t('settings.translationDiagCopied') : t('settings.translationDiagCopy')}
+        <Text style={[styles.devLink, { color: colors.mutedForeground }]}>
+          {t('settings.technicalDiagnostic')}
         </Text>
       </Pressable>
+      {open ? (
+        <View style={styles.devDetails}>
+          <Text
+            selectable
+            style={[styles.diag, { color: colors.foreground, backgroundColor: colors.card }]}
+            testID="parametres-translation-diag"
+          >
+            {diagnostic}
+          </Text>
+          <Pressable
+            onPress={() => {
+              void copyToClipboard(diagnostic).then((ok) => {
+                if (ok) {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }
+              });
+            }}
+            testID="parametres-translation-diag-copy"
+            style={({ pressed }) => [
+              styles.retry,
+              { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightSemiBold }}>
+              {copied ? t('settings.translationDiagCopied') : t('settings.translationDiagCopy')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -272,12 +299,6 @@ const styles = StyleSheet.create({
     minHeight: DesignTokens.minTouchTarget,
     justifyContent: 'center',
   },
-  diagTitle: {
-    marginTop: DesignTokens.spacing.sm,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-  },
   diag: {
     fontSize: 11,
     lineHeight: 16,
@@ -285,4 +306,16 @@ const styles = StyleSheet.create({
     borderRadius: DesignTokens.radius.sm,
     padding: 10,
   },
+  devDiag: {
+    marginTop: DesignTokens.spacing.lg,
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  devLink: {
+    fontSize: 12,
+    lineHeight: 16,
+    textDecorationLine: 'underline',
+    fontFamily: DesignTokens.typography.weightRegular,
+  },
+  devDetails: { alignSelf: 'stretch', gap: 8 },
 });
