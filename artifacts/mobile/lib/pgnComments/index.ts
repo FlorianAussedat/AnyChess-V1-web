@@ -10,3 +10,5 @@ export * from './PgnTranslationQueue.ts';
 export * from './resolveComment.ts';
 export * from './exportTranslatedPgn.ts';
 export * from './schedule.ts';
+export * from './classifyMyMemory.ts';
+export * from './lifecycle.ts';

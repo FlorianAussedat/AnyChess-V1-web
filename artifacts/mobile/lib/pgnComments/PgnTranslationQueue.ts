@@ -10,6 +10,7 @@ import {
 import { isEchoTranslation } from './fingerprint.ts';
 import { defaultPgnTranslationProvider } from './provider.ts';
 import { fingerprintComment } from './fingerprint.ts';
+import { logPgnTranslate } from './classifyMyMemory.ts';
 import type {
   PgnCommentSource,
   PgnCommentUnit,
@@ -74,6 +75,14 @@ function jobAllowed(job: PgnTranslationJob, policy: PgnTranslationPolicy): boole
   return job.origin === 'import' ? policy.import : policy.catchup;
 }
 
+function logQueue(event: string, fields: Record<string, string | number | boolean | undefined | null>): void {
+  logPgnTranslate(`queue.${event}`, fields);
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -96,6 +105,8 @@ export class PgnTranslationQueue {
   private cancelled = false;
   private runGeneration = 0;
   private lastError: PgnTranslationServiceError = null;
+  private retryAfterMs: number | null = null;
+  private appForeground = true;
   private policy: PgnTranslationPolicy = { catchup: true, import: true };
   private readonly listeners = new Set<() => void>();
   private provider: PgnTranslationProvider = defaultPgnTranslationProvider;
@@ -136,12 +147,44 @@ export class PgnTranslationQueue {
     return this.lastError;
   }
 
+  getRetryAfterMs(): number | null {
+    return this.retryAfterMs;
+  }
+
+  isAppForeground(): boolean {
+    return this.appForeground;
+  }
+
+  setAppForeground(active: boolean): void {
+    const wasActive = this.appForeground;
+    this.appForeground = active;
+    if (!active) {
+      logQueue('background', { pumping: this.pumping, running: this.running });
+      return;
+    }
+    if (!wasActive) {
+      if (
+        this.lastError === 'timeout' ||
+        this.lastError === 'offline' ||
+        this.lastError === 'rate_limited' ||
+        this.lastError === 'held'
+      ) {
+        this.setLastError(null);
+      }
+      logQueue('foreground', { pending: this.pendingCount() });
+    }
+  }
+
   isBusy(): boolean {
     return this.running || this.pumping;
   }
 
-  private setLastError(error: PgnTranslationServiceError): void {
-    if (this.lastError === error) return;
+  private setLastError(error: PgnTranslationServiceError, retryAfterMs?: number | null): void {
+    this.retryAfterMs = error === 'rate_limited' ? (retryAfterMs ?? this.retryAfterMs) : null;
+    if (this.lastError === error) {
+      this.emit();
+      return;
+    }
     this.lastError = error;
     this.emit();
   }
@@ -185,7 +228,7 @@ export class PgnTranslationQueue {
     let phase: PgnTranslationProgress['phase'] = 'empty';
     if (total === 0) {
       phase = 'empty';
-    } else if (this.lastError) {
+    } else if (this.lastError && this.lastError !== 'held') {
       phase = 'error';
     } else if (pending === 0 && failed === 0) {
       phase = 'complete';
@@ -343,6 +386,7 @@ export class PgnTranslationQueue {
   async processNext(limit = BATCH): Promise<{ done: number; failed: number; blocked: string | null }> {
     await this.ensureLoaded();
     if (this.running) return { done: 0, failed: 0, blocked: null };
+    if (!this.appForeground) return { done: 0, failed: 0, blocked: 'held' };
     this.running = true;
     this.cancelled = false;
     const generation = this.runGeneration;
@@ -368,17 +412,24 @@ export class PgnTranslationQueue {
       await this.persist();
 
       let results: Awaited<ReturnType<PgnTranslationProvider['translateComments']>>;
+      const budgetMs = this.timeoutMs * Math.max(1, queued.length);
+      logQueue('batch.start', { count: queued.length, budgetMs, foreground: this.appForeground });
       try {
         results = await withTimeout(
           this.provider.translateComments(
             queued.map((j) => ({ id: j.id, text: j.original, context: j.context })),
           ),
-          this.timeoutMs,
+          budgetMs,
         );
       } catch (error) {
         const timedOut = error instanceof Error && error.message === 'timeout';
-        blocked = timedOut ? 'timeout' : 'offline';
-        this.setLastError(timedOut ? 'timeout' : 'offline');
+        blocked = !this.appForeground ? 'held' : timedOut ? 'timeout' : 'offline';
+        if (blocked !== 'held') this.setLastError(timedOut ? 'timeout' : 'offline');
+        logQueue('batch.timeout', {
+          blocked,
+          foreground: this.appForeground,
+          budgetMs,
+        });
         await this.restoreInFlight(queued, generation);
         return { done, failed, blocked };
       }
@@ -409,6 +460,8 @@ export class PgnTranslationQueue {
               jobs[job.id] = { ...current, status: 'done', error: undefined, updatedAt: now };
               done += 1;
             }
+          } else if (current.status === 'running') {
+            jobs[job.id] = { ...current, status: 'queued', updatedAt: now };
           }
           continue;
         }
@@ -421,7 +474,9 @@ export class PgnTranslationQueue {
             result?.error === 'not_configured' ||
             result?.error === 'quota' ||
             result?.error === 'offline' ||
-            result?.error === 'timeout';
+            result?.error === 'timeout' ||
+            result?.error === 'rate_limited' ||
+            result?.error === 'held';
           const echo = Boolean(result?.text && isEchoTranslation(job.original, result.text));
           jobs[job.id] = {
             ...job,
@@ -432,6 +487,11 @@ export class PgnTranslationQueue {
           if (result?.error === 'quota') {
             blocked = 'quota';
             this.setLastError('quota');
+          } else if (result?.error === 'rate_limited') {
+            blocked = 'rate_limited';
+            this.setLastError('rate_limited', result.retryAfterMs ?? 5_000);
+          } else if (result?.error === 'held') {
+            blocked = 'held';
           } else if (result?.error === 'offline') {
             blocked = 'offline';
             this.setLastError('offline');
@@ -492,23 +552,44 @@ export class PgnTranslationQueue {
     let done = 0;
     let failed = 0;
     let blocked: string | null = null;
+    let rateLimitRounds = 0;
     try {
       do {
         this.pumpQueued = false;
         const generation = this.runGeneration;
         blocked = null;
         while (generation === this.runGeneration) {
+          if (!this.appForeground) {
+            blocked = 'held';
+            break;
+          }
           const result = await this.processNext(BATCH);
           done += result.done;
           failed += result.failed;
+          if (result.blocked === 'held') {
+            blocked = 'held';
+            break;
+          }
+          if (result.blocked === 'rate_limited') {
+            rateLimitRounds += 1;
+            const waitMs = this.retryAfterMs ?? 5_000;
+            logQueue('rate_limited.wait', { waitMs, round: rateLimitRounds });
+            if (rateLimitRounds > 3) {
+              blocked = 'rate_limited';
+              break;
+            }
+            await sleepMs(waitMs);
+            continue;
+          }
           if (result.blocked) {
             blocked = result.blocked;
             this.pumpQueued = false;
             break;
           }
+          rateLimitRounds = 0;
           if (result.done === 0 && result.failed === 0) break;
         }
-      } while (this.pumpQueued);
+      } while (this.pumpQueued && this.appForeground);
     } finally {
       this.pumping = false;
       this.emit();
@@ -524,6 +605,8 @@ export class PgnTranslationQueue {
     this.cancelled = false;
     this.runGeneration = 0;
     this.lastError = null;
+    this.retryAfterMs = null;
+    this.appForeground = true;
     this.policy = { catchup: true, import: true };
     this.provider = defaultPgnTranslationProvider;
   }

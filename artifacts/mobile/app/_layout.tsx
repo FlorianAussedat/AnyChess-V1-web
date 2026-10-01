@@ -24,7 +24,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { preferencesStore } from '@/lib/preferences';
 import { runStorageMigrations } from '@/lib/storage';
 import { loadActivitySessions } from '@/lib/activitySessions';
-import { reconcilePgnTranslationAfterBoot } from '@/lib/pgnComments';
+import {
+  bindPgnTranslationLifecycle,
+  reconcilePgnTranslationAfterBoot,
+} from '@/lib/pgnComments';
 import { useReleaseEphemeralOpeningSession } from '@/hooks/useReleaseEphemeralOpeningSession';
 
 SplashScreen.preventAutoHideAsync();
@@ -92,6 +95,7 @@ export default function RootLayout() {
       .ensureLoaded()
       .then(() => {
         setPrefsHydrated(true);
+        bindPgnTranslationLifecycle();
         void reconcilePgnTranslationAfterBoot();
       })
       .catch(() => setPrefsHydrated(true));
