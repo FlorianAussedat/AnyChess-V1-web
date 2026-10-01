@@ -17,12 +17,16 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
-import { MASCOT_ART, artHeight, mascotCanvasAspect } from '@/constants/brandArtBounds';
+import {
+  MASCOT_ART,
+  MODE_CARD_MASCOT_SLOT,
+  containArtInSlot,
+  mascotCanvasAspect,
+} from '@/constants/brandArtBounds';
 import type { ModeIconName } from '@/lib/app/mainModeCards';
 import type { MainModeId } from '@/lib/app/modes';
 
 const THEMATIC_ICON_SIZE = 34;
-const MASCOT_COL = 112;
 
 export interface ModeCardProps {
   modeId: MainModeId;
@@ -45,13 +49,13 @@ export function ModeCard({
 }: ModeCardProps) {
   const colors = useColors();
   const art = MASCOT_ART[modeId] ?? MASCOT_ART.classic;
-  const aH = artHeight(art);
-  const mascotH = 118;
-  const targetArtH = Math.round(mascotH * 0.96);
-  const imgHeight = Math.round(targetArtH / aH);
-  const imgWidth = Math.round(imgHeight * mascotCanvasAspect(modeId));
-  const imageBottom = -Math.round((1 - art.bottom) * imgHeight) - 4;
-  const imageRight = -Math.round((1 - art.right) * imgWidth) - 2;
+  const { imgWidth, imgHeight, imageRight, imageBottom } = containArtInSlot(
+    art,
+    mascotCanvasAspect(modeId),
+    MODE_CARD_MASCOT_SLOT.width,
+    MODE_CARD_MASCOT_SLOT.height,
+    MODE_CARD_MASCOT_SLOT.pad,
+  );
 
   return (
     <Pressable
@@ -151,8 +155,8 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   illustrationSlot: {
-    width: MASCOT_COL,
-    height: 118,
+    width: MODE_CARD_MASCOT_SLOT.width,
+    height: MODE_CARD_MASCOT_SLOT.height,
     overflow: 'hidden',
     position: 'relative',
     flexShrink: 0,

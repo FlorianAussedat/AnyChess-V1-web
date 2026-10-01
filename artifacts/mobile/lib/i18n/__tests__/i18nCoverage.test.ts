@@ -21,6 +21,14 @@ function read(rel: string): string {
 }
 
 describe('i18n dictionaries', () => {
+  it('Quelle ouverture level hints stay FR/EN and mention the real 10-question test', () => {
+    assert.match(translate('fr', 'quiz.quelleIntro', { count: 10 }), /10 questions/);
+    assert.match(translate('en', 'quiz.quelleIntro', { count: 10 }), /10-question/);
+    assert.match(translate('fr', 'quiz.quelleLevel.confirme'), /variantes/);
+    assert.match(translate('en', 'quiz.quelleLevel.confirme'), /variations/);
+    assert.match(translate('fr', 'quiz.quelleLevel.grandMaitre'), /sans propositions/);
+  });
+
   it('Profile preference labels differ FR vs EN', () => {
     assert.equal(translate('fr', 'profil.language'), "Langue de l'application");
     assert.equal(translate('en', 'profil.language'), 'App language');

@@ -593,6 +593,11 @@ export type MessageKey =
   | 'quiz.cultureMixed'
   | 'quiz.quelle'
   | 'quiz.quelleDesc'
+  | 'quiz.quelleIntro'
+  | 'quiz.quelleLevel.debutant'
+  | 'quiz.quelleLevel.confirme'
+  | 'quiz.quelleLevel.expert'
+  | 'quiz.quelleLevel.grandMaitre'
   | 'quiz.defendsNulle'
   | 'quiz.defendsNullePageTitle'
   | 'quiz.defendsNulleDesc'
@@ -1733,6 +1738,16 @@ const fr: Dict = {
   'quiz.quelle': 'Quelle ouverture ?',
   'quiz.quelleDesc':
     'Devine l’ouverture à partir des coups joués.',
+  'quiz.quelleIntro':
+    'Retrouve le nom de l’ouverture dans un test de {{count}} questions. Choisis le niveau qui correspond à tes connaissances.',
+  'quiz.quelleLevel.debutant':
+    'Je joue aux échecs, mais je connais encore peu les noms des ouvertures.',
+  'quiz.quelleLevel.confirme':
+    'Je reconnais quelques ouvertures et je commence à distinguer leurs variantes.',
+  'quiz.quelleLevel.expert':
+    'Je reconnais les grandes ouvertures, mais j’hésite entre leurs variantes.',
+  'quiz.quelleLevel.grandMaitre':
+    'Je connais de nombreuses variantes et je veux les nommer sans propositions.',
   'quiz.defendsNulle': 'Défends la nulle !',
   'quiz.defendsNullePageTitle': 'Entraînement aux Finales',
   'quiz.defendsNulleDesc':
@@ -2947,6 +2962,16 @@ const en: Dict = {
   'quiz.cultureMixed': 'Chess culture — 10 mixed questions',
   'quiz.quelle': 'Which opening?',
   'quiz.quelleDesc': 'Guess the opening from the moves played.',
+  'quiz.quelleIntro':
+    'Find the opening’s name in a {{count}}-question test. Choose the level that matches what you know.',
+  'quiz.quelleLevel.debutant':
+    'I play chess, but I still know few opening names.',
+  'quiz.quelleLevel.confirme':
+    'I know a few openings and I am starting to tell their variations apart.',
+  'quiz.quelleLevel.expert':
+    'I recognize the main openings, but I still hesitate between their variations.',
+  'quiz.quelleLevel.grandMaitre':
+    'I know many variations and I want to name them without multiple-choice options.',
   'quiz.defendsNulle': 'Defend the draw!',
   'quiz.defendsNullePageTitle': 'Endgame Training',
   'quiz.defendsNulleDesc':

@@ -17,7 +17,10 @@ describe('quelle ouverture harmonization', () => {
     const src = readFileSync(join(quizDir, 'quelle.tsx'), 'utf8');
     assert.match(src, /NumberedSanRows/);
     assert.match(src, /quelle-level-picker/);
-    assert.match(src, /OptionChip/);
+    assert.match(src, /quelle-level-intro/);
+    assert.match(src, /quiz\.quelleIntro/);
+    assert.match(src, /styles\.levelCard/);
+    assert.doesNotMatch(src, /OptionChip/);
     assert.doesNotMatch(src, /DifficultySelector/);
     assert.match(src, /ChessAnswerInput/);
     assert.match(src, /GameMicButton/);
