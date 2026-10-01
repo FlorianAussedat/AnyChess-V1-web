@@ -33,7 +33,7 @@ Restent **locaux** (éphémères) : session lecteur/analyseur (`gameSession`) et
 
 | Secret | Où | Jamais |
 |---|---|---|
-| `DEEPL_API_KEY` | Replit → Tools → Setup → Secrets (serveur `artifacts/api-server`) | APK, `EXPO_PUBLIC_*`, Supabase, ce module |
+| `DEEPL_API_KEY` | Supabase → Edge Functions → Secrets (`pgn-translate`) | APK, `EXPO_PUBLIC_*`, ce module |
 | `EXPO_PUBLIC_SUPABASE_URL` | Configurations Replit + build Android | — (URL publique) |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Idem | **pas** la `service_role` |
 
@@ -50,7 +50,7 @@ Voir aussi `docs/pgn-comment-translation.md`.
    - `EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co`
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...` (clé anon)
 7. Build Android de développement : les variables `EXPO_PUBLIC_*` doivent être présentes **au moment du bundle** (EAS env / `.env` local avant `expo run:android`). Puis relancez le bundler.
-8. Laissez `DEEPL_API_KEY` uniquement dans Replit **Tools → Setup → Secrets** du serveur API.
+8. Laissez `DEEPL_API_KEY` uniquement dans **Supabase → Edge Functions → Secrets**.
 
 Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non configuré** ; les données locales restent intactes.
 

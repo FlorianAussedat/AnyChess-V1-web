@@ -10,7 +10,7 @@ import {
 } from './classifyMyMemory.ts';
 
 /** Visible in Settings — if the phone does not show this, it is not on this bundle. */
-export const PGN_TRANSLATE_CLIENT_BUILD = 'pgn-deepl-2026-10-01';
+export const PGN_TRANSLATE_CLIENT_BUILD = 'pgn-supabase-fn-2026-10-01';
 
 /** DeepL API Free documented monthly cap. The key never leaves the server. */
 export const DEEPL_FREE_MONTHLY_LIMIT_CHARS = 500_000;

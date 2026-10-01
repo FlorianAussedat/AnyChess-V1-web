@@ -71,6 +71,8 @@ describe('PGN translation probe', () => {
     assert.match(live, /recordPgnTranslateCall/);
     assert.match(live, /X-AnyChess-Client/);
     assert.match(live, /hostUri/);
+    assert.match(live, /functions\/v1/);
+    assert.match(live, /process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
     assert.match(read('metro.config.js'), /\/api\//);
     assert.match(classify, /http === 429/);
     assert.doesNotMatch(live, /api\.mymemory|DEEPL_API_KEY|api-free\.deepl/);

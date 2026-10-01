@@ -1,6 +1,7 @@
 /**
- * Live EN→FR provider. Production path: the hosted AnyChess proxy
- * (DeepL API Free on the server). The DeepL key never enters this bundle.
+ * Live EN→FR provider. Production path: the Supabase Edge Function
+ * `pgn-translate` (DeepL API Free on the server). The DeepL key never
+ * enters this bundle.
  */
 import { UnconfiguredPgnTranslationProvider } from './unconfiguredProvider.ts';
 import { classifyMyMemoryResponse, logPgnTranslate, parseRetryAfterMs } from './classifyMyMemory.ts';
@@ -11,6 +12,7 @@ import type { PgnTranslationProvider, PgnTranslationProviderResult } from './typ
 
 const REQUEST_TIMEOUT_MS = 15_000;
 export const ANYCHESS_TRANSLATE_CLIENT = 'anychess-pgn-1';
+export const PGN_TRANSLATE_FUNCTION = 'pgn-translate';
 
 let translationHold = false;
 
@@ -22,24 +24,39 @@ export function isPgnTranslationHeld(): boolean {
   return translationHold;
 }
 
-function firstEnv(...names: string[]): string | null {
-  if (typeof process === 'undefined') return null;
-  for (const name of names) {
-    const value = process.env[name]?.trim();
-    if (value) return value;
-  }
-  return null;
+function readPublic(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed || null;
 }
 
 function hostFromDomain(domain: string): string {
   return domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
+function resolveSupabaseFunctionsTranslateUrl(): string | null {
+  const url =
+    readPublic(process.env.EXPO_PUBLIC_SUPABASE_URL) ??
+    readPublic(process.env.ANYCHESS_SUPABASE_URL);
+  if (!url) return null;
+  return `${url.replace(/\/$/, '')}/functions/v1/${PGN_TRANSLATE_FUNCTION}`;
+}
+
+function resolveSupabaseAnonKey(): string | null {
+  return (
+    readPublic(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) ??
+    readPublic(process.env.ANYCHESS_SUPABASE_ANON_KEY)
+  );
+}
+
 /** Public URL only — never a DeepL key. */
 export function resolvePgnTranslateUrl(): string | null {
-  const explicit = firstEnv('EXPO_PUBLIC_PGN_TRANSLATE_URL', 'ANYCHESS_PGN_TRANSLATE_URL');
+  const explicit =
+    readPublic(process.env.EXPO_PUBLIC_PGN_TRANSLATE_URL) ??
+    readPublic(process.env.ANYCHESS_PGN_TRANSLATE_URL);
   if (explicit) return explicit.replace(/\/$/, '');
-  const domain = firstEnv('EXPO_PUBLIC_DOMAIN');
+  const supabaseFn = resolveSupabaseFunctionsTranslateUrl();
+  if (supabaseFn) return supabaseFn;
+  const domain = readPublic(process.env.EXPO_PUBLIC_DOMAIN);
   if (domain) return `https://${hostFromDomain(domain)}/api/pgn-comments/translate`;
   const devHost = resolveDevMetroHost();
   if (devHost) return `${devHost}/api/pgn-comments/translate`;
@@ -65,7 +82,20 @@ function resolveDevMetroHost(): string | null {
 }
 
 function translateToken(): string | null {
-  return firstEnv('EXPO_PUBLIC_PGN_TRANSLATE_TOKEN', 'ANYCHESS_TRANSLATE_APP_TOKEN');
+  return (
+    readPublic(process.env.EXPO_PUBLIC_PGN_TRANSLATE_TOKEN) ??
+    readPublic(process.env.ANYCHESS_TRANSLATE_APP_TOKEN)
+  );
+}
+
+function functionAuthHeaders(url: string): Record<string, string> {
+  if (!/\/functions\/v1\//.test(url)) return {};
+  const anon = resolveSupabaseAnonKey();
+  if (!anon) return {};
+  return {
+    apikey: anon,
+    Authorization: `Bearer ${anon}`,
+  };
 }
 
 async function fetchWithTimeout(
@@ -113,6 +143,7 @@ export async function translateViaProxy(
     'Content-Type': 'application/json',
     Accept: 'application/json',
     'X-AnyChess-Client': ANYCHESS_TRANSLATE_CLIENT,
+    ...functionAuthHeaders(url),
   };
   const token = translateToken();
   if (token) headers['X-AnyChess-Translate-Token'] = token;
