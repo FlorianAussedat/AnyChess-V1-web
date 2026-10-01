@@ -12,6 +12,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const STATIC_ROOT = path.resolve(__dirname, '..', 'static-build');
 const TEMPLATE_PATH = path.resolve(__dirname, 'templates', 'landing-page.html');
@@ -106,6 +107,46 @@ function serveStaticFile(urlPath, res) {
 
 const landingPageTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf-8');
 const appName = getAppName();
+const CONFIRM_PAGE = path.resolve(__dirname, '../../../supabase/functions/auth-confirm/page.ts');
+
+function readPublicEnv(name) {
+  const value = process.env[name];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function serveAuthConfirm(res) {
+  const supabaseUrl =
+    readPublicEnv('EXPO_PUBLIC_SUPABASE_URL') || readPublicEnv('ANYCHESS_SUPABASE_URL');
+  const anonKey =
+    readPublicEnv('EXPO_PUBLIC_SUPABASE_ANON_KEY') || readPublicEnv('ANYCHESS_SUPABASE_ANON_KEY');
+  if (!supabaseUrl || !anonKey) {
+    res.writeHead(503, {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'no-store',
+    });
+    res.end(
+      'AnyChess\n\nLa page de confirmation n’est pas configurée sur cet hébergement.\n',
+    );
+    return;
+  }
+  import(pathToFileURL(CONFIRM_PAGE).href)
+    .then((mod) => {
+      const html = mod.renderConfirmationPage({ supabaseUrl, anonKey });
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-store',
+        'x-robots-tag': 'noindex',
+      });
+      res.end(html);
+    })
+    .catch(() => {
+      res.writeHead(500, {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'no-store',
+      });
+      res.end('AnyChess\n\nLa page de confirmation n’a pas pu être affichée.\n');
+    });
+}
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host}`);
@@ -113,6 +154,11 @@ const server = http.createServer((req, res) => {
 
   if (basePath && pathname.startsWith(basePath)) {
     pathname = pathname.slice(basePath.length) || '/';
+  }
+
+  if (pathname === '/auth/confirm' || pathname === '/auth/confirm/') {
+    serveAuthConfirm(res);
+    return;
   }
 
   if (pathname === '/' || pathname === '/manifest') {
@@ -131,5 +177,7 @@ const server = http.createServer((req, res) => {
 
 const port = parseInt(process.env.PORT || '3000', 10);
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Serving static Expo build on port ${port}`);
+  const address = server.address();
+  const actual = address && typeof address === 'object' ? address.port : port;
+  console.log(`Serving static Expo build on port ${actual}`);
 });

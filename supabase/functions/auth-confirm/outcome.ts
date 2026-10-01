@@ -1,4 +1,4 @@
-export type ConfirmPageOutcome = 'verify' | 'expired' | 'invalid' | 'other' | 'idle';
+export type ConfirmPageOutcome = 'verify' | 'expired' | 'invalid' | 'other' | 'idle' | 'recover';
 
 /**
  * Readable fallback. The free `*.supabase.co` domain rewrites HTML to text/plain,
@@ -12,6 +12,8 @@ Cette page n’a pas confirmé ton adresse. Ouvre le lien reçu par e-mail pour 
 Si tu viens d’utiliser ce lien, reviens te connecter dans AnyChess.
 
 Si le lien a expiré ou n’est plus valable, demande un nouvel e-mail de confirmation dans l’application.
+
+Un lien « mot de passe oublié » ne se règle pas ici : cette réponse texte ne peut pas enregistrer un nouveau mot de passe.
 `;
 
 export const CONFIRM_COPY = {
@@ -22,6 +24,13 @@ export const CONFIRM_COPY = {
   checking: 'Vérification du lien…',
   network: 'Problème de réseau. Réessaie d’ouvrir le lien de confirmation.',
   other: 'Ce lien ne confirme pas l’adresse e-mail. Reviens dans AnyChess pour continuer.',
+  recoverPrompt: 'Choisis un nouveau mot de passe pour ton compte AnyChess.',
+  recoverSaved: 'Mot de passe mis à jour. Tu peux maintenant te connecter à AnyChess.',
+  recoverMismatch: 'Les deux mots de passe ne correspondent pas.',
+  recoverShort: 'Le mot de passe doit contenir au moins 6 caractères.',
+  recoverFailed:
+    'Ce lien ne permet plus de changer le mot de passe. Retourne dans AnyChess et redemande un e-mail.',
+  recoverNetwork: 'Problème de réseau. Réessaie d’enregistrer le mot de passe.',
 } as const;
 
 /**
@@ -48,6 +57,7 @@ function interpretConfirmationLocation(search, hash) {
     }
     return 'invalid';
   }
+  if (access && type === 'recovery') return 'recover';
   if (type === 'recovery' || type === 'magiclink' || type === 'invite' || type === 'email_change') {
     return 'other';
   }

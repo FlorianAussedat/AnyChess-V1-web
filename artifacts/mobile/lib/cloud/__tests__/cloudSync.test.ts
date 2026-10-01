@@ -174,6 +174,7 @@ describe('account sync engine', () => {
     assert.doesNotMatch(config, /DEEPL_API_KEY/);
     assert.match(config, /process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
     assert.match(config, /process\.env\.EXPO_PUBLIC_SUPABASE_ANON_KEY/);
+    assert.match(config, /process\.env\.EXPO_PUBLIC_AUTH_CONFIRM_URL/);
     const utilisateur = readFileSync(join(here, '../../../app/utilisateur.tsx'), 'utf8');
     assert.match(utilisateur, /CloudAccountSection/);
     const layout = readFileSync(join(here, '../../../app/_layout.tsx'), 'utf8');

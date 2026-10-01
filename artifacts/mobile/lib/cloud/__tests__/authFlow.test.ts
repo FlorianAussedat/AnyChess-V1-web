@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
@@ -114,7 +115,10 @@ describe('confirmation page', () => {
       'expired',
     );
     assert.equal(interpretConfirmationLocation('', '#access_token=abc&type=signup'), 'verify');
-    assert.equal(interpretConfirmationLocation('', '#access_token=abc&type=recovery'), 'other');
+    assert.equal(interpretConfirmationLocation('', '#access_token=abc&type=recovery'), 'recover');
+    assert.equal(interpretConfirmationLocation('', '#type=recovery'), 'other');
+    assert.equal(interpretConfirmationLocation('', '#access_token=abc&type=magiclink'), 'other');
+    assert.equal(interpretConfirmationLocation('', '#access_token=abc&type=invite'), 'other');
     assert.equal(userEmailIsConfirmed({ email_confirmed_at: '2026-10-01T00:00:00Z' }), true);
     assert.equal(userEmailIsConfirmed({ email_confirmed_at: null }), false);
     assert.equal(userEmailIsConfirmed({}), false);
@@ -134,9 +138,20 @@ describe('confirmation page', () => {
     assert.doesNotMatch(html, /mobile:\/\//);
     assert.doesNotMatch(html, /Ouvrir AnyChess/);
     assert.doesNotMatch(html, /intent:\/\//);
+    assert.doesNotMatch(html, /service_role/);
+    assert.match(html, /<form id="recover" hidden>/);
+    assert.match(html, /Enregistrer le mot de passe/);
+    assert.match(html, /method: 'PUT'/);
+    assert.match(html, /Mot de passe mis à jour\. Tu peux maintenant te connecter à AnyChess\./);
+    assert.notEqual(CONFIRM_COPY.recoverSaved, CONFIRM_COPY.confirmed);
+    const recoverBranch = html.indexOf("outcome === 'recover'");
+    const verifyBranch = html.indexOf("outcome !== 'verify'");
+    assert.ok(recoverBranch > 0 && verifyBranch > recoverBranch);
     assert.doesNotMatch(PLAIN_FALLBACK, /Adresse confirmée !/);
+    assert.doesNotMatch(PLAIN_FALLBACK, /Mot de passe mis à jour/);
     assert.match(PLAIN_FALLBACK, /n’a pas confirmé/);
     assert.match(PLAIN_FALLBACK, /expiré ou n’est plus valable/);
+    assert.match(PLAIN_FALLBACK, /mot de passe oublié/);
   });
 });
 
@@ -257,20 +272,114 @@ describe('auth screen copy wiring', () => {
     assert.doesNotMatch(ui, /cloud\.errorRejected/);
     const live = readFileSync(join(here, '../SupabaseCloud.ts'), 'utf8');
     assert.match(live, /redirect_to/);
+    const recover = live.slice(live.indexOf('async recoverPassword'));
+    assert.match(recover, /\/auth\/v1\/recover/);
+    assert.match(recover, /redirect_to/);
+    assert.match(recover, /authConfirmRedirectUrl\(\)/);
     const previousUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     const previousAnon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    const previousPage = process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'public-anon';
+    delete process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
     assert.equal(
       authConfirmRedirectUrl(),
       'https://example.supabase.co/functions/v1/auth-confirm',
     );
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'http://localhost:3000/auth/confirm';
+    assert.equal(
+      authConfirmRedirectUrl(),
+      'https://example.supabase.co/functions/v1/auth-confirm',
+    );
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess.example/auth/confirm/';
+    assert.equal(authConfirmRedirectUrl(), 'https://anychess.example/auth/confirm');
     if (previousUrl === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     else process.env.EXPO_PUBLIC_SUPABASE_URL = previousUrl;
     if (previousAnon === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     else process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = previousAnon;
+    if (previousPage === undefined) delete process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
+    else process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = previousPage;
     assert.match(live, /type: 'signup'/);
     assert.match(live, /isPendingEmailConfirmation/);
     assert.doesNotMatch(live, /DEEPL_API_KEY|api-free\.deepl/);
+  });
+});
+
+function startConfirmHost(env: NodeJS.ProcessEnv): Promise<{ port: number; stop: () => void }> {
+  const child = spawn(process.execPath, ['--experimental-strip-types', join(repoRoot, 'artifacts/mobile/server/serve.js')], {
+    env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  return new Promise((resolve, reject) => {
+    let buf = '';
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`confirm host did not listen: ${buf}`));
+    }, 8000);
+    const onData = (chunk: Buffer) => {
+      buf += chunk.toString();
+      const match = buf.match(/port (\d+)/);
+      if (!match || match[1] === '0') return;
+      clearTimeout(timer);
+      resolve({
+        port: Number(match[1]),
+        stop: () => child.kill(),
+      });
+    };
+    child.stdout?.on('data', onData);
+    child.stderr?.on('data', onData);
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      reject(new Error(`confirm host exited ${code}: ${buf}`));
+    });
+  });
+}
+
+describe('confirmation page on the existing web host', () => {
+  it('serves text/html at /auth/confirm and stays plain text when unconfigured', async () => {
+    const baseEnv = {
+      ...process.env,
+      PORT: '0',
+      BASE_PATH: '/',
+    };
+    const ready = await startConfirmHost({
+      ...baseEnv,
+      EXPO_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: 'public-anon',
+      ANYCHESS_SUPABASE_URL: '',
+      ANYCHESS_SUPABASE_ANON_KEY: '',
+    });
+    try {
+      const response = await fetch(`http://127.0.0.1:${ready.port}/auth/confirm`);
+      const body = await response.text();
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get('content-type') ?? '', /text\/html/);
+      assert.match(body, /Vérification du lien/);
+      assert.match(body, /<form id="recover" hidden>/);
+      assert.doesNotMatch(body, /service_role/);
+      const home = await fetch(`http://127.0.0.1:${ready.port}/`);
+      assert.equal(home.status, 200);
+      assert.match(home.headers.get('content-type') ?? '', /text\/html/);
+    } finally {
+      ready.stop();
+    }
+
+    const missing = await startConfirmHost({
+      ...baseEnv,
+      EXPO_PUBLIC_SUPABASE_URL: '',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: '',
+      ANYCHESS_SUPABASE_URL: '',
+      ANYCHESS_SUPABASE_ANON_KEY: '',
+    });
+    try {
+      const response = await fetch(`http://127.0.0.1:${missing.port}/auth/confirm`);
+      const body = await response.text();
+      assert.equal(response.status, 503);
+      assert.match(response.headers.get('content-type') ?? '', /text\/plain/);
+      assert.match(body, /n’est pas configurée/);
+      assert.doesNotMatch(body, /Adresse confirmée/);
+    } finally {
+      missing.stop();
+    }
   });
 });

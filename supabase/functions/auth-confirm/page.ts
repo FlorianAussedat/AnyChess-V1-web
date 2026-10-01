@@ -21,6 +21,11 @@ export function renderConfirmationPage(config: { supabaseUrl: string; anonKey: s
     .brand { margin: 0 0 0.75rem; color: #F5A623; letter-spacing: 0.08em; font-size: 0.8rem; }
     h1 { margin: 0 0 0.75rem; font-size: 1.35rem; line-height: 1.3; }
     p { margin: 0; font-size: 1rem; line-height: 1.5; }
+    form[hidden] { display: none; }
+    label { display: block; margin: 1rem 0 0.35rem; font-size: 0.95rem; }
+    input { width: 100%; box-sizing: border-box; padding: 0.75rem; border-radius: 12px; border: 1px solid #1C3558; background: #0B1728; color: #DCE8F5; font-size: 1rem; }
+    button { margin-top: 1rem; width: 100%; padding: 0.85rem; border: 0; border-radius: 12px; background: #F5A623; color: #0B1728; font-weight: 700; font-size: 1rem; }
+    #recover-error { margin-top: 0.75rem; }
   </style>
 </head>
 <body>
@@ -29,6 +34,14 @@ export function renderConfirmationPage(config: { supabaseUrl: string; anonKey: s
       <p class="brand">ANYCHESS</p>
       <h1 id="title">AnyChess</h1>
       <p id="message">${CONFIRM_COPY.checking}</p>
+      <form id="recover" hidden>
+        <label for="password">Nouveau mot de passe</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="6">
+        <label for="password2">Confirme le mot de passe</label>
+        <input id="password2" name="password2" type="password" autocomplete="new-password" minlength="6">
+        <button id="recover-submit" type="submit">Enregistrer le mot de passe</button>
+        <p id="recover-error"></p>
+      </form>
     </div>
   </main>
   <noscript><p>${CONFIRM_COPY.idle}</p></noscript>
@@ -39,8 +52,8 @@ ${INTERPRET_SOURCE}
   var copy = ${copy};
   var title = document.getElementById('title');
   var message = document.getElementById('message');
-  function show(text) {
-    title.textContent = 'AnyChess';
+  function show(text, heading) {
+    title.textContent = heading || 'AnyChess';
     message.textContent = text;
   }
   function tokenFromLocation() {
@@ -50,8 +63,64 @@ ${INTERPRET_SOURCE}
     return query.get('access_token') || fragment.get('access_token') || '';
   }
   var outcome = interpretConfirmationLocation(location.search, location.hash);
+  var accessToken = tokenFromLocation();
   if (outcome === 'expired' || outcome === 'invalid') {
     show(copy.expired);
+    return;
+  }
+  if (outcome === 'recover') {
+    var form = document.getElementById('recover');
+    var password = document.getElementById('password');
+    var password2 = document.getElementById('password2');
+    var recoverError = document.getElementById('recover-error');
+    var submit = document.getElementById('recover-submit');
+    if (!accessToken || !cfg.url || !cfg.anon || !form || !password || !password2 || !submit) {
+      show(copy.recoverFailed);
+      return;
+    }
+    show(copy.recoverPrompt, 'Nouveau mot de passe');
+    form.hidden = false;
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var next = password.value;
+      var again = password2.value;
+      if (next.length < 6) {
+        recoverError.textContent = copy.recoverShort;
+        return;
+      }
+      if (next !== again) {
+        recoverError.textContent = copy.recoverMismatch;
+        return;
+      }
+      recoverError.textContent = '';
+      submit.disabled = true;
+      fetch(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
+        method: 'PUT',
+        headers: {
+          Authorization: 'Bearer ' + accessToken,
+          apikey: cfg.anon,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: next })
+      }).then(function (response) {
+        if (response.ok) {
+          form.hidden = true;
+          show(copy.recoverSaved, 'Mot de passe mis à jour');
+          history.replaceState(null, '', location.pathname);
+          return;
+        }
+        submit.disabled = false;
+        if (response.status === 422) {
+          recoverError.textContent = copy.recoverShort;
+          return;
+        }
+        show(copy.recoverFailed);
+        form.hidden = true;
+      }).catch(function () {
+        recoverError.textContent = copy.recoverNetwork;
+        submit.disabled = false;
+      });
+    });
     return;
   }
   if (outcome === 'other') {
@@ -62,7 +131,6 @@ ${INTERPRET_SOURCE}
     show(copy.idle);
     return;
   }
-  var accessToken = tokenFromLocation();
   if (!cfg.url || !cfg.anon || !accessToken) {
     show(copy.idle);
     return;

@@ -116,8 +116,12 @@ export class SupabaseCloudAuth implements CloudAuth {
   async recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
+    const redirect = authConfirmRedirectUrl();
+    const target = `${url}/auth/v1/recover${
+      redirect ? `?redirect_to=${encodeURIComponent(redirect)}` : ''
+    }`;
     try {
-      const response = await fetch(`${url}/auth/v1/recover`, {
+      const response = await fetch(target, {
         method: 'POST',
         headers: headers(),
         body: JSON.stringify({ email }),

@@ -24,11 +24,18 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
- * Where Supabase sends the browser after it verifies the email link.
- * On the free *.supabase.co domain this URL is text/plain (HTML is rewritten).
- * The interactive page is renderConfirmationPage in supabase/functions/auth-confirm.
+ * Where Supabase sends the browser after it verifies an email link
+ * (signup confirmation and password recovery).
+ *
+ * `EXPO_PUBLIC_AUTH_CONFIRM_URL` is the readable HTTPS page on the existing
+ * web host (`GET /auth/confirm`, `text/html`). It must also be listed in
+ * Supabase Redirect URLs. Until that public origin exists, the free
+ * `*.supabase.co` function stays the target: it is text/plain, because that
+ * domain rewrites HTML.
  */
 export function authConfirmRedirectUrl(): string | null {
+  const page = readPublic(process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL);
+  if (page && /^https:\/\//i.test(page)) return page.replace(/\/$/, '');
   const url = resolveSupabaseUrl();
   if (!url) return null;
   return `${url.replace(/\/$/, '')}/functions/v1/auth-confirm`;
