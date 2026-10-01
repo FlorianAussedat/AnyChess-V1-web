@@ -1064,6 +1064,8 @@ export type MessageKey =
   | 'pgn.translationUnavailable'
   | 'pgn.translationQueued'
   | 'pgn.serviceNotConfigured'
+  | 'pgn.translationQuota'
+  | 'pgn.translationFailed'
   | 'pgn.importNotice'
   | 'pgn.batchProgress'
   | 'pgn.exportOriginal'
@@ -2258,6 +2260,10 @@ const fr: Dict = {
   'pgn.translationUnavailable': 'Traduction indisponible',
   'pgn.translationQueued': 'Traduction en file d’attente',
   'pgn.serviceNotConfigured': 'La traduction automatique attend la configuration du service.',
+  'pgn.translationQuota':
+    'Quota de traduction atteint. Les commentaires originaux sont conservés.',
+  'pgn.translationFailed':
+    'La traduction a échoué. Les commentaires originaux sont conservés.',
   'pgn.importNotice': 'Les commentaires textuels en anglais seront envoyés au service de traduction pour préparer une version française. L’import reste disponible tout de suite.',
   'pgn.batchProgress': '{{done}} / {{total}} commentaires',
   'pgn.exportOriginal': 'Exporter l’original',
@@ -3446,6 +3452,10 @@ const en: Dict = {
   'pgn.translationUnavailable': 'Translation unavailable',
   'pgn.translationQueued': 'Translation queued',
   'pgn.serviceNotConfigured': 'Automatic translation is waiting for the service to be configured.',
+  'pgn.translationQuota':
+    'Translation quota reached. Original comments are kept.',
+  'pgn.translationFailed':
+    'Translation failed. Original comments are kept.',
   'pgn.importNotice': 'English comments will be sent to the translation service to prepare a French version. You can use the import immediately.',
   'pgn.batchProgress': '{{done}} / {{total}} comments',
   'pgn.exportOriginal': 'Export original',
