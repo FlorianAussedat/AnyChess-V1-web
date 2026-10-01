@@ -160,7 +160,9 @@ describe('quelle UX contracts (session rewrite)', () => {
     assert.match(src, /quelle-level-picker/);
     assert.match(src, /testID=\{`quelle-level-\$\{id\}`\}/);
     assert.match(src, /ANYCHESS_DIFFICULTIES\.map/);
-    assert.match(src, /OptionChip/);
+    assert.match(src, /quiz\.quelleLevel/);
+    assert.match(src, /startLevel/);
+    assert.doesNotMatch(src, /OptionChip/);
     assert.match(src, /pick-level/);
     assert.match(src, /OpeningIdentificationRun/);
     assert.match(src, /quelle-results/);

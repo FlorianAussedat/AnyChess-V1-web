@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
-import { OptionChip } from '@/components/ui/OptionChip';
 import { ChessAnswerInput } from '@/components/ChessAnswerInput';
 import { GameMicButton } from '@/components/game/GameMicButton';
 import { NumberedSanRows } from '@/components/moves/NumberedSanRows';
@@ -34,6 +34,13 @@ const DIFFICULTY_LABEL: Record<AnyChessDifficultyId, MessageKey> = {
   confirme: 'difficulty.confirme',
   expert: 'difficulty.expert',
   grandMaitre: 'difficulty.grandMaitre',
+};
+
+const DIFFICULTY_HINT: Record<AnyChessDifficultyId, MessageKey> = {
+  debutant: 'quiz.quelleLevel.debutant',
+  confirme: 'quiz.quelleLevel.confirme',
+  expert: 'quiz.quelleLevel.expert',
+  grandMaitre: 'quiz.quelleLevel.grandMaitre',
 };
 
 const recordsStore = new OpeningQuizRecordsStore(defaultKeyValueStorage);
@@ -170,24 +177,49 @@ export default function QuelleOuvertureScreen() {
       {phase === 'pick-level' ? (
         <View style={styles.block} testID="quelle-level-picker">
           <Text
-            style={{
-              color: colors.foreground,
-              fontFamily: DesignTokens.typography.weightSemiBold,
-              fontSize: 16,
-            }}
+            style={[styles.intro, { color: colors.foreground }]}
+            testID="quelle-level-intro"
           >
-            {t('quiz.pickLevel')}
+            {t('quiz.quelleIntro', { count: OPENING_QUIZ_SESSION_SIZE })}
           </Text>
-          <View style={styles.levelRow}>
-            {ANYCHESS_DIFFICULTIES.map((id) => (
-              <OptionChip
-                key={id}
-                label={t(DIFFICULTY_LABEL[id])}
-                active={difficulty === id}
-                onPress={() => startLevel(id)}
-                testID={`quelle-level-${id}`}
-              />
-            ))}
+          <View style={styles.levelColumn}>
+            {ANYCHESS_DIFFICULTIES.map((id) => {
+              const title = t(DIFFICULTY_LABEL[id]);
+              const hint = t(DIFFICULTY_HINT[id]);
+              return (
+                <Pressable
+                  key={id}
+                  testID={`quelle-level-${id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${title}. ${hint}`}
+                  onPress={() => startLevel(id)}
+                  style={({ pressed }) => [
+                    styles.levelCard,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: pressed ? colors.primary : colors.border,
+                      opacity: pressed ? 0.92 : 1,
+                    },
+                  ]}
+                >
+                  <View
+                    style={[styles.levelAccent, { backgroundColor: colors.primary }]}
+                  />
+                  <View style={styles.levelText}>
+                    <Text style={[styles.levelTitle, { color: colors.foreground }]}>
+                      {title}
+                    </Text>
+                    <Text style={styles.levelHint}>{hint}</Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={colors.primary}
+                    style={styles.levelChevron}
+                  />
+                </Pressable>
+              );
+            })}
           </View>
           {levelError ? (
             <Text style={{ color: '#c44' }} testID="quelle-insufficient">
@@ -402,10 +434,48 @@ const styles = StyleSheet.create({
     gap: DesignTokens.spacing.md,
     width: '100%',
   },
-  levelRow: {
+  intro: {
+    fontSize: DesignTokens.typography.caption,
+    fontFamily: DesignTokens.typography.weightRegular,
+    lineHeight: 22,
+  },
+  levelColumn: {
+    gap: DesignTokens.spacing.sm,
+    width: '100%',
+  },
+  levelCard: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.card,
+    paddingVertical: 14,
+    paddingRight: DesignTokens.spacing.md,
+    overflow: 'hidden',
+  },
+  levelAccent: {
+    width: 4,
+    alignSelf: 'stretch',
+    marginRight: DesignTokens.spacing.md,
+  },
+  levelText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  levelTitle: {
+    fontSize: 18,
+    fontFamily: DesignTokens.typography.weightBold,
+    letterSpacing: 0.2,
+  },
+  levelHint: {
+    fontSize: 14,
+    fontFamily: DesignTokens.typography.weightRegular,
+    lineHeight: 20,
+    color: '#B7CDE0',
+  },
+  levelChevron: {
+    marginLeft: DesignTokens.spacing.sm,
+    flexShrink: 0,
   },
   lineCard: {
     borderWidth: 1,

@@ -111,6 +111,8 @@ describe('ModeCard layout', () => {
     assert.match(src, /styles\.description/);
     assert.match(src, /textCol/);
     assert.match(src, /illustrationSlot/);
+    assert.match(src, /containArtInSlot/);
+    assert.match(src, /MODE_CARD_MASCOT_SLOT/);
     assert.match(src, /flexDirection: 'row'/);
     assert.doesNotMatch(src, /width: '48%'/);
   });

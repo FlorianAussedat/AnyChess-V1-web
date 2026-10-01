@@ -123,3 +123,49 @@ export function artWidth(b: ArtBounds): number {
 export function artHeight(b: ArtBounds): number {
   return b.bottom - b.top;
 }
+
+/** Home ModeCard mascot column — wide enough for symbols, tight enough for copy. */
+export const MODE_CARD_MASCOT_SLOT = {
+  width: 118,
+  height: 118,
+  pad: 6,
+} as const;
+
+export type ContainedArtLayout = {
+  imgWidth: number;
+  imgHeight: number;
+  imageRight: number;
+  imageBottom: number;
+};
+
+/**
+ * Scale a mascot so its measured art bounds fit entirely inside a slot
+ * with inner padding, then pin that art to the bottom-right.
+ */
+export function containArtInSlot(
+  art: ArtBounds,
+  canvasAspect: number,
+  slotW: number,
+  slotH: number,
+  pad: number,
+): ContainedArtLayout {
+  const aW = artWidth(art);
+  const aH = artHeight(art);
+  const availW = Math.max(1, slotW - pad * 2);
+  const availH = Math.max(1, slotH - pad * 2);
+  const artAspect = (aW / Math.max(aH, 0.001)) * canvasAspect;
+  let targetArtW = availW;
+  let targetArtH = targetArtW / Math.max(artAspect, 0.001);
+  if (targetArtH > availH) {
+    targetArtH = availH;
+    targetArtW = targetArtH * artAspect;
+  }
+  const imgHeight = Math.round(targetArtH / Math.max(aH, 0.001));
+  const imgWidth = Math.round(imgHeight * canvasAspect);
+  return {
+    imgWidth,
+    imgHeight,
+    imageRight: pad - Math.round((1 - art.right) * imgWidth),
+    imageBottom: pad - Math.round((1 - art.bottom) * imgHeight),
+  };
+}
