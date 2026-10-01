@@ -55,7 +55,7 @@ Puis ouvrez **http://localhost:8081** dans votre navigateur.
 
 ### Autres options Expo
 
-- `pnpm exec expo start` — menu interactif (web, Android, iOS)
+- `pnpm exec expo start` — menu interactif (web, Android, iOS). `metro.config.js` recharge `EXPO_PUBLIC_SUPABASE_URL` et `EXPO_PUBLIC_SUPABASE_ANON_KEY` depuis `artifacts/mobile/.env` (voir `artifacts/mobile/docs/cloud-sync.md`). Si le fichier manque et que `SUPABASE_ACCESS_TOKEN` est présent, `pnpm env:supabase` le recrée avec la clé publique du projet existant, jamais `service_role`.
 - Appuyez sur **w** pour ouvrir la version web
 - Scannez le QR code avec **Expo Go** sur téléphone
 

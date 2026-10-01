@@ -1,5 +1,58 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const http = require('node:http');
+const path = require('node:path');
+
+/**
+ * Expo reads .env once, before this file, and does not override variables
+ * already present in the shell. A fresh VM or a Metro started without the
+ * public Supabase pair would otherwise bundle "Cloud non configuré".
+ * Fill them from the gitignored .env (creating it from the existing anon key
+ * when SUPABASE_ACCESS_TOKEN is available) before the dev serializer runs.
+ */
+function applyPublicSupabaseEnv(root) {
+  const file = path.join(root, '.env');
+  let text = '';
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch {
+    return false;
+  }
+  let applied = 0;
+  for (const line of text.split('\n')) {
+    const match = line.match(/^(EXPO_PUBLIC_SUPABASE_URL|EXPO_PUBLIC_SUPABASE_ANON_KEY)=(.*)$/);
+    if (!match || !match[2].trim()) continue;
+    process.env[match[1]] = match[2].trim();
+    applied += 1;
+  }
+  return applied === 2;
+}
+
+function ensurePublicSupabaseEnv(root) {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (url && anon) return;
+  const script = path.join(root, 'scripts', 'ensure-supabase-public-env.mjs');
+  if (fs.existsSync(script)) {
+    const result = spawnSync(process.execPath, [script], {
+      cwd: root,
+      env: process.env,
+      encoding: 'utf8',
+    });
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.status !== 0) {
+      const detail = (result.stderr || '').trim();
+      if (detail) process.stderr.write(`${detail}\n`);
+      console.warn(
+        '[anychess] EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are still missing. The User screen will show Cloud non configuré.',
+      );
+    }
+  }
+  applyPublicSupabaseEnv(root);
+}
+
+ensurePublicSupabaseEnv(__dirname);
 
 const config = getDefaultConfig(__dirname);
 

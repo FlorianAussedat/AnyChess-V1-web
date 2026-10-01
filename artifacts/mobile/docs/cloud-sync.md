@@ -55,6 +55,16 @@ Voir aussi `docs/pgn-comment-translation.md`.
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...` (clé anon)
    - `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://<origine-web-déjà-en-ligne>/auth/confirm` (seulement quand cette page répond ; sinon omettre)
 7. Build Android de développement : les variables `EXPO_PUBLIC_*` doivent être présentes **au moment du bundle** (EAS env / `.env` local avant `expo run:android`). Puis relancez le bundler.
+
+## Lancement Metro (la config ne doit plus disparaître)
+
+Expo n’envoie ces deux variables au téléphone que si elles existent dans le processus Metro au moment où il construit le bundle. Un changement de branche ou une VM neuve sans fichier `.env` rebundle « Cloud non configuré », même si le projet Supabase n’a pas changé.
+
+- Le fichier lu est `artifacts/mobile/.env` (déjà ignoré par git : `.env` et `.env*.local`). Il survit à `git checkout`.
+- `node scripts/ensure-supabase-public-env.mjs` (aussi `pnpm env:supabase`, et appelé par `pnpm dev` / `pnpm dev:client`) écrit uniquement `EXPO_PUBLIC_SUPABASE_URL=https://zqfxnzwtptepulmgpxhb.supabase.co` et la clé **anon** ou **publishable** déjà créée sur ce projet. Si les deux lignes sont déjà valides, il ne touche pas au fichier.
+- Sans `.env`, le script interroge l’API projet avec `SUPABASE_ACCESS_TOKEN` et ne retient jamais `service_role` ni une clé `sb_secret_`. Il ne lit ni n’écrit `DEEPL_API_KEY`.
+- `metro.config.js` relance ce script si le processus Metro n’a pas encore les deux variables, puis les recopie dans `process.env` avant le serializer. Un `expo start` lancé sans le script npm reste donc couvert sur cette machine.
+- Après avoir créé ou modifié `.env`, redémarrer Metro (`expo start --dev-client --clear`) vide seulement le cache du bundler. Ça n’efface pas AsyncStorage, les sessions, les PGN ni les traductions.
 8. Laissez `DEEPL_API_KEY` uniquement dans **Supabase → Edge Functions → Secrets**.
 
 Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non configuré** ; les données locales restent intactes.
