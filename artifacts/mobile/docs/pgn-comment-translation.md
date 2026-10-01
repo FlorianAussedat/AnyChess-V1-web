@@ -19,10 +19,10 @@ Les commentaires déjà `ready` / `done` ne sont pas renvoyés. Pause, reprise e
 
 ## Protection de l’endpoint
 
-- En-tête obligatoire `X-AnyChess-Client: anychess-pgn-1`
-- Jeton optionnel `ANYCHESS_TRANSLATE_APP_TOKEN` (secret serveur) + `X-AnyChess-Translate-Token`
+- Session **utilisateur connecté** obligatoire (`role=authenticated` + `GET /auth/v1/user`). La clé **anon** est refusée.
+- En-tête `X-AnyChess-Client: anychess-pgn-1` en plus de la session (insuffisant tout seul).
 - 8 commentaires max / requête, 500 caractères / commentaire
-- JWT du projet requis (`verify_jwt`) ; quota DeepL Free 500 000 caractères / mois
+- Quota DeepL Free 500 000 caractères / mois
 
 ## Consommation DeepL
 
@@ -36,15 +36,20 @@ L’endpoint de production est la Edge Function **`pgn-translate`** du projet Su
 
 - URL : `https://<project-ref>.supabase.co/functions/v1/pgn-translate`
 - Processus : `supabase/functions/pgn-translate`
-- En-tête obligatoire `X-AnyChess-Client: anychess-pgn-1` + JWT anon/user (`verify_jwt`)
+- En-tête `X-AnyChess-Client: anychess-pgn-1` **et** JWT d’un utilisateur connecté (pas la clé anon)
 - Ne pas mettre la clé dans GitHub Secrets, EAS, `EXPO_PUBLIC_*` ni dans Cursor
 
-### Où saisir la clé (vous seul, dans Supabase)
+### Publier depuis le tableau de bord (téléphone, sans CLI)
 
-1. Dashboard du projet → **Project Settings → Edge Functions → Secrets**.
-2. Nom exact : `DEEPL_API_KEY`.
-3. Valeur : la clé DeepL API Free. Ne la collez jamais dans le chat ni dans le code.
-4. Déployez `pgn-translate` (`supabase functions deploy pgn-translate --use-api`).
+1. Ouvrir [https://supabase.com/dashboard](https://supabase.com/dashboard) → projet `zqfxnzwtptepulmgpxhb`.
+2. Menu **Edge Functions** → **Deploy a new function** / **Create function**.
+3. Nom exact : `pgn-translate`.
+4. Laisser **Verify JWT** activé (ON).
+5. Effacer le modèle, coller **tout** `supabase/functions/pgn-translate/index.ts` (un seul fichier).
+6. **Deploy**.
+7. Secrets : `DEEPL_API_KEY` déjà enregistré ; ne pas le recoller.
+
+Un appel avec seulement l’anon key doit renvoyer 401. AnyChess n’envoie le JWT utilisateur qu’après connexion sur l’écran Utilisateur.
 
 `GET /functions/v1/pgn-translate` (même en-tête client) expose `usage` sans renvoyer la clé.
 

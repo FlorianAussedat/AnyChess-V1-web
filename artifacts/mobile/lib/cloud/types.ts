@@ -35,6 +35,7 @@ export type CloudAuthResult =
 export interface CloudAuth {
   configured: boolean;
   hydrate?(): Promise<CloudUser | null>;
+  token?(): string | null;
   getUser(): Promise<CloudUser | null>;
   signUp(email: string, password: string): Promise<CloudAuthResult>;
   signIn(email: string, password: string): Promise<CloudAuthResult>;

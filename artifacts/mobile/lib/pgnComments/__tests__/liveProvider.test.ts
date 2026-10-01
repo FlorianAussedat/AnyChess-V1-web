@@ -63,6 +63,9 @@ describe('DeepL proxy URL', () => {
     assert.match(live, /process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
     assert.match(live, /process\.env\.EXPO_PUBLIC_SUPABASE_ANON_KEY/);
     assert.match(live, /functions\/v1\/\$\{PGN_TRANSLATE_FUNCTION\}/);
+    assert.match(live, /getAccessToken/);
+    assert.match(live, /userToken !== anon/);
     assert.doesNotMatch(live, /DEEPL_API_KEY|api-free\.deepl/);
+    assert.doesNotMatch(live, /Authorization: `Bearer \$\{anon\}`/);
   });
 });

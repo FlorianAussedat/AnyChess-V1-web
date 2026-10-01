@@ -72,6 +72,12 @@ export class CloudSyncEngine {
     return { ...this.state };
   }
 
+  /** User access token only — never the public anon key. */
+  getAccessToken(): string | null {
+    const token = this.auth.token?.();
+    return token?.trim() || null;
+  }
+
   private emit(): void {
     for (const listener of this.listeners) listener();
   }

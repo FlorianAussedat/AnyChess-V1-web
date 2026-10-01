@@ -88,14 +88,36 @@ function translateToken(): string | null {
   );
 }
 
-function functionAuthHeaders(url: string): Record<string, string> {
+async function resolveUserAccessToken(): Promise<string | null> {
+  try {
+    const { cloudSyncEngine } = await import('../cloud/cloudStore.ts');
+    const live = cloudSyncEngine.getAccessToken();
+    if (live) return live;
+  } catch {
+    /* engine unavailable in some tests */
+  }
+  try {
+    const { defaultKeyValueStorage } = await import('../storage/AsyncKeyValueStorage.ts');
+    const { CLOUD_SESSION_KEY } = await import('../cloud/syncableKeys.ts');
+    const raw = await defaultKeyValueStorage.getItem(CLOUD_SESSION_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw) as { accessToken?: string };
+    return readPublic(session.accessToken);
+  } catch {
+    return null;
+  }
+}
+
+async function functionAuthHeaders(url: string): Promise<Record<string, string>> {
   if (!/\/functions\/v1\//.test(url)) return {};
   const anon = resolveSupabaseAnonKey();
-  if (!anon) return {};
-  return {
-    apikey: anon,
-    Authorization: `Bearer ${anon}`,
-  };
+  const userToken = await resolveUserAccessToken();
+  const headers: Record<string, string> = {};
+  if (anon) headers.apikey = anon;
+  if (userToken && userToken !== anon) {
+    headers.Authorization = `Bearer ${userToken}`;
+  }
+  return headers;
 }
 
 async function fetchWithTimeout(
@@ -143,7 +165,7 @@ export async function translateViaProxy(
     'Content-Type': 'application/json',
     Accept: 'application/json',
     'X-AnyChess-Client': ANYCHESS_TRANSLATE_CLIENT,
-    ...functionAuthHeaders(url),
+    ...(await functionAuthHeaders(url)),
   };
   const token = translateToken();
   if (token) headers['X-AnyChess-Translate-Token'] = token;
