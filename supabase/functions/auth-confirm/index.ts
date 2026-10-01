@@ -1,14 +1,14 @@
-import { renderConfirmationPage } from './page.ts';
+import { PLAIN_FALLBACK } from './outcome.ts';
 
-const url = Deno.env.get('SUPABASE_URL') ?? '';
-const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-
+// Hosted *.supabase.co rewrites text/html to text/plain and sandboxes the response,
+// so this URL stays readable text. The conditional page is renderConfirmationPage.
 Deno.serve(() =>
-  new Response(renderConfirmationPage({ supabaseUrl: url, anonKey: anon }), {
+  new Response(PLAIN_FALLBACK, {
+    status: 200,
     headers: {
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'no-store',
-      'x-robots-tag': 'noindex',
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Robots-Tag': 'noindex',
     },
   }),
 );

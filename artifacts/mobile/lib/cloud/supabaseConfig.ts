@@ -23,7 +23,11 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(resolveSupabaseUrl() && resolveSupabaseAnonKey());
 }
 
-/** Public page Supabase redirects to after it verifies the email link. */
+/**
+ * Where Supabase sends the browser after it verifies the email link.
+ * On the free *.supabase.co domain this URL is text/plain (HTML is rewritten).
+ * The interactive page is renderConfirmationPage in supabase/functions/auth-confirm.
+ */
 export function authConfirmRedirectUrl(): string | null {
   const url = resolveSupabaseUrl();
   if (!url) return null;

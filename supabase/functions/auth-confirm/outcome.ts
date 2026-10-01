@@ -1,5 +1,19 @@
 export type ConfirmPageOutcome = 'verify' | 'expired' | 'invalid' | 'other' | 'idle';
 
+/**
+ * Readable fallback. The free `*.supabase.co` domain rewrites HTML to text/plain,
+ * so this is what a browser can actually show. It must not claim the address
+ * is confirmed: that sentence lives in the HTML page, after /auth/v1/user.
+ */
+export const PLAIN_FALLBACK = `AnyChess
+
+Cette page n’a pas confirmé ton adresse. Ouvre le lien reçu par e-mail pour l’activer.
+
+Si tu viens d’utiliser ce lien, reviens te connecter dans AnyChess.
+
+Si le lien a expiré ou n’est plus valable, demande un nouvel e-mail de confirmation dans l’application.
+`;
+
 export const CONFIRM_COPY = {
   confirmed: 'Adresse confirmée ! Tu peux maintenant te connecter à AnyChess.',
   expired:

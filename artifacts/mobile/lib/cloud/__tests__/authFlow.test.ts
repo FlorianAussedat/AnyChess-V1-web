@@ -11,11 +11,13 @@ import {
 } from '../authErrors.ts';
 import { CloudSyncEngine } from '../CloudSyncEngine.ts';
 import { resetConfirmationEmailCooldown } from '../confirmCooldown.ts';
+import { authConfirmRedirectUrl } from '../supabaseConfig.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import type { CloudAuth, CloudDocument } from '../types.ts';
 import { renderConfirmationPage } from '../../../../../supabase/functions/auth-confirm/page.ts';
 import {
   CONFIRM_COPY,
+  PLAIN_FALLBACK,
   interpretConfirmationLocation,
   userEmailIsConfirmed,
 } from '../../../../../supabase/functions/auth-confirm/outcome.ts';
@@ -132,6 +134,9 @@ describe('confirmation page', () => {
     assert.doesNotMatch(html, /mobile:\/\//);
     assert.doesNotMatch(html, /Ouvrir AnyChess/);
     assert.doesNotMatch(html, /intent:\/\//);
+    assert.doesNotMatch(PLAIN_FALLBACK, /Adresse confirmée !/);
+    assert.match(PLAIN_FALLBACK, /n’a pas confirmé/);
+    assert.match(PLAIN_FALLBACK, /expiré ou n’est plus valable/);
   });
 });
 
@@ -252,6 +257,18 @@ describe('auth screen copy wiring', () => {
     assert.doesNotMatch(ui, /cloud\.errorRejected/);
     const live = readFileSync(join(here, '../SupabaseCloud.ts'), 'utf8');
     assert.match(live, /redirect_to/);
+    const previousUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const previousAnon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'public-anon';
+    assert.equal(
+      authConfirmRedirectUrl(),
+      'https://example.supabase.co/functions/v1/auth-confirm',
+    );
+    if (previousUrl === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+    else process.env.EXPO_PUBLIC_SUPABASE_URL = previousUrl;
+    if (previousAnon === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = previousAnon;
     assert.match(live, /type: 'signup'/);
     assert.match(live, /isPendingEmailConfirmation/);
     assert.doesNotMatch(live, /DEEPL_API_KEY|api-free\.deepl/);
