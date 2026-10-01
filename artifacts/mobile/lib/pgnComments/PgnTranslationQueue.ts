@@ -32,10 +32,19 @@ function validate(parsed: unknown): PgnTranslationQueueSnapshot | null {
   return { version: 1, jobs: { ...(row.jobs as PgnTranslationQueueSnapshot['jobs']) } };
 }
 
+export type PgnTranslationServiceError =
+  | 'quota'
+  | 'offline'
+  | 'failed'
+  | 'not_configured'
+  | null;
+
 export class PgnTranslationQueue {
   private snapshot: PgnTranslationQueueSnapshot | null = null;
   private running = false;
   private cancelled = false;
+  private lastError: PgnTranslationServiceError = null;
+  private readonly listeners = new Set<() => void>();
   private provider: PgnTranslationProvider = defaultPgnTranslationProvider;
   private readonly translations: PgnCommentTranslationStore;
   private readonly storage: KeyValueStorage;
@@ -50,6 +59,27 @@ export class PgnTranslationQueue {
 
   setProvider(provider: PgnTranslationProvider): void {
     this.provider = provider;
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  getLastError(): PgnTranslationServiceError {
+    return this.lastError;
+  }
+
+  private setLastError(error: PgnTranslationServiceError): void {
+    if (this.lastError === error) return;
+    this.lastError = error;
+    this.emit();
+  }
+
+  private emit(): void {
+    for (const listener of this.listeners) listener();
   }
 
   async ensureLoaded(): Promise<PgnTranslationQueueSnapshot> {
@@ -134,6 +164,7 @@ export class PgnTranslationQueue {
       if (queued.length === 0) return { done, failed, blocked };
       if (!this.provider.configured) {
         blocked = 'not_configured';
+        this.setLastError('not_configured');
         return { done, failed, blocked };
       }
       const results = await this.provider.translateComments(
@@ -149,14 +180,29 @@ export class PgnTranslationQueue {
         const result = results.find((r) => r.id === job.id);
         const recAnchor = parseJobAnchor(job);
         if (!result || result.error || !result.text) {
+          const keepQueued =
+            result?.error === 'not_configured' ||
+            result?.error === 'quota' ||
+            result?.error === 'offline';
           jobs[job.id] = {
             ...job,
-            status: result?.error === 'not_configured' ? 'queued' : 'failed',
+            status: keepQueued ? 'queued' : 'failed',
             error: result?.error,
             updatedAt: now,
           };
-          if (result?.error === 'not_configured') blocked = 'not_configured';
-          else failed += 1;
+          if (result?.error === 'quota') {
+            blocked = 'quota';
+            this.setLastError('quota');
+          } else if (result?.error === 'offline') {
+            blocked = 'offline';
+            this.setLastError('offline');
+          } else if (result?.error === 'not_configured') {
+            blocked = 'not_configured';
+            this.setLastError('not_configured');
+          } else {
+            failed += 1;
+            this.setLastError('failed');
+          }
           continue;
         }
         if (fingerprintComment(job.original) !== job.fingerprint) {
@@ -185,7 +231,9 @@ export class PgnTranslationQueue {
         done += 1;
       }
       this.snapshot = { version: 1, jobs };
+      if (done > 0 && !blocked) this.setLastError(null);
       await this.persist();
+      this.emit();
     } finally {
       this.running = false;
     }
@@ -196,12 +244,14 @@ export class PgnTranslationQueue {
     this.snapshot = emptySnapshot();
     this.running = false;
     this.cancelled = false;
+    this.lastError = null;
     this.provider = defaultPgnTranslationProvider;
   }
 
   private async persist(): Promise<void> {
     if (!this.snapshot) return;
     await this.storage.setItem(KEY, JSON.stringify(this.snapshot));
+    this.emit();
   }
 }
 

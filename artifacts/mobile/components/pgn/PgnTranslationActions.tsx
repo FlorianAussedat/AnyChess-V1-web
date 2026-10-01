@@ -84,6 +84,21 @@ export function PgnTranslationActions({
           {t('pgn.serviceNotConfigured')}
         </Text>
       ) : null}
+      {queue.getLastError() === 'quota' ? (
+        <Text style={[styles.hint, { color: colors.destructive }]} testID={`${testID}-quota`}>
+          {t('pgn.translationQuota')}
+        </Text>
+      ) : null}
+      {queue.getLastError() === 'offline' ? (
+        <Text style={[styles.hint, { color: colors.destructive }]} testID={`${testID}-offline`}>
+          {t('pgn.offlineQueued')}
+        </Text>
+      ) : null}
+      {queue.getLastError() === 'failed' ? (
+        <Text style={[styles.hint, { color: colors.destructive }]} testID={`${testID}-failed`}>
+          {t('pgn.translationFailed')}
+        </Text>
+      ) : null}
       {showCatchupHint && pendingEnglish > 0 ? (
         <Text style={[styles.hint, { color: colors.mutedForeground }]} testID={`${testID}-catchup`}>
           {t('pgn.catchupHint')}

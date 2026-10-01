@@ -46,30 +46,52 @@ async function translateViaProxy(
   });
 }
 
-async function translateViaMyMemory(text: string): Promise<string | null> {
+function isQuotaMessage(text: string | undefined, status: number, quotaFinished?: boolean): boolean {
+  if (quotaFinished) return true;
+  if (status === 429 || status === 403) return true;
+  return Boolean(text && /YOU USED ALL AVAILABLE FREE TRANSLATIONS/i.test(text));
+}
+
+export async function translateViaMyMemory(
+  text: string,
+): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' }> {
   const clipped = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
   const url = `${MYMEMORY}?q=${encodeURIComponent(clipped)}&langpair=en|fr`;
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!response.ok) return null;
+  let response: Response;
+  try {
+    response = await fetch(url, { headers: { Accept: 'application/json' } });
+  } catch {
+    return { error: 'offline' };
+  }
+  if (response.status === 429 || response.status === 403) return { error: 'quota' };
+  if (!response.ok) return { error: 'offline' };
   const body = (await response.json()) as {
     responseData?: { translatedText?: string };
     responseStatus?: number | string;
+    quotaFinished?: boolean;
+    responseDetails?: string;
   };
   const status = Number(body.responseStatus);
-  if (status && status !== 200) return null;
   const translated = body.responseData?.translatedText?.trim();
-  return translated || null;
+  if (isQuotaMessage(translated ?? body.responseDetails, status, body.quotaFinished)) {
+    return { error: 'quota' };
+  }
+  if (status && status !== 200) return { error: 'rejected' };
+  if (!translated) return { error: 'rejected' };
+  return { text: translated };
 }
 
-export async function translateEnglishComment(original: string): Promise<string | null> {
+export async function translateEnglishComment(
+  original: string,
+): Promise<{ text: string } | { error: 'quota' | 'offline' | 'rejected' | 'invalid' }> {
   const protectedText = protectCommentTokens(original);
   const glossed = protectChessTerms(protectedText.masked);
   const translated = await translateViaMyMemory(glossed.masked);
-  if (!translated) return null;
-  const withTerms = restoreChessTerms(translated, glossed.terms);
+  if ('error' in translated) return translated;
+  const withTerms = restoreChessTerms(translated.text, glossed.terms);
   const restored = restoreCommentTokens(withTerms, protectedText.tokens);
-  if (!tokensUnchanged(original, restored)) return null;
-  return restored;
+  if (!tokensUnchanged(original, restored)) return { error: 'invalid' };
+  return { text: restored };
 }
 
 export class MyMemoryPgnTranslationProvider implements PgnTranslationProvider {
@@ -81,12 +103,17 @@ export class MyMemoryPgnTranslationProvider implements PgnTranslationProvider {
     const out: PgnTranslationProviderResult[] = [];
     for (const item of batch) {
       try {
-        const text = await translateEnglishComment(item.text);
-        if (!text) {
-          out.push({ id: item.id, error: 'rejected' });
+        const result = await translateEnglishComment(item.text);
+        if ('error' in result) {
+          out.push({ id: item.id, error: result.error });
+          if (result.error === 'quota' || result.error === 'offline') {
+            const rest = batch.slice(out.length);
+            for (const leftover of rest) out.push({ id: leftover.id, error: result.error });
+            break;
+          }
           continue;
         }
-        out.push({ id: item.id, text });
+        out.push({ id: item.id, text: result.text });
       } catch {
         out.push({ id: item.id, error: 'offline' });
       }

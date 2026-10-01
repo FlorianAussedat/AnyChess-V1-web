@@ -10,7 +10,12 @@ export function usePgnCommentTranslations() {
   useEffect(() => {
     void pgnCommentTranslationStore.ensureLoaded();
     void pgnTranslationQueue.ensureLoaded();
-    return pgnCommentTranslationStore.subscribe(() => bump((n) => n + 1));
+    const unsubStore = pgnCommentTranslationStore.subscribe(() => bump((n) => n + 1));
+    const unsubQueue = pgnTranslationQueue.subscribe(() => bump((n) => n + 1));
+    return () => {
+      unsubStore();
+      unsubQueue();
+    };
   }, []);
 
   return {

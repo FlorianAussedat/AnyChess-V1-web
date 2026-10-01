@@ -70,7 +70,7 @@ export type PgnTranslationQueueSnapshot = {
 export type PgnTranslationProviderResult = {
   id: string;
   text?: string;
-  error?: 'not_configured' | 'offline' | 'invalid' | 'rejected';
+  error?: 'not_configured' | 'offline' | 'invalid' | 'rejected' | 'quota';
 };
 
 export type PgnTranslationProvider = {

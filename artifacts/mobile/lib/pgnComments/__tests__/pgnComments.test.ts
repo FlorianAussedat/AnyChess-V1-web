@@ -19,6 +19,8 @@ import {
   PgnTranslationQueue,
   protectChessTerms,
   restoreChessTerms,
+  enqueueExistingPgns,
+  scheduleImportedPgnComments,
 } from '../index.ts';
 import { StorageKeys } from '../../storage/StorageKeys.ts';
 
@@ -176,6 +178,27 @@ describe('chess glossary', () => {
   });
 });
 
+describe('quota and service failure keep originals', () => {
+  it('does not write French when the provider reports quota', async () => {
+    const kv = new MemoryKeyValueStorage();
+    const store = new PgnCommentTranslationStore(kv);
+    const queue = new PgnTranslationQueue(kv, store);
+    queue.setProvider({
+      configured: true,
+      async translateComments(batch) {
+        return batch.map((item) => ({ id: item.id, error: 'quota' as const }));
+      },
+    });
+    await queue.enqueuePgn(PGN, 'repertoire', 'file-a');
+    const result = await queue.processNext();
+    assert.equal(result.blocked, 'quota');
+    assert.equal(result.done, 0);
+    assert.equal(queue.getLastError(), 'quota');
+    assert.equal(store.getSnapshot().records['repertoire:file-a:0:n1:after'], undefined);
+    assert.equal(PGN.includes('A strong central pawn.'), true);
+  });
+});
+
 describe('live MyMemory translation persists after reload', () => {
   it('translates an English comment and keeps French after a storage remount', async () => {
     const kv = new MemoryKeyValueStorage();
@@ -216,5 +239,61 @@ describe('live MyMemory translation persists after reload', () => {
     });
     assert.equal(again?.translatedText, rec?.translatedText);
     assert.equal(again?.originalText, 'White develops the knight toward the center.');
+  });
+
+  it('covers an already-imported PGN and a new import without touching SAN or eval', async () => {
+    const kv = new MemoryKeyValueStorage();
+    const store = new PgnCommentTranslationStore(kv);
+    const queue = new PgnTranslationQueue(kv, store);
+    queue.setProvider(new MyMemoryPgnTranslationProvider());
+    const existing = `[Event "Old"]\n\n1. e4 {White occupies the center.} e5 {[%eval 0.12] Black answers in kind.} *`;
+    const imported = `[Event "New"]\n\n1. e4 e5 2. Nf3 (2. Nc3 {White develops the knight.}) *`;
+    const addedExisting = await queue.enqueuePgn(existing, 'repertoire', 'old-file');
+    const addedImport = await queue.enqueuePgn(imported, 'gameLibrary', 'new-file');
+    assert.equal(addedExisting, 2);
+    assert.equal(addedImport, 1);
+    const result = await queue.processNext(8);
+    assert.equal(result.blocked, null);
+    assert.equal(result.done, 3, JSON.stringify(result));
+
+    assert.match(existing, /1\. e4/);
+    assert.match(existing, /\[%eval 0\.12\]/);
+    assert.match(imported, /Nf3/);
+    assert.match(imported, /Nc3/);
+
+    const oldUnits = collectPgnCommentUnits(existing, 'repertoire', 'old-file');
+    const newUnits = collectPgnCommentUnits(imported, 'gameLibrary', 'new-file');
+    const first = store.getRecord(oldUnits[0]!.anchor);
+    const evalRec = store.getRecord(oldUnits[1]!.anchor);
+    const variation = store.getRecord(newUnits[0]!.anchor);
+    assert.ok(first?.translatedText);
+    assert.ok(evalRec?.translatedText);
+    assert.ok(variation?.translatedText);
+    assert.notEqual(first?.translatedText, first?.originalText);
+    assert.match(evalRec?.translatedText ?? '', /\[%eval 0\.12\]/);
+    assert.match(variation?.translatedText ?? '', /cavalier|Blancs|développe/i);
+
+    const frenchExport = applyFrenchToPgnText(
+      existing,
+      oldUnits
+        .map((unit) => {
+          const rec = store.getRecord(unit.anchor);
+          return rec?.translatedText
+            ? { original: unit.original, french: rec.translatedText }
+            : null;
+        })
+        .filter((row): row is { original: string; french: string } => !!row),
+      'french',
+    );
+    assert.match(frenchExport, /1\. e4/);
+    assert.match(frenchExport, /\[%eval 0\.12\]/);
+    assert.equal(existing.includes('White occupies the center.'), true);
+
+    const remounted = new PgnCommentTranslationStore(kv);
+    await remounted.ensureLoaded();
+    assert.equal(remounted.getRecord(oldUnits[0]!.anchor)?.translatedText, first?.translatedText);
+    assert.equal(remounted.getRecord(newUnits[0]!.anchor)?.translatedText, variation?.translatedText);
+    assert.ok(enqueueExistingPgns);
+    assert.ok(scheduleImportedPgnComments);
   });
 });

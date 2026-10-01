@@ -35,7 +35,7 @@ export function PgnCommentPane({
 }: Props) {
   const colors = useColors();
   const { t, language } = useTranslation();
-  usePgnCommentTranslations();
+  const { queue } = usePgnCommentTranslations();
   const [mode, setMode] = useState<CommentDisplayMode>('auto');
 
   const resolved = useMemo(
@@ -57,16 +57,23 @@ export function PgnCommentPane({
     ) : null;
   }
 
+  const serviceError = queue.getLastError();
   const statusLabel =
     resolved.status === 'pending'
       ? t('pgn.translationPending')
       : resolved.status === 'stale'
         ? t('pgn.translationPartial')
-        : resolved.status === 'unavailable'
-          ? t('pgn.translationUnavailable')
-          : resolved.status === 'manual'
-            ? t('pgn.commentFrench')
-            : null;
+        : resolved.status === 'unavailable' && serviceError === 'quota'
+          ? t('pgn.translationQuota')
+          : resolved.status === 'unavailable' && serviceError === 'offline'
+            ? t('pgn.offlineQueued')
+            : resolved.status === 'unavailable' && serviceError === 'failed'
+              ? t('pgn.translationFailed')
+              : resolved.status === 'unavailable'
+                ? t('pgn.translationUnavailable')
+                : resolved.status === 'manual'
+                  ? t('pgn.commentFrench')
+                  : null;
 
   return (
     <View testID={testID}>
