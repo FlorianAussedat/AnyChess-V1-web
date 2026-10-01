@@ -18,6 +18,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { confirmAction } from '@/lib/openings/confirmAction';
+import { CloudAccountSection } from '@/components/cloud/CloudAccountSection';
 import { ProfilNavRow } from '@/components/profil/ProfilNavRow';
 import { OptionChip } from '@/components/ui/OptionChip';
 import {
@@ -179,6 +180,8 @@ export default function UtilisateurScreen() {
           testID="profil-row-records"
         />
       </View>
+
+      <CloudAccountSection />
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
         {t('profil.sectionSave')}

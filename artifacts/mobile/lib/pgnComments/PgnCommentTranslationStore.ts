@@ -19,10 +19,17 @@ function emptySnapshot(): PgnTranslationSnapshot {
 
 function validate(parsed: unknown): PgnTranslationSnapshot | null {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-  const row = parsed as { version?: unknown; records?: unknown };
+  const row = parsed as { version?: unknown; records?: unknown; syncDeletedIds?: unknown };
   if (row.version !== 1) return null;
   if (!row.records || typeof row.records !== 'object' || Array.isArray(row.records)) return null;
-  return { version: 1, records: { ...(row.records as PgnTranslationSnapshot['records']) } };
+  const syncDeletedIds = Array.isArray(row.syncDeletedIds)
+    ? row.syncDeletedIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : undefined;
+  return {
+    version: 1,
+    records: { ...(row.records as PgnTranslationSnapshot['records']) },
+    ...(syncDeletedIds?.length ? { syncDeletedIds } : {}),
+  };
 }
 
 export class PgnCommentTranslationStore {
@@ -89,6 +96,7 @@ export class PgnCommentTranslationStore {
     this.snapshot = {
       version: 1,
       records: { ...this.snapshot!.records, [commentAnchorKey(record.anchor)]: next },
+      syncDeletedIds: this.snapshot!.syncDeletedIds,
     };
     await this.persist();
     this.emit();
@@ -120,15 +128,19 @@ export class PgnCommentTranslationStore {
     await this.ensureLoaded();
     const prefix = `${source}:${fileId}:`;
     const records = { ...this.snapshot!.records };
-    let changed = false;
+    const removed: string[] = [];
     for (const key of Object.keys(records)) {
       if (key.startsWith(prefix)) {
         delete records[key];
-        changed = true;
+        removed.push(key);
       }
     }
-    if (!changed) return;
-    this.snapshot = { version: 1, records };
+    if (removed.length === 0) return;
+    this.snapshot = {
+      version: 1,
+      records,
+      syncDeletedIds: [...new Set([...(this.snapshot!.syncDeletedIds ?? []), ...removed])],
+    };
     await this.persist();
     this.emit();
   }

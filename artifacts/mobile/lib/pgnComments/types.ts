@@ -71,6 +71,7 @@ export type PgnTranslationJob = {
 export type PgnTranslationSnapshot = {
   version: 1;
   records: Record<string, PgnCommentTranslationRecord>;
+  syncDeletedIds?: string[];
 };
 
 export type PgnTranslationQueueSnapshot = {

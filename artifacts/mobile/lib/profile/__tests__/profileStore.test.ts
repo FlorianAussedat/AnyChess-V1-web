@@ -96,7 +96,7 @@ describe('Utilisateur / Paramètres screen scope', () => {
     assert.match(utilisateur, /profil\.saveTitle/);
     assert.match(utilisateur, /profil-reset-records/);
     assert.doesNotMatch(utilisateur, /profil-row-language|profil-pref-voice|voiceSpeed/);
-    assert.doesNotMatch(utilisateur, /Supabase|Firebase|OAuth|mot de passe|signup/i);
+    assert.match(utilisateur, /CloudAccountSection/);
     assert.doesNotMatch(utilisateur, /localStorage|AsyncStorage/);
 
     assert.match(parametres, /parametres-screen/);

@@ -88,6 +88,8 @@ export type GameLibrarySnapshot = {
   version: 2;
   folders: GameLibraryFolder[];
   games: ImportedChessGame[];
+  /** Tombstones so a deleted game/folder is not resurrected by another device. */
+  syncDeletedIds?: string[];
 };
 
 export type ImportPgnResult = {

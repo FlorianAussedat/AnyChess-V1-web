@@ -42,6 +42,16 @@ describe('i18n dictionaries', () => {
     assert.equal(translate('en', 'profil.notationEn'), 'English / International');
   });
 
+  it('exposes account sync copy in FR and EN', () => {
+    assert.equal(translate('fr', 'cloud.signUp'), 'Créer un compte');
+    assert.equal(translate('en', 'cloud.signUp'), 'Create account');
+    assert.equal(translate('fr', 'cloud.statusSynced'), 'Synchronisé');
+    assert.equal(translate('fr', 'cloud.statusPending'), 'En attente');
+    assert.equal(translate('fr', 'cloud.statusError'), 'Erreur de synchronisation');
+    assert.match(translate('fr', 'cloud.unconfiguredHint'), /EXPO_PUBLIC_SUPABASE/);
+    assert.doesNotMatch(translate('fr', 'cloud.unconfiguredHint'), /DEEPL_API_KEY/);
+  });
+
   it('reset confirmation copy clarifies scope', () => {
     assert.match(translate('fr', 'profil.resetPrefsBody'), /profil/i);
     assert.match(translate('en', 'profil.resetPrefsBody'), /profile/i);

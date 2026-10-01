@@ -8,7 +8,7 @@ L’application traduit les commentaires anglais vers le français à l’import
 |---|---|
 | Fournisseur client | **Proxy HTTP** `POST /api/pgn-comments/translate` |
 | Fournisseur serveur | **DeepL API Free** (`api-free.deepl.com` si la clé finit par `:fx`) |
-| Clé `DEEPL_API_KEY` | **serveur uniquement** — jamais dans l’APK, `EXPO_PUBLIC_*`, le dépôt ou les logs |
+| Clé `DEEPL_API_KEY` | **serveur uniquement** — jamais dans l’APK, `EXPO_PUBLIC_*`, Supabase, le dépôt ou les logs |
 | Fournisseur de test | `FakePgnTranslationProvider` |
 | Sans URL publique | `UnconfiguredPgnTranslationProvider` (originaux affichés) |
 | Sidecar | `anychess.pgnCommentTranslations.v1` |

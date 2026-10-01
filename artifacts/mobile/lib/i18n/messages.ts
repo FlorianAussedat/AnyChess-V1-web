@@ -202,6 +202,29 @@ export type MessageKey =
   | 'profil.langFr'
   | 'profil.langEn'
   | 'utilisateur.title'
+  | 'cloud.section'
+  | 'cloud.email'
+  | 'cloud.password'
+  | 'cloud.signIn'
+  | 'cloud.signUp'
+  | 'cloud.signOut'
+  | 'cloud.recover'
+  | 'cloud.recoverSent'
+  | 'cloud.statusSynced'
+  | 'cloud.statusPending'
+  | 'cloud.statusError'
+  | 'cloud.statusOffline'
+  | 'cloud.statusSignedOut'
+  | 'cloud.statusUnconfigured'
+  | 'cloud.syncNow'
+  | 'cloud.unconfiguredHint'
+  | 'cloud.signedInAs'
+  | 'cloud.errorInvalid'
+  | 'cloud.errorTaken'
+  | 'cloud.errorWeak'
+  | 'cloud.errorConfirmEmail'
+  | 'cloud.errorOffline'
+  | 'cloud.errorRejected'
   | 'settings.title'
   | 'settings.dictationPace'
   | 'settings.dictationPaceHint'
@@ -1284,7 +1307,7 @@ const fr: Dict = {
   'openings.sideTitle': 'Côté du répertoire',
   'openings.sidePrompt': 'De quel côté travaillez-vous « {{name}} » ?',
   'profil.title': 'Profil',
-  'profil.localData': 'Données locales — aucun compte requis',
+  'profil.localData': 'Compte AnyChess — données privées synchronisées',
   'profil.sectionProfile': 'PROFIL',
   'profil.sectionMyData': 'MES DONNÉES',
   'profil.sectionPreferences': 'PRÉFÉRENCES',
@@ -1308,10 +1331,10 @@ const fr: Dict = {
   'profil.voice': 'Voix / son',
   'profil.coordinates': 'Coordonnées',
   'profil.voiceSpeed': 'Vitesse de la voix',
-  'profil.saveTitle': 'Données enregistrées sur cet appareil',
+  'profil.saveTitle': 'Sauvegarde et synchronisation',
   'profil.saveBody':
-    'Profil, répertoires PGN, records et préférences restent locaux. Aucun compte ni cloud pour le moment.',
-  'profil.saveSoon': 'Synchronisation multi-appareils — bientôt disponible',
+    'PGN, dossiers, traductions, révisions, historiques, statistiques et préférences restent utilisables hors ligne, puis se synchronisent.',
+  'profil.saveSoon': 'Une sauvegarde locale est créée avant chaque connexion.',
   'profil.resetPrefs': 'Réinitialiser les préférences',
   'profil.resetPrefsTitle': 'Réinitialiser les préférences ?',
   'profil.resetPrefsBody':
@@ -1328,6 +1351,30 @@ const fr: Dict = {
   'profil.langFr': 'Français',
   'profil.langEn': 'English',
   'utilisateur.title': 'Utilisateur',
+  'cloud.section': 'COMPTE',
+  'cloud.email': 'E-mail',
+  'cloud.password': 'Mot de passe',
+  'cloud.signIn': 'Connexion',
+  'cloud.signUp': 'Créer un compte',
+  'cloud.signOut': 'Déconnexion',
+  'cloud.recover': 'Mot de passe oublié',
+  'cloud.recoverSent': 'E-mail de récupération envoyé.',
+  'cloud.statusSynced': 'Synchronisé',
+  'cloud.statusPending': 'En attente',
+  'cloud.statusError': 'Erreur de synchronisation',
+  'cloud.statusOffline': 'Hors ligne — synchro au retour du réseau',
+  'cloud.statusSignedOut': 'Non connecté',
+  'cloud.statusUnconfigured': 'Cloud non configuré',
+  'cloud.syncNow': 'Synchroniser',
+  'cloud.unconfiguredHint':
+    'Ajoutez EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY (offre gratuite). La clé DeepL reste sur le serveur de traduction.',
+  'cloud.signedInAs': 'Connecté : {{email}}',
+  'cloud.errorInvalid': 'E-mail ou mot de passe incorrect.',
+  'cloud.errorTaken': 'Un compte existe déjà pour cet e-mail.',
+  'cloud.errorWeak': 'Mot de passe trop court (6 caractères minimum).',
+  'cloud.errorConfirmEmail': 'Confirmez votre e-mail, puis reconnectez-vous.',
+  'cloud.errorOffline': 'Réseau indisponible.',
+  'cloud.errorRejected': 'La demande a été refusée.',
   'settings.title': 'Paramètres',
   'settings.dictationPace': "Rythme d'énonciation des coups",
   'settings.dictationPaceHint':
@@ -2507,7 +2554,7 @@ const en: Dict = {
   'openings.sideTitle': 'Repertoire side',
   'openings.sidePrompt': 'Which side are you training “{{name}}” as?',
   'profil.title': 'Profile',
-  'profil.localData': 'Local data — no account required',
+  'profil.localData': 'AnyChess account — private data synced',
   'profil.sectionProfile': 'PROFILE',
   'profil.sectionMyData': 'MY DATA',
   'profil.sectionPreferences': 'PREFERENCES',
@@ -2531,10 +2578,10 @@ const en: Dict = {
   'profil.voice': 'Voice / sound',
   'profil.coordinates': 'Coordinates',
   'profil.voiceSpeed': 'Voice speed',
-  'profil.saveTitle': 'Data saved on this device',
+  'profil.saveTitle': 'Backup and sync',
   'profil.saveBody':
-    'Profile, PGN repertoires, records and preferences stay local. No account or cloud for now.',
-  'profil.saveSoon': 'Multi-device sync — coming soon',
+    'PGN files, folders, translations, reviews, histories, stats and preferences stay available offline, then sync.',
+  'profil.saveSoon': 'A local backup is created before each sign-in.',
   'profil.resetPrefs': 'Reset preferences',
   'profil.resetPrefsTitle': 'Reset preferences?',
   'profil.resetPrefsBody':
@@ -2551,6 +2598,30 @@ const en: Dict = {
   'profil.langFr': 'Français',
   'profil.langEn': 'English',
   'utilisateur.title': 'User',
+  'cloud.section': 'ACCOUNT',
+  'cloud.email': 'Email',
+  'cloud.password': 'Password',
+  'cloud.signIn': 'Sign in',
+  'cloud.signUp': 'Create account',
+  'cloud.signOut': 'Sign out',
+  'cloud.recover': 'Forgot password',
+  'cloud.recoverSent': 'Recovery email sent.',
+  'cloud.statusSynced': 'Synced',
+  'cloud.statusPending': 'Pending',
+  'cloud.statusError': 'Sync error',
+  'cloud.statusOffline': 'Offline — will sync when the network returns',
+  'cloud.statusSignedOut': 'Signed out',
+  'cloud.statusUnconfigured': 'Cloud not configured',
+  'cloud.syncNow': 'Sync now',
+  'cloud.unconfiguredHint':
+    'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (free plan). The DeepL key stays on the translation server.',
+  'cloud.signedInAs': 'Signed in: {{email}}',
+  'cloud.errorInvalid': 'Incorrect email or password.',
+  'cloud.errorTaken': 'An account already exists for this email.',
+  'cloud.errorWeak': 'Password too short (6 characters minimum).',
+  'cloud.errorConfirmEmail': 'Confirm your email, then sign in again.',
+  'cloud.errorOffline': 'Network unavailable.',
+  'cloud.errorRejected': 'The request was rejected.',
   'settings.title': 'Settings',
   'settings.dictationPace': 'Move dictation pace',
   'settings.dictationPaceHint':
