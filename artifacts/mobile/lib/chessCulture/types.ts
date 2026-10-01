@@ -120,3 +120,13 @@ export type ChessCultureScore = {
   percentage: number;
 };
 
+/** One presented question as reviewed after the session, using shuffled display order. */
+export type ChessCultureReviewItem = {
+  index: number;
+  question: string;
+  explanation: string;
+  selectedAnswer: string;
+  correctAnswer: string;
+  correct: boolean;
+};
+

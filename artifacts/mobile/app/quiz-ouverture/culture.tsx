@@ -2,7 +2,7 @@
  * Culture générale — mixed chess culture quiz (offline).
  * Question data lives in lib/chessCulture; this screen only manages UI/session state.
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -27,14 +27,13 @@ import {
   CHESS_CULTURE_QUESTIONS,
   DEFAULT_CHESS_CULTURE_SESSION_SIZE,
   boardFromFen,
+  buildChessCultureReview,
   calculateChessCultureScore,
   createChessCultureQuizSession,
   getEligibleChessCultureQuestions,
   localizeChessCultureQuestions,
   questionFeedbackStore,
   quizHistoryStore,
-  type ChessCultureFeedbackSnapshot,
-  type ChessCultureFeedbackVote,
   type ChessCultureSessionQuestion,
 } from '@/lib/chessCulture';
 import { getActivitySession } from '@/lib/activitySessions';
@@ -57,19 +56,12 @@ export default function CultureGeneraleQuizScreen() {
   const [phase, setPhase] = useState<Phase>('loading');
   const [session, setSession] = useState<ChessCultureSessionQuestion[]>([]);
   const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
+  const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [selectedDisplayIndex, setSelectedDisplayIndex] = useState<
     number | null
   >(null);
   const [hasAnswered, setHasAnswered] = useState(false);
-  const [feedbackSnapshot, setFeedbackSnapshot] =
-    useState<ChessCultureFeedbackSnapshot | null>(null);
-  const [presentationVote, setPresentationVote] =
-    useState<ChessCultureFeedbackVote | null>(null);
-
-  /** Snapshot before any vote on the current question presentation. */
-  const snapshotBeforePresentation =
-    useRef<ChessCultureFeedbackSnapshot | null>(null);
+  const [openExplain, setOpenExplain] = useState<Record<number, boolean>>({});
 
   const startSession = useCallback(async () => {
     setPhase('loading');
@@ -88,14 +80,12 @@ export default function CultureGeneraleQuizScreen() {
       Math.random,
       seenKeys,
     );
-    setFeedbackSnapshot(snapshot);
-    snapshotBeforePresentation.current = snapshot;
     setSession(next);
     setIndex(0);
-    setScore(0);
+    setAnswers(next.map(() => null));
     setSelectedDisplayIndex(null);
     setHasAnswered(false);
-    setPresentationVote(null);
+    setOpenExplain({});
     setPhase(next.length === 0 ? 'finished' : 'playing');
   }, [language]);
 
@@ -106,29 +96,47 @@ export default function CultureGeneraleQuizScreen() {
     score: number;
     selectedDisplayIndex: number | null;
     hasAnswered: boolean;
+    answers?: (number | null)[];
   };
+
+  const review = useMemo(
+    () => buildChessCultureReview(session, answers),
+    [session, answers],
+  );
+  const derivedScore = review.filter((item) => item.correct).length;
+  const scoreSummary = calculateChessCultureScore(derivedScore, session.length);
 
   const { sessionId } = usePersistedActivity<CulturePayload>({
     kind: 'culture',
     modeId: 'quiz-ouverture',
     resumeSessionId,
     title: t('quiz.culture'),
-    summary: session.length ? `${score}/${session.length}` : '',
+    summary: session.length ? `${derivedScore}/${session.length}` : '',
     routeFor: (id) => `/quiz-ouverture/culture?sessionId=${encodeURIComponent(id)}`,
     enabled: phase === 'playing' && session.length > 0,
-    revision: `${phase}|${index}|${score}|${hasAnswered}|${session.length}`,
+    revision: `${phase}|${index}|${derivedScore}|${hasAnswered}|${session.length}`,
     capture: () => ({
       phase,
       session,
       index,
-      score,
+      score: derivedScore,
       selectedDisplayIndex,
       hasAnswered,
+      answers,
     }),
     apply: (payload) => {
+      const nextAnswers =
+        payload.answers ?? payload.session.map(() => null as number | null);
+      if (
+        payload.hasAnswered &&
+        payload.selectedDisplayIndex != null &&
+        nextAnswers[payload.index] == null
+      ) {
+        nextAnswers[payload.index] = payload.selectedDisplayIndex;
+      }
       setSession(payload.session);
       setIndex(payload.index);
-      setScore(payload.score);
+      setAnswers(nextAnswers);
       setSelectedDisplayIndex(payload.selectedDisplayIndex);
       setHasAnswered(payload.hasAnswered);
       setPhase(payload.phase);
@@ -159,26 +167,16 @@ export default function CultureGeneraleQuizScreen() {
   }, [phase, current]);
   const total = session.length;
   const isLast = index >= total - 1;
-  const scoreSummary = calculateChessCultureScore(score, total);
 
   const onSelectAnswer = (displayIndex: number) => {
     if (hasAnswered || !current) return;
     setSelectedDisplayIndex(displayIndex);
     setHasAnswered(true);
-    if (displayIndex === current.correctDisplayIndex) {
-      setScore((s) => s + 1);
-    }
-  };
-
-  const onFeedbackVote = async (vote: ChessCultureFeedbackVote) => {
-    if (!current || !hasAnswered || !snapshotBeforePresentation.current) return;
-    setPresentationVote(vote);
-    const next = await questionFeedbackStore.submitPresentationVote(
-      current.question,
-      vote,
-      snapshotBeforePresentation.current,
-    );
-    setFeedbackSnapshot(next);
+    setAnswers((prev) => {
+      const next = prev.length === session.length ? [...prev] : session.map(() => null);
+      next[index] = displayIndex;
+      return next;
+    });
   };
 
   const goNext = () => {
@@ -191,9 +189,6 @@ export default function CultureGeneraleQuizScreen() {
     setIndex(nextIndex);
     setSelectedDisplayIndex(null);
     setHasAnswered(false);
-    setPresentationVote(null);
-    // New presentation: base feedback is whatever was persisted after the previous vote.
-    snapshotBeforePresentation.current = feedbackSnapshot;
   };
 
   const boardFen = current?.question.presentation?.boardFen;
@@ -252,9 +247,19 @@ export default function CultureGeneraleQuizScreen() {
             />
           </View>
 
-          <Text style={[styles.question, { color: colors.foreground }]}>
-            {current.question.question}
-          </Text>
+          <View
+            style={[
+              styles.questionCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            testID="culture-question-card"
+            accessibilityRole="text"
+          >
+            <View style={[styles.cardAccent, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.question, { color: colors.foreground }]}>
+              {current.question.question}
+            </Text>
+          </View>
 
           <ChessCultureVisual presentation={current.question.presentation} />
 
@@ -356,80 +361,13 @@ export default function CultureGeneraleQuizScreen() {
                   })}
                 </Text>
               ) : null}
-              <Text
-                style={[styles.explanation, { color: colors.mutedForeground }]}
-              >
-                {current.question.explanation}
-              </Text>
-
-              <View style={styles.qualityBlock}>
+              {current.question.explanation.trim() ? (
                 <Text
-                  style={[
-                    styles.qualityLabel,
-                    { color: colors.mutedForeground },
-                  ]}
+                  style={[styles.explanation, { color: colors.mutedForeground }]}
                 >
-                  {t('quiz.wasQuestionCorrect')}
+                  {current.question.explanation}
                 </Text>
-                <View style={styles.qualityRow}>
-                  <Pressable
-                    testID="culture-feedback-up"
-                    accessibilityLabel={t('a11y.questionCorrect')}
-                    onPress={() => void onFeedbackVote('up')}
-                    style={({ pressed }) => [
-                      styles.qualityBtn,
-                      {
-                        borderColor:
-                          presentationVote === 'up'
-                            ? colors.primary
-                            : colors.border,
-                        backgroundColor: colors.card,
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={
-                        presentationVote === 'up'
-                          ? 'thumbs-up'
-                          : 'thumbs-up-outline'
-                      }
-                      size={18}
-                      color={
-                        presentationVote === 'up'
-                          ? colors.primary
-                          : colors.foreground
-                      }
-                    />
-                  </Pressable>
-                  <Pressable
-                    testID="culture-feedback-down"
-                    accessibilityLabel={t('a11y.questionIncorrect')}
-                    onPress={() => void onFeedbackVote('down')}
-                    style={({ pressed }) => [
-                      styles.qualityBtn,
-                      {
-                        borderColor:
-                          presentationVote === 'down' ? '#c44' : colors.border,
-                        backgroundColor: colors.card,
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={
-                        presentationVote === 'down'
-                          ? 'thumbs-down'
-                          : 'thumbs-down-outline'
-                      }
-                      size={18}
-                      color={
-                        presentationVote === 'down' ? '#c44' : colors.foreground
-                      }
-                    />
-                  </Pressable>
-                </View>
-              </View>
+              ) : null}
 
               <Pressable
                 testID="culture-next"
@@ -457,27 +395,131 @@ export default function CultureGeneraleQuizScreen() {
       ) : null}
 
       {phase === 'finished' ? (
-        <View style={styles.results}>
-          <Text style={[styles.resultsTitle, { color: colors.foreground }]}>
-            {t('quiz.finished')}
-          </Text>
-          {total === 0 ? (
-            <Text style={{ color: colors.mutedForeground }}>
-              {t('quiz.noQuestions')}
+        <View style={styles.results} testID="culture-results">
+          <View
+            style={[
+              styles.resultsCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            testID="culture-results-card"
+          >
+            <View style={[styles.resultsAccent, { backgroundColor: colors.primary }]} />
+            <Text style={[styles.resultsTitle, { color: colors.foreground }]}>
+              {t('quiz.finished')}
             </Text>
-          ) : (
-            <>
-              <Text style={[styles.scoreLine, { color: colors.foreground }]}>
-                {t('quiz.score', {
-                  correct: scoreSummary.correct,
-                  total: scoreSummary.total,
-                })}
+            {total === 0 ? (
+              <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>
+                {t('quiz.noQuestions')}
               </Text>
-              <Text style={[styles.percent, { color: colors.mutedForeground }]}>
-                {scoreSummary.percentage} %
+            ) : (
+              <>
+                <Text
+                  style={[styles.scoreLine, { color: colors.foreground }]}
+                  testID="culture-final-score"
+                >
+                  {t('quiz.score', {
+                    correct: scoreSummary.correct,
+                    total: scoreSummary.total,
+                  })}
+                </Text>
+                <Text style={[styles.percent, { color: colors.mutedForeground }]}>
+                  {scoreSummary.percentage} %
+                </Text>
+                <Text style={[styles.resultsCount, { color: colors.foreground }]}>
+                  {t('quiz.correctAnswersCount', { count: scoreSummary.correct })}
+                </Text>
+                <Text style={[styles.resultsCount, { color: colors.foreground }]}>
+                  {t('quiz.incorrectAnswersCount', {
+                    count: scoreSummary.total - scoreSummary.correct,
+                  })}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {review.length > 0 ? (
+            <View style={styles.reviewBlock} testID="culture-review">
+              <Text style={[styles.reviewHeading, { color: colors.foreground }]}>
+                {t('quiz.yourAnswers')}
               </Text>
-            </>
-          )}
+              {review.map((item) => {
+                const expanded = openExplain[item.index] === true;
+                const statusColor = item.correct ? '#398a55' : '#c44';
+                return (
+                  <View
+                    key={`${item.index}-${item.question}`}
+                    style={[
+                      styles.reviewCard,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                    ]}
+                    testID={`culture-review-${item.index}`}
+                  >
+                    <Text style={[styles.reviewIndex, { color: colors.mutedForeground }]}>
+                      {item.index + 1}/{scoreSummary.total}
+                    </Text>
+                    <Text style={[styles.reviewQuestion, { color: colors.foreground }]}>
+                      {item.question}
+                    </Text>
+                    <View style={styles.reviewStatusRow}>
+                      <Ionicons
+                        name={item.correct ? 'checkmark-circle' : 'close-circle'}
+                        size={18}
+                        color={statusColor}
+                      />
+                      <Text
+                        style={[styles.reviewStatus, { color: statusColor }]}
+                        testID={`culture-review-status-${item.index}`}
+                      >
+                        {item.correct ? t('quiz.goodAnswer') : t('quiz.badAnswer')}
+                      </Text>
+                    </View>
+                    <Text style={[styles.reviewMeta, { color: colors.foreground }]}>
+                      {t('quiz.yourChoice', { answer: item.selectedAnswer })}
+                    </Text>
+                    {!item.correct ? (
+                      <Text style={[styles.reviewMeta, { color: colors.foreground }]}>
+                        {t('quiz.correctWas', { answer: item.correctAnswer })}
+                      </Text>
+                    ) : null}
+                    {item.explanation ? (
+                      <>
+                        <Pressable
+                          testID={`culture-review-explain-${item.index}`}
+                          onPress={() =>
+                            setOpenExplain((prev) => ({
+                              ...prev,
+                              [item.index]: !expanded,
+                            }))
+                          }
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            expanded ? t('quiz.hideExplanation') : t('quiz.seeExplanation')
+                          }
+                          style={({ pressed }) => [
+                            styles.explainBtn,
+                            { opacity: pressed ? 0.7 : 1 },
+                          ]}
+                        >
+                          <Text style={{ color: colors.primary, fontFamily: 'Inter_600SemiBold' }}>
+                            {expanded ? t('quiz.hideExplanation') : t('quiz.seeExplanation')}
+                          </Text>
+                        </Pressable>
+                        {expanded ? (
+                          <Text
+                            style={[styles.explanation, { color: '#B7CDE0' }]}
+                            testID={`culture-review-explanation-${item.index}`}
+                          >
+                            {item.explanation}
+                          </Text>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+
           <Pressable
             testID="culture-replay"
             onPress={() => void startSession()}
@@ -531,15 +573,6 @@ const styles = StyleSheet.create({
     gap: 14,
     flexGrow: 1,
   },
-  title: {
-    fontSize: 28,
-    fontFamily: DesignTokens.typography.weightBold,
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: DesignTokens.typography.weightRegular,
-    lineHeight: 20,
-  },
   centered: {
     paddingVertical: 40,
     alignItems: 'center',
@@ -561,10 +594,23 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 2,
   },
+  questionCard: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.card,
+    overflow: 'hidden',
+  },
+  cardAccent: {
+    width: 4,
+  },
   question: {
-    fontSize: 18,
-    fontFamily: DesignTokens.typography.weightSemiBold,
-    lineHeight: 26,
+    flex: 1,
+    fontSize: 20,
+    fontFamily: DesignTokens.typography.weightBold,
+    lineHeight: 28,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
   },
   boardWrap: {
     alignItems: 'center',
@@ -600,26 +646,6 @@ const styles = StyleSheet.create({
     fontFamily: DesignTokens.typography.weightRegular,
     lineHeight: 20,
   },
-  qualityBlock: {
-    gap: 8,
-    marginTop: 4,
-  },
-  qualityLabel: {
-    fontSize: 12,
-    fontFamily: DesignTokens.typography.weightRegular,
-  },
-  qualityRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  qualityBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   primaryBtn: {
     marginTop: 6,
     paddingVertical: 14,
@@ -637,20 +663,84 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   results: {
-    gap: 12,
-    marginTop: 12,
+    gap: 14,
+    marginTop: 8,
+  },
+  resultsCard: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.card,
+    overflow: 'hidden',
+    paddingBottom: 20,
+  },
+  resultsAccent: {
+    height: 4,
+    alignSelf: 'stretch',
   },
   resultsTitle: {
-    fontSize: 24,
+    marginTop: 18,
+    fontSize: 22,
     fontFamily: DesignTokens.typography.weightBold,
+    textAlign: 'center',
   },
   scoreLine: {
-    fontSize: 22,
-    fontFamily: DesignTokens.typography.weightSemiBold,
+    marginTop: 12,
+    fontSize: 28,
+    fontFamily: DesignTokens.typography.weightBold,
+    textAlign: 'center',
   },
   percent: {
-    fontSize: 18,
+    marginTop: 4,
+    fontSize: 16,
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+  },
+  resultsCount: {
+    marginTop: 8,
+    fontSize: 15,
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+  },
+  reviewBlock: {
+    gap: 10,
+  },
+  reviewHeading: {
+    fontSize: 16,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    textAlign: 'left',
+  },
+  reviewCard: {
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.md,
+    padding: 14,
+    gap: 8,
+  },
+  reviewIndex: {
+    fontSize: 12,
     fontFamily: 'Inter_500Medium',
   },
+  reviewQuestion: {
+    fontSize: 16,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    lineHeight: 22,
+  },
+  reviewStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reviewStatus: {
+    fontSize: 14,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  reviewMeta: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 20,
+  },
+  explainBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
 });
-

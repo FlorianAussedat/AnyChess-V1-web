@@ -54,11 +54,26 @@ describe('culture quiz polish', () => {
     const src = readFileSync(join(quizDir, 'culture.tsx'), 'utf8');
     assert.match(src, /Bonne réponse|Mauvaise réponse|quiz\.goodAnswer|quiz\.badAnswer/);
     assert.match(src, /culture-progress-bar/);
+    assert.match(src, /culture-question-card/);
     assert.match(src, /sizeMode=["']wide["']/);
+    assert.doesNotMatch(src, /wasQuestionCorrect/);
+    assert.doesNotMatch(src, /thumbs-up|thumbs-down|culture-feedback/);
     const q = src.indexOf('current.question.question');
     const visual = src.indexOf('<ChessCultureVisual');
     const board = src.indexOf('board ?');
     const answers = src.indexOf('styles.answers');
     assert.ok(q > 0 && visual > q && board > visual && answers > board);
+  });
+
+  it('builds a results card and a recap from the presented session answers', () => {
+    const src = readFileSync(join(quizDir, 'culture.tsx'), 'utf8');
+    assert.match(src, /culture-results-card/);
+    assert.match(src, /culture-review/);
+    assert.match(src, /buildChessCultureReview/);
+    assert.match(src, /quiz\.yourAnswers/);
+    assert.match(src, /quiz\.seeExplanation/);
+    assert.match(src, /culture-replay/);
+    assert.match(src, /startSession/);
+    assert.doesNotMatch(src, /10 questions/);
   });
 });

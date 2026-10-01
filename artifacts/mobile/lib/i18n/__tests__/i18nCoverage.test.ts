@@ -21,6 +21,15 @@ function read(rel: string): string {
 }
 
 describe('i18n dictionaries', () => {
+  it('exposes culture quiz recap copy in FR and EN', () => {
+    assert.equal(translate('fr', 'quiz.yourAnswers'), 'Tes réponses');
+    assert.equal(translate('en', 'quiz.yourAnswers'), 'Your answers');
+    assert.match(translate('fr', 'quiz.correctAnswersCount', { count: 3 }), /Bonnes réponses : 3/);
+    assert.match(translate('fr', 'quiz.incorrectAnswersCount', { count: 2 }), /Mauvaises réponses : 2/);
+    assert.match(translate('fr', 'quiz.yourChoice', { answer: 'e4' }), /Ta réponse : e4/);
+    assert.match(translate('fr', 'quiz.seeExplanation'), /explication/);
+  });
+
   it('Profile preference labels differ FR vs EN', () => {
     assert.equal(translate('fr', 'profil.language'), "Langue de l'application");
     assert.equal(translate('en', 'profil.language'), 'App language');
