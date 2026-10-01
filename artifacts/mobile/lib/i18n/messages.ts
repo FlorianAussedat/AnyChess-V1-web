@@ -133,6 +133,23 @@ export type MessageKey =
   | 'openings.learnFolders'
   | 'openings.learnPgns'
   | 'openings.linesShort'
+  | 'openings.pgnMasteryMeta'
+  | 'openings.filterUnmastered'
+  | 'openings.filterPartial'
+  | 'openings.filterMastered'
+  | 'openings.filterPriority'
+  | 'openings.filterAll'
+  | 'openings.lineMastered'
+  | 'openings.lineToWork'
+  | 'openings.emptyFilterUnmastered'
+  | 'openings.emptyFilterPartial'
+  | 'openings.emptyFilterMastered'
+  | 'openings.emptyFilterPriority'
+  | 'openings.emptyFilterAll'
+  | 'openings.priorityA11yOn'
+  | 'openings.priorityA11yOff'
+  | 'openings.trainUnmastered'
+  | 'openings.noUnmasteredLines'
   | 'openings.continueVsEngineShort'
   | 'openings.toggleReview'
   | 'openings.setSide'
@@ -1121,6 +1138,23 @@ const fr: Dict = {
   'openings.learnFolders': 'Dossiers',
   'openings.learnPgns': 'PGN du dossier',
   'openings.linesShort': '{{count}} lignes',
+  'openings.pgnMasteryMeta': '{{count}} lignes · {{percent}} % maîtrisé',
+  'openings.filterUnmastered': 'Non maîtrisé',
+  'openings.filterPartial': 'Partiel',
+  'openings.filterMastered': 'Maîtrisé',
+  'openings.filterPriority': 'Prioritaires',
+  'openings.filterAll': 'Tous',
+  'openings.lineMastered': '✓ Maîtrisée',
+  'openings.lineToWork': 'À travailler',
+  'openings.emptyFilterUnmastered': 'Aucun PGN dans cette catégorie.',
+  'openings.emptyFilterPartial': 'Aucun PGN dans cette catégorie.',
+  'openings.emptyFilterMastered': 'Aucun PGN maîtrisé pour le moment.',
+  'openings.emptyFilterPriority': 'Aucun PGN prioritaire.',
+  'openings.emptyFilterAll': 'Aucun PGN à afficher.',
+  'openings.priorityA11yOn': 'Retirer le statut prioritaire',
+  'openings.priorityA11yOff': 'Marquer comme prioritaire',
+  'openings.trainUnmastered': 'Entraîner les lignes à travailler',
+  'openings.noUnmasteredLines': 'Toutes les lignes de ce PGN sont maîtrisées.',
   'openings.continueVsEngineShort': 'Continuer contre Stockfish',
   'openings.toggleReview': 'Révision',
   'openings.setSide': 'Camp du dossier',
@@ -2196,6 +2230,23 @@ const en: Dict = {
   'openings.learnFolders': 'Folders',
   'openings.learnPgns': 'Folder PGNs',
   'openings.linesShort': '{{count}} lines',
+  'openings.pgnMasteryMeta': '{{count}} lines · {{percent}}% mastered',
+  'openings.filterUnmastered': 'Unmastered',
+  'openings.filterPartial': 'Partial',
+  'openings.filterMastered': 'Mastered',
+  'openings.filterPriority': 'Priority',
+  'openings.filterAll': 'All',
+  'openings.lineMastered': '✓ Mastered',
+  'openings.lineToWork': 'To work on',
+  'openings.emptyFilterUnmastered': 'No PGN in this category.',
+  'openings.emptyFilterPartial': 'No PGN in this category.',
+  'openings.emptyFilterMastered': 'No mastered PGN yet.',
+  'openings.emptyFilterPriority': 'No priority PGN.',
+  'openings.emptyFilterAll': 'No PGN to show.',
+  'openings.priorityA11yOn': 'Remove priority',
+  'openings.priorityA11yOff': 'Mark as priority',
+  'openings.trainUnmastered': 'Train lines to work on',
+  'openings.noUnmasteredLines': 'Every line in this PGN is mastered.',
   'openings.continueVsEngineShort': 'Continue vs Stockfish',
   'openings.toggleReview': 'Review',
   'openings.setSide': 'Folder side',

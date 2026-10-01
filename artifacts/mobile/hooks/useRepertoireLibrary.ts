@@ -136,6 +136,15 @@ export function useRepertoireLibrary() {
     [bump],
   );
 
+  const setFilePriority = useCallback(
+    async (fileId: string, priority: boolean) => {
+      const file = await repertoireService.setFilePriority(fileId, priority);
+      bump();
+      return file;
+    },
+    [bump],
+  );
+
   const getFolder = useCallback(
     (folderId: string) => repertoireService.getFolder(folderId),
     [tick],
@@ -191,6 +200,7 @@ export function useRepertoireLibrary() {
     movePgn,
     copyPgnToFolder,
     setFileEnabled,
+    setFilePriority,
     setFolderSide,
     setFolderEnabled,
     getAllFiles,

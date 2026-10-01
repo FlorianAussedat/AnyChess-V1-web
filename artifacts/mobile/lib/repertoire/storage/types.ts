@@ -67,6 +67,11 @@ export interface StoredPgnFile {
    * merges (Review / Play). Defaults to true when missing (legacy snapshots).
    */
   enabled?: boolean;
+  /**
+   * Manual Learning pin. Missing (legacy) means not priority.
+   * Has no effect on Review selection.
+   */
+  priority?: boolean;
 }
 
 /** Prefer displayName, else filename. */

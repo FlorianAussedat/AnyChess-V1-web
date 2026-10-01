@@ -110,6 +110,17 @@ export const StorageKeys = {
     shape: 'Record<folderId, string[] pathIds>',
     documentVersion: 1,
   },
+  /**
+   * Per-line Review history for opening mastery (sidecar — not inside repertoire v2).
+   * Keys are `${fileId}:${ContinueLinePath.id}`.
+   */
+  openingLineMastery: {
+    key: 'anychess.openingLineMastery.v1',
+    feature: 'openings/mastery',
+    shape:
+      'OpeningLineMasterySnapshot { version: 1, lines: Record<fileId:pathId, { recent, totalAttempts, totalSuccesses, lastRevisionAt }> }',
+    documentVersion: 1,
+  },
   mentalRecent: {
     key: 'anychess.mental.recent.v1',
     feature: 'visualisation/mental',

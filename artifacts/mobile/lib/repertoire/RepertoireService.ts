@@ -32,6 +32,7 @@ import {
   isUnfiledOpeningFolder,
   makeUnfiledOpeningFolder,
 } from './unfiledFolder';
+import { openingMasteryStore } from './OpeningMasteryStore';
 
 export { normaliseFilename, uniquePgnFilename } from './pgnFilename';
 
@@ -193,9 +194,13 @@ export class RepertoireService {
       throw new Error(tMsg('errors.systemFolderProtected'));
     }
     this.snapshot!.folders = this.snapshot!.folders.filter((f) => f.id !== folderId);
+    const removedIds = this.snapshot!.files
+      .filter((f) => f.folderId === folderId)
+      .map((f) => f.id);
     this.snapshot!.files = this.snapshot!.files.filter((f) => f.folderId !== folderId);
     invalidateFolderRepertoireCache(folderId);
     await this.persist();
+    await openingMasteryStore.pruneFiles(removedIds);
   }
 
   /** Persist which color the user trains this repertoire as. */
@@ -311,6 +316,8 @@ export class RepertoireService {
 
     invalidateFolderRepertoireCache(file.folderId);
     await this.persist();
+    const liveIds = buildRepertoire(file.pgnText).trainingPaths?.map((p) => p.id) ?? [];
+    await openingMasteryStore.pruneOrphans(file.id, liveIds);
     return file;
   }
 
@@ -327,6 +334,18 @@ export class RepertoireService {
     return file;
   }
 
+  /** Pin / unpin a PGN on the Learning screen. Does not affect Review. */
+  async setFilePriority(fileId: string, priority: boolean): Promise<StoredPgnFile> {
+    await this.ensureLoaded();
+    const file = this.snapshot!.files.find((f) => f.id === fileId);
+    if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+    file.priority = priority;
+    const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
+    if (folder) folder.updatedAt = nowIso();
+    await this.persist();
+    return file;
+  }
+
   /** Remove one PGN file without deleting its parent folder. */
   async deletePgn(fileId: string): Promise<void> {
     await this.ensureLoaded();
@@ -338,6 +357,7 @@ export class RepertoireService {
     if (folder) folder.updatedAt = nowIso();
     invalidateFolderRepertoireCache(file.folderId);
     await this.persist();
+    await openingMasteryStore.pruneFile(fileId);
   }
 
   /** Rename display name only (AnyChess UI) — does not touch disk filename. */

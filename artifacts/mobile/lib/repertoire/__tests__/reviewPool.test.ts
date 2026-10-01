@@ -13,6 +13,7 @@ import {
 import {
   countReviewLines,
   listReviewPoolEntries,
+  flattenReviewLines,
   pickReviewLine,
   resetReviewPickMemory,
 } from '../pickReviewLine.ts';
@@ -131,43 +132,44 @@ describe('review activation', () => {
   });
 });
 
-describe('balanced review pick', () => {
+describe('uniform review pick per line', () => {
   beforeEach(() => resetReviewPickMemory());
 
-  it('picks files uniformly before lines, so a huge PGN cannot drown a small one', () => {
+  it('builds a flat pool of every line, so a huge PGN has more slots than a small one', () => {
     const white = folder('w', 'white', true);
     const small = file('small', 'w', SMALL, true);
     const big = file('big', 'w', BIG, true);
     const entries = listReviewPoolEntries([white], [small, big]);
-    assert.equal(entries.length, 2);
-    assert.ok(countReviewLines(entries) > entries[0]!.paths.length);
-
-    const counts: Record<string, number> = { small: 0, big: 0 };
-    for (let i = 0; i < 200; i++) {
-      const pick = pickReviewLine(entries, { rng: () => (i % 2 === 0 ? 0.01 : 0.99) });
-      assert.ok(pick);
-      counts[pick!.file.id] += 1;
-    }
-    assert.equal(counts.small, 100);
-    assert.equal(counts.big, 100);
+    const pool = flattenReviewLines(entries);
+    const smallSlots = pool.filter((p) => p.file.id === 'small').length;
+    const bigSlots = pool.filter((p) => p.file.id === 'big').length;
+    assert.equal(smallSlots, 1);
+    assert.ok(bigSlots > smallSlots);
+    assert.equal(pool.length, countReviewLines(entries));
   });
 
-  it('picks every line inside a PGN fairly', () => {
+  it('picks uniformly among flattened lines (index = floor(rng * N))', () => {
     const white = folder('w', 'white', true);
+    const small = file('small', 'w', SMALL, true);
     const big = file('big', 'w', BIG, true);
-    const entries = listReviewPoolEntries([white], [big]);
-    const pathCounts = new Map<string, number>();
-    let recent: string[] = [];
-    for (let i = 0; i < 40; i++) {
-      const pick = pickReviewLine(entries, { rng: () => 0, recentPathIds: recent });
-      assert.ok(pick);
-      pathCounts.set(pick!.path.id, (pathCounts.get(pick!.path.id) ?? 0) + 1);
-      const scoped = `${pick!.file.id}:${pick!.path.id}`;
-      recent = [scoped, ...recent.filter((id) => id !== scoped)];
-    }
-    const values = [...pathCounts.values()];
-    assert.ok(values.length >= 2);
-    assert.ok(Math.max(...values) - Math.min(...values) <= 1);
+    const entries = listReviewPoolEntries([white], [small, big]);
+    const pool = flattenReviewLines(entries);
+    const first = pickReviewLine(entries, { rng: () => 0 });
+    const last = pickReviewLine(entries, { rng: () => 0.999999 });
+    assert.equal(first?.file.id, pool[0]?.file.id);
+    assert.equal(first?.path.id, pool[0]?.path.id);
+    assert.equal(last?.file.id, pool[pool.length - 1]?.file.id);
+    assert.equal(last?.path.id, pool[pool.length - 1]?.path.id);
+  });
+
+  it('keeps mastered and priority lines in the Review pool', () => {
+    const white = folder('w', 'white', true);
+    const starred = file('star', 'w', SMALL, true);
+    starred.priority = true;
+    const entries = listReviewPoolEntries([white], [starred]);
+    assert.equal(flattenReviewLines(entries).length, 1);
+    const pick = pickReviewLine(entries, { rng: () => 0 });
+    assert.equal(pick?.file.id, 'star');
   });
 });
 

@@ -16,6 +16,8 @@ export type EphemeralOpeningSession = {
   displayName: string;
   side: 'white' | 'black';
   origin: 'review' | 'study';
+  /** When true, next-line in Learning skips mastered lines. Review ignores this. */
+  autoUnmastered?: boolean;
 };
 
 let current: EphemeralOpeningSession | null = null;

@@ -45,6 +45,43 @@ export type {
   RepertoireSide,
 } from './storage/types';
 export { pgnFileDisplayName } from './storage/types';
+export {
+  isOpeningLineMastered,
+  getOpeningPgnMastery,
+  getOpeningPgnLearningCategory,
+  sortLearningPgns,
+  appendRevisionResult,
+  lastFiveRevisionResults,
+  openingLineKey,
+  isPgnPriority,
+  pgnMatchesLearningFilter,
+  unmasteredLearningPaths,
+  pickUnmasteredLearningPath,
+  OPENING_MASTERY_WINDOW,
+} from './openingMastery';
+export type {
+  OpeningRevisionResult,
+  OpeningLearningCategory,
+  OpeningLearningFilter,
+  OpeningPgnMastery,
+  LearningPgnSortItem,
+} from './openingMastery';
+export {
+  OpeningMasteryStore,
+  openingMasteryStore,
+} from './OpeningMasteryStore';
+export type {
+  OpeningLineMasteryRecord,
+  OpeningLineMasterySnapshot,
+} from './OpeningMasteryStore';
+export {
+  describeOpeningPgnMastery,
+  trainingPathsForPgn,
+} from './openingMasteryViews';
+export type {
+  OpeningLineMasteryView,
+  OpeningPgnMasteryView,
+} from './openingMasteryViews';
 export { joinSelectedPgnSlices, selectedPgnImports } from './joinSelectedPgnSlices';
 export { combineFolderPgnTexts } from './combineFolderPgnTexts';
 export {
@@ -62,6 +99,7 @@ export {
 export {
   listReviewPoolEntries,
   countReviewLines,
+  flattenReviewLines,
   pickReviewLine,
   pickReviewLineFromMemory,
   reviewPickToSession,
@@ -80,6 +118,7 @@ export {
   ephemeralSessionForOrigin,
 } from './ephemeralOpeningSession';
 export type { EphemeralOpeningSession } from './ephemeralOpeningSession';
+export { recordOpeningRevisionResult } from './recordOpeningRevision';
 export { repertoireFromSans } from './repertoireFromSans';
 export { analyzeDeviation } from './RepertoireDeviationAnalyzer';
 export type { DeviationAnalysis, TheoryContinuationStep } from './RepertoireDeviationAnalyzer';
