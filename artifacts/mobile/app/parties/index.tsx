@@ -4,9 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +21,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import {
   countFolderContents,
   gameLibraryStore,
@@ -153,19 +152,14 @@ export default function PartiesLibraryScreen() {
   }, [folderStack, t]);
 
   const onDeleteGame = (game: ImportedChessGame) => {
-    const doDelete = () => {
-      void gameLibraryStore.deleteGame(game.id).then(reload);
-    };
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.confirm) {
-      if (window.confirm(`${t('parties.deleteTitle')}\n${t('parties.deleteConfirmMessage')}`)) {
-        doDelete();
-      }
-      return;
-    }
-    Alert.alert(t('parties.deleteTitle'), t('parties.deleteConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      { text: t('parties.deleteConfirm'), style: 'destructive', onPress: doDelete },
-    ]);
+    confirmAction(
+      t('parties.deleteTitle'),
+      t('parties.deleteConfirmMessage'),
+      () => {
+        void gameLibraryStore.deleteGame(game.id).then(reload);
+      },
+      { destructive: true, confirmLabel: t('parties.deleteConfirm') },
+    );
   };
 
   const openAddToOpenings = useCallback(async (game: ImportedChessGame) => {
@@ -272,23 +266,16 @@ export default function PartiesLibraryScreen() {
       games: String(counts.games),
       folders: String(counts.subfolders),
     });
-    const doDelete = () => {
-      void gameLibraryStore
-        .deleteFolder(folder.id, { deleteContents: true })
-        .then(reload);
-    };
-    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.confirm) {
-      if (window.confirm(message)) doDelete();
-      return;
-    }
-    Alert.alert(t('parties.folderDeleteTitle'), message, [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('parties.folderDeleteAll'),
-        style: 'destructive',
-        onPress: doDelete,
+    confirmAction(
+      t('parties.folderDeleteTitle'),
+      message,
+      () => {
+        void gameLibraryStore
+          .deleteFolder(folder.id, { deleteContents: true })
+          .then(reload);
       },
-    ]);
+      { destructive: true, confirmLabel: t('parties.folderDeleteAll') },
+    );
   };
 
   const confirmMove = async (targetFolderId: string) => {

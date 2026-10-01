@@ -4,7 +4,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Chess } from 'chess.js';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ChessMoveInput } from '@/components/game/ChessMoveInput';
@@ -206,13 +206,11 @@ export function FinishGameOverlay({ visible, payload, onClose }: Props) {
     : (snap as DefendSnapshot).defender === 'b';
 
   const confirmClose = () => {
-    Alert.alert(
+    confirmAction(
       'Quitter Finir la partie ?',
       'Le résultat de l’exercice ne sera pas modifié.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Retour au résultat', onPress: onClose },
-      ],
+      onClose,
+      { confirmLabel: 'Retour au résultat' },
     );
   };
 

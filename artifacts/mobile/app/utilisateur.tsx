@@ -3,7 +3,6 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -18,6 +17,7 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import { ProfilNavRow } from '@/components/profil/ProfilNavRow';
 import { OptionChip } from '@/components/ui/OptionChip';
 import {
@@ -78,19 +78,17 @@ export default function UtilisateurScreen() {
   };
 
   const resetRecords = () => {
-    Alert.alert(t('profil.resetRecordsTitle'), t('profil.resetRecordsBody'), [
-      { text: t('profil.cancel'), style: 'cancel' },
-      {
-        text: t('profil.erase'),
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            await resetAllCatalogRecords();
-            await reloadSummaries();
-          })();
-        },
+    confirmAction(
+      t('profil.resetRecordsTitle'),
+      t('profil.resetRecordsBody'),
+      () => {
+        void (async () => {
+          await resetAllCatalogRecords();
+          await reloadSummaries();
+        })();
       },
-    ]);
+      { destructive: true, confirmLabel: t('profil.erase') },
+    );
   };
 
   return (

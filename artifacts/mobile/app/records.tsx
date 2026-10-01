@@ -3,7 +3,6 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import { DesignTokens } from '@/constants/designTokens';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { OptionChip } from '@/components/ui/OptionChip';
@@ -187,17 +187,11 @@ function OpeningQuizRecordsPanel({
 }) {
   const { t } = useTranslation();
   const resetAll = () =>
-    Alert.alert(
+    confirmAction(
       t('records.resetTitle'),
       t('records.openingQuizResetBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.reset'),
-          style: 'destructive',
-          onPress: onReset,
-        },
-      ],
+      onReset,
+      { destructive: true, confirmLabel: t('common.reset') },
     );
 
   const hasAny = ANYCHESS_DIFFICULTIES.some(
@@ -249,17 +243,11 @@ function MemorisationRecordsPanel({
 }) {
   const { t } = useTranslation();
   const resetAll = () =>
-    Alert.alert(
+    confirmAction(
       t('records.resetTitle'),
       t('records.blindResetBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.reset'),
-          style: 'destructive',
-          onPress: onReset,
-        },
-      ],
+      onReset,
+      { destructive: true, confirmLabel: t('common.reset') },
     );
 
   const rows: { label: string; value: number; testID: string }[] = [
@@ -318,17 +306,11 @@ function TacticsRecordsPanel({
     .sort((a, b) => (snapshot.bestByBand[b] ?? 0) - (snapshot.bestByBand[a] ?? 0));
 
   const resetAll = () =>
-    Alert.alert(
+    confirmAction(
       t('records.resetTitle'),
       t('records.tacticsResetBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.reset'),
-          style: 'destructive',
-          onPress: () => resetTacticsRecords().then(onReload),
-        },
-      ],
+      () => { void resetTacticsRecords().then(onReload); },
+      { destructive: true, confirmLabel: t('common.reset') },
     );
 
   return (
@@ -376,17 +358,11 @@ function Session60RecordsPanel({
 }) {
   const { t } = useTranslation();
   const resetAll = () =>
-    Alert.alert(
+    confirmAction(
       t('records.sessionResetTitle'),
       t('records.sessionResetBody', { label }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.reset'),
-          style: 'destructive',
-          onPress: onReset,
-        },
-      ],
+      onReset,
+      { destructive: true, confirmLabel: t('common.reset') },
     );
 
   return (

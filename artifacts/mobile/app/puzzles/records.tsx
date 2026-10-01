@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { DesignTokens } from '@/constants/designTokens';
 import {
@@ -47,17 +48,11 @@ export default function PuzzleRecordsScreen() {
     .sort((a, b) => (snapshot.bestByBand[b] ?? 0) - (snapshot.bestByBand[a] ?? 0));
 
   const resetAll = () =>
-    Alert.alert(
+    confirmAction(
       t('records.resetTitle'),
       t('records.tacticsResetBody'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.reset'),
-          style: 'destructive',
-          onPress: () => puzzleStreakStore.resetAll().then(load),
-        },
-      ],
+      () => { void puzzleStreakStore.resetAll().then(load); },
+      { destructive: true, confirmLabel: t('common.reset') },
     );
 
   return (
