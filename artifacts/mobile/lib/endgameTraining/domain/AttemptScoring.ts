@@ -136,6 +136,8 @@ export function buildAttemptResult(input: {
   positionId: string;
   officialDrawReason?: OfficialDrawReason;
   positionSnapshot?: import('./types.ts').PositionSnapshot;
+  attemptId?: string;
+  finishedAt?: string;
 }): AttemptResult {
   const firstMajorTurn =
     input.state.outcome === 'loss'
@@ -156,6 +158,7 @@ export function buildAttemptResult(input: {
     endFen: input.endFen,
     positionId: input.positionId,
     positionSnapshot: input.positionSnapshot,
-    finishedAt: new Date().toISOString(),
+    attemptId: input.attemptId,
+    finishedAt: input.finishedAt ?? new Date().toISOString(),
   };
 }

@@ -16,7 +16,7 @@ type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 export type HubModeCardProps = {
   title: string;
-  description: string;
+  description?: string;
   icon?: ImageSourcePropType;
   /** Simple system icon when no brand image is available. */
   iconName?: IoniconName;
@@ -66,7 +66,9 @@ export function HubModeCard({
       ) : null}
       <View style={styles.textCol}>
         <Text style={[styles.cardTitle, { color: colors.foreground }]}>{title}</Text>
-        <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>{description}</Text>
+        {description ? (
+          <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>{description}</Text>
+        ) : null}
       </View>
       <View style={styles.chevron} pointerEvents="none">
         <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />

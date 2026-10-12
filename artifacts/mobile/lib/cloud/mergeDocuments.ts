@@ -1,4 +1,6 @@
 import { StorageKeys } from '../storage/StorageKeys.ts';
+import { mergeEndgameTrainingDocuments } from '../endgameTraining/persistence/defendDrawReview.ts';
+import { getPositionById } from '../endgameTraining/selection/selectors.ts';
 
 function newerIso(a?: string, b?: string): string {
   if (!a) return b ?? new Date().toISOString();
@@ -309,6 +311,11 @@ export function mergeDocumentPayload(
     merged = mergeBestScores(local, remote);
   } else if (docKey === StorageKeys.userPreferences.key) {
     merged = mergeUserPreferences(local, remote);
+  } else if (docKey === StorageKeys.endgameTrainingV2.key) {
+    merged = mergeEndgameTrainingDocuments(local, remote, (positionId) => {
+      const pos = getPositionById(positionId);
+      return pos ? { fen: pos.fen, defender: pos.defender } : null;
+    });
   } else {
     merged = lastWriteWins(local, remote);
   }

@@ -4,7 +4,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -21,7 +20,8 @@ import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { AppButton } from '@/components/ui/AppButton';
 import { PositionReferenceBadge } from '@/components/exercise/PositionReferenceBadge';
-import { TryAgainPromptModal } from '@/components/exercise/TryAgainPromptModal';
+import { DefendDrawStarButton } from '@/components/exercise/DefendDrawStarButton';
+import { DefendDrawReviewCard } from '@/components/exercise/DefendDrawReviewCard';
 import {
   ExerciseResultOverlayHost,
   type ResultOverlayKind,
@@ -39,10 +39,11 @@ import {
 import { DesignTokens } from '@/constants/designTokens';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import { pairMoveHistory } from '@/lib/game';
-import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { usePersistedActivity } from '@/hooks/usePersistedActivity';
 import { useActiveSessionBack } from '@/hooks/useActiveSessionBack';
+import { getActivitySession } from '@/lib/activitySessions';
+import { presentAppDialog } from '@/lib/ui/appDialogStore';
 import {
   EndgameEngineStatusBanner,
   useSharedStockfishRuntime,
@@ -50,34 +51,20 @@ import {
 import {
   EndgameTrainingSession,
   getPositionById,
-  getShowGauge,
-  setShowGauge,
   recordFinishedAttempt,
-  addToTryAgain,
-  removeFromTryAgain,
-  isInTryAgain,
-  getPositionStats,
   openEndgameInReader,
   getFinishedIds,
-  getTryAgainIds,
-  progressiveDeteriorationMessage,
-  type SessionSnapshot,
-  type PositionAttemptStats,
-} from '@/lib/endgameTraining';
-import {
+  listDefendDrawFavorites,
+  isDefendDrawStarred,
+  starDefendDrawPosition,
+  unstarDefendDrawPosition,
+  getDefendDrawHistoryAttempt,
+  attemptFromHistory,
   pickNewPositionAvoiding,
-  pickTryAgainPositionAvoiding,
-} from '@/lib/endgameTraining/selection/selectors';
+  type SessionSnapshot,
+  type EndgameTrainingPosition,
+} from '@/lib/endgameTraining';
 import { canOfferFinishGame } from '@/lib/endgameTraining/domain/officialResultMessages';
-import { formatDrawAlternativesMessage } from '@/lib/endgameTraining/domain/drawAlternatives';
-import {
-  defenderToWhiteEval,
-  timelineToEvalCurvePoints,
-} from '@/lib/endgameTraining/ui/toWhiteEval';
-import {
-  EvalBalanceBar,
-  EvalCurve,
-} from '@/components/analysis';
 import type {
   FinishGamePayload,
   ReviewLaunchPayload,
@@ -89,11 +76,30 @@ function boardFromFen(fen: string): (BoardPiece | null)[][] {
   return new Chess(fen).board() as (BoardPiece | null)[][];
 }
 
+function syntheticPosition(
+  positionId: string,
+  fen: string,
+  defender: 'white' | 'black',
+): EndgameTrainingPosition {
+  return {
+    id: positionId,
+    fen,
+    defender,
+    objective: 'DRAW',
+    source: { provider: 'history', license: '' },
+    family: 'mixed',
+    materialSignature: '',
+    tags: [],
+    quality: { initialEvaluation: 0, validationKind: 'stockfish' },
+  };
+}
+
 export default function EndgameTrainingPlayScreen() {
-  const { positionId, source, sessionId: resumeParam } = useLocalSearchParams<{
+  const { positionId, source, sessionId: resumeParam, reviewAttempt } = useLocalSearchParams<{
     positionId: string;
     source?: string;
     sessionId?: string;
+    reviewAttempt?: string;
   }>();
   const colors = useColors();
   const { t } = useTranslation();
@@ -110,14 +116,9 @@ export default function EndgameTrainingPlayScreen() {
   const [busy, setBusy] = useState(false);
   const [positionMissing, setPositionMissing] = useState(false);
   const [positionReady, setPositionReady] = useState(false);
-  const [showGauge, setShowGaugeState] = useState(true);
-  const [inTryAgain, setInTryAgain] = useState(false);
-  const [stats, setStats] = useState<PositionAttemptStats | null>(null);
-  const [addedTryAgain, setAddedTryAgain] = useState(false);
-  const [tryAgainPromptVisible, setTryAgainPromptVisible] = useState(false);
-  const [tryAgainPromptAnswered, setTryAgainPromptAnswered] = useState(false);
+  const [starred, setStarred] = useState(false);
   const [overlay, setOverlay] = useState<ResultOverlayKind>(null);
-  const startedRef = useRef(false);
+  const bootTokenRef = useRef('');
   const recordedRef = useRef(false);
 
   const { sessionId } = usePersistedActivity({
@@ -133,8 +134,19 @@ export default function EndgameTrainingPlayScreen() {
       (snap.phase === 'playing' ||
         snap.phase === 'thinking' ||
         snap.phase === 'verifying-loss'),
-    revision: `${snap.phase}|${snap.fen}|${snap.movesResisted}`,
+    revision: `${snap.phase}|${snap.fen}|${snap.movesResisted}|${snap.attemptId}`,
     capture: () => sessionRef.current.snapshot(),
+    apply: (payload) => {
+      if (!payload?.position || !payload.fen) return;
+      if (String(payload.position.id) !== String(positionId ?? '')) return;
+      if (typeof reviewAttempt === 'string' && reviewAttempt) return;
+      sessionRef.current.restore(payload);
+      bootTokenRef.current = `${positionId}|${reviewAttempt ?? ''}|${resumeParam ?? ''}`;
+      recordedRef.current = false;
+      setSnap(sessionRef.current.snapshot());
+      setPositionReady(true);
+      setPositionMissing(false);
+    },
   });
 
   const {
@@ -158,7 +170,6 @@ export default function EndgameTrainingPlayScreen() {
   }, [chessNotation]);
 
   useEffect(() => {
-    void getShowGauge().then(setShowGaugeState);
     return () => {
       sessionRef.current.setAnalyzer(null);
     };
@@ -170,47 +181,94 @@ export default function EndgameTrainingPlayScreen() {
     if (service) sessionRef.current.setAnalyzer(service);
   }, [engineReady, runtime]);
 
-  useEffect(() => {
-    startedRef.current = false;
-    setPositionReady(false);
-    setPositionMissing(false);
-    recordedRef.current = false;
-    setTryAgainPromptAnswered(false);
-    setTryAgainPromptVisible(false);
-    setOverlay(null);
-  }, [positionId]);
-
   const refresh = useCallback((next: SessionSnapshot) => {
     setSnap(next);
   }, []);
 
   useEffect(() => {
-    if (startedRef.current || !positionId) return;
-    const pos = getPositionById(String(positionId));
-    if (!pos) {
-      setPositionMissing(true);
-      return;
-    }
-    startedRef.current = true;
+    const token = `${positionId ?? ''}|${reviewAttempt ?? ''}|${resumeParam ?? ''}`;
+    if (bootTokenRef.current === token) return;
+    setPositionReady(false);
+    setPositionMissing(false);
+    setOverlay(null);
+    recordedRef.current = false;
+    let cancelled = false;
     void (async () => {
       setBusy(true);
       try {
-        refresh(await sessionRef.current.start(pos));
+        if (typeof reviewAttempt === 'string' && reviewAttempt) {
+          const row = await getDefendDrawHistoryAttempt(reviewAttempt);
+          if (cancelled) return;
+          if (!row) {
+            setPositionMissing(true);
+            return;
+          }
+          const catalog = getPositionById(row.positionId);
+          const position = catalog
+            ? { ...catalog, fen: row.initialFen, defender: row.playerColor }
+            : syntheticPosition(row.positionId, row.initialFen, row.playerColor);
+          recordedRef.current = true;
+          refresh(sessionRef.current.presentStoredReview(position, attemptFromHistory(row)));
+          bootTokenRef.current = token;
+          setPositionReady(true);
+          return;
+        }
+        if (!positionId) return;
+        if (typeof resumeParam === 'string' && resumeParam) {
+          const saved = getActivitySession(resumeParam)?.payload as SessionSnapshot | undefined;
+          if (
+            saved?.position &&
+            saved.fen &&
+            String(saved.position.id) === String(positionId)
+          ) {
+            if (cancelled) return;
+            refresh(sessionRef.current.restore(saved));
+            bootTokenRef.current = token;
+            setPositionReady(true);
+            return;
+          }
+        }
+        const pos = getPositionById(String(positionId));
+        if (!pos) {
+          if (!cancelled) setPositionMissing(true);
+          return;
+        }
+        let next = pos;
+        if (source === 'favorite') {
+          const favorites = await listDefendDrawFavorites();
+          const favorite = favorites.find((item) => item.positionId === pos.id);
+          if (favorite) {
+            next = { ...pos, fen: favorite.initialFen, defender: favorite.playerColor };
+          }
+        }
+        if (cancelled) return;
+        refresh(await sessionRef.current.start(next));
+        bootTokenRef.current = token;
         setPositionReady(true);
-        setInTryAgain(await isInTryAgain(pos.id));
-        setStats(await getPositionStats(pos.id));
       } finally {
-        setBusy(false);
+        if (!cancelled) setBusy(false);
       }
     })();
-  }, [positionId, refresh]);
+    return () => {
+      cancelled = true;
+    };
+  }, [positionId, refresh, resumeParam, reviewAttempt, source]);
+
+  useEffect(() => {
+    const fen = snap.startFen ?? snap.position?.fen;
+    const id = snap.position?.id;
+    const color = snap.position?.defender;
+    if (!fen || !id || !color) return;
+    void isDefendDrawStarred(id, color, fen).then(setStarred);
+  }, [snap.startFen, snap.position?.id, snap.position?.defender]);
 
   useEffect(() => {
     if (!snap.result || recordedRef.current) return;
     if (
       snap.result.outcome !== 'loss' &&
       snap.result.outcome !== 'win-30-moves' &&
-      snap.result.outcome !== 'win-official-draw'
+      snap.result.outcome !== 'win-official-draw' &&
+      snap.result.outcome !== 'abandoned'
     ) {
       return;
     }
@@ -218,25 +276,14 @@ export default function EndgameTrainingPlayScreen() {
     void recordFinishedAttempt(snap.result, {
       family: snap.position?.family,
       materialSignature: snap.position?.materialSignature,
-    }).then(setStats);
+    });
   }, [snap.result, snap.position]);
 
   const showResult =
     snap.phase === 'lost' ||
     snap.phase === 'won-30' ||
-    snap.phase === 'won-draw';
-
-  useEffect(() => {
-    if (!showResult || tryAgainPromptAnswered) return;
-    if (inTryAgain || addedTryAgain) return;
-    setTryAgainPromptVisible(true);
-  }, [showResult, tryAgainPromptAnswered, inTryAgain, addedTryAgain]);
-
-  const toggleGauge = async () => {
-    const next = !showGauge;
-    setShowGaugeState(next);
-    await setShowGauge(next);
-  };
+    snap.phase === 'won-draw' ||
+    snap.phase === 'abandoned';
 
   const playUserMove = async (from: string, to: string, promotion?: string) => {
     if (busy || !engineReady) return;
@@ -364,88 +411,37 @@ export default function EndgameTrainingPlayScreen() {
     };
   }, [snap.result, snap.position, snap.fen, snap.moveSans]);
 
-  const drawAltMessage = useMemo(() => {
-    if (!snap.result || snap.result.outcome !== 'loss') return null;
-    if (snap.result.drawAlternativesReliable === false) {
-      return formatDrawAlternativesMessage(
-        {
-          fenBeforeLoss: snap.result.fenBeforeLoss ?? '',
-          losingSan: snap.result.losingSan ?? '',
-          evalBeforeCp: snap.result.evalBeforeLossCp ?? 0,
-          evalAfterCp: snap.result.evalAfterLossCp ?? 0,
-          alternatives: (snap.result.drawAlternatives ?? []).map((a, i) => ({
-            san: a.san,
-            uci: '',
-            scoreCp: a.scoreCp,
-            mateIn: null,
-            rank: i + 1,
-          })),
-          hasMoreAlternatives: snap.result.drawAlternativesHasMore ?? false,
-          reliable: false,
+  const initialFen = snap.startFen ?? snap.position?.fen ?? '';
+
+  const toggleStar = () => {
+    if (!snap.position || !initialFen) return;
+    const input = {
+      positionId: snap.position.id,
+      playerColor: snap.position.defender,
+      initialFen,
+    };
+    if (starred) {
+      presentAppDialog({
+        title: t('quiz.ddUnstarTitle'),
+        message: '',
+        cancelLabel: t('common.cancel'),
+        confirmLabel: t('quiz.ddUnstarConfirm'),
+        variant: 'destructive',
+        onConfirm: () => {
+          void unstarDefendDrawPosition(input).then(() => setStarred(false));
         },
-        (san) => formatSanForDisplay(san, chessNotation),
-      );
+      });
+      return;
     }
-    if (!snap.result.drawAlternatives?.length) return null;
-    return formatDrawAlternativesMessage(
-      {
-        fenBeforeLoss: snap.result.fenBeforeLoss ?? '',
-        losingSan: snap.result.losingSan ?? '',
-        evalBeforeCp: snap.result.evalBeforeLossCp ?? 0,
-        evalAfterCp: snap.result.evalAfterLossCp ?? 0,
-        alternatives: snap.result.drawAlternatives.map((a, i) => ({
-          san: a.san,
-          uci: '',
-          scoreCp: a.scoreCp,
-          mateIn: null,
-          rank: i + 1,
-        })),
-        hasMoreAlternatives: snap.result.drawAlternativesHasMore ?? false,
-        reliable: true,
-      },
-      (san) => formatSanForDisplay(san, chessNotation),
-    );
-  }, [snap.result, chessNotation]);
-
-  const playerPerspective = snap.position?.defender ?? 'white';
-  const liveWhiteEval = useMemo(
-    () => defenderToWhiteEval(snap.evalCp, snap.mateIn, playerPerspective),
-    [snap.evalCp, snap.mateIn, playerPerspective],
-  );
-  const resultCurvePoints = useMemo(
-    () => timelineToEvalCurvePoints(snap.timeline, playerPerspective),
-    [snap.timeline, playerPerspective],
-  );
-  const showResultCurve =
-    showResult &&
-    resultCurvePoints.length >= 2 &&
-    (snap.phase === 'lost' ||
-      snap.phase === 'won-draw' ||
-      snap.phase === 'won-30');
-
-  const handleAddTryAgain = async () => {
-    if (!snap.position) return;
-    await addToTryAgain(snap.position.id);
-    setAddedTryAgain(true);
-    setInTryAgain(true);
-  };
-
-  const handleRemoveTryAgain = async () => {
-    if (!snap.position) return;
-    await removeFromTryAgain(snap.position.id);
-    setInTryAgain(false);
-    setAddedTryAgain(false);
+    void starDefendDrawPosition(input).then(() => setStarred(true));
   };
 
   const handleRetry = async () => {
     recordedRef.current = false;
-    setAddedTryAgain(false);
-    setTryAgainPromptAnswered(false);
     setOverlay(null);
     setBusy(true);
     try {
       refresh(await sessionRef.current.retry());
-      if (snap.position) setStats(await getPositionStats(snap.position.id));
     } finally {
       setBusy(false);
     }
@@ -454,38 +450,32 @@ export default function EndgameTrainingPlayScreen() {
   const handleNextPosition = async () => {
     if (!snap.position) return;
     const avoidId = snap.position.id;
-    let next = null;
-    if (source === 'try-again') {
-      const ids = await getTryAgainIds();
-      next = pickTryAgainPositionAvoiding(ids, avoidId);
-    } else {
-      const finished = await getFinishedIds();
-      next = pickNewPositionAvoiding(new Set(finished), avoidId);
-    }
+    const finished = await getFinishedIds();
+    const next = pickNewPositionAvoiding(new Set(finished), avoidId);
     if (!next) {
       router.replace('/puzzles/defends-nulle' as Href);
       return;
     }
     router.replace(
-      `/puzzles/defends-nulle-play?positionId=${encodeURIComponent(next.id)}&source=${source ?? 'new'}` as Href,
+      `/puzzles/defends-nulle-play?positionId=${encodeURIComponent(next.id)}&source=new` as Href,
     );
-  };
-
-  const handleTryAgainPromptYes = async () => {
-    setTryAgainPromptAnswered(true);
-    setTryAgainPromptVisible(false);
-    await handleAddTryAgain();
-  };
-
-  const handleTryAgainPromptNo = () => {
-    setTryAgainPromptAnswered(true);
-    setTryAgainPromptVisible(false);
   };
 
   const leaveToHub = useCallback(
     () => router.replace('/puzzles/defends-nulle' as Href),
     [router],
   );
+  const abandonAndLeave = useCallback(() => {
+    const next = sessionRef.current.abandon();
+    if (next.result?.outcome === 'abandoned' && !recordedRef.current) {
+      recordedRef.current = true;
+      void recordFinishedAttempt(next.result, {
+        family: next.position?.family,
+        materialSignature: next.position?.materialSignature,
+      });
+    }
+    leaveToHub();
+  }, [leaveToHub]);
   const onPlayBack = useActiveSessionBack({
     sessionActive:
       snap.phase === 'playing' ||
@@ -493,7 +483,7 @@ export default function EndgameTrainingPlayScreen() {
       snap.phase === 'verifying-loss',
     kind: 'exercice',
     activityId: sessionId,
-    onLeave: leaveToHub,
+    onLeave: abandonAndLeave,
     onNavigateBack: leaveToHub,
     captureHardwareBack: true,
   });
@@ -536,13 +526,12 @@ export default function EndgameTrainingPlayScreen() {
   }
 
   const campLabel =
-    snap.defender === 'w' ? t('puzzle.youPlayWhite') : t('puzzle.youPlayBlack');
+    snap.defender === 'w' ? t('quiz.ddDefendWithWhite') : t('quiz.ddDefendWithBlack');
 
   return (
     <>
       <ChessScreenScaffold
         title={t('quiz.defendsNullePageTitle')}
-        subtitle={campLabel}
         onBack={onPlayBack}
         testID="endgame-training-play"
       >
@@ -557,30 +546,18 @@ export default function EndgameTrainingPlayScreen() {
         <View style={styles.topRow}>
           <Text
             style={{
-              color: colors.primary,
-              fontFamily: DesignTokens.typography.weightSemiBold,
+              color: colors.foreground,
+              fontFamily: DesignTokens.typography.weightBold,
+              fontSize: 20,
+              lineHeight: 26,
+              flex: 1,
             }}
-            testID="endgame-moves-resisted"
+            testID="endgame-camp-banner"
           >
-            {t('quiz.endgameMovesResisted', { count: snap.movesResisted })}
+            {campLabel}
           </Text>
-          <Pressable
-            onPress={() => void toggleGauge()}
-            hitSlop={8}
-            testID="endgame-gauge-toggle"
-          >
-            <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-              {showGauge ? t('quiz.endgameHideGauge') : t('quiz.endgameShowGauge')}
-            </Text>
-          </Pressable>
+          <DefendDrawStarButton starred={starred} onPress={toggleStar} />
         </View>
-
-        {showGauge ? (
-          <EvalBalanceBar
-            value={liveWhiteEval}
-            testID="endgame-eval-balance"
-          />
-        ) : null}
 
         {snap.finishGameActive && (
           <Text style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
@@ -635,17 +612,6 @@ export default function EndgameTrainingPlayScreen() {
           onBack={onPlayBack}
         />
 
-        {thinking && engineReady && (
-          <View style={styles.busyRow}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={{ color: colors.mutedForeground }}>
-              {snap.phase === 'verifying-loss'
-                ? t('quiz.endgameVerifying')
-                : t('quiz.defendsNulleReflecting')}
-            </Text>
-          </View>
-        )}
-
         <ClassicCommandInputChrome
           keypadActive={keypadActive}
           draftMove={draftMove}
@@ -667,77 +633,13 @@ export default function EndgameTrainingPlayScreen() {
           emptyMessage={t('game.startsHere')}
         />
 
-        {showResult && snap.result && (
-          <View style={styles.result} testID="endgame-result">
-            {snap.position && (
-              <PositionReferenceBadge
-                id={snap.position.id}
-                sourceId={snap.position.source.sourceId}
-                provider={snap.position.source.provider}
-              />
-            )}
-
-            <Text
-              style={{
-                color:
-                  snap.phase === 'lost'
-                    ? '#c44'
-                    : '#398a55',
-                fontFamily: DesignTokens.typography.weightSemiBold,
-                textAlign: 'center',
-              }}
-              testID="endgame-official-result"
-            >
-              {snap.officialResultMessage ??
-                snap.lastFeedback ??
-                snap.result.officialResultMessage}
-            </Text>
-
-            {showResultCurve && (
-              <EvalCurve
-                points={resultCurvePoints}
-                activeNodeId={
-                  resultCurvePoints[resultCurvePoints.length - 1]?.nodeId ??
-                  null
-                }
-                onSelectNode={() => {}}
-                testID="endgame-eval-curve"
-              />
-            )}
-
-            {snap.phase === 'lost' && (
-              <>
-                <Text style={{ color: colors.foreground }}>
-                  {sessionRef.current.getFirstMajorTurnMessage() ||
-                    progressiveDeteriorationMessage()}
-                </Text>
-                {drawAltMessage && (
-                  <Text style={{ color: colors.foreground }} testID="endgame-draw-alternatives">
-                    {drawAltMessage}
-                  </Text>
-                )}
-              </>
-            )}
-
-            {stats && stats.attemptsFinished > 1 && (
-              <View style={styles.statsBox}>
-                <Text style={{ color: colors.mutedForeground }}>
-                  {t('quiz.endgameThisAttempt', { count: snap.movesResisted })}
-                </Text>
-                {stats.recent[1] && (
-                  <Text style={{ color: colors.mutedForeground }}>
-                    {t('quiz.endgamePrevAttempt', {
-                      count: stats.recent[1].movesResisted,
-                    })}
-                  </Text>
-                )}
-                {stats.bestResisted != null && (
-                  <Text style={{ color: colors.mutedForeground }}>
-                    {t('quiz.endgameBestAttempt', { count: stats.bestResisted })}
-                  </Text>
-                )}
-              </View>
-            )}
+        {showResult && snap.result && snap.position && (
+          <View style={styles.result}>
+            <DefendDrawReviewCard
+              result={snap.result}
+              defender={snap.position.defender}
+              notation={chessNotation}
+            />
 
             <AppButton
               label={t('quiz.analyseGame')}
@@ -753,42 +655,12 @@ export default function EndgameTrainingPlayScreen() {
               }}
               testID="endgame-analyse-game"
             />
-            <AppButton
-              label={t('quiz.analysePosition')}
-              onPress={() => {
-                if (!snap.result || !snap.position || busy) return;
-                setBusy(true);
-                void openEndgameInReader({
-                  result: snap.result,
-                  defender: snap.position.defender,
-                  mode: 'position',
-                  routerPush: (href) => router.push(href as Href),
-                }).finally(() => setBusy(false));
-              }}
-              testID="endgame-analyse-position"
-            />
 
-            {snap.phase === 'lost' && (
-              <>
-                {!inTryAgain && !addedTryAgain ? (
-                  <AppButton
-                    label={t('quiz.endgameAddTryAgain')}
-                    onPress={() => void handleAddTryAgain()}
-                    variant="secondary"
-                    testID="endgame-add-try-again"
-                  />
-                ) : (
-                  <Text style={{ color: '#398a55' }} testID="endgame-added-try-again">
-                    {t('quiz.endgameAddedTryAgain')}
-                  </Text>
-                )}
-                <AppButton
-                  label={t('quiz.endgameRetry')}
-                  onPress={() => void handleRetry()}
-                  testID="endgame-retry"
-                />
-              </>
-            )}
+            <AppButton
+              label={t('quiz.endgameRetry')}
+              onPress={() => void handleRetry()}
+              testID="endgame-retry"
+            />
 
             {showFinishGame && (
               <AppButton
@@ -804,31 +676,9 @@ export default function EndgameTrainingPlayScreen() {
               onPress={() => void handleNextPosition()}
               testID="endgame-next-position"
             />
-
-            {source === 'try-again' && inTryAgain && (
-              <Pressable onPress={() => void handleRemoveTryAgain()} style={styles.subtle}>
-                <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
-                  {t('quiz.endgameRemoveTryAgain')}
-                </Text>
-              </Pressable>
-            )}
-
-            <AppButton
-              label={t('quiz.endgameBackMenu')}
-              onPress={() => router.replace('/puzzles/defends-nulle' as Href)}
-              variant="secondary"
-              testID="endgame-back-menu"
-            />
           </View>
         )}
       </ChessScreenScaffold>
-
-      <TryAgainPromptModal
-        visible={tryAgainPromptVisible && !tryAgainPromptAnswered}
-        alreadyInPool={inTryAgain || addedTryAgain}
-        onYes={() => void handleTryAgainPromptYes()}
-        onNo={handleTryAgainPromptNo}
-      />
 
       <ExerciseResultOverlayHost
         overlay={overlay}
@@ -859,7 +709,5 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   result: { gap: DesignTokens.spacing.sm },
-  statsBox: { gap: 2 },
-  subtle: { alignSelf: 'center', paddingVertical: 8 },
   missingBox: { gap: DesignTokens.spacing.md, paddingVertical: DesignTokens.spacing.lg },
 });

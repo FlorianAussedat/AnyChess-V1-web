@@ -52,12 +52,12 @@ describe('EndgameTrainingStore', () => {
     assert.equal(await isInTryAgain('P1'), false);
   });
 
-  it('mastery auto-removes from try-again', async () => {
+  it('mastery keeps a starred finale', async () => {
     await addToTryAgain('P2');
     await recordFinishedAttempt(
       baseResult({ positionId: 'P2', outcome: 'win-30-moves', movesResisted: 30 }),
     );
-    assert.equal(await isInTryAgain('P2'), false);
+    assert.equal(await isInTryAgain('P2'), true);
     const finished = await getFinishedIds();
     assert.equal(finished.has('P2'), true);
   });

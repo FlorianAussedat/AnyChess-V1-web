@@ -234,7 +234,7 @@ export const StorageKeys = {
   endgameTrainingV2: {
     key: 'anychess.endgameTraining.v2',
     feature: 'endgame-training',
-    shape: 'EndgameTrainingStoreV2 { tryAgainIds, finishedIds, statsByPosition, showGauge, … }',
+    shape: 'EndgameTrainingStoreV2 { history (max 10 attempts), favorites, finishedIds, statsByPosition, showGauge, … }',
     documentVersion: 2,
   },
   theoreticalEndgameV1: {
