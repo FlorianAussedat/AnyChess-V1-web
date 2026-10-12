@@ -5,7 +5,9 @@ import { Chess, type Move, type Square } from 'chess.js';
 import type { DefenseAnalyzer, DefenseAnalysis } from '../../defendDraw/defenseTypes.ts';
 import { chooseStrictBestMove } from '../../engines/policies/StrictBestPolicy.ts';
 import { THEORETICAL_ENDGAME_CONFIG, type TheoreticalEndgamePosition, type TheoreticalAttemptResult, type FirstTheoreticalLoss } from '../domain/types.ts';
-import { scoreAttempt } from '../domain/comprehensionScore.ts';
+import { gradeQuality } from '../domain/comprehensionScore.ts';
+import { assessDefense, type DefenseAssessment } from '../domain/defenseFinish.ts';
+import { getPositionById } from '../selection/selectors.ts';
 import { evaluateRegulatoryEnd } from '../domain/regulatoryEnd.ts';
 import {
   playerToSide,
@@ -29,6 +31,7 @@ export type SessionPhase =
   | 'success'
   | 'theoretical-loss'
   | 'abandoned'
+  | 'interrupted'
   | 'off-score'
   | 'finish-game'
   | 'engine-error';
@@ -40,8 +43,10 @@ export type SessionSnapshot = {
   startFen: string | null;
   playerColor: 'w' | 'b';
   userMoves: number;
-  targetUserMoves: number;
   objective: 'WIN' | 'DRAW';
+  /** Bumps on start, retry and restore so speech does not replay history. */
+  generation: number;
+  startedAt: number;
   lastMove: { from: string; to: string } | null;
   lastFeedback: string | null;
   scoreLocked: boolean;
@@ -72,6 +77,9 @@ export class TheoreticalEndgameSession {
   private finishGameMode = false;
   private lockedOutcome: TheoreticalAttemptResult['outcome'] | null = null;
   private checkmateWinner: 'w' | 'b' | undefined;
+  private generation = 0;
+  private startedAt = 0;
+  private defense: DefenseAssessment | null = null;
 
   constructor(analyzer?: DefenseAnalyzer | null) {
     this.analyzer = analyzer ?? null;
@@ -99,6 +107,9 @@ export class TheoreticalEndgameSession {
     this.finishGameMode = false;
     this.lockedOutcome = null;
     this.checkmateWinner = undefined;
+    this.generation += 1;
+    this.startedAt = Date.now();
+    this.defense = null;
 
     if (this.game.turn() !== playerToSide(position.playerColor)) {
       await this.playOpponent();
@@ -113,8 +124,55 @@ export class TheoreticalEndgameSession {
 
   abandon(): SessionSnapshot {
     if (this.scoreLocked) return this.snapshot();
+    this.scoreLocked = true;
     this.phase = 'abandoned';
     this.result = this.buildResult('abandoned');
+    return this.snapshot();
+  }
+
+  /**
+   * Resume an in-progress snapshot, including one saved before this scale.
+   * The current FEN and move list are kept. A line whose start position no
+   * longer matches the catalog is graded without the new distance-to-mate.
+   */
+  restore(raw: {
+    position?: TheoreticalEndgamePosition | null;
+    fen?: string;
+    startFen?: string | null;
+    moveSans?: string[];
+    userMoves?: number;
+    startedAt?: number;
+  }): SessionSnapshot {
+    const stored = raw.position;
+    if (!stored?.id || !raw.fen) return this.snapshot();
+    const catalog = getPositionById(stored.id);
+    const position = catalog ?? stored;
+    let game: Chess;
+    try {
+      game = new Chess(raw.fen);
+    } catch {
+      return this.snapshot();
+    }
+    this.position = position;
+    this.startFen = raw.startFen || position.initialFen;
+    this.game = game;
+    this.moveSans = [...(raw.moveSans ?? [])];
+    this.userMoves = raw.userMoves ?? 0;
+    this.phase = 'playing';
+    this.lastMove = null;
+    this.lastFeedback = null;
+    this.scoreLocked = false;
+    this.offScore = false;
+    this.result = null;
+    this.firstLoss = null;
+    this.officialEndReason = undefined;
+    this.fenBeforeLastPlayerMove = null;
+    this.finishGameMode = false;
+    this.lockedOutcome = null;
+    this.checkmateWinner = undefined;
+    this.defense = null;
+    this.generation += 1;
+    this.startedAt = typeof raw.startedAt === 'number' ? raw.startedAt : Date.now();
     return this.snapshot();
   }
 
@@ -240,11 +298,15 @@ export class TheoreticalEndgameSession {
     // Theoretical loss check (only when scored, not in finish-game)
     if (!this.offScore && !this.scoreLocked && !this.finishGameMode) {
       const lost = await this.checkTheoreticalLoss(played.san, beforeFen);
-      if (lost) return this.snapshot();
+      if (lost || this.scoreLocked) return this.snapshot();
+      if (this.maybeEndScoredPlay()) return this.snapshot();
     }
 
     this.fenBeforeLastPlayerMove = this.game.fen();
     await this.playOpponent();
+    if (!this.scoreLocked && !this.offScore && !this.finishGameMode) {
+      this.maybeEndScoredPlay();
+    }
     return this.snapshot();
   }
 
@@ -300,7 +362,8 @@ export class TheoreticalEndgameSession {
       const winner = reg.winner;
       this.checkmateWinner = winner;
       const playerWon = winner === playerToSide(pos.playerColor);
-      if (playerWon && pos.objective === 'WIN') {
+      // A defender who actually wins has met "at least a draw".
+      if (playerWon) {
         this.finishSuccess('checkmate');
       } else {
         this.finishTheoreticalLoss(san, beforeFen ?? this.startFen!, 'LOSS');
@@ -330,6 +393,9 @@ export class TheoreticalEndgameSession {
     } catch {
       return false;
     }
+    if (this.scoreLocked || this.phase === 'abandoned' || this.phase === 'interrupted') {
+      return false;
+    }
 
     const probe = {
       fen: this.game.fen(),
@@ -353,6 +419,7 @@ export class TheoreticalEndgameSession {
     }
 
     this.phase = 'verifying';
+    if (this.scoreLocked) return false;
     let confirmation: DefenseAnalysis | null = null;
     try {
       confirmation = await this.analyzer.analyze(
@@ -377,6 +444,7 @@ export class TheoreticalEndgameSession {
         : null,
     );
 
+    if (this.scoreLocked) return false;
     if (verdict.lost) {
       this.finishTheoreticalLoss(
         san,
@@ -388,7 +456,48 @@ export class TheoreticalEndgameSession {
     return false;
   }
 
+  /** Theme mechanism, or the technical cap. The cap is not a grade of 0. */
+  private maybeEndScoredPlay(): boolean {
+    if (this.scoreLocked || this.finishGameMode || this.offScore || !this.position) return false;
+    this.refreshDefense();
+    if (this.defense?.complete) {
+      this.finishSuccess('position-defended');
+      return true;
+    }
+    if (this.userMoves >= THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap) {
+      this.scoreLocked = true;
+      this.phase = 'interrupted';
+      this.result = this.buildResult('interrupted');
+      this.lastFeedback = null;
+      return true;
+    }
+    return false;
+  }
+
+  private refreshDefense(): void {
+    if (!this.position) return;
+    this.defense = assessDefense({
+      themeId: this.position.themeId,
+      initialFen: this.startFen ?? this.position.initialFen,
+      sans: this.moveSans,
+      playerColor: this.position.playerColor,
+      objective: this.position.objective,
+    });
+  }
+
+  private matePliesForGrade(): number | null {
+    const pos = this.position;
+    if (!pos || pos.objective !== 'WIN') return null;
+    const start = (this.startFen ?? '').split(' ')[0];
+    const catalog = pos.initialFen.split(' ')[0];
+    if (start !== catalog) return null;
+    const proof = pos.proof;
+    if (!proof || proof.confidence !== 'exact' || proof.dtm == null || proof.dtm <= 0) return null;
+    return proof.dtm;
+  }
+
   private finishSuccess(reason: TheoreticalAttemptResult['officialEndReason']): void {
+    this.refreshDefense();
     this.scoreLocked = true;
     this.officialEndReason = reason;
     this.phase = 'success';
@@ -431,6 +540,7 @@ export class TheoreticalEndgameSession {
       return;
     }
 
+    if (this.scoreLocked && !this.finishGameMode) return;
     this.phase = 'thinking';
     const thinkMs = this.finishGameMode
       ? 1000
@@ -439,10 +549,12 @@ export class TheoreticalEndgameSession {
     try {
       analysis = await this.analyzer.analyze(this.game.fen(), thinkMs);
     } catch {
+      if (this.scoreLocked) return;
       this.phase = 'engine-error';
       this.lastFeedback = tMsg('endgame.engineError');
       return;
     }
+    if (this.scoreLocked && !this.finishGameMode) return;
 
     const pick = chooseStrictBestMove(analysis);
     if (!pick) {
@@ -482,19 +594,21 @@ export class TheoreticalEndgameSession {
 
   private buildResult(outcome: TheoreticalAttemptResult['outcome']): TheoreticalAttemptResult {
     const pos = this.position!;
-    const attemptScore =
-      outcome === 'success'
-        ? scoreAttempt({
-            outcome,
-            userMoves: this.userMoves,
-            targetUserMoves: pos.targetUserMoves,
-          })
-        : outcome === 'theoretical-loss'
-          ? 0
-          : 0;
+    if (!this.defense) this.refreshDefense();
+    const mechanism =
+      this.defense?.applicable
+        ? { demonstrated: this.defense.demonstrated, slackMoves: this.defense.slackMoves }
+        : null;
+    const quality = gradeQuality({
+      outcome,
+      objective: pos.objective,
+      userMoves: this.userMoves,
+      initialMatePlies: this.matePliesForGrade(),
+      mechanism,
+    });
 
     const officialResultMessage = theoreticalOfficialResultMessage({
-      outcome,
+      outcome: outcome === 'interrupted' ? 'abandoned' : outcome,
       playerColor: pos.playerColor,
       objective: pos.objective,
       officialEndReason: this.officialEndReason,
@@ -506,10 +620,13 @@ export class TheoreticalEndgameSession {
       positionId: pos.id,
       themeId: pos.themeId,
       objective: pos.objective,
+      objectiveKind: pos.objectiveKind ?? 'win',
       playerColor: pos.playerColor,
       userMoves: this.userMoves,
-      targetUserMoves: pos.targetUserMoves,
-      attemptScore,
+      scoreScale: 'quality-5',
+      attemptScore: quality.score,
+      quality,
+      durationMs: Math.max(0, Date.now() - this.startedAt),
       firstTheoreticalLoss: this.firstLoss,
       startFen: this.startFen ?? this.game.fen(),
       endFen: this.game.fen(),
@@ -529,8 +646,9 @@ export class TheoreticalEndgameSession {
       startFen: this.startFen,
       playerColor: this.position ? playerToSide(this.position.playerColor) : 'w',
       userMoves: this.userMoves,
-      targetUserMoves: this.position?.targetUserMoves ?? 0,
       objective: this.position?.objective ?? 'WIN',
+      generation: this.generation,
+      startedAt: this.startedAt,
       lastMove: this.lastMove,
       lastFeedback: this.lastFeedback,
       scoreLocked: this.scoreLocked,

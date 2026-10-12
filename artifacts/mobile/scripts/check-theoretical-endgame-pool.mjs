@@ -53,8 +53,8 @@ if (!poolSource.includes(expectedHash)) {
 }
 
 const active = THEORETICAL_ENDGAME_POOL.filter((p) => p.active !== false);
-if (active.length !== 10) {
-  errors.push(`runtime active count ${active.length} !== 10`);
+if (active.length !== 57) {
+  errors.push(`runtime active count ${active.length} !== 57`);
 }
 
 for (const id of LEGACY_THEORETICAL_IDS) {

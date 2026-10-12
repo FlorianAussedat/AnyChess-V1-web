@@ -9,11 +9,16 @@ import { defaultKeyValueStorage } from '../../storage/AsyncKeyValueStorage.ts';
 import type {
   AttemptOutcome,
   CatalogViewMode,
+  ScoreScaleId,
   TheoreticalAttemptResult,
   TheoreticalThemeId,
 } from '../domain/types.ts';
 import { THEORETICAL_ENDGAME_CONFIG } from '../domain/types.ts';
-import { scoreAttempt, averageComprehensionScore } from '../domain/comprehensionScore.ts';
+import {
+  scoreAttempt,
+  averageComprehensionScore,
+  averageLegacyScore,
+} from '../domain/comprehensionScore.ts';
 import { LEGACY_THEORETICAL_IDS } from '../domain/fenLegality.ts';
 import { getPositionById } from '../selection/selectors.ts';
 
@@ -22,9 +27,11 @@ export type ThemeAttemptRecord = {
   themeId: TheoreticalThemeId;
   outcome: AttemptOutcome;
   userMoves: number;
-  targetUserMoves: number;
-  attemptScore: number;
+  /** legacy-10 keeps the historical ratio. Never averaged with quality-5. */
+  scoreScale: ScoreScaleId;
+  attemptScore: number | null;
   finishedAt: string;
+  durationMs?: number;
 };
 
 export type TheoreticalEndgameStoreV2 = {
@@ -34,7 +41,7 @@ export type TheoreticalEndgameStoreV2 = {
   catalogView: CatalogViewMode;
   themeAttempts: Record<string, ThemeAttemptRecord[]>;
   lastPositionByTheme: Record<string, string>;
-  bestByPosition: Record<string, { userMoves: number; attemptScore: number }>;
+  bestByPosition: Record<string, { userMoves: number; attemptScore: number; scoreScale: 'quality-5' }>;
   /** @deprecated kept only during migration sniffing */
   migratedFromV1?: boolean;
 };
@@ -77,13 +84,33 @@ function isLegacyPositionId(id: string): boolean {
   return LEGACY_ID_SET.has(id) || (!id.startsWith('TE-CANON-') && /^TE-\d{3}$/.test(id));
 }
 
+function normalizeAttempt(raw: Record<string, unknown>): ThemeAttemptRecord | null {
+  const positionId = typeof raw.positionId === 'string' ? raw.positionId : '';
+  const themeId = raw.themeId as TheoreticalThemeId;
+  if (!positionId || !themeId || isLegacyPositionId(positionId)) return null;
+  const scale: ScoreScaleId = raw.scoreScale === 'quality-5' ? 'quality-5' : 'legacy-10';
+  const outcome = (raw.outcome as AttemptOutcome) ?? 'success';
+  return {
+    positionId,
+    themeId,
+    outcome,
+    userMoves: typeof raw.userMoves === 'number' ? raw.userMoves : 0,
+    scoreScale: scale,
+    attemptScore: typeof raw.attemptScore === 'number' ? raw.attemptScore : null,
+    finishedAt: typeof raw.finishedAt === 'string' ? raw.finishedAt : '',
+    durationMs: typeof raw.durationMs === 'number' ? raw.durationMs : undefined,
+  };
+}
+
 function scrubLegacyAttempts(
-  themeAttempts: Record<string, ThemeAttemptRecord[]>,
+  themeAttempts: Record<string, unknown>,
 ): Record<string, ThemeAttemptRecord[]> {
   const out: Record<string, ThemeAttemptRecord[]> = {};
   for (const [themeId, attempts] of Object.entries(themeAttempts)) {
     if (themeId === 'three-pawns') continue;
-    const kept = (attempts ?? []).filter((a) => !isLegacyPositionId(a.positionId));
+    const kept = (Array.isArray(attempts) ? attempts : [])
+      .map((a) => normalizeAttempt((a ?? {}) as Record<string, unknown>))
+      .filter((a): a is ThemeAttemptRecord => a != null);
     if (kept.length > 0) out[themeId] = kept;
   }
   return out;
@@ -103,13 +130,18 @@ function scrubLastPositions(
 }
 
 function scrubBest(
-  best: Record<string, { userMoves: number; attemptScore: number }>,
-): Record<string, { userMoves: number; attemptScore: number }> {
-  const out: Record<string, { userMoves: number; attemptScore: number }> = {};
+  best: Record<string, { userMoves?: number; attemptScore?: number; scoreScale?: string }>,
+): Record<string, { userMoves: number; attemptScore: number; scoreScale: 'quality-5' }> {
+  const out: Record<string, { userMoves: number; attemptScore: number; scoreScale: 'quality-5' }> = {};
   for (const [positionId, value] of Object.entries(best)) {
     if (isLegacyPositionId(positionId)) continue;
     if (!getPositionById(positionId)) continue;
-    out[positionId] = value;
+    if (value?.scoreScale !== 'quality-5' || typeof value.attemptScore !== 'number') continue;
+    out[positionId] = {
+      userMoves: value.userMoves ?? 0,
+      attemptScore: value.attemptScore,
+      scoreScale: 'quality-5',
+    };
   }
   return out;
 }
@@ -127,13 +159,12 @@ export function migrateTheoreticalStore(raw: unknown): TheoreticalEndgameStoreV2
   const version = parsed.version;
   const datasetVersion =
     typeof parsed.datasetVersion === 'string' ? parsed.datasetVersion : '';
-  const themeAttempts =
-    (parsed.themeAttempts as Record<string, ThemeAttemptRecord[]> | undefined) ?? {};
+  const themeAttempts = (parsed.themeAttempts as Record<string, unknown> | undefined) ?? {};
   const lastPositionByTheme =
     (parsed.lastPositionByTheme as Record<string, string> | undefined) ?? {};
   const bestByPosition =
     (parsed.bestByPosition as
-      | Record<string, { userMoves: number; attemptScore: number }>
+      | Record<string, { userMoves?: number; attemptScore?: number; scoreScale?: string }>
       | undefined) ?? {};
 
   if (version === 2 && datasetVersion === THEORETICAL_ENDGAME_CONFIG.datasetVersion) {
@@ -229,39 +260,52 @@ export async function getLastPositionId(themeId: TheoreticalThemeId): Promise<st
 export async function recordAttempt(
   result: TheoreticalAttemptResult,
 ): Promise<{ oldScore: number; newScore: number; count: number }> {
-  if (result.outcome === 'abandoned' || result.outcome === 'in-progress') {
-    const { score, count } = await getThemeComprehension(result.themeId);
-    return { oldScore: score, newScore: score, count };
+  const s0 = await loadTheoreticalStore();
+  const current = averageComprehensionScore(s0.themeAttempts[result.themeId] ?? []);
+  if (
+    result.outcome === 'abandoned' ||
+    result.outcome === 'interrupted' ||
+    result.outcome === 'in-progress'
+  ) {
+    return { oldScore: current.score, newScore: current.score, count: current.count };
   }
 
-  const s = await loadTheoreticalStore();
+  const s = s0;
   const prev = s.themeAttempts[result.themeId] ?? [];
-  const { score: oldScore } = averageComprehensionScore(prev);
+  if (prev.some((a) => a.finishedAt === result.finishedAt && a.positionId === result.positionId)) {
+    return { oldScore: current.score, newScore: current.score, count: current.count };
+  }
+  const { score: oldScore } = current;
 
   const record: ThemeAttemptRecord = {
     positionId: result.positionId,
     themeId: result.themeId,
     outcome: result.outcome,
     userMoves: result.userMoves,
-    targetUserMoves: result.targetUserMoves,
+    scoreScale: result.scoreScale === 'legacy-10' ? 'legacy-10' : 'quality-5',
     attemptScore: result.attemptScore,
     finishedAt: result.finishedAt,
+    durationMs: result.durationMs,
   };
 
   s.themeAttempts[result.themeId] = [record, ...prev].slice(0, MAX_ATTEMPTS_PER_THEME);
   s.lastPositionByTheme[result.themeId] = result.positionId;
 
+  const graded =
+    result.scoreScale === 'quality-5' &&
+    result.outcome === 'success' &&
+    typeof result.attemptScore === 'number';
   const best = s.bestByPosition[result.positionId];
   if (
-    !best ||
-    (result.outcome === 'success' && result.attemptScore > best.attemptScore) ||
-    (result.outcome === 'success' &&
-      result.attemptScore === best.attemptScore &&
-      result.userMoves < best.userMoves)
+    graded &&
+    (!best ||
+      result.attemptScore! > best.attemptScore ||
+      (result.attemptScore === best.attemptScore && result.userMoves < best.userMoves))
   ) {
     s.bestByPosition[result.positionId] = {
       userMoves: result.userMoves,
-      attemptScore: result.attemptScore,
+      attemptScore: result.attemptScore!,
+      scoreScale: 'quality-5',
     };
   }
 
@@ -277,6 +321,18 @@ export async function getAllThemeScores(): Promise<
   const out: Record<string, { score: number; count: number }> = {};
   for (const themeId of Object.keys(s.themeAttempts)) {
     out[themeId] = averageComprehensionScore(s.themeAttempts[themeId] ?? []);
+  }
+  return out;
+}
+
+export async function getAllLegacyScores(): Promise<
+  Record<string, { score: number; count: number }>
+> {
+  const s = await loadTheoreticalStore();
+  const out: Record<string, { score: number; count: number }> = {};
+  for (const themeId of Object.keys(s.themeAttempts)) {
+    const legacy = averageLegacyScore(s.themeAttempts[themeId] ?? []);
+    if (legacy.count > 0) out[themeId] = legacy;
   }
   return out;
 }

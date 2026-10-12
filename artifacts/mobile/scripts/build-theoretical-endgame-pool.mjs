@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Chess } from 'chess.js';
 import {
   validateFenLegality,
   validateThemeMaterial,
@@ -17,6 +18,8 @@ import {
   readablePieces,
 } from '../lib/theoreticalEndgame/domain/fenLegality.ts';
 import { THEME_IDS } from '../lib/theoreticalEndgame/domain/themes.ts';
+import { flipColors, mirrorHorizontal } from '../lib/theoreticalEndgame/transforms/fenTransforms.ts';
+import { THEORETICAL_ENDGAME_CONFIG } from '../lib/theoreticalEndgame/domain/types.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -48,16 +51,47 @@ function certificationBlock(cert) {
   return `{ type: 'ENGINE', engine: '${esc(cert.engine)}', depth: ${cert.depth}, result: '${cert.result}' }`;
 }
 
+function proofBlock(proof) {
+  const opt = (key, value) =>
+    value == null || value === '' ? '' : `, ${key}: ${typeof value === 'number' ? value : `'${esc(String(value))}'`}`;
+  return `{
+      method: '${proof.method}',
+      confidence: '${proof.confidence}',
+      playerResult: '${proof.playerResult}',
+      dtz: ${proof.dtz == null ? 'null' : proof.dtz},
+      dtm: ${proof.dtm == null ? 'null' : proof.dtm},
+      consultedAt: '${esc(proof.consultedAt)}'${opt('bestMove', proof.bestMove)}${opt('depth', proof.depth)}${opt('centipawn', proof.centipawn)},
+    }`;
+}
+
+function noteBlock(note) {
+  return `{ fr: '${esc(note.fr)}', en: '${esc(note.en)}' }`;
+}
+
+function placementKey(fen) {
+  return fen.split(' ')[0];
+}
+
 const raw = JSON.parse(readFileSync(CANONICAL_PATH, 'utf8'));
 const errors = [];
 
-if (raw.expectedActiveCount !== 10) {
-  errors.push(`expectedActiveCount must be 10 for this version (got ${raw.expectedActiveCount})`);
+if (raw.expectedActiveCount !== THEORETICAL_ENDGAME_CONFIG.expectedActiveCount) {
+  errors.push(
+    `expectedActiveCount must be ${THEORETICAL_ENDGAME_CONFIG.expectedActiveCount} (got ${raw.expectedActiveCount})`,
+  );
+}
+if (raw.contentVersion !== THEORETICAL_ENDGAME_CONFIG.contentVersion) {
+  errors.push(`contentVersion must be ${THEORETICAL_ENDGAME_CONFIG.contentVersion}`);
+}
+if (raw.datasetVersion !== THEORETICAL_ENDGAME_CONFIG.datasetVersion) {
+  errors.push(`datasetVersion must stay ${THEORETICAL_ENDGAME_CONFIG.datasetVersion} so history is not wiped`);
 }
 
 const active = (raw.positions ?? []).filter((p) => p.active !== false);
-if (active.length !== 10) {
-  errors.push(`active positions must be exactly 10 (got ${active.length}) — refusing to publish`);
+if (active.length !== THEORETICAL_ENDGAME_CONFIG.expectedActiveCount) {
+  errors.push(
+    `active positions must be exactly ${THEORETICAL_ENDGAME_CONFIG.expectedActiveCount} (got ${active.length}) — unverified positions must stay out`,
+  );
 }
 
 const themeSeen = new Set();
@@ -79,10 +113,24 @@ for (const pos of active) {
   if (!THEME_IDS.includes(pos.themeId)) {
     errors.push(`${pos.id}: unknown theme ${pos.themeId}`);
   }
-  if (themeSeen.has(pos.themeId)) {
-    errors.push(`theme ${pos.themeId} has more than one active position in this version`);
-  }
   themeSeen.add(pos.themeId);
+
+  const stm = pos.initialFen.split(' ')[1] === 'b' ? 'black' : 'white';
+  if (pos.playerColor !== stm) {
+    errors.push(`${pos.id}: playerColor ${pos.playerColor} must match side to move (${stm})`);
+  }
+  if (pos.diagramOrientation !== pos.playerColor) {
+    errors.push(`${pos.id}: diagramOrientation must match the user`);
+  }
+  if (!pos.objectiveKind || !pos.proof || !pos.variantNote?.fr || !pos.variantNote?.en) {
+    errors.push(`${pos.id}: objectiveKind, proof and variantNote are required`);
+  }
+  if (pos.contentVersion !== 'variants-v2') {
+    errors.push(`${pos.id}: contentVersion must be variants-v2`);
+  }
+  if (pos.targetUserMoves != null) {
+    errors.push(`${pos.id}: targetUserMoves is removed from this mode`);
+  }
 
   const fenKey = pos.initialFen.split(' ').slice(0, 4).join(' ');
   if (fens.has(fenKey)) errors.push(`${pos.id}: duplicate FEN`);
@@ -106,8 +154,23 @@ for (const pos of active) {
   if (pieces <= 7 && pos.certification?.type !== 'SYZYGY') {
     errors.push(`${pos.id}: <=7 pieces requires SYZYGY`);
   }
-  if (pieces > 7 && (pos.certification?.type !== 'ENGINE' || pos.certification?.depth !== 30)) {
-    errors.push(`${pos.id}: >7 pieces requires ENGINE depth 30`);
+  if (pieces <= 7 && pos.proof?.confidence !== 'exact') {
+    errors.push(`${pos.id}: <=7 pieces requires an exact tablebase proof`);
+  }
+  if (pieces > 7 && (pos.certification?.type !== 'ENGINE' || pos.certification?.depth !== 16)) {
+    errors.push(`${pos.id}: >7 pieces requires ENGINE depth 16, labeled not exact`);
+  }
+  if (pieces > 7 && pos.proof?.confidence !== 'engine') {
+    errors.push(`${pos.id}: engine proof must not be labeled exact`);
+  }
+
+  try {
+    const game = new Chess(pos.initialFen);
+    if (game.isCheckmate() || game.isStalemate() || game.isGameOver()) {
+      errors.push(`${pos.id}: starting position is already terminal`);
+    }
+  } catch (err) {
+    errors.push(`${pos.id}: chess.js ${err.message}`);
   }
 
   if (!pos.explanation?.fr || !pos.explanation?.en) {
@@ -116,8 +179,38 @@ for (const pos of active) {
 }
 
 for (const themeId of THEME_IDS) {
-  if (!themeSeen.has(themeId)) {
-    errors.push(`missing active position for theme ${themeId}`);
+  const count = active.filter((p) => p.themeId === themeId).length;
+  const min = themeId === 'pawn-square' ? 6 : 3;
+  if (count < min) errors.push(`theme ${themeId} needs at least ${min} active variants (got ${count})`);
+}
+
+const byTheme = new Map();
+for (const pos of active) {
+  const list = byTheme.get(pos.themeId) ?? [];
+  list.push(pos);
+  byTheme.set(pos.themeId, list);
+}
+for (const [themeId, list] of byTheme) {
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = placementKey(list[i].initialFen);
+      const b = placementKey(list[j].initialFen);
+      let mirror = '';
+      let flipped = '';
+      try {
+        mirror = placementKey(mirrorHorizontal(list[j].initialFen));
+      } catch {
+        mirror = '';
+      }
+      try {
+        flipped = placementKey(flipColors(list[j].initialFen));
+      } catch {
+        flipped = '';
+      }
+      if (a === b || (mirror && a === mirror) || (flipped && a === flipped)) {
+        errors.push(`${list[i].id} and ${list[j].id}: variants in ${themeId} must not be copies, mirrors, or color swaps`);
+      }
+    }
   }
 }
 
@@ -139,9 +232,12 @@ const positionsTs = active
     initialFen: '${esc(pos.initialFen)}',
     playerColor: '${pos.playerColor}',
     objective: '${pos.objective}',
+    objectiveKind: '${pos.objectiveKind}',
     completion: { type: '${pos.completion.type}' },
-    targetUserMoves: ${pos.targetUserMoves},
     certification: ${certificationBlock(pos.certification)},
+    proof: ${proofBlock(pos.proof)},
+    contentVersion: '${esc(pos.contentVersion)}',
+    variantNote: ${noteBlock(pos.variantNote)},
     diagramOrientation: '${pos.diagramOrientation}',
     tags: ${JSON.stringify(pos.tags)},
     active: true,
@@ -172,7 +268,7 @@ const manifest = {
   datasetVersion: raw.datasetVersion,
   contentVersion: raw.contentVersion,
   contentHash,
-  expectedActiveCount: 10,
+  expectedActiveCount: active.length,
   activeCount: active.length,
   themes: [...THEME_IDS],
   removedThemes: [...REMOVED_THEME_IDS],

@@ -15,6 +15,7 @@ import {
   migrateTheoreticalStore,
   loadTheoreticalStore,
 } from '../TheoreticalEndgameStore.ts';
+import { averageLegacyScore } from '../../domain/comprehensionScore.ts';
 import type { TheoreticalAttemptResult } from '../../domain/types.ts';
 
 function sampleResult(
@@ -25,10 +26,13 @@ function sampleResult(
     positionId: 'TE-CANON-QUEEN-MATE',
     themeId: 'queen-mate',
     objective: 'WIN',
+    objectiveKind: 'mate',
     playerColor: 'white',
     userMoves: 8,
-    targetUserMoves: 10,
-    attemptScore: 10,
+    scoreScale: 'quality-5',
+    attemptScore: 5,
+    quality: null,
+    durationMs: 1000,
     firstTheoreticalLoss: null,
     startFen: '8/8/8/4k3/8/8/8/4K2Q w - - 0 1',
     endFen: '8/8/8/4k3/8/8/8/4K2Q w - - 0 1',
@@ -56,22 +60,22 @@ describe('TheoreticalEndgameStore', () => {
 
   it('records attempts and recalculates score', async () => {
     const delta = await recordAttempt(sampleResult());
-    assert.equal(delta.newScore, 10);
+    assert.equal(delta.newScore, 5);
     assert.equal(delta.count, 1);
 
     const { score, count } = await getThemeComprehension('queen-mate');
-    assert.equal(score, 10);
+    assert.equal(score, 5);
     assert.equal(count, 1);
   });
 
   it('ignores abandoned attempts in score', async () => {
-    await recordAttempt(sampleResult({ outcome: 'success', attemptScore: 10 }));
+    await recordAttempt(sampleResult({ outcome: 'success', attemptScore: 5 }));
     await recordAttempt(
-      sampleResult({ outcome: 'abandoned', userMoves: 0, attemptScore: 0 }),
+      sampleResult({ outcome: 'abandoned', userMoves: 0, attemptScore: null, finishedAt: 'other' }),
     );
     const { count, score } = await getThemeComprehension('queen-mate');
     assert.equal(count, 1);
-    assert.equal(score, 10);
+    assert.equal(score, 5);
   });
 
   it('restores safely from corrupted JSON', async () => {
@@ -85,7 +89,44 @@ describe('TheoreticalEndgameStore', () => {
   it('getAllThemeScores returns recorded themes', async () => {
     await recordAttempt(sampleResult());
     const scores = await getAllThemeScores();
-    assert.equal(scores['queen-mate']?.score, 10);
+    assert.equal(scores['queen-mate']?.score, 5);
+  });
+
+  it('keeps a pre-update /10 attempt as legacy and out of the /5 average', () => {
+    const migrated = migrateTheoreticalStore({
+      version: 2,
+      datasetVersion: '2.0.0',
+      catalogView: 'cards',
+      themeAttempts: {
+        'queen-mate': [
+          {
+            positionId: 'TE-CANON-QUEEN-MATE',
+            themeId: 'queen-mate',
+            outcome: 'success',
+            userMoves: 8,
+            targetUserMoves: 10,
+            attemptScore: 8,
+            finishedAt: '2026-01-01',
+          },
+        ],
+      },
+      lastPositionByTheme: { 'queen-mate': 'TE-CANON-QUEEN-MATE' },
+      bestByPosition: { 'TE-CANON-QUEEN-MATE': { userMoves: 8, attemptScore: 8 } },
+    });
+    const attempts = migrated.themeAttempts['queen-mate']!;
+    assert.equal(attempts.length, 1);
+    assert.equal(attempts[0]!.scoreScale, 'legacy-10');
+    assert.equal(attempts[0]!.attemptScore, 8);
+    assert.equal(averageLegacyScore(attempts).score, 8);
+    assert.equal(migrated.bestByPosition['TE-CANON-QUEEN-MATE'], undefined);
+  });
+
+  it('records a result only once', async () => {
+    const once = sampleResult({ finishedAt: '2026-10-12T00:00:00.000Z' });
+    await recordAttempt(once);
+    await recordAttempt(once);
+    const { count } = await getThemeComprehension('queen-mate');
+    assert.equal(count, 1);
   });
 
   it('migrates v1 keeping catalogView and clearing legacy attempts', () => {

@@ -4,8 +4,8 @@
  */
 export const THEORETICAL_POOL_METADATA = {
   datasetVersion: '2.0.0',
-  contentVersion: 'canonical-10-v1',
-  expectedActiveCount: 10,
+  contentVersion: 'variants-v2',
+  expectedActiveCount: 57,
   sourceFile: 'lib/theoreticalEndgame/data/canonical.positions.json',
   generatedFile: 'lib/theoreticalEndgame/data/pool.generated.ts',
   removedThemes: ['three-pawns'] as const,

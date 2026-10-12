@@ -1,6 +1,6 @@
 /**
  * Position selection — theme, random, non-repeat.
- * Supports multiple positions per theme in the future; this version has one each.
+ * A theme is drawn first, then a variant, so extra variants do not weight the theme.
  */
 import type { TheoreticalEndgamePosition, TheoreticalThemeId } from '../domain/types.ts';
 import { THEORETICAL_ENDGAME_POOL } from '../data/pool.generated.ts';

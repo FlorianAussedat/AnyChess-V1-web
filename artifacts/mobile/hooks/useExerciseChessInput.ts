@@ -31,6 +31,8 @@ export function useExerciseBoardTouch(opts: Options) {
 export function useExerciseSpeechInput(opts: {
   enabled: boolean;
   forceOff?: boolean;
+  /** While TTS is speaking, the mic stays paused so the app does not hear itself. */
+  isSpeaking?: boolean;
   onSan: (san: string) => void | Promise<void>;
 }) {
   const applyRef = useRef(opts.onSan);
@@ -41,7 +43,7 @@ export function useExerciseSpeechInput(opts: {
   const speech = useSpeechInput({
     enabled: opts.enabled,
     forceOff: opts.forceOff,
-    isSpeaking: false,
+    isSpeaking: opts.isSpeaking ?? false,
     onTranscript: (text) => {
       void applyRef.current(text);
     },

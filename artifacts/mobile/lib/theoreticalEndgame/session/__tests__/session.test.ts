@@ -35,9 +35,19 @@ function samplePosition(
     initialFen: '8/8/8/4k3/8/8/8/4K2Q w - - 0 1',
     playerColor: 'white',
     objective: 'WIN',
+    objectiveKind: 'mate',
     completion: { type: 'CHECKMATE' },
-    targetUserMoves: 10,
     certification: { type: 'SYZYGY', result: 'WIN' },
+    proof: {
+      method: 'syzygy-7',
+      confidence: 'exact',
+      playerResult: 'WIN',
+      dtz: 1,
+      dtm: 1,
+      consultedAt: 'test',
+    },
+    contentVersion: 'variants-v2',
+    variantNote: { fr: 'test', en: 'test' },
     diagramOrientation: 'white',
     active: true,
     explanation: {
@@ -65,7 +75,6 @@ describe('TheoreticalEndgameSession', () => {
   it('succeeds on checkmate for WIN objective', async () => {
     const pos = samplePosition({
       initialFen: '7k/8/6KQ/8/8/8/8/8 w - - 0 1',
-      targetUserMoves: 2,
     });
     const analyzer = createMockDefenseAnalyzer((fen) =>
       baseAnalysis({
@@ -111,6 +120,7 @@ describe('TheoreticalEndgameSession', () => {
     const snap = session.abandon();
     assert.equal(snap.phase, 'abandoned');
     assert.equal(snap.result?.outcome, 'abandoned');
+    assert.equal(snap.result?.attemptScore, null);
   });
 
   it('enterFinishGame keeps score locked', async () => {
@@ -137,5 +147,44 @@ describe('TheoreticalEndgameSession', () => {
     assert.equal(off.finishGameActive, true);
     assert.equal(off.phase, 'finish-game');
     assert.equal(off.scoreLocked, true);
+  });
+
+  it('a late engine reply does not change a locked result', async () => {
+    let release: ((value: DefenseAnalysis) => void) | null = null;
+    const analyzer = createMockDefenseAnalyzer(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const session = new TheoreticalEndgameSession(analyzer);
+    await session.start(samplePosition());
+    const pending = session.attemptMove('h1', 'h2');
+    session.abandon();
+    release?.(baseAnalysis({ bestMove: firstLegalBest(session.snapshot().fen) }));
+    const snap = await pending;
+    assert.equal(snap.phase, 'abandoned');
+    assert.equal(snap.result?.attemptScore, null);
+  });
+
+  it('restores the same FEN and does not require a target', async () => {
+    const session = new TheoreticalEndgameSession();
+    const pos = samplePosition();
+    await session.start(pos);
+    const moved = new Chess(pos.initialFen);
+    const m = moved.moves({ verbose: true })[0]!;
+    moved.move(m);
+    const restored = session.restore({
+      position: pos,
+      fen: moved.fen(),
+      startFen: pos.initialFen,
+      moveSans: [m.san],
+      userMoves: 1,
+      startedAt: Date.now() - 1000,
+    });
+    assert.equal(restored.fen, moved.fen());
+    assert.equal(restored.userMoves, 1);
+    assert.deepEqual(restored.moveSans, [m.san]);
+    assert.equal('targetUserMoves' in restored, false);
   });
 });

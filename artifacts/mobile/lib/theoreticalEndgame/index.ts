@@ -12,6 +12,11 @@ export {
   averageComprehensionScore,
   isThemeMastered,
   formatComprehensionScore,
+  formatLegacyScore,
+  formatDuration,
+  headlineFor,
+  gradeQuality,
+  averageLegacyScore,
 } from './domain/comprehensionScore.ts';
 export { TheoreticalEndgameSession } from './session/TheoreticalEndgameSession.ts';
 export type { SessionSnapshot, SessionPhase } from './session/TheoreticalEndgameSession.ts';
@@ -24,6 +29,7 @@ export {
   getLastPositionId,
   recordAttempt,
   getAllThemeScores,
+  getAllLegacyScores,
   clearTheoreticalStoreCache,
   configureTheoreticalStoreStorage,
   migrateTheoreticalStore,

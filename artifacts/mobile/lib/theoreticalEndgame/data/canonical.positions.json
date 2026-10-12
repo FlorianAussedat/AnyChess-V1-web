@@ -1,7 +1,7 @@
 {
   "datasetVersion": "2.0.0",
-  "contentVersion": "canonical-10-v1",
-  "expectedActiveCount": 10,
+  "contentVersion": "variants-v2",
+  "expectedActiveCount": 57,
   "positions": [
     {
       "id": "TE-CANON-QUEEN-MATE",
@@ -10,41 +10,173 @@
       "initialFen": "8/8/8/4k3/8/8/8/4K2Q w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "CHECKMATE" },
-      "targetUserMoves": 10,
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 13, "dtm": 13 },
-      "tags": ["elementary-mate", "queen", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 13,
+        "dtm": 13,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "queen"
+      ],
+      "variantNote": {
+        "fr": "Roi noir au centre, dame en h1 : le réseau se construit sans échec initial.",
+        "en": "Black king in the centre, queen on h1: the net is built without an initial check."
+      },
+      "choiceRationale": "Black king in the centre, queen on h1: the net is built without an initial check.",
       "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2Q_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KQK is a forced win; reduce the box then mate with king support",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Mating with Queen",
-          "url": "https://www.chessprogramming.org/Mate_with_Queen",
-          "consultedAt": "2026-08-23",
-          "principle": "Restrict the opposing king then bring own king",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F8%2F8%2F4K2Q%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black king in the centre, queen on h1: the net is built without an initial check.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Open board with Black king centralized and White queen on h1 — teaches gradual restriction without an initial check.",
       "explanation": {
         "fr": {
-          "principle": "Avec dame et roi contre roi seul, le gain est forcé. Il faut réduire progressivement l’espace du roi adverse, puis rapprocher son propre roi pour construire le réseau de mat.",
-          "seek": "Conduire le roi adverse vers un bord ou un coin, tout en gardant la dame à distance de sécurité pour éviter le pat.",
-          "method": "Coupez d’abord de larges bandes avec la dame, rapprochez votre roi, puis serrez la cage. Le mat arrive quand la dame donne échec sur la dernière rangée soutenue par le roi.",
-          "avoid": "Ne placez pas la dame trop près du roi adverse sans soutien : le pat est la principale erreur dans cette finale."
+          "principle": "Dame et roi contre roi seul gagnent en réduisant l’espace du roi adverse, puis en rapprochant le sien.",
+          "seek": "Conduire le roi adverse vers un bord, la dame à distance de sécurité.",
+          "method": "Coupez de larges bandes, approchez le roi, puis matez sur la dernière rangée avec le roi en soutien.",
+          "avoid": "Le pat : ne collez pas la dame au roi adverse sans soutien."
         },
         "en": {
-          "principle": "Queen and king versus lone king is a forced win. Shrink the opposing king’s space step by step, then bring your own king in to build a mating net.",
-          "seek": "Drive the enemy king to an edge or corner while keeping the queen at a safe distance to avoid stalemate.",
-          "method": "Cut large strips with the queen, approach with your king, then tighten the box. Mate comes when the queen checks on the back rank supported by the king.",
-          "avoid": "Do not place the queen too close to the enemy king without support — stalemate is the main trap in this ending."
+          "principle": "Queen and king versus lone king wins by shrinking the enemy king, then bringing your own king in.",
+          "seek": "Drive the enemy king to an edge, keeping the queen at a safe distance.",
+          "method": "Cut large strips, approach with the king, then mate on the back rank with king support.",
+          "avoid": "Stalemate: do not place the queen next to the enemy king without support."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-QUEEN-MATE-2",
+      "themeId": "queen-mate",
+      "titleKey": "QueenMate",
+      "initialFen": "6k1/8/8/8/8/8/5K2/7Q w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 11,
+        "dtm": 11,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "queen"
+      ],
+      "variantNote": {
+        "fr": "Roi déjà au bord, dame loin : il faut rapprocher sans pater.",
+        "en": "King already on the edge, queen far away: approach without stalemate."
+      },
+      "choiceRationale": "King already on the edge, queen far away: approach without stalemate.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F8%2F8%2F8%2F8%2F5K2%2F7Q%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "King already on the edge, queen far away: approach without stalemate.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Dame et roi contre roi seul gagnent en réduisant l’espace du roi adverse, puis en rapprochant le sien.",
+          "seek": "Conduire le roi adverse vers un bord, la dame à distance de sécurité.",
+          "method": "Coupez de larges bandes, approchez le roi, puis matez sur la dernière rangée avec le roi en soutien.",
+          "avoid": "Le pat : ne collez pas la dame au roi adverse sans soutien."
+        },
+        "en": {
+          "principle": "Queen and king versus lone king wins by shrinking the enemy king, then bringing your own king in.",
+          "seek": "Drive the enemy king to an edge, keeping the queen at a safe distance.",
+          "method": "Cut large strips, approach with the king, then mate on the back rank with king support.",
+          "avoid": "Stalemate: do not place the queen next to the enemy king without support."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-QUEEN-MATE-3",
+      "themeId": "queen-mate",
+      "titleKey": "QueenMate",
+      "initialFen": "6q1/8/k7/8/8/8/8/5K2 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 13,
+        "dtm": 13,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "queen"
+      ],
+      "variantNote": {
+        "fr": "Les Noirs ont la dame, roi blanc en f1 : autre géométrie, pas un simple retournement.",
+        "en": "Black has the queen, white king on f1: a different geometry, not a colour swap."
+      },
+      "choiceRationale": "Black has the queen, white king on f1: a different geometry, not a colour swap.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6q1%2F8%2Fk7%2F8%2F8%2F8%2F8%2F5K2%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the queen, white king on f1: a different geometry, not a colour swap.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Dame et roi contre roi seul gagnent en réduisant l’espace du roi adverse, puis en rapprochant le sien.",
+          "seek": "Conduire le roi adverse vers un bord, la dame à distance de sécurité.",
+          "method": "Coupez de larges bandes, approchez le roi, puis matez sur la dernière rangée avec le roi en soutien.",
+          "avoid": "Le pat : ne collez pas la dame au roi adverse sans soutien."
+        },
+        "en": {
+          "principle": "Queen and king versus lone king wins by shrinking the enemy king, then bringing your own king in.",
+          "seek": "Drive the enemy king to an edge, keeping the queen at a safe distance.",
+          "method": "Cut large strips, approach with the king, then mate on the back rank with king support.",
+          "avoid": "Stalemate: do not place the queen next to the enemy king without support."
         }
       }
     },
@@ -55,41 +187,173 @@
       "initialFen": "8/8/8/4k3/8/8/8/4K2R w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "CHECKMATE" },
-      "targetUserMoves": 12,
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 27, "dtm": 27 },
-      "tags": ["elementary-mate", "rook", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 27,
+        "dtm": 27,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "rook"
+      ],
+      "variantNote": {
+        "fr": "Tour en h1, rois au centre : la méthode du couloir entier.",
+        "en": "Rook on h1, kings central: the full corridor method."
+      },
+      "choiceRationale": "Rook on h1, kings central: the full corridor method.",
       "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2R_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KRK is a forced win by cutting the king and mating on the edge",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Mating with Rook",
-          "url": "https://www.chessprogramming.org/Mate_with_Rook",
-          "consultedAt": "2026-08-23",
-          "principle": "Cut ranks/files then coordinate king and rook",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F8%2F8%2F4K2R%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Rook on h1, kings central: the full corridor method.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Standard KRK start with kings facing and rook on h1 — illustrates cutting the king before mating on the edge.",
       "explanation": {
         "fr": {
-          "principle": "Tour et roi contre roi seul gagne toujours avec une méthode claire : couper le roi, rapprocher le sien, puis forcer le bord.",
-          "seek": "Placer la tour de façon à confiner le roi adverse sur une bande de l’échiquier, puis avancer votre roi en opposition.",
-          "method": "Coupez une rangée ou une colonne, amenez votre roi face au roi adverse, puis donnez échec avec la tour pour le repousser d’une case. Répétez jusqu’au bord et matez.",
-          "avoid": "N’éloignez pas trop votre roi de l’action : sans le roi, la tour seule ne peut pas forcer le mat."
+          "principle": "Tour et roi contre roi gagnent en coupant le roi, en opposant le sien, puis en le poussant vers le bord.",
+          "seek": "Confier le roi adverse à une bande, puis l’opposition des rois.",
+          "method": "Coupez une rangée, amenez le roi face à face, échec de tour pour reculer d’une case, jusqu’au mat.",
+          "avoid": "Sans le roi, la tour seule ne mate pas. Ne l’éloignez pas."
         },
         "en": {
-          "principle": "Rook and king versus lone king always wins with a clear method: cut the king off, approach with yours, then force him to the edge.",
-          "seek": "Place the rook so the enemy king is confined to a strip of the board, then bring your king into opposition.",
-          "method": "Cut a rank or file, bring your king face-to-face, then check with the rook to push him one square back. Repeat until the edge and deliver mate.",
-          "avoid": "Do not leave your king too far away — without the king, the rook alone cannot force mate."
+          "principle": "Rook and king versus king wins by cutting the king off, opposing with yours, then driving him to the edge.",
+          "seek": "Confine the enemy king to a strip, then king opposition.",
+          "method": "Cut a rank, bring the kings face to face, check with the rook to push one square, until mate.",
+          "avoid": "The rook alone cannot mate. Do not leave your king behind."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-ROOK-MATE-2",
+      "themeId": "rook-mate",
+      "titleKey": "RookMate",
+      "initialFen": "7k/8/8/8/8/3K4/8/R7 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 11,
+        "dtm": 11,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "rook"
+      ],
+      "variantNote": {
+        "fr": "Roi noir déjà en h8, tour en a1 : il reste à coordonner le roi.",
+        "en": "Black king already on h8, rook on a1: the king still has to be coordinated."
+      },
+      "choiceRationale": "Black king already on h8, rook on a1: the king still has to be coordinated.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=7k%2F8%2F8%2F8%2F8%2F3K4%2F8%2FR7%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black king already on h8, rook on a1: the king still has to be coordinated.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Tour et roi contre roi gagnent en coupant le roi, en opposant le sien, puis en le poussant vers le bord.",
+          "seek": "Confier le roi adverse à une bande, puis l’opposition des rois.",
+          "method": "Coupez une rangée, amenez le roi face à face, échec de tour pour reculer d’une case, jusqu’au mat.",
+          "avoid": "Sans le roi, la tour seule ne mate pas. Ne l’éloignez pas."
+        },
+        "en": {
+          "principle": "Rook and king versus king wins by cutting the king off, opposing with yours, then driving him to the edge.",
+          "seek": "Confine the enemy king to a strip, then king opposition.",
+          "method": "Cut a rank, bring the kings face to face, check with the rook to push one square, until mate.",
+          "avoid": "The rook alone cannot mate. Do not leave your king behind."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-ROOK-MATE-3",
+      "themeId": "rook-mate",
+      "titleKey": "RookMate",
+      "initialFen": "8/8/2k5/8/8/8/r7/3K4 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 15,
+        "dtm": 15,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "rook"
+      ],
+      "variantNote": {
+        "fr": "Les Noirs ont la tour en a2, roi blanc en d1.",
+        "en": "Black has the rook on a2, white king on d1."
+      },
+      "choiceRationale": "Black has the rook on a2, white king on d1.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2k5%2F8%2F8%2F8%2Fr7%2F3K4%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the rook on a2, white king on d1.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Tour et roi contre roi gagnent en coupant le roi, en opposant le sien, puis en le poussant vers le bord.",
+          "seek": "Confier le roi adverse à une bande, puis l’opposition des rois.",
+          "method": "Coupez une rangée, amenez le roi face à face, échec de tour pour reculer d’une case, jusqu’au mat.",
+          "avoid": "Sans le roi, la tour seule ne mate pas. Ne l’éloignez pas."
+        },
+        "en": {
+          "principle": "Rook and king versus king wins by cutting the king off, opposing with yours, then driving him to the edge.",
+          "seek": "Confine the enemy king to a strip, then king opposition.",
+          "method": "Cut a rank, bring the kings face to face, check with the rook to push one square, until mate.",
+          "avoid": "The rook alone cannot mate. Do not leave your king behind."
         }
       }
     },
@@ -100,41 +364,173 @@
       "initialFen": "8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "CHECKMATE" },
-      "targetUserMoves": 18,
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 33, "dtm": 33 },
-      "tags": ["elementary-mate", "two-bishops", "opposite-colors", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 33,
+        "dtm": 33,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "bishops"
+      ],
+      "variantNote": {
+        "fr": "Fous en c1 et f1, couleurs opposées, roi noir au centre.",
+        "en": "Bishops on c1 and f1, opposite colours, black king central."
+      },
+      "choiceRationale": "Bishops on c1 and f1, opposite colours, black king central.",
       "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/2B1KB2_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KBBK with opposite-colored bishops is a forced win",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Mating with Two Bishops",
-          "url": "https://www.chessprogramming.org/Mate_with_Two_Bishops",
-          "consultedAt": "2026-08-23",
-          "principle": "Drive the king to a corner of the right color complex",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F8%2F8%2F2B1KB2%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Bishops on c1 and f1, opposite colours, black king central.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Opposite-colored bishops on c1 and f1 with centralized black king — teaches coordination without an initial check.",
       "explanation": {
         "fr": {
-          "principle": "Deux fous de couleurs opposées et le roi forcent le mat. Les fous contrôlent les deux couleurs et réduisent ensemble l’espace du roi adverse.",
-          "seek": "Conduire le roi adverse dans un coin, en gardant les fous sur des diagonales complémentaires.",
-          "method": "Formez une barrière de fous, avancez votre roi, puis poussez le roi adverse vers un coin. Le mat se donne souvent près du coin avec le roi et les deux fous.",
-          "avoid": "Ne laissez pas les fous se regrouper sur la même couleur de cases, et évitez le pat en resserrant trop tôt."
+          "principle": "Deux fous de couleurs opposées et le roi forcent le mat en réduisant les deux complexes de cases.",
+          "seek": "Un coin dont la couleur est contrôlée par un des fous.",
+          "method": "Barrière de fous, roi qui avance, roi adverse poussé vers le coin.",
+          "avoid": "Fous sur la même couleur, ou pat en resserrant trop tôt."
         },
         "en": {
-          "principle": "Two opposite-colored bishops and the king force mate. The bishops control both colors and together shrink the enemy king’s space.",
-          "seek": "Drive the enemy king into a corner while keeping the bishops on complementary diagonals.",
-          "method": "Build a bishop barrier, advance your king, then push the enemy king toward a corner. Mate usually comes near the corner with king and both bishops.",
-          "avoid": "Do not let both bishops drift onto the same color complex, and avoid stalemate by tightening too early."
+          "principle": "Two opposite-coloured bishops and the king force mate by shrinking both colour complexes.",
+          "seek": "A corner whose colour one bishop controls.",
+          "method": "Build a bishop barrier, advance the king, push the enemy king to the corner.",
+          "avoid": "Bishops on one colour, or stalemate by tightening too early."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-TWO-BISHOPS-MATE-2",
+      "themeId": "two-bishops-mate",
+      "titleKey": "TwoBishopsMate",
+      "initialFen": "8/8/1k6/8/8/8/3B4/1K3B2 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 29,
+        "dtm": 29,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "bishops"
+      ],
+      "variantNote": {
+        "fr": "Fous en b1 et d2, rois sur la colonne b : autre cage.",
+        "en": "Bishops on b1 and d2, kings on the b-file: a different cage."
+      },
+      "choiceRationale": "Bishops on b1 and d2, kings on the b-file: a different cage.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F1k6%2F8%2F8%2F8%2F3B4%2F1K3B2%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Bishops on b1 and d2, kings on the b-file: a different cage.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Deux fous de couleurs opposées et le roi forcent le mat en réduisant les deux complexes de cases.",
+          "seek": "Un coin dont la couleur est contrôlée par un des fous.",
+          "method": "Barrière de fous, roi qui avance, roi adverse poussé vers le coin.",
+          "avoid": "Fous sur la même couleur, ou pat en resserrant trop tôt."
+        },
+        "en": {
+          "principle": "Two opposite-coloured bishops and the king force mate by shrinking both colour complexes.",
+          "seek": "A corner whose colour one bishop controls.",
+          "method": "Build a bishop barrier, advance the king, push the enemy king to the corner.",
+          "avoid": "Bishops on one colour, or stalemate by tightening too early."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-TWO-BISHOPS-MATE-3",
+      "themeId": "two-bishops-mate",
+      "titleKey": "TwoBishopsMate",
+      "initialFen": "8/b3k3/8/8/8/8/3K4/1b6 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "mate",
+      "completion": {
+        "type": "CHECKMATE"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 27,
+        "dtm": 27,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "elementary-mate",
+        "bishops"
+      ],
+      "variantNote": {
+        "fr": "Les Noirs ont les fous en a7 et b1, roi blanc en d2.",
+        "en": "Black has the bishops on a7 and b1, white king on d2."
+      },
+      "choiceRationale": "Black has the bishops on a7 and b1, white king on d2.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2Fb3k3%2F8%2F8%2F8%2F8%2F3K4%2F1b6%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the bishops on a7 and b1, white king on d2.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Deux fous de couleurs opposées et le roi forcent le mat en réduisant les deux complexes de cases.",
+          "seek": "Un coin dont la couleur est contrôlée par un des fous.",
+          "method": "Barrière de fous, roi qui avance, roi adverse poussé vers le coin.",
+          "avoid": "Fous sur la même couleur, ou pat en resserrant trop tôt."
+        },
+        "en": {
+          "principle": "Two opposite-coloured bishops and the king force mate by shrinking both colour complexes.",
+          "seek": "A corner whose colour one bishop controls.",
+          "method": "Build a bishop barrier, advance the king, push the enemy king to the corner.",
+          "avoid": "Bishops on one colour, or stalemate by tightening too early."
         }
       }
     },
@@ -142,44 +538,361 @@
       "id": "TE-CANON-PAWN-SQUARE",
       "themeId": "pawn-square",
       "titleKey": "PawnSquare",
-      "initialFen": "8/8/8/3P4/8/8/8/k6K w - - 0 1",
+      "initialFen": "8/8/6k1/8/1P6/8/8/7K w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "OFFICIAL_GAME_RESULT" },
-      "targetUserMoves": 5,
+      "objectiveKind": "promote-and-win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 1, "dtm": 21 },
-      "tags": ["pawn", "square-rule", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 25,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "square",
+        "attacker"
+      ],
+      "variantNote": {
+        "fr": "Pion b4, roi noir en g6, roi blanc en h1 trop loin pour escorter. Seul b5 gagne : les coups de roi laissent entrer le roi.",
+        "en": "Pawn b4, black king g6, white king h1 too far to escort. Only b5 wins: king moves let the enemy king in."
+      },
+      "choiceRationale": "Pawn b4, black king g6, white king h1 too far to escort. Only b5 wins: king moves let the enemy king in.",
       "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/3P4/8/8/8/k6K_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "Black king is outside the pawn's square; white promotes",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Wikipedia — Square of the pawn",
-          "url": "https://en.wikipedia.org/wiki/Passed_pawn#The_square_of_the_pawn",
-          "consultedAt": "2026-08-23",
-          "principle": "If the defending king cannot enter the square, the pawn queens",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F6k1%2F8%2F1P6%2F8%2F8%2F7K%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn b4, black king g6, white king h1 too far to escort. Only b5 wins: king moves let the enemy king in.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Pawn on d5, black king on a1 outside the square, white king on h1 — pure illustration of the square rule.",
       "explanation": {
         "fr": {
-          "principle": "La règle du carré dit si un roi peut rattraper un pion passé. Si le roi n’entre pas dans le carré, le pion promeut.",
-          "seek": "Visualiser le carré dont un coin est le pion et l’autre sa case de promotion, puis juger si le roi adverse y entre.",
-          "method": "Après chaque avance du pion, recalculez le carré. Ici le roi noir est hors du carré : poussez simplement le pion jusqu’à la dame.",
-          "avoid": "Ne perdez pas de temps avec le roi si la règle du carré garantit déjà la promotion."
+          "principle": "Le carré du pion dit si le roi adverse peut rattraper un pion passé. Le trait et le double pas initial changent le carré.",
+          "seek": "Le chemin du roi vers le carré, ou l’avance juste du pion. Le roi du camp du pion ne sert pas d’escorte ici.",
+          "method": "Côté défense : entrez dans le carré par le plus court chemin. Côté pion : poussez tant que le roi est dehors ; un coup de roi laisse souvent le roi entrer.",
+          "avoid": "Un pion impossible à rattraper n’enseigne pas la défense. Une promotion immédiatement reprise n’est pas un gain."
         },
         "en": {
-          "principle": "The square rule tells whether a king can catch a passed pawn. If the king cannot enter the square, the pawn queens.",
-          "seek": "Imagine the square whose corner is the pawn and whose far corner is the promotion square, then judge whether the enemy king can step inside.",
-          "method": "Recalculate the square after every pawn advance. Here the black king is outside: simply push the pawn to a queen.",
-          "avoid": "Do not waste tempi with the king when the square rule already guarantees promotion."
+          "principle": "The pawn’s square says whether the enemy king can catch a passer. The move and the initial double step change the square.",
+          "seek": "The king’s path into the square, or the right pawn push. The pawn-side king is not an escort here.",
+          "method": "As defender: step into the square by the shortest path. With the pawn: push while the king is outside; a king move often lets him in.",
+          "avoid": "An uncatchable pawn does not teach the defence. A promotion that is taken at once is not a win."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-W2",
+      "themeId": "pawn-square",
+      "titleKey": "PawnSquare",
+      "initialFen": "8/8/8/6k1/8/8/P7/7K w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "promote-and-win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 27,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "square",
+        "attacker",
+        "double-step"
+      ],
+      "variantNote": {
+        "fr": "Pion a2 : seul le double pas a4 gagne. a3 laisse le roi de g5 entrer dans le carré.",
+        "en": "Pawn a2: only the double step a4 wins. a3 lets the king on g5 into the square."
+      },
+      "choiceRationale": "Pawn a2: only the double step a4 wins. a3 lets the king on g5 into the square.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F6k1%2F8%2F8%2FP7%2F7K%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a2: only the double step a4 wins. a3 lets the king on g5 into the square.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le carré du pion dit si le roi adverse peut rattraper un pion passé. Le trait et le double pas initial changent le carré.",
+          "seek": "Le chemin du roi vers le carré, ou l’avance juste du pion. Le roi du camp du pion ne sert pas d’escorte ici.",
+          "method": "Côté défense : entrez dans le carré par le plus court chemin. Côté pion : poussez tant que le roi est dehors ; un coup de roi laisse souvent le roi entrer.",
+          "avoid": "Un pion impossible à rattraper n’enseigne pas la défense. Une promotion immédiatement reprise n’est pas un gain."
+        },
+        "en": {
+          "principle": "The pawn’s square says whether the enemy king can catch a passer. The move and the initial double step change the square.",
+          "seek": "The king’s path into the square, or the right pawn push. The pawn-side king is not an escort here.",
+          "method": "As defender: step into the square by the shortest path. With the pawn: push while the king is outside; a king move often lets him in.",
+          "avoid": "An uncatchable pawn does not teach the defence. A promotion that is taken at once is not a win."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-W3",
+      "themeId": "pawn-square",
+      "titleKey": "PawnSquare",
+      "initialFen": "8/8/7k/8/2P5/8/8/7K w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "promote-and-win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 25,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "square",
+        "attacker"
+      ],
+      "variantNote": {
+        "fr": "Pion c4, roi en h6 juste hors du carré. Seul c5 gagne.",
+        "en": "Pawn c4, king on h6 just outside the square. Only c5 wins."
+      },
+      "choiceRationale": "Pawn c4, king on h6 just outside the square. Only c5 wins.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F7k%2F8%2F2P5%2F8%2F8%2F7K%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c4, king on h6 just outside the square. Only c5 wins.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le carré du pion dit si le roi adverse peut rattraper un pion passé. Le trait et le double pas initial changent le carré.",
+          "seek": "Le chemin du roi vers le carré, ou l’avance juste du pion. Le roi du camp du pion ne sert pas d’escorte ici.",
+          "method": "Côté défense : entrez dans le carré par le plus court chemin. Côté pion : poussez tant que le roi est dehors ; un coup de roi laisse souvent le roi entrer.",
+          "avoid": "Un pion impossible à rattraper n’enseigne pas la défense. Une promotion immédiatement reprise n’est pas un gain."
+        },
+        "en": {
+          "principle": "The pawn’s square says whether the enemy king can catch a passer. The move and the initial double step change the square.",
+          "seek": "The king’s path into the square, or the right pawn push. The pawn-side king is not an escort here.",
+          "method": "As defender: step into the square by the shortest path. With the pawn: push while the king is outside; a king move often lets him in.",
+          "avoid": "An uncatchable pawn does not teach the defence. A promotion that is taken at once is not a win."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-D1",
+      "themeId": "pawn-square",
+      "titleKey": "PawnSquare",
+      "initialFen": "7k/8/8/8/2P5/8/8/7K b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "stop-pawn",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "square",
+        "defender"
+      ],
+      "variantNote": {
+        "fr": "Même aile mais le trait est aux Noirs : le roi de h8 peut entrer. Un mauvais pas laisse le pion filer. Pas une capture immédiate.",
+        "en": "The defender is to move: the king on h8 can step into the square. One wrong step lets the pawn run. Not an immediate capture."
+      },
+      "choiceRationale": "The defender is to move: the king on h8 can step into the square. One wrong step lets the pawn run. Not an immediate capture.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=7k%2F8%2F8%2F8%2F2P5%2F8%2F8%2F7K%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "The defender is to move: the king on h8 can step into the square. One wrong step lets the pawn run. Not an immediate capture.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le carré du pion dit si le roi adverse peut rattraper un pion passé. Le trait et le double pas initial changent le carré.",
+          "seek": "Le chemin du roi vers le carré, ou l’avance juste du pion. Le roi du camp du pion ne sert pas d’escorte ici.",
+          "method": "Côté défense : entrez dans le carré par le plus court chemin. Côté pion : poussez tant que le roi est dehors ; un coup de roi laisse souvent le roi entrer.",
+          "avoid": "Un pion impossible à rattraper n’enseigne pas la défense. Une promotion immédiatement reprise n’est pas un gain."
+        },
+        "en": {
+          "principle": "The pawn’s square says whether the enemy king can catch a passer. The move and the initial double step change the square.",
+          "seek": "The king’s path into the square, or the right pawn push. The pawn-side king is not an escort here.",
+          "method": "As defender: step into the square by the shortest path. With the pawn: push while the king is outside; a king move often lets him in.",
+          "avoid": "An uncatchable pawn does not teach the defence. A promotion that is taken at once is not a win."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-D2",
+      "themeId": "pawn-square",
+      "titleKey": "PawnSquare",
+      "initialFen": "8/8/1k6/8/8/8/3P4/7K b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "stop-pawn",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "square",
+        "defender",
+        "double-step"
+      ],
+      "variantNote": {
+        "fr": "Pion d2 et son double pas : le roi de b6 doit choisir le chemin du carré. Le roi blanc en h1 n’escorte pas.",
+        "en": "Pawn d2 and its double step: the king on b6 must choose the path into the square. The white king on h1 does not escort."
+      },
+      "choiceRationale": "Pawn d2 and its double step: the king on b6 must choose the path into the square. The white king on h1 does not escort.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F1k6%2F8%2F8%2F8%2F3P4%2F7K%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn d2 and its double step: the king on b6 must choose the path into the square. The white king on h1 does not escort.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le carré du pion dit si le roi adverse peut rattraper un pion passé. Le trait et le double pas initial changent le carré.",
+          "seek": "Le chemin du roi vers le carré, ou l’avance juste du pion. Le roi du camp du pion ne sert pas d’escorte ici.",
+          "method": "Côté défense : entrez dans le carré par le plus court chemin. Côté pion : poussez tant que le roi est dehors ; un coup de roi laisse souvent le roi entrer.",
+          "avoid": "Un pion impossible à rattraper n’enseigne pas la défense. Une promotion immédiatement reprise n’est pas un gain."
+        },
+        "en": {
+          "principle": "The pawn’s square says whether the enemy king can catch a passer. The move and the initial double step change the square.",
+          "seek": "The king’s path into the square, or the right pawn push. The pawn-side king is not an escort here.",
+          "method": "As defender: step into the square by the shortest path. With the pawn: push while the king is outside; a king move often lets him in.",
+          "avoid": "An uncatchable pawn does not teach the defence. A promotion that is taken at once is not a win."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-D3",
+      "themeId": "pawn-square",
+      "titleKey": "PawnSquare",
+      "initialFen": "8/1k6/8/8/6P1/8/8/K7 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "stop-pawn",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "square",
+        "defender"
+      ],
+      "variantNote": {
+        "fr": "Pion g4, roi en b7, roi blanc en a1. Autre aile, trajet réel, pas une symétrie des précédents.",
+        "en": "Pawn g4, king on b7, white king on a1. The other wing, a real route, not a mirror of the earlier ones."
+      },
+      "choiceRationale": "Pawn g4, king on b7, white king on a1. The other wing, a real route, not a mirror of the earlier ones.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F1k6%2F8%2F8%2F6P1%2F8%2F8%2FK7%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn g4, king on b7, white king on a1. The other wing, a real route, not a mirror of the earlier ones.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le carré du pion dit si le roi adverse peut rattraper un pion passé. Le trait et le double pas initial changent le carré.",
+          "seek": "Le chemin du roi vers le carré, ou l’avance juste du pion. Le roi du camp du pion ne sert pas d’escorte ici.",
+          "method": "Côté défense : entrez dans le carré par le plus court chemin. Côté pion : poussez tant que le roi est dehors ; un coup de roi laisse souvent le roi entrer.",
+          "avoid": "Un pion impossible à rattraper n’enseigne pas la défense. Une promotion immédiatement reprise n’est pas un gain."
+        },
+        "en": {
+          "principle": "The pawn’s square says whether the enemy king can catch a passer. The move and the initial double step change the square.",
+          "seek": "The king’s path into the square, or the right pawn push. The pawn-side king is not an escort here.",
+          "method": "As defender: step into the square by the shortest path. With the pawn: push while the king is outside; a king move often lets him in.",
+          "avoid": "An uncatchable pawn does not teach the defence. A promotion that is taken at once is not a win."
         }
       }
     },
@@ -187,44 +900,176 @@
       "id": "TE-CANON-OPPOSITION",
       "themeId": "opposition",
       "titleKey": "Opposition",
-      "initialFen": "8/8/4k3/8/4K3/8/4P3/8 b - - 0 1",
+      "initialFen": "8/8/4k3/8/4K3/8/4P3/8 w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "OFFICIAL_GAME_RESULT" },
-      "targetUserMoves": 6,
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 4, "dtm": 36 },
-      "tags": ["pawn", "opposition", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 37,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "opposition"
+      ],
+      "variantNote": {
+        "fr": "Rois en e4 et e6, pion e2, trait aux Blancs : il faut reprendre l’opposition. L’ancienne position laissait le trait aux Noirs.",
+        "en": "Kings on e4 and e6, pawn e2, White to move: the opposition must be taken. The old position gave the move to Black."
+      },
+      "choiceRationale": "Kings on e4 and e6, pawn e2, White to move: the opposition must be taken. The old position gave the move to Black.",
       "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/4k3/8/4K3/8/4P3/8_b_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "With Black to move, White has the opposition and wins KPK",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Wikipedia — Opposition (chess)",
-          "url": "https://en.wikipedia.org/wiki/Opposition_(chess)",
-          "consultedAt": "2026-08-23",
-          "principle": "The player who does not have to move holds the opposition",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F4k3%2F8%2F4K3%2F8%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Kings on e4 and e6, pawn e2, White to move: the opposition must be taken. The old position gave the move to Black.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Kings face on the e-file with Black to move — White holds the opposition. Stockfish plays Black’s first move; the trainee then exploits opposition.",
       "explanation": {
         "fr": {
-          "principle": "L’opposition place les rois face à face. Celui qui n’a pas le trait conserve l’opposition et peut forcer la pénétration.",
-          "seek": "Conserver l’opposition directe, utiliser un coup d’attente si besoin, puis entrer sur une case clé quand le roi adverse s’écarte.",
-          "method": "Après le premier coup adverse, reprenez l’opposition. Avancez le roi seulement quand l’adversaire cède. Le pion suit une fois le chemin ouvert.",
-          "avoid": "Ne poussez pas le pion trop tôt : cela peut rendre l’opposition inutile et transformer un gain en nulle."
+          "principle": "L’opposition place les rois face à face : celui qui n’a pas le trait la conserve et peut forcer la pénétration.",
+          "seek": "Prendre ou garder l’opposition, distincte des cases clés du pion.",
+          "method": "Avancez le roi pour imposer le face-à-face. Ne poussez le pion que lorsque l’adversaire a cédé.",
+          "avoid": "Pousser le pion trop tôt rend l’opposition inutile."
         },
         "en": {
-          "principle": "Opposition puts the kings face to face. The side that does not have to move holds the opposition and can force penetration.",
-          "seek": "Keep direct opposition, use a waiting move if needed, then enter a key square when the enemy king steps aside.",
-          "method": "After the opponent’s first move, retake the opposition. Advance the king only when the opponent yields. The pawn follows once the path is clear.",
-          "avoid": "Do not push the pawn too early — that can throw away the opposition and turn a win into a draw."
+          "principle": "Opposition puts the kings face to face: the side not to move holds it and can force a way in.",
+          "seek": "Take or keep the opposition, which is not the same lesson as the pawn’s key squares.",
+          "method": "Step the king to impose the face-off. Push the pawn only after the opponent has yielded.",
+          "avoid": "Pushing the pawn too early throws the opposition away."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-OPPOSITION-2",
+      "themeId": "opposition",
+      "titleKey": "Opposition",
+      "initialFen": "8/8/8/5k2/8/4K3/4P3/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 7,
+        "dtm": 39,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "opposition"
+      ],
+      "variantNote": {
+        "fr": "Rois en décalage e3/f5 : l’opposition se prend par le côté, pas par un face-à-face déjà fait.",
+        "en": "Kings offset on e3/f5: opposition is taken from the side, not from an existing face-off."
+      },
+      "choiceRationale": "Kings offset on e3/f5: opposition is taken from the side, not from an existing face-off.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F5k2%2F8%2F4K3%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Kings offset on e3/f5: opposition is taken from the side, not from an existing face-off.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "L’opposition place les rois face à face : celui qui n’a pas le trait la conserve et peut forcer la pénétration.",
+          "seek": "Prendre ou garder l’opposition, distincte des cases clés du pion.",
+          "method": "Avancez le roi pour imposer le face-à-face. Ne poussez le pion que lorsque l’adversaire a cédé.",
+          "avoid": "Pousser le pion trop tôt rend l’opposition inutile."
+        },
+        "en": {
+          "principle": "Opposition puts the kings face to face: the side not to move holds it and can force a way in.",
+          "seek": "Take or keep the opposition, which is not the same lesson as the pawn’s key squares.",
+          "method": "Step the king to impose the face-off. Push the pawn only after the opponent has yielded.",
+          "avoid": "Pushing the pawn too early throws the opposition away."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-OPPOSITION-3",
+      "themeId": "opposition",
+      "titleKey": "Opposition",
+      "initialFen": "8/8/2p5/8/2k5/8/2K5/8 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 29,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "opposition"
+      ],
+      "variantNote": {
+        "fr": "Les Noirs ont le pion c6, rois en c4 et c2. Le pion est déjà avancé : autre décision que le pion en 2e.",
+        "en": "Black has the c6-pawn, kings on c4 and c2. The pawn is already advanced: a different decision from a pawn on the 2nd."
+      },
+      "choiceRationale": "Black has the c6-pawn, kings on c4 and c2. The pawn is already advanced: a different decision from a pawn on the 2nd.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2p5%2F8%2F2k5%2F8%2F2K5%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the c6-pawn, kings on c4 and c2. The pawn is already advanced: a different decision from a pawn on the 2nd.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "L’opposition place les rois face à face : celui qui n’a pas le trait la conserve et peut forcer la pénétration.",
+          "seek": "Prendre ou garder l’opposition, distincte des cases clés du pion.",
+          "method": "Avancez le roi pour imposer le face-à-face. Ne poussez le pion que lorsque l’adversaire a cédé.",
+          "avoid": "Pousser le pion trop tôt rend l’opposition inutile."
+        },
+        "en": {
+          "principle": "Opposition puts the kings face to face: the side not to move holds it and can force a way in.",
+          "seek": "Take or keep the opposition, which is not the same lesson as the pawn’s key squares.",
+          "method": "Step the king to impose the face-off. Push the pawn only after the opponent has yielded.",
+          "avoid": "Pushing the pawn too early throws the opposition away."
         }
       }
     },
@@ -235,41 +1080,530 @@
       "initialFen": "8/8/8/4k3/8/3K4/4P3/8 w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "OFFICIAL_GAME_RESULT" },
-      "targetUserMoves": 8,
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 9, "dtm": 41 },
-      "tags": ["pawn", "kpk", "key-squares", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 9,
+        "dtm": 41,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "kpk"
+      ],
+      "variantNote": {
+        "fr": "Roi en d3 devant le pion e2, roi noir en e5 : un seul coup garde le gain.",
+        "en": "King on d3 in front of the e2-pawn, black king on e5: only one move keeps the win."
+      },
+      "choiceRationale": "King on d3 in front of the e2-pawn, black king on e5: only one move keeps the win.",
       "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/3K4/4P3/8_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "King ahead of the pawn with access to key squares is winning",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — King and Pawn vs King",
-          "url": "https://www.chessprogramming.org/King_and_Pawn_versus_King",
-          "consultedAt": "2026-08-23",
-          "principle": "Key squares and opposition decide KPK",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F3K4%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "King on d3 in front of the e2-pawn, black king on e5: only one move keeps the win.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "White king on d3 supports the e2-pawn against black king on e5 — classic key-square technique.",
       "explanation": {
         "fr": {
-          "principle": "En roi et pion contre roi, placez le roi devant le pion, utilisez l’opposition et visez les cases clés.",
-          "seek": "Occuper ou contrôler les cases clés devant le pion. Reconnaître aussi les exceptions des pions de tour.",
-          "method": "Avancez le roi d’abord, prenez l’opposition, puis poussez le pion. Si le roi adverse bloque, manœuvrez pour le forcer à céder.",
-          "avoid": "Ne poussez pas le pion jusqu’à la 7e trop tôt sans contrôle des cases clés : la nulle revient facilement."
+          "principle": "Roi et pion contre roi : le roi précède le pion et l’épaule du roi adverse décide, au-delà d’un simple face-à-face.",
+          "seek": "Placer le roi devant le pion et écarter le roi adverse.",
+          "method": "Le roi d’abord, le pion ensuite. Un seul coup garde parfois le gain.",
+          "avoid": "Pion en 7e sans contrôle des cases devant lui."
         },
         "en": {
-          "principle": "In king and pawn versus king, put the king in front of the pawn, use opposition, and aim for the key squares.",
-          "seek": "Occupy or control the key squares in front of the pawn. Also recognise rook-pawn exceptions.",
-          "method": "Advance the king first, take the opposition, then push the pawn. If the enemy king blocks, manoeuvre until he must give way.",
-          "avoid": "Do not rush the pawn to the 7th without key-square control — draws return easily."
+          "principle": "King and pawn versus king: the king goes in front and shoulders the enemy king, beyond a plain face-off.",
+          "seek": "Put the king in front of the pawn and shoulder the enemy king aside.",
+          "method": "King first, pawn second. Sometimes only one move keeps the win.",
+          "avoid": "A pawn on the 7th without control of the squares in front of it."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-KPK-2",
+      "themeId": "kp-vs-k",
+      "titleKey": "KpVsK",
+      "initialFen": "8/4p3/3k4/8/8/3K4/8/8 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 5,
+        "dtm": 39,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "kpk"
+      ],
+      "variantNote": {
+        "fr": "Les Noirs ont le pion e7, roi d6 contre roi d3. L’épaule se joue par Ke5 ou Kd5.",
+        "en": "Black has the e7-pawn, king d6 versus king d3. The shoulder is Ke5 or Kd5."
+      },
+      "choiceRationale": "Black has the e7-pawn, king d6 versus king d3. The shoulder is Ke5 or Kd5.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F4p3%2F3k4%2F8%2F8%2F3K4%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the e7-pawn, king d6 versus king d3. The shoulder is Ke5 or Kd5.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Roi et pion contre roi : le roi précède le pion et l’épaule du roi adverse décide, au-delà d’un simple face-à-face.",
+          "seek": "Placer le roi devant le pion et écarter le roi adverse.",
+          "method": "Le roi d’abord, le pion ensuite. Un seul coup garde parfois le gain.",
+          "avoid": "Pion en 7e sans contrôle des cases devant lui."
+        },
+        "en": {
+          "principle": "King and pawn versus king: the king goes in front and shoulders the enemy king, beyond a plain face-off.",
+          "seek": "Put the king in front of the pawn and shoulder the enemy king aside.",
+          "method": "King first, pawn second. Sometimes only one move keeps the win.",
+          "avoid": "A pawn on the 7th without control of the squares in front of it."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-KPK-3",
+      "themeId": "kp-vs-k",
+      "titleKey": "KpVsK",
+      "initialFen": "8/8/2k5/2p5/8/5K2/8/8 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 7,
+        "dtm": 31,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "kpk"
+      ],
+      "variantNote": {
+        "fr": "Pion c5, rois c6 et f3 : le roi noir doit écarter le roi blanc, pas seulement pousser.",
+        "en": "Pawn c5, kings c6 and f3: the black king must shoulder the white king, not merely push."
+      },
+      "choiceRationale": "Pawn c5, kings c6 and f3: the black king must shoulder the white king, not merely push.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2k5%2F2p5%2F8%2F5K2%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c5, kings c6 and f3: the black king must shoulder the white king, not merely push.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Roi et pion contre roi : le roi précède le pion et l’épaule du roi adverse décide, au-delà d’un simple face-à-face.",
+          "seek": "Placer le roi devant le pion et écarter le roi adverse.",
+          "method": "Le roi d’abord, le pion ensuite. Un seul coup garde parfois le gain.",
+          "avoid": "Pion en 7e sans contrôle des cases devant lui."
+        },
+        "en": {
+          "principle": "King and pawn versus king: the king goes in front and shoulders the enemy king, beyond a plain face-off.",
+          "seek": "Put the king in front of the pawn and shoulder the enemy king aside.",
+          "method": "King first, pawn second. Sometimes only one move keeps the win.",
+          "avoid": "A pawn on the 7th without control of the squares in front of it."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-KEY-SQUARES-1",
+      "themeId": "key-squares",
+      "titleKey": "KeySquares",
+      "initialFen": "8/4k3/8/8/2K5/4P3/8/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 5,
+        "dtm": 33,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "key-squares"
+      ],
+      "variantNote": {
+        "fr": "Pion e3 : la case clé d5. Seul Kd5 gagne. Ce n’est pas un face-à-face déjà installé.",
+        "en": "Pawn e3: the key square is d5. Only Kd5 wins. The kings are not already face to face."
+      },
+      "choiceRationale": "Pawn e3: the key square is d5. Only Kd5 wins. The kings are not already face to face.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F4k3%2F8%2F8%2F2K5%2F4P3%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e3: the key square is d5. Only Kd5 wins. The kings are not already face to face.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Les cases clés sont les cases devant le pion dont l’occupation force le gain. Ce n’est pas l’opposition elle-même.",
+          "seek": "Atteindre une case clé (deux rangs devant le pion s’il n’est pas encore en 5e).",
+          "method": "Le roi vise la case clé. Le pion ne bouge que lorsque le roi y est.",
+          "avoid": "Confondre un face-à-face des rois avec l’occupation de la case clé."
+        },
+        "en": {
+          "principle": "Key squares are the squares in front of the pawn whose occupation forces the win. They are not opposition itself.",
+          "seek": "Reach a key square (two ranks ahead of the pawn before it reaches the 5th).",
+          "method": "The king aims at the key square. The pawn moves only once the king is there.",
+          "avoid": "Treating a king face-off as if it were occupation of the key square."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-KEY-SQUARES-2",
+      "themeId": "key-squares",
+      "titleKey": "KeySquares",
+      "initialFen": "8/8/4k3/8/8/2K5/4P3/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 5,
+        "dtm": 41,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "key-squares"
+      ],
+      "variantNote": {
+        "fr": "Pion e2 : les cases clés sont en 4e. Seul Kd4 les occupe utilement.",
+        "en": "Pawn e2: the key squares are on the 4th rank. Only Kd4 occupies one usefully."
+      },
+      "choiceRationale": "Pawn e2: the key squares are on the 4th rank. Only Kd4 occupies one usefully.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F4k3%2F8%2F8%2F2K5%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e2: the key squares are on the 4th rank. Only Kd4 occupies one usefully.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Les cases clés sont les cases devant le pion dont l’occupation force le gain. Ce n’est pas l’opposition elle-même.",
+          "seek": "Atteindre une case clé (deux rangs devant le pion s’il n’est pas encore en 5e).",
+          "method": "Le roi vise la case clé. Le pion ne bouge que lorsque le roi y est.",
+          "avoid": "Confondre un face-à-face des rois avec l’occupation de la case clé."
+        },
+        "en": {
+          "principle": "Key squares are the squares in front of the pawn whose occupation forces the win. They are not opposition itself.",
+          "seek": "Reach a key square (two ranks ahead of the pawn before it reaches the 5th).",
+          "method": "The king aims at the key square. The pawn moves only once the king is there.",
+          "avoid": "Treating a king face-off as if it were occupation of the key square."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-KEY-SQUARES-3",
+      "themeId": "key-squares",
+      "titleKey": "KeySquares",
+      "initialFen": "8/3k4/8/8/4K3/4P3/8/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 5,
+        "dtm": 31,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "key-squares"
+      ],
+      "variantNote": {
+        "fr": "Roi noir en d7, pion e3 : plusieurs accès aux cases clés, les coups de pion nuls.",
+        "en": "Black king on d7, pawn e3: several ways onto the key squares, pawn moves draw."
+      },
+      "choiceRationale": "Black king on d7, pawn e3: several ways onto the key squares, pawn moves draw.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F3k4%2F8%2F8%2F4K3%2F4P3%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black king on d7, pawn e3: several ways onto the key squares, pawn moves draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Les cases clés sont les cases devant le pion dont l’occupation force le gain. Ce n’est pas l’opposition elle-même.",
+          "seek": "Atteindre une case clé (deux rangs devant le pion s’il n’est pas encore en 5e).",
+          "method": "Le roi vise la case clé. Le pion ne bouge que lorsque le roi y est.",
+          "avoid": "Confondre un face-à-face des rois avec l’occupation de la case clé."
+        },
+        "en": {
+          "principle": "Key squares are the squares in front of the pawn whose occupation forces the win. They are not opposition itself.",
+          "seek": "Reach a key square (two ranks ahead of the pawn before it reaches the 5th).",
+          "method": "The king aims at the key square. The pawn moves only once the king is there.",
+          "avoid": "Treating a king face-off as if it were occupation of the key square."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-ROOK-PAWN-WIN",
+      "themeId": "rook-pawn",
+      "titleKey": "RookPawn",
+      "initialFen": "2k5/8/PK6/8/8/8/8/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "promote-and-win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 17,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "rook-pawn",
+        "win"
+      ],
+      "variantNote": {
+        "fr": "Pion a6, roi en b6 qui ferme le coin. Seul a7 gagne : les coups de roi nullent.",
+        "en": "Pawn a6, king on b6 sealing the corner. Only a7 wins: king moves draw."
+      },
+      "choiceRationale": "Pawn a6, king on b6 sealing the corner. Only a7 wins: king moves draw.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=2k5%2F8%2FPK6%2F8%2F8%2F8%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a6, king on b6 sealing the corner. Only a7 wins: king moves draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le pion de tour nulle souvent : le roi adverse, au coin, ne peut plus être délogé sans pat.",
+          "seek": "Savoir si le roi défenseur atteint le coin, ou si le roi attaquant contrôle l’approche.",
+          "method": "En défense, gagnez le coin. En attaque, ne poussez que si le roi adverse en est écarté.",
+          "avoid": "Jouer un pion de tour nulle comme s’il s’agissait d’un gain obligatoire."
+        },
+        "en": {
+          "principle": "A rook pawn is often drawn: once the defending king reaches the corner he cannot be driven out without stalemate.",
+          "seek": "See whether the defending king reaches the corner, or the attacking king controls the approach.",
+          "method": "In defence, reach the corner. In attack, push only if the enemy king is kept away from it.",
+          "avoid": "Treating a drawn rook pawn as a forced win."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-ROOK-PAWN-DEF-H",
+      "themeId": "rook-pawn",
+      "titleKey": "RookPawn",
+      "initialFen": "6k1/7P/6K1/8/8/8/8/8 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "rook-pawn",
+        "defense"
+      ],
+      "variantNote": {
+        "fr": "Pion h7. Seul Kh8 nulle. Kf8 perd. Le coin h est la particularité du pion de tour.",
+        "en": "Pawn h7. Only Kh8 draws. Kf8 loses. The h-corner is the rook pawn’s peculiarity."
+      },
+      "choiceRationale": "Pawn h7. Only Kh8 draws. Kf8 loses. The h-corner is the rook pawn’s peculiarity.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F7P%2F6K1%2F8%2F8%2F8%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn h7. Only Kh8 draws. Kf8 loses. The h-corner is the rook pawn’s peculiarity.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le pion de tour nulle souvent : le roi adverse, au coin, ne peut plus être délogé sans pat.",
+          "seek": "Savoir si le roi défenseur atteint le coin, ou si le roi attaquant contrôle l’approche.",
+          "method": "En défense, gagnez le coin. En attaque, ne poussez que si le roi adverse en est écarté.",
+          "avoid": "Jouer un pion de tour nulle comme s’il s’agissait d’un gain obligatoire."
+        },
+        "en": {
+          "principle": "A rook pawn is often drawn: once the defending king reaches the corner he cannot be driven out without stalemate.",
+          "seek": "See whether the defending king reaches the corner, or the attacking king controls the approach.",
+          "method": "In defence, reach the corner. In attack, push only if the enemy king is kept away from it.",
+          "avoid": "Treating a drawn rook pawn as a forced win."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-ROOK-PAWN-DEF-A",
+      "themeId": "rook-pawn",
+      "titleKey": "RookPawn",
+      "initialFen": "k7/8/1K6/P7/8/8/8/8 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "rook-pawn",
+        "defense"
+      ],
+      "variantNote": {
+        "fr": "Pion a5, roi en a8. Seul Kb8 reste dans la zone du coin. Ce n’est pas un gain à forcer.",
+        "en": "Pawn a5, king on a8. Only Kb8 stays in the corner zone. This is not a win to force."
+      },
+      "choiceRationale": "Pawn a5, king on a8. Only Kb8 stays in the corner zone. This is not a win to force.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=k7%2F8%2F1K6%2FP7%2F8%2F8%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a5, king on a8. Only Kb8 stays in the corner zone. This is not a win to force.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Le pion de tour nulle souvent : le roi adverse, au coin, ne peut plus être délogé sans pat.",
+          "seek": "Savoir si le roi défenseur atteint le coin, ou si le roi attaquant contrôle l’approche.",
+          "method": "En défense, gagnez le coin. En attaque, ne poussez que si le roi adverse en est écarté.",
+          "avoid": "Jouer un pion de tour nulle comme s’il s’agissait d’un gain obligatoire."
+        },
+        "en": {
+          "principle": "A rook pawn is often drawn: once the defending king reaches the corner he cannot be driven out without stalemate.",
+          "seek": "See whether the defending king reaches the corner, or the attacking king controls the approach.",
+          "method": "In defence, reach the corner. In attack, push only if the enemy king is kept away from it.",
+          "avoid": "Treating a drawn rook pawn as a forced win."
         }
       }
     },
@@ -280,41 +1614,173 @@
       "initialFen": "8/k7/8/1p6/8/8/6P1/4K3 w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "OFFICIAL_GAME_RESULT" },
-      "targetUserMoves": 5,
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 1, "dtm": 31 },
-      "tags": ["pawn", "pawn-race", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 31,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "race"
+      ],
+      "variantNote": {
+        "fr": "Pions b5 et g2, rois a7 et e1. Un seul coup gagne la course.",
+        "en": "Pawns b5 and g2, kings a7 and e1. Only one move wins the race."
+      },
+      "choiceRationale": "Pawns b5 and g2, kings a7 and e1. Only one move wins the race.",
       "sourceReferences": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/k7/8/1p6/8/8/6P1/4K3_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "White promotes first with a decisive tempo",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Pawn Race",
-          "url": "https://www.chessprogramming.org/Pawn_Race",
-          "consultedAt": "2026-08-23",
-          "principle": "Count tempi to promotion and check after queening",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2Fk7%2F8%2F1p6%2F8%2F8%2F6P1%2F4K3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns b5 and g2, kings a7 and e1. Only one move wins the race.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Split pawns on b5 and g2 — White queens first; calculation of promotion order is the lesson.",
       "explanation": {
         "fr": {
-          "principle": "Dans une course de pions, calculez jusqu’à la promotion : qui promeut en premier, la dame donne-t-elle échec, et qui aura le trait ensuite.",
-          "seek": "Compter les coups exacts jusqu’à la dame pour chaque camp, puis visualiser la position après promotion.",
-          "method": "Poussez votre pion sans détour inutile. Vérifiez si la promotion donne échec ou capture une pièce. Ici les Blancs promeuvent avec un temps d’avance.",
-          "avoid": "Ne jouez pas un coup de roi « au feeling » si le calcul de la course décide déjà la partie."
+          "principle": "Dans une course, comptez jusqu’à la promotion : qui dame en premier, et la dame donne-t-elle échec.",
+          "seek": "Le nombre exact de coups, pas une impression.",
+          "method": "Poussez le pion dont le calcul gagne. Un coup de roi perd souvent un temps.",
+          "avoid": "Oublier l’échec à la promotion ou le trait qui suit."
         },
         "en": {
-          "principle": "In a pawn race, calculate all the way to promotion: who queens first, whether the new queen checks, and who moves next.",
-          "seek": "Count exact moves to a queen for each side, then picture the position after promotion.",
-          "method": "Push your pawn without needless detours. Check whether promotion gives check or captures. Here White queens a tempo ahead.",
-          "avoid": "Do not make a king move « on feel » when the race calculation already decides the game."
+          "principle": "In a race, count to promotion: who queens first, and whether the new queen checks.",
+          "seek": "The exact move count, not a feeling.",
+          "method": "Push the pawn the count says wins. A king move often loses a tempo.",
+          "avoid": "Forgetting the check on promotion or whose move follows."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-RACE-2",
+      "themeId": "pawn-race",
+      "titleKey": "PawnRace",
+      "initialFen": "8/8/8/p5k1/8/8/1P6/2K5 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 7,
+        "dtm": 51,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "race"
+      ],
+      "variantNote": {
+        "fr": "Pions a5 et b2, rois g5 et c1. La course est longue : le calcul va jusqu’à la dame.",
+        "en": "Pawns a5 and b2, kings g5 and c1. The race is long: the count goes all the way to the queen."
+      },
+      "choiceRationale": "Pawns a5 and b2, kings g5 and c1. The race is long: the count goes all the way to the queen.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2Fp5k1%2F8%2F8%2F1P6%2F2K5%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns a5 and b2, kings g5 and c1. The race is long: the count goes all the way to the queen.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Dans une course, comptez jusqu’à la promotion : qui dame en premier, et la dame donne-t-elle échec.",
+          "seek": "Le nombre exact de coups, pas une impression.",
+          "method": "Poussez le pion dont le calcul gagne. Un coup de roi perd souvent un temps.",
+          "avoid": "Oublier l’échec à la promotion ou le trait qui suit."
+        },
+        "en": {
+          "principle": "In a race, count to promotion: who queens first, and whether the new queen checks.",
+          "seek": "The exact move count, not a feeling.",
+          "method": "Push the pawn the count says wins. A king move often loses a tempo.",
+          "avoid": "Forgetting the check on promotion or whose move follows."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-RACE-3",
+      "themeId": "pawn-race",
+      "titleKey": "PawnRace",
+      "initialFen": "8/6k1/8/5p2/8/8/P7/K7 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 25,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "race"
+      ],
+      "variantNote": {
+        "fr": "Les Noirs au trait, pions f5 et a2. Un seul coup gagne, d’autres perdent la course.",
+        "en": "Black to move, pawns f5 and a2. Only one move wins; others lose the race."
+      },
+      "choiceRationale": "Black to move, pawns f5 and a2. Only one move wins; others lose the race.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F6k1%2F8%2F5p2%2F8%2F8%2FP7%2FK7%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black to move, pawns f5 and a2. Only one move wins; others lose the race.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Dans une course, comptez jusqu’à la promotion : qui dame en premier, et la dame donne-t-elle échec.",
+          "seek": "Le nombre exact de coups, pas une impression.",
+          "method": "Poussez le pion dont le calcul gagne. Un coup de roi perd souvent un temps.",
+          "avoid": "Oublier l’échec à la promotion ou le trait qui suit."
+        },
+        "en": {
+          "principle": "In a race, count to promotion: who queens first, and whether the new queen checks.",
+          "seek": "The exact move count, not a feeling.",
+          "method": "Push the pawn the count says wins. A king move often loses a tempo.",
+          "avoid": "Forgetting the check on promotion or whose move follows."
         }
       }
     },
@@ -325,54 +1791,894 @@
       "initialFen": "7k/ppp5/8/PPP5/8/8/8/4K3 w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "OFFICIAL_GAME_RESULT" },
-      "targetUserMoves": 6,
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
       "diagramOrientation": "white",
       "active": true,
+      "contentVersion": "variants-v2",
       "certification": {
         "type": "ENGINE",
-        "engine": "stockfish",
-        "depth": 30,
-        "result": "WIN",
-        "concept": "Classic 3-vs-3 breakthrough: b6! creates an unstoppable passer"
+        "engine": "stockfish-18-lite",
+        "depth": 16,
+        "result": "WIN"
       },
-      "tags": ["pawn", "breakthrough", "canonical"],
+      "proof": {
+        "method": "stockfish-18-lite-depth-16",
+        "confidence": "engine",
+        "playerResult": "WIN",
+        "dtz": null,
+        "dtm": null,
+        "consultedAt": "2026-10-12",
+        "bestMove": "b5b6",
+        "depth": 16,
+        "centipawn": 640
+      },
+      "tags": [
+        "pawn",
+        "breakthrough"
+      ],
+      "variantNote": {
+        "fr": "Percée classique a5-b5-c5 contre a7-b7-c7. Stockfish 18 Lite profondeur 16 : b6, +6,40, dame dans la variante. Ke2 est 0,00. Ce n’est pas une table de finales à 7 pièces.",
+        "en": "Classic break a5-b5-c5 versus a7-b7-c7. Stockfish 18 Lite depth 16: b6, +6.40, with a queen in the line. Ke2 is 0.00. This is not a 7-man tablebase."
+      },
+      "choiceRationale": "Classic break a5-b5-c5 versus a7-b7-c7. Stockfish 18 Lite depth 16: b6, +6.40, with a queen in the line. Ke2 is 0.00. This is not a 7-man tablebase.",
       "sourceReferences": [
         {
-          "name": "Chess Programming Wiki — Pawn Breakthrough",
-          "url": "https://www.chessprogramming.org/Pawn_Breakthrough",
-          "consultedAt": "2026-08-23",
-          "principle": "Sacrificial pawn push creates a distant passer",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Wikipedia — Pawn breakthrough",
-          "url": "https://en.wikipedia.org/wiki/Pawn_breakthrough",
-          "consultedAt": "2026-08-23",
-          "principle": "b6 creates a passed pawn that the enemy king cannot catch",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Lichess tablebase (partial, 8 pieces)",
-          "url": "https://tablebase.lichess.ovh/standard?fen=7k/ppp5/8/PPP5/8/8/8/4K3_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "Category maybe-win / dtc hint consistent with forced breakthrough win",
-          "method": "tablebase-hint"
+          "name": "Stockfish 18 Lite depth 16",
+          "consultedAt": "2026-10-12",
+          "principle": "Classic break a5-b5-c5 versus a7-b7-c7. Stockfish 18 Lite depth 16: b6, +6.40, with a queen in the line. Ke2 is 0.00. This is not a 7-man tablebase.",
+          "method": "stockfish-18-lite-depth-16"
         }
       ],
-      "choiceRationale": "Textbook three-versus-three breakthrough on the queenside. Not a separate « three pawns » theme — the lesson is the sacrificial break b6.",
       "explanation": {
         "fr": {
-          "principle": "Une percée de pions sacrifie un pion pour en créer un passé hors de portée du roi adverse.",
-          "seek": "Identifier le pion à sacrifier, la recapture forcée, et le pion passé qui en résulte.",
-          "method": "Jouez le coup de percée (souvent b6 ici), acceptez la recapture, puis poussez le pion passé nouvellement créé. Le roi adverse arrive trop tard.",
-          "avoid": "Ne poussez pas automatiquement le pion le plus avancé : sans le sacrifice juste, la structure adverse reste solide."
+          "principle": "La percée sacrifie un pion pour en créer un passé hors de portée du roi adverse.",
+          "seek": "Le sacrifice juste, puis le pion passé qui en sort.",
+          "method": "Jouez la percée, acceptez la reprise, poussez le pion passé.",
+          "avoid": "Pousser un autre pion : la structure adverse reste alors fermée."
         },
         "en": {
-          "principle": "A pawn breakthrough sacrifices a pawn to create a passer beyond the enemy king’s reach.",
-          "seek": "Identify the pawn to sacrifice, the forced recapture, and the resulting passed pawn.",
-          "method": "Play the breakthrough move (often b6 here), accept the recapture, then push the newly created passer. The enemy king arrives too late.",
-          "avoid": "Do not automatically push the most advanced pawn — without the right sacrifice, the enemy structure stays solid."
+          "principle": "A breakthrough sacrifices a pawn to create a passer the enemy king cannot catch.",
+          "seek": "The right sacrifice, then the passer that comes out of it.",
+          "method": "Play the break, accept the recapture, push the passer.",
+          "avoid": "Pushing another pawn, which leaves the enemy structure closed."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-BREAKTHROUGH-2",
+      "themeId": "pawn-breakthrough",
+      "titleKey": "PawnBreakthrough",
+      "initialFen": "4k3/8/8/ppp5/PPP5/8/8/4K3 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "ENGINE",
+        "engine": "stockfish-18-lite",
+        "depth": 16,
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "stockfish-18-lite-depth-16",
+        "confidence": "engine",
+        "playerResult": "WIN",
+        "dtz": null,
+        "dtm": null,
+        "consultedAt": "2026-10-12",
+        "bestMove": "b4a5",
+        "depth": 16,
+        "centipawn": 587
+      },
+      "tags": [
+        "pawn",
+        "breakthrough"
+      ],
+      "variantNote": {
+        "fr": "Pions déjà au contact, roi noir en e8. Seule la prise bxa5 perce. À la profondeur 16 le score est d’environ +5,87, pas une table.",
+        "en": "Pawns already in contact, black king on e8. Only bxa5 breaks through. At depth 16 the score is about +5.87, not a tablebase."
+      },
+      "choiceRationale": "Pawns already in contact, black king on e8. Only bxa5 breaks through. At depth 16 the score is about +5.87, not a tablebase.",
+      "sourceReferences": [
+        {
+          "name": "Stockfish 18 Lite depth 16",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns already in contact, black king on e8. Only bxa5 breaks through. At depth 16 the score is about +5.87, not a tablebase.",
+          "method": "stockfish-18-lite-depth-16"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "La percée sacrifie un pion pour en créer un passé hors de portée du roi adverse.",
+          "seek": "Le sacrifice juste, puis le pion passé qui en sort.",
+          "method": "Jouez la percée, acceptez la reprise, poussez le pion passé.",
+          "avoid": "Pousser un autre pion : la structure adverse reste alors fermée."
+        },
+        "en": {
+          "principle": "A breakthrough sacrifices a pawn to create a passer the enemy king cannot catch.",
+          "seek": "The right sacrifice, then the passer that comes out of it.",
+          "method": "Play the break, accept the recapture, push the passer.",
+          "avoid": "Pushing another pawn, which leaves the enemy structure closed."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PAWN-BREAKTHROUGH-3",
+      "themeId": "pawn-breakthrough",
+      "titleKey": "PawnBreakthrough",
+      "initialFen": "8/8/8/3ppp2/3PPP2/8/8/4K2k w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "ENGINE",
+        "engine": "stockfish-18-lite",
+        "depth": 16,
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "stockfish-18-lite-depth-16",
+        "confidence": "engine",
+        "playerResult": "WIN",
+        "dtz": null,
+        "dtm": null,
+        "consultedAt": "2026-10-12",
+        "bestMove": "d4e5",
+        "depth": 16,
+        "centipawn": 735
+      },
+      "tags": [
+        "pawn",
+        "breakthrough"
+      ],
+      "variantNote": {
+        "fr": "Percée centrale d4-e4-f4 contre d5-e5-f5, roi noir en h1. Profondeur 16 : environ +7,35. Autre secteur que l’aile dame.",
+        "en": "Central break d4-e4-f4 versus d5-e5-f5, black king on h1. Depth 16: about +7.35. A different sector from the queenside."
+      },
+      "choiceRationale": "Central break d4-e4-f4 versus d5-e5-f5, black king on h1. Depth 16: about +7.35. A different sector from the queenside.",
+      "sourceReferences": [
+        {
+          "name": "Stockfish 18 Lite depth 16",
+          "consultedAt": "2026-10-12",
+          "principle": "Central break d4-e4-f4 versus d5-e5-f5, black king on h1. Depth 16: about +7.35. A different sector from the queenside.",
+          "method": "stockfish-18-lite-depth-16"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "La percée sacrifie un pion pour en créer un passé hors de portée du roi adverse.",
+          "seek": "Le sacrifice juste, puis le pion passé qui en sort.",
+          "method": "Jouez la percée, acceptez la reprise, poussez le pion passé.",
+          "avoid": "Pousser un autre pion : la structure adverse reste alors fermée."
+        },
+        "en": {
+          "principle": "A breakthrough sacrifices a pawn to create a passer the enemy king cannot catch.",
+          "seek": "The right sacrifice, then the passer that comes out of it.",
+          "method": "Play the break, accept the recapture, push the passer.",
+          "avoid": "Pushing another pawn, which leaves the enemy structure closed."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-OUTSIDE-1",
+      "themeId": "outside-passed",
+      "titleKey": "OutsidePassed",
+      "initialFen": "8/8/3k4/p7/8/6P1/1P6/4K3 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 41,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "outside"
+      ],
+      "variantNote": {
+        "fr": "Pion a5 éloigné contre b2 et g3. b4 perd le gain : il faut traiter le passé sans le pousser dans le roi.",
+        "en": "Outside a5-pawn against b2 and g3. b4 loses the win: the passer must be handled, not pushed into the king."
+      },
+      "choiceRationale": "Outside a5-pawn against b2 and g3. b4 loses the win: the passer must be handled, not pushed into the king.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F3k4%2Fp7%2F8%2F6P1%2F1P6%2F4K3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Outside a5-pawn against b2 and g3. b4 loses the win: the passer must be handled, not pushed into the king.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Un pion passé éloigné attire le roi adverse, puis l’autre aile décide.",
+          "seek": "Le pion qui détourne, et le pion qui reste pour le roi.",
+          "method": "Avancez le passé éloigné pour déplacer le roi adverse, puis prenez l’avantage de l’autre côté.",
+          "avoid": "Une course de promotion à un seul pion, ou pousser le pion qui se fait bloquer."
+        },
+        "en": {
+          "principle": "An outside passed pawn draws the enemy king away, then the other wing decides.",
+          "seek": "The pawn that diverts, and the pawn left for your king.",
+          "method": "Advance the outside passer to pull the enemy king, then take the advantage on the other side.",
+          "avoid": "A one-pawn promotion race, or pushing the pawn that gets blockaded."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-OUTSIDE-2",
+      "themeId": "outside-passed",
+      "titleKey": "OutsidePassed",
+      "initialFen": "8/8/2k5/p7/8/6P1/1P6/4K3 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 41,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "outside"
+      ],
+      "variantNote": {
+        "fr": "Même structure, roi noir en c6 : b4 nulle. Le roi est plus près du pion éloigné, le détour change.",
+        "en": "Same pawns, black king on c6: b4 draws. The king is closer to the outside pawn, so the diversion changes."
+      },
+      "choiceRationale": "Same pawns, black king on c6: b4 draws. The king is closer to the outside pawn, so the diversion changes.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2k5%2Fp7%2F8%2F6P1%2F1P6%2F4K3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Same pawns, black king on c6: b4 draws. The king is closer to the outside pawn, so the diversion changes.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Un pion passé éloigné attire le roi adverse, puis l’autre aile décide.",
+          "seek": "Le pion qui détourne, et le pion qui reste pour le roi.",
+          "method": "Avancez le passé éloigné pour déplacer le roi adverse, puis prenez l’avantage de l’autre côté.",
+          "avoid": "Une course de promotion à un seul pion, ou pousser le pion qui se fait bloquer."
+        },
+        "en": {
+          "principle": "An outside passed pawn draws the enemy king away, then the other wing decides.",
+          "seek": "The pawn that diverts, and the pawn left for your king.",
+          "method": "Advance the outside passer to pull the enemy king, then take the advantage on the other side.",
+          "avoid": "A one-pawn promotion race, or pushing the pawn that gets blockaded."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-OUTSIDE-3",
+      "themeId": "outside-passed",
+      "titleKey": "OutsidePassed",
+      "initialFen": "8/8/6k1/1p6/8/5P2/P7/6K1 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 1,
+        "dtm": 41,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "outside"
+      ],
+      "variantNote": {
+        "fr": "Pion a2 passé et f3, pion noir b5. a4 perd, f4 nulle : l’aile utile n’est pas le coup le plus bruyant.",
+        "en": "Passed a2 and f3, black pawn b5. a4 loses, f4 draws: the useful wing is not the loudest push."
+      },
+      "choiceRationale": "Passed a2 and f3, black pawn b5. a4 loses, f4 draws: the useful wing is not the loudest push.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F6k1%2F1p6%2F8%2F5P2%2FP7%2F6K1%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Passed a2 and f3, black pawn b5. a4 loses, f4 draws: the useful wing is not the loudest push.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Un pion passé éloigné attire le roi adverse, puis l’autre aile décide.",
+          "seek": "Le pion qui détourne, et le pion qui reste pour le roi.",
+          "method": "Avancez le passé éloigné pour déplacer le roi adverse, puis prenez l’avantage de l’autre côté.",
+          "avoid": "Une course de promotion à un seul pion, ou pousser le pion qui se fait bloquer."
+        },
+        "en": {
+          "principle": "An outside passed pawn draws the enemy king away, then the other wing decides.",
+          "seek": "The pawn that diverts, and the pawn left for your king.",
+          "method": "Advance the outside passer to pull the enemy king, then take the advantage on the other side.",
+          "avoid": "A one-pawn promotion race, or pushing the pawn that gets blockaded."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-TRIANGULATION-1",
+      "themeId": "triangulation",
+      "titleKey": "Triangulation",
+      "initialFen": "8/6k1/4p1p1/4P1P1/4K3/8/8/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 11,
+        "dtm": 33,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "triangulation"
+      ],
+      "variantNote": {
+        "fr": "Pions e5-g5 contre e6-g6, roi loin en g7. Kd4, Kd3 ou Ke3 gagnent ; Kf3 et Kf4 nullent. Le détour de roi rend le trait.",
+        "en": "Pawns e5-g5 versus e6-g6, king far on g7. Kd4, Kd3 or Ke3 win; Kf3 and Kf4 draw. The king detour passes the move."
+      },
+      "choiceRationale": "Pawns e5-g5 versus e6-g6, king far on g7. Kd4, Kd3 or Ke3 win; Kf3 and Kf4 draw. The king detour passes the move.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F6k1%2F4p1p1%2F4P1P1%2F4K3%2F8%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns e5-g5 versus e6-g6, king far on g7. Kd4, Kd3 or Ke3 win; Kf3 and Kf4 draw. The king detour passes the move.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "La triangulation perd un temps : le roi fait un triangle pour rendre le trait à l’adversaire en zugzwang.",
+          "seek": "Le détour de roi qui reprend la même case avec l’autre au trait.",
+          "method": "Refusez le coup direct qui cède l’opposition. Contournez, puis revenez.",
+          "avoid": "Croire qu’avancer est toujours gagner un temps."
+        },
+        "en": {
+          "principle": "Triangulation loses a tempo: the king takes a triangle so the opponent has the move in zugzwang.",
+          "seek": "The king detour that returns to the same square with the opponent to move.",
+          "method": "Refuse the direct step that gives up the opposition. Go around, then come back.",
+          "avoid": "Assuming that stepping forward always gains a tempo."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-TRIANGULATION-2",
+      "themeId": "triangulation",
+      "titleKey": "Triangulation",
+      "initialFen": "8/8/8/3k4/1p1P4/1P6/3K4/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 5,
+        "dtm": 37,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "zugzwang"
+      ],
+      "variantNote": {
+        "fr": "Rois d2 et d5, pions b3-d4 contre b4. Seuls Kd3 et Ke3 gagnent : le pas direct ailleurs cède le zugzwang.",
+        "en": "Kings d2 and d5, pawns b3-d4 versus b4. Only Kd3 and Ke3 win: stepping elsewhere gives up the zugzwang."
+      },
+      "choiceRationale": "Kings d2 and d5, pawns b3-d4 versus b4. Only Kd3 and Ke3 win: stepping elsewhere gives up the zugzwang.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F3k4%2F1p1P4%2F1P6%2F3K4%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Kings d2 and d5, pawns b3-d4 versus b4. Only Kd3 and Ke3 win: stepping elsewhere gives up the zugzwang.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "La triangulation perd un temps : le roi fait un triangle pour rendre le trait à l’adversaire en zugzwang.",
+          "seek": "Le détour de roi qui reprend la même case avec l’autre au trait.",
+          "method": "Refusez le coup direct qui cède l’opposition. Contournez, puis revenez.",
+          "avoid": "Croire qu’avancer est toujours gagner un temps."
+        },
+        "en": {
+          "principle": "Triangulation loses a tempo: the king takes a triangle so the opponent has the move in zugzwang.",
+          "seek": "The king detour that returns to the same square with the opponent to move.",
+          "method": "Refuse the direct step that gives up the opposition. Go around, then come back.",
+          "avoid": "Assuming that stepping forward always gains a tempo."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-TRIANGULATION-3",
+      "themeId": "triangulation",
+      "titleKey": "Triangulation",
+      "initialFen": "8/4k3/2p1p3/2P1P3/4K3/8/8/8 w - - 0 1",
+      "playerColor": "white",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "pawn",
+        "zugzwang"
+      ],
+      "variantNote": {
+        "fr": "Même idée de pions doublés, mais le roi noir est en e7 : aux Blancs de tenir la nulle. Kd3 et Kd4 perdent.",
+        "en": "The same doubled pawns, but the black king is on e7: White must hold the draw. Kd3 and Kd4 lose."
+      },
+      "choiceRationale": "The same doubled pawns, but the black king is on e7: White must hold the draw. Kd3 and Kd4 lose.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F4k3%2F2p1p3%2F2P1P3%2F4K3%2F8%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "The same doubled pawns, but the black king is on e7: White must hold the draw. Kd3 and Kd4 lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "La triangulation perd un temps : le roi fait un triangle pour rendre le trait à l’adversaire en zugzwang.",
+          "seek": "Le détour de roi qui reprend la même case avec l’autre au trait.",
+          "method": "Refusez le coup direct qui cède l’opposition. Contournez, puis revenez.",
+          "avoid": "Croire qu’avancer est toujours gagner un temps."
+        },
+        "en": {
+          "principle": "Triangulation loses a tempo: the king takes a triangle so the opponent has the move in zugzwang.",
+          "seek": "The king detour that returns to the same square with the opponent to move.",
+          "method": "Refuse the direct step that gives up the opposition. Go around, then come back.",
+          "avoid": "Assuming that stepping forward always gains a tempo."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-BAD-BISHOP-1",
+      "themeId": "bad-bishop",
+      "titleKey": "BadBishop",
+      "initialFen": "5k2/8/6K1/7P/8/8/2B5/8 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "bishop",
+        "rook-pawn"
+      ],
+      "variantNote": {
+        "fr": "Fou c2 cases claires, pion h5, coin h8 noir. Seul Kg8 mène au coin. Ke7 et Ke8 perdent.",
+        "en": "Light-squared bishop c2, pawn h5, dark corner h8. Only Kg8 leads to the corner. Ke7 and Ke8 lose."
+      },
+      "choiceRationale": "Light-squared bishop c2, pawn h5, dark corner h8. Only Kg8 leads to the corner. Ke7 and Ke8 lose.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=5k2%2F8%2F6K1%2F7P%2F8%2F8%2F2B5%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Light-squared bishop c2, pawn h5, dark corner h8. Only Kg8 leads to the corner. Ke7 and Ke8 lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Fou et pion de tour « mauvais fou » : le fou ne contrôle pas la case de promotion. Le roi qui y entre tient la nulle.",
+          "seek": "Le coin de la couleur opposée au fou.",
+          "method": "Amenez le roi au coin salvateur et n’en sortez plus.",
+          "avoid": "Le coin de la couleur du fou, ou une case où le roi se fait écarter."
+        },
+        "en": {
+          "principle": "Bishop and rook pawn, wrong bishop: the bishop does not control the promotion square. The king that reaches it holds the draw.",
+          "seek": "The corner of the opposite colour to the bishop.",
+          "method": "Bring the king to the saving corner and stay there.",
+          "avoid": "The bishop’s corner, or a square from which the king is driven off."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-BAD-BISHOP-2",
+      "themeId": "bad-bishop",
+      "titleKey": "BadBishop",
+      "initialFen": "1k6/8/P7/1K6/8/8/8/2B5 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "bishop",
+        "rook-pawn"
+      ],
+      "variantNote": {
+        "fr": "Fou c1 cases noires, pion a6, coin a8 clair. Seuls Ka7 et Ka8 nullent.",
+        "en": "Dark-squared bishop c1, pawn a6, light corner a8. Only Ka7 and Ka8 draw."
+      },
+      "choiceRationale": "Dark-squared bishop c1, pawn a6, light corner a8. Only Ka7 and Ka8 draw.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=1k6%2F8%2FP7%2F1K6%2F8%2F8%2F8%2F2B5%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Dark-squared bishop c1, pawn a6, light corner a8. Only Ka7 and Ka8 draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Fou et pion de tour « mauvais fou » : le fou ne contrôle pas la case de promotion. Le roi qui y entre tient la nulle.",
+          "seek": "Le coin de la couleur opposée au fou.",
+          "method": "Amenez le roi au coin salvateur et n’en sortez plus.",
+          "avoid": "Le coin de la couleur du fou, ou une case où le roi se fait écarter."
+        },
+        "en": {
+          "principle": "Bishop and rook pawn, wrong bishop: the bishop does not control the promotion square. The king that reaches it holds the draw.",
+          "seek": "The corner of the opposite colour to the bishop.",
+          "method": "Bring the king to the saving corner and stay there.",
+          "avoid": "The bishop’s corner, or a square from which the king is driven off."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-BAD-BISHOP-3",
+      "themeId": "bad-bishop",
+      "titleKey": "BadBishop",
+      "initialFen": "6k1/8/8/7P/6K1/8/8/5B2 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "bishop",
+        "rook-pawn"
+      ],
+      "variantNote": {
+        "fr": "Fou f1 cases claires, pion h5, roi déjà en g8. Kh8 est le coin ; toutes les cases voisines nullent encore.",
+        "en": "Light-squared bishop f1, pawn h5, king already on g8. h8 is the corner; the neighbouring squares still draw."
+      },
+      "choiceRationale": "Light-squared bishop f1, pawn h5, king already on g8. h8 is the corner; the neighbouring squares still draw.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F8%2F7P%2F6K1%2F8%2F8%2F5B2%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Light-squared bishop f1, pawn h5, king already on g8. h8 is the corner; the neighbouring squares still draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Fou et pion de tour « mauvais fou » : le fou ne contrôle pas la case de promotion. Le roi qui y entre tient la nulle.",
+          "seek": "Le coin de la couleur opposée au fou.",
+          "method": "Amenez le roi au coin salvateur et n’en sortez plus.",
+          "avoid": "Le coin de la couleur du fou, ou une case où le roi se fait écarter."
+        },
+        "en": {
+          "principle": "Bishop and rook pawn, wrong bishop: the bishop does not control the promotion square. The king that reaches it holds the draw.",
+          "seek": "The corner of the opposite colour to the bishop.",
+          "method": "Bring the king to the saving corner and stay there.",
+          "avoid": "The bishop’s corner, or a square from which the king is driven off."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-QUEEN-PAWN-1",
+      "themeId": "queen-vs-pawn",
+      "titleKey": "QueenVsPawn",
+      "initialFen": "8/2P5/1K6/8/8/8/7k/q7 b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 15,
+        "dtm": 23,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "queen",
+        "pawn-7"
+      ],
+      "variantNote": {
+        "fr": "Pion c7, dame a1. Seul Da8 se place devant. Les autres essais nullent ou perdent.",
+        "en": "Pawn c7, queen a1. Only Qa8 gets in front. Other tries draw or lose."
+      },
+      "choiceRationale": "Pawn c7, queen a1. Only Qa8 gets in front. Other tries draw or lose.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F2P5%2F1K6%2F8%2F8%2F8%2F7k%2Fq7%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c7, queen a1. Only Qa8 gets in front. Other tries draw or lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Dame contre pion en 7e : la dame gagne en se plaçant devant ou par des échecs, sauf des exceptions de pion a, c, f ou h selon les rois.",
+          "seek": "La case devant le pion, ou l’exception réelle de cette position.",
+          "method": "Placez la dame devant le pion quand c’est le gain. En nulle théorique, ne forcez pas une ligne perdante.",
+          "avoid": "Traiter toute dame contre pion en 7e comme un gain, ou toute promotion comme une nulle."
+        },
+        "en": {
+          "principle": "Queen versus a pawn on the 7th: the queen wins by getting in front or by checks, except real a, c, f or h cases depending on the kings.",
+          "seek": "The square in front of the pawn, or the real exception of this position.",
+          "method": "Put the queen in front when that wins. In a theoretical draw, do not force a losing try.",
+          "avoid": "Treating every queen versus a 7th-rank pawn as a win, or every promotion as a draw."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-QUEEN-PAWN-2",
+      "themeId": "queen-vs-pawn",
+      "titleKey": "QueenVsPawn",
+      "initialFen": "8/3P4/3K4/8/8/8/8/4q2k b - - 0 1",
+      "playerColor": "black",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 44,
+        "dtm": 47,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "queen",
+        "pawn-7"
+      ],
+      "variantNote": {
+        "fr": "Pion central d7, dame e1, roi en h1. Gain long : plusieurs méthodes, beaucoup de nulles si la dame se trompe de colonne.",
+        "en": "Central pawn d7, queen e1, king on h1. A long win: several methods, many draws if the queen picks the wrong file."
+      },
+      "choiceRationale": "Central pawn d7, queen e1, king on h1. A long win: several methods, many draws if the queen picks the wrong file.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F3P4%2F3K4%2F8%2F8%2F8%2F8%2F4q2k%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Central pawn d7, queen e1, king on h1. A long win: several methods, many draws if the queen picks the wrong file.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Dame contre pion en 7e : la dame gagne en se plaçant devant ou par des échecs, sauf des exceptions de pion a, c, f ou h selon les rois.",
+          "seek": "La case devant le pion, ou l’exception réelle de cette position.",
+          "method": "Placez la dame devant le pion quand c’est le gain. En nulle théorique, ne forcez pas une ligne perdante.",
+          "avoid": "Traiter toute dame contre pion en 7e comme un gain, ou toute promotion comme une nulle."
+        },
+        "en": {
+          "principle": "Queen versus a pawn on the 7th: the queen wins by getting in front or by checks, except real a, c, f or h cases depending on the kings.",
+          "seek": "The square in front of the pawn, or the real exception of this position.",
+          "method": "Put the queen in front when that wins. In a theoretical draw, do not force a losing try.",
+          "avoid": "Treating every queen versus a 7th-rank pawn as a win, or every promotion as a draw."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-QUEEN-PAWN-3",
+      "themeId": "queen-vs-pawn",
+      "titleKey": "QueenVsPawn",
+      "initialFen": "8/5P2/5K2/8/8/8/q7/6k1 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "queen",
+        "pawn-7",
+        "exception"
+      ],
+      "variantNote": {
+        "fr": "Pion f7 et roi f6 : exception. La dame au trait ne force pas le gain. Un coup perd.",
+        "en": "Pawn f7 and king f6: the exception. The queen to move does not force a win. One move loses."
+      },
+      "choiceRationale": "Pawn f7 and king f6: the exception. The queen to move does not force a win. One move loses.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F5P2%2F5K2%2F8%2F8%2F8%2Fq7%2F6k1%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn f7 and king f6: the exception. The queen to move does not force a win. One move loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Dame contre pion en 7e : la dame gagne en se plaçant devant ou par des échecs, sauf des exceptions de pion a, c, f ou h selon les rois.",
+          "seek": "La case devant le pion, ou l’exception réelle de cette position.",
+          "method": "Placez la dame devant le pion quand c’est le gain. En nulle théorique, ne forcez pas une ligne perdante.",
+          "avoid": "Traiter toute dame contre pion en 7e comme un gain, ou toute promotion comme une nulle."
+        },
+        "en": {
+          "principle": "Queen versus a pawn on the 7th: the queen wins by getting in front or by checks, except real a, c, f or h cases depending on the kings.",
+          "seek": "The square in front of the pawn, or the real exception of this position.",
+          "method": "Put the queen in front when that wins. In a theoretical draw, do not force a losing try.",
+          "avoid": "Treating every queen versus a 7th-rank pawn as a win, or every promotion as a draw."
         }
       }
     },
@@ -380,51 +2686,176 @@
       "id": "TE-CANON-LUCENA",
       "themeId": "lucena",
       "titleKey": "Lucena",
-      "initialFen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 4 1",
+      "initialFen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",
       "playerColor": "white",
       "objective": "WIN",
-      "completion": { "type": "OFFICIAL_GAME_RESULT" },
-      "targetUserMoves": 10,
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
       "diagramOrientation": "white",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "WIN", "category": "win", "dtz": 15, "dtm": 41 },
-      "tags": ["rook-endgame", "lucena", "building-bridge", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 15,
+        "dtm": 41,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "lucena"
+      ],
+      "variantNote": {
+        "fr": "Pion b7, roi b8, tour c1 contre tour a2 et roi d8. Pont classique.",
+        "en": "Pawn b7, king b8, rook c1 versus rook a2 and king d8. The classic bridge."
+      },
+      "choiceRationale": "Pawn b7, king b8, rook c1 versus rook a2 and king d8. The classic bridge.",
       "sourceReferences": [
         {
-          "name": "Wikipedia — Lucena position",
-          "url": "https://en.wikipedia.org/wiki/Lucena_position",
-          "consultedAt": "2026-08-23",
-          "principle": "Attacking king on promotion square, pawn on 7th, build the bridge",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Chess Programming Wiki — Rook Endgame",
-          "url": "https://www.chessprogramming.org/Rook_Endgame",
-          "consultedAt": "2026-08-23",
-          "principle": "Bridge-building shields the king from rear checks",
-          "method": "theoretical-reference"
-        },
-        {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=1K1k4/1P6/8/8/8/8/r7/2R5_w_-_-_4_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KRPKR Lucena structure is a tablebase win",
-          "method": "syzygy-wdl"
+          "url": "https://tablebase.lichess.ovh/standard?fen=1K1k4%2F1P6%2F8%2F8%2F8%2F8%2Fr7%2F2R5%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn b7, king b8, rook c1 versus rook a2 and king d8. The classic bridge.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Verified candidate FEN: Kb8, Pb7, Rc1 vs Kd8, Ra2. Non-rook pawn on 7th, attacking king on promotion square, defending king cut off, defending rook on the far side — classic bridge-building win.",
       "explanation": {
         "fr": {
-          "principle": "La Lucena est une finale tour et pion contre tour gagnante : pion sur la 7e, roi sur la case de promotion, roi adverse coupé.",
-          "seek": "Éloigner la tour adverse par un échec, placer sa tour sur la 4e rangée, puis construire le pont pour abriter le roi.",
-          "method": "Donnez échec pour éloigner la tour, amenez votre tour en 4e, avancez le roi hors de la colonne du pion, puis interposez la tour contre les échecs latéraux (le pont).",
-          "avoid": "Ne sortez pas le roi sans le pont : les échecs de la tour adverse empêchent la promotion."
+          "principle": "Lucena : pion en 7e, roi sur la case de promotion, roi adverse coupé. Le pont de la tour abrite le roi.",
+          "seek": "La 4e rangée pour interposer la tour contre les échecs latéraux.",
+          "method": "Éloignez la tour adverse, sortez le roi, interposez la tour (le pont).",
+          "avoid": "Sortir le roi sans le pont : les échecs empêchent la promotion."
         },
         "en": {
-          "principle": "Lucena is a winning rook-and-pawn versus rook ending: pawn on the 7th, king on the promotion square, enemy king cut off.",
-          "seek": "Drive the enemy rook away with a check, plant your rook on the 4th rank, then build the bridge to shelter the king.",
-          "method": "Check to drive the rook away, bring your rook to the 4th, step the king out of the pawn’s file, then interpose the rook against side checks (the bridge).",
-          "avoid": "Do not leave the king without the bridge — enemy rook checks will stop promotion."
+          "principle": "Lucena: pawn on the 7th, king on the promotion square, enemy king cut off. The rook bridge shelters the king.",
+          "seek": "The 4th rank, to interpose the rook against side checks.",
+          "method": "Drive the enemy rook away, step the king out, interpose the rook (the bridge).",
+          "avoid": "Stepping the king out without the bridge: checks stop promotion."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-LUCENA-2",
+      "themeId": "lucena",
+      "titleKey": "Lucena",
+      "initialFen": "4K2k/4P3/8/8/8/8/r7/4R3 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 5,
+        "dtm": 15,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "lucena"
+      ],
+      "variantNote": {
+        "fr": "Pion e7, roi e8, roi noir en h8, tour noire en a2. Autre colonne, roi adverse dans le coin.",
+        "en": "Pawn e7, king e8, black king on h8, black rook on a2. Another file, the enemy king in the corner."
+      },
+      "choiceRationale": "Pawn e7, king e8, black king on h8, black rook on a2. Another file, the enemy king in the corner.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=4K2k%2F4P3%2F8%2F8%2F8%2F8%2Fr7%2F4R3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e7, king e8, black king on h8, black rook on a2. Another file, the enemy king in the corner.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Lucena : pion en 7e, roi sur la case de promotion, roi adverse coupé. Le pont de la tour abrite le roi.",
+          "seek": "La 4e rangée pour interposer la tour contre les échecs latéraux.",
+          "method": "Éloignez la tour adverse, sortez le roi, interposez la tour (le pont).",
+          "avoid": "Sortir le roi sans le pont : les échecs empêchent la promotion."
+        },
+        "en": {
+          "principle": "Lucena: pawn on the 7th, king on the promotion square, enemy king cut off. The rook bridge shelters the king.",
+          "seek": "The 4th rank, to interpose the rook against side checks.",
+          "method": "Drive the enemy rook away, step the king out, interpose the rook (the bridge).",
+          "avoid": "Stepping the king out without the bridge: checks stop promotion."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-LUCENA-3",
+      "themeId": "lucena",
+      "titleKey": "Lucena",
+      "initialFen": "3K1k2/3P4/8/8/8/8/6r1/3R4 w - - 0 1",
+      "playerColor": "white",
+      "objective": "WIN",
+      "objectiveKind": "win",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "white",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "WIN",
+        "dtz": 5,
+        "dtm": 17,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "lucena"
+      ],
+      "variantNote": {
+        "fr": "Pion d7, rois d8 et f8, tour noire en g2. Le pont se construit sur une autre aile.",
+        "en": "Pawn d7, kings d8 and f8, black rook on g2. The bridge is built on another wing."
+      },
+      "choiceRationale": "Pawn d7, kings d8 and f8, black rook on g2. The bridge is built on another wing.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=3K1k2%2F3P4%2F8%2F8%2F8%2F8%2F6r1%2F3R4%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn d7, kings d8 and f8, black rook on g2. The bridge is built on another wing.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Lucena : pion en 7e, roi sur la case de promotion, roi adverse coupé. Le pont de la tour abrite le roi.",
+          "seek": "La 4e rangée pour interposer la tour contre les échecs latéraux.",
+          "method": "Éloignez la tour adverse, sortez le roi, interposez la tour (le pont).",
+          "avoid": "Sortir le roi sans le pont : les échecs empêchent la promotion."
+        },
+        "en": {
+          "principle": "Lucena: pawn on the 7th, king on the promotion square, enemy king cut off. The rook bridge shelters the king.",
+          "seek": "The 4th rank, to interpose the rook against side checks.",
+          "method": "Drive the enemy rook away, step the king out, interpose the rook (the bridge).",
+          "avoid": "Stepping the king out without the bridge: checks stop promotion."
         }
       }
     },
@@ -432,51 +2863,530 @@
       "id": "TE-CANON-PHILIDOR",
       "themeId": "philidor",
       "titleKey": "Philidor",
-      "initialFen": "4k3/R7/1r6/4PK2/8/8/8/8 w - - 0 1",
+      "initialFen": "4k3/R7/1r6/4PK2/8/8/8/8 b - - 0 1",
       "playerColor": "black",
       "objective": "DRAW",
-      "completion": { "type": "OFFICIAL_GAME_RESULT" },
-      "targetUserMoves": 8,
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
       "diagramOrientation": "black",
       "active": true,
-      "certification": { "type": "SYZYGY", "result": "DRAW", "category": "draw", "dtz": 0, "dtm": 0 },
-      "tags": ["rook-endgame", "philidor", "third-rank-defense", "canonical"],
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "philidor"
+      ],
+      "variantNote": {
+        "fr": "Tour b6, pion e5, rois e8 et f5. Le trait est aux Noirs, qui tiennent la 6e. Huit coups perdent.",
+        "en": "Rook b6, pawn e5, kings e8 and f5. Black is to move and holds the 6th. Eight moves lose."
+      },
+      "choiceRationale": "Rook b6, pawn e5, kings e8 and f5. Black is to move and holds the 6th. Eight moves lose.",
       "sourceReferences": [
         {
-          "name": "Wikipedia — Philidor position",
-          "url": "https://en.wikipedia.org/wiki/Philidor_position",
-          "consultedAt": "2026-08-23",
-          "principle": "Defending king in front of pawn, rook on the third rank holds the draw",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Exeter Chess Club — Rook endings theory",
-          "url": "https://www.exeterchessclub.org.uk/content/rook-endings-theory",
-          "consultedAt": "2026-08-23",
-          "principle": "Third-rank barrier until the pawn reaches the 6th, then checks from behind",
-          "method": "theoretical-reference"
-        },
-        {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=4k3/R7/1r6/4PK2/8/8/8/8_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KRPKR Philidor structure is a tablebase draw with correct defence",
-          "method": "syzygy-wdl"
+          "url": "https://tablebase.lichess.ovh/standard?fen=4k3%2FR7%2F1r6%2F4PK2%2F8%2F8%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Rook b6, pawn e5, kings e8 and f5. Black is to move and holds the 6th. Eight moves lose.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Mission candidate FEN verified: Kf5, Pe5, Ra7 vs Ke8, Rb6. White to move; trainee plays Black. Stockfish moves first, then Black holds the third-rank defence.",
       "explanation": {
         "fr": {
-          "principle": "La Philidor est une défense nulle : roi devant le pion, tour sur la 3e rangée de défense pour empêcher le roi adverse d’avancer.",
-          "seek": "Maintenir la barrière de 3e rangée tant que le pion n’a pas atteint la 6e, puis reculer la tour et donner des échecs par derrière.",
-          "method": "Gardez le roi sur la case de promotion du pion. Laissez la tour sur la 3e rangée. Quand le pion arrive en 6e, basculez la tour derrière le roi adverse et multipliez les échecs.",
-          "avoid": "Ne quittez pas trop tôt la 3e rangée et n’attaquez pas prématurément le pion : la barrière est la clé de la nulle."
+          "principle": "Philidor : nulle. La tour tient la rangée devant le pion tant qu’il n’est pas en 6e, puis passe derrière pour les échecs.",
+          "seek": "La barrière, puis les échecs par derrière quand le pion avance.",
+          "method": "Gardez la tour sur la rangée critique. Quand le pion arrive en 6e, basculez derrière le roi adverse.",
+          "avoid": "Quitter la barrière trop tôt, ou attaquer le pion sans raison."
         },
         "en": {
-          "principle": "Philidor is a drawing defence: king in front of the pawn, rook on the defending third rank to keep the enemy king out.",
-          "seek": "Hold the third-rank barrier until the pawn reaches the 6th, then drop the rook back and check from behind.",
-          "method": "Keep the king on the pawn’s promotion square. Leave the rook on the third rank. When the pawn reaches the 6th, swing the rook behind the enemy king and give checks.",
-          "avoid": "Do not leave the third rank too early or attack the pawn prematurely — the barrier is the key to the draw."
+          "principle": "Philidor is a draw. The rook holds the rank in front of the pawn until the 6th, then swings behind for checks.",
+          "seek": "The barrier, then checks from behind once the pawn advances.",
+          "method": "Keep the rook on the critical rank. When the pawn reaches the 6th, drop behind the enemy king.",
+          "avoid": "Leaving the barrier too early, or attacking the pawn for no reason."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PHILIDOR-2",
+      "themeId": "philidor",
+      "titleKey": "Philidor",
+      "initialFen": "2k5/8/r7/2P5/2K5/8/8/2R5 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "philidor"
+      ],
+      "variantNote": {
+        "fr": "Pion c5, tour a6, roi c8 devant le pion. La barrière est sur la 6e, colonne c.",
+        "en": "Pawn c5, rook a6, king c8 in front of the pawn. The barrier is on the 6th, c-file."
+      },
+      "choiceRationale": "Pawn c5, rook a6, king c8 in front of the pawn. The barrier is on the 6th, c-file.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=2k5%2F8%2Fr7%2F2P5%2F2K5%2F8%2F8%2F2R5%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c5, rook a6, king c8 in front of the pawn. The barrier is on the 6th, c-file.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Philidor : nulle. La tour tient la rangée devant le pion tant qu’il n’est pas en 6e, puis passe derrière pour les échecs.",
+          "seek": "La barrière, puis les échecs par derrière quand le pion avance.",
+          "method": "Gardez la tour sur la rangée critique. Quand le pion arrive en 6e, basculez derrière le roi adverse.",
+          "avoid": "Quitter la barrière trop tôt, ou attaquer le pion sans raison."
+        },
+        "en": {
+          "principle": "Philidor is a draw. The rook holds the rank in front of the pawn until the 6th, then swings behind for checks.",
+          "seek": "The barrier, then checks from behind once the pawn advances.",
+          "method": "Keep the rook on the critical rank. When the pawn reaches the 6th, drop behind the enemy king.",
+          "avoid": "Leaving the barrier too early, or attacking the pawn for no reason."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-PHILIDOR-3",
+      "themeId": "philidor",
+      "titleKey": "Philidor",
+      "initialFen": "8/8/3r1k2/3P4/3K4/8/8/3R4 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "philidor"
+      ],
+      "variantNote": {
+        "fr": "Le roi n’est pas encore devant : seul Re7 nulle. La tour en d6 ne suffit pas si le roi reste en f6.",
+        "en": "The king is not yet in front: only Ke7 draws. The rook on d6 is not enough if the king stays on f6."
+      },
+      "choiceRationale": "The king is not yet in front: only Ke7 draws. The rook on d6 is not enough if the king stays on f6.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F3r1k2%2F3P4%2F3K4%2F8%2F8%2F3R4%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "The king is not yet in front: only Ke7 draws. The rook on d6 is not enough if the king stays on f6.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Philidor : nulle. La tour tient la rangée devant le pion tant qu’il n’est pas en 6e, puis passe derrière pour les échecs.",
+          "seek": "La barrière, puis les échecs par derrière quand le pion avance.",
+          "method": "Gardez la tour sur la rangée critique. Quand le pion arrive en 6e, basculez derrière le roi adverse.",
+          "avoid": "Quitter la barrière trop tôt, ou attaquer le pion sans raison."
+        },
+        "en": {
+          "principle": "Philidor is a draw. The rook holds the rank in front of the pawn until the 6th, then swings behind for checks.",
+          "seek": "The barrier, then checks from behind once the pawn advances.",
+          "method": "Keep the rook on the critical rank. When the pawn reaches the 6th, drop behind the enemy king.",
+          "avoid": "Leaving the barrier too early, or attacking the pawn for no reason."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-LATERAL-1",
+      "themeId": "lateral-checks",
+      "titleKey": "LateralChecks",
+      "initialFen": "8/8/4k3/8/4P3/4K3/r7/4R3 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "lateral"
+      ],
+      "variantNote": {
+        "fr": "Pion e4, roi e3, tour a2. Ra3+ et Ra4 tiennent ; Re2+ est trop proche et perd.",
+        "en": "Pawn e4, king e3, rook a2. Ra3+ and Ra4 hold; Re2+ is too close and loses."
+      },
+      "choiceRationale": "Pawn e4, king e3, rook a2. Ra3+ and Ra4 hold; Re2+ is too close and loses.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F4k3%2F8%2F4P3%2F4K3%2Fr7%2F4R3%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e4, king e3, rook a2. Ra3+ and Ra4 hold; Re2+ is too close and loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Les échecs latéraux : la tour échec sur la rangée, assez loin pour que le roi ne puisse pas à la fois sortir et attaquer la tour.",
+          "seek": "La distance d’échec. Un échec trop proche perd la tour ou le pion.",
+          "method": "Échec depuis l’aile, à trois files au moins. Répétez tant que le roi s’approche.",
+          "avoid": "Un échec collé au roi, ou une tour passive sans échec quand le roi entre."
+        },
+        "en": {
+          "principle": "Lateral checks: the rook checks along the rank, far enough that the king cannot both step out and attack the rook.",
+          "seek": "Checking distance. A check that is too close loses the rook or the pawn.",
+          "method": "Check from the flank, at least three files away. Repeat while the king approaches.",
+          "avoid": "A check next to the king, or a passive rook with no check once the king comes in."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-LATERAL-2",
+      "themeId": "lateral-checks",
+      "titleKey": "LateralChecks",
+      "initialFen": "2k5/8/2P5/1K6/7r/8/8/2R5 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "lateral"
+      ],
+      "variantNote": {
+        "fr": "Pion c6 déjà avancé, tour h4. Les échecs longs sur la 4e tiennent ; Rb4+ est trop court.",
+        "en": "Pawn c6 already advanced, rook h4. Long checks on the 4th hold; Rb4+ is too short."
+      },
+      "choiceRationale": "Pawn c6 already advanced, rook h4. Long checks on the 4th hold; Rb4+ is too short.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=2k5%2F8%2F2P5%2F1K6%2F7r%2F8%2F8%2F2R5%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c6 already advanced, rook h4. Long checks on the 4th hold; Rb4+ is too short.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Les échecs latéraux : la tour échec sur la rangée, assez loin pour que le roi ne puisse pas à la fois sortir et attaquer la tour.",
+          "seek": "La distance d’échec. Un échec trop proche perd la tour ou le pion.",
+          "method": "Échec depuis l’aile, à trois files au moins. Répétez tant que le roi s’approche.",
+          "avoid": "Un échec collé au roi, ou une tour passive sans échec quand le roi entre."
+        },
+        "en": {
+          "principle": "Lateral checks: the rook checks along the rank, far enough that the king cannot both step out and attack the rook.",
+          "seek": "Checking distance. A check that is too close loses the rook or the pawn.",
+          "method": "Check from the flank, at least three files away. Repeat while the king approaches.",
+          "avoid": "A check next to the king, or a passive rook with no check once the king comes in."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-LATERAL-3",
+      "themeId": "lateral-checks",
+      "titleKey": "LateralChecks",
+      "initialFen": "6k1/8/6P1/5K2/r7/8/8/6R1 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "lateral"
+      ],
+      "variantNote": {
+        "fr": "Pion g6, roi f5, tour a4. Ra4+ tient à distance ; Re4 perd.",
+        "en": "Pawn g6, king f5, rook a4. Ra4+ keeps the distance; Re4 loses."
+      },
+      "choiceRationale": "Pawn g6, king f5, rook a4. Ra4+ keeps the distance; Re4 loses.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F6P1%2F5K2%2Fr7%2F8%2F8%2F6R1%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn g6, king f5, rook a4. Ra4+ keeps the distance; Re4 loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Les échecs latéraux : la tour échec sur la rangée, assez loin pour que le roi ne puisse pas à la fois sortir et attaquer la tour.",
+          "seek": "La distance d’échec. Un échec trop proche perd la tour ou le pion.",
+          "method": "Échec depuis l’aile, à trois files au moins. Répétez tant que le roi s’approche.",
+          "avoid": "Un échec collé au roi, ou une tour passive sans échec quand le roi entre."
+        },
+        "en": {
+          "principle": "Lateral checks: the rook checks along the rank, far enough that the king cannot both step out and attack the rook.",
+          "seek": "Checking distance. A check that is too close loses the rook or the pawn.",
+          "method": "Check from the flank, at least three files away. Repeat while the king approaches.",
+          "avoid": "A check next to the king, or a passive rook with no check once the king comes in."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-VANCURA-1",
+      "themeId": "vancura",
+      "titleKey": "Vancura",
+      "initialFen": "8/8/2r5/P7/8/6k1/8/K6R b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "vancura"
+      ],
+      "variantNote": {
+        "fr": "Pion a5, tour c6. Seuls Rc5 (attaque latérale), Rf4 et Rg4 nullent. La prise du pion n’est pas immédiate.",
+        "en": "Pawn a5, rook c6. Only Rc5 (lateral attack), Kf4 and Kg4 draw. The pawn cannot be taken at once."
+      },
+      "choiceRationale": "Pawn a5, rook c6. Only Rc5 (lateral attack), Kf4 and Kg4 draw. The pawn cannot be taken at once.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2r5%2FP7%2F8%2F6k1%2F8%2FK6R%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a5, rook c6. Only Rc5 (lateral attack), Kf4 and Kg4 draw. The pawn cannot be taken at once.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Vancura : la tour défense tient la nulle contre tour et pion de tour en attaquant le pion de côté, pas en se plaçant derrière.",
+          "seek": "La rangée du pion, à distance du roi adverse qui voudrait le soutenir.",
+          "method": "Passez sur la rangée du pion. Quand le roi approche, échec latéral et retour.",
+          "avoid": "Rester derrière le pion, ou quitter la rangée sans échec."
+        },
+        "en": {
+          "principle": "Vancura: the defending rook draws against rook and rook pawn by attacking the pawn from the side, not from behind.",
+          "seek": "The pawn’s rank, at a distance from the enemy king that wants to support it.",
+          "method": "Swing to the pawn’s rank. When the king approaches, check from the side and return.",
+          "avoid": "Staying behind the pawn, or leaving the rank without a check."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-VANCURA-2",
+      "themeId": "vancura",
+      "titleKey": "Vancura",
+      "initialFen": "4k3/8/8/2r5/P7/8/8/K5R1 b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "vancura"
+      ],
+      "variantNote": {
+        "fr": "Pion a4, tour déjà en c5 sur la rangée du pion. Rester sur la 5e nulle ; Rg5 et Rc1+ perdent.",
+        "en": "Pawn a4, rook already on c5 on the pawn’s rank. Staying on the 5th draws; Rg5 and Rc1+ lose."
+      },
+      "choiceRationale": "Pawn a4, rook already on c5 on the pawn’s rank. Staying on the 5th draws; Rg5 and Rc1+ lose.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=4k3%2F8%2F8%2F2r5%2FP7%2F8%2F8%2FK5R1%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a4, rook already on c5 on the pawn’s rank. Staying on the 5th draws; Rg5 and Rc1+ lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Vancura : la tour défense tient la nulle contre tour et pion de tour en attaquant le pion de côté, pas en se plaçant derrière.",
+          "seek": "La rangée du pion, à distance du roi adverse qui voudrait le soutenir.",
+          "method": "Passez sur la rangée du pion. Quand le roi approche, échec latéral et retour.",
+          "avoid": "Rester derrière le pion, ou quitter la rangée sans échec."
+        },
+        "en": {
+          "principle": "Vancura: the defending rook draws against rook and rook pawn by attacking the pawn from the side, not from behind.",
+          "seek": "The pawn’s rank, at a distance from the enemy king that wants to support it.",
+          "method": "Swing to the pawn’s rank. When the king approaches, check from the side and return.",
+          "avoid": "Staying behind the pawn, or leaving the rank without a check."
+        }
+      }
+    },
+    {
+      "id": "TE-CANON-VANCURA-3",
+      "themeId": "vancura",
+      "titleKey": "Vancura",
+      "initialFen": "6k1/8/8/P2r4/8/8/8/K6R b - - 0 1",
+      "playerColor": "black",
+      "objective": "DRAW",
+      "objectiveKind": "draw",
+      "completion": {
+        "type": "OFFICIAL_GAME_RESULT"
+      },
+      "diagramOrientation": "black",
+      "active": true,
+      "contentVersion": "variants-v2",
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "proof": {
+        "method": "syzygy-7",
+        "confidence": "exact",
+        "playerResult": "DRAW",
+        "dtz": 0,
+        "dtm": 0,
+        "consultedAt": "2026-10-12"
+      },
+      "tags": [
+        "rook",
+        "vancura"
+      ],
+      "variantNote": {
+        "fr": "Pion a5, tour d5. La rangée du pion tient ; descendre en d4, d3, d6 ou d7 perd.",
+        "en": "Pawn a5, rook d5. The pawn’s rank holds; dropping to d4, d3, d6 or d7 loses."
+      },
+      "choiceRationale": "Pawn a5, rook d5. The pawn’s rank holds; dropping to d4, d3, d6 or d7 loses.",
+      "sourceReferences": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F8%2FP2r4%2F8%2F8%2F8%2FK6R%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a5, rook d5. The pawn’s rank holds; dropping to d4, d3, d6 or d7 loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "explanation": {
+        "fr": {
+          "principle": "Vancura : la tour défense tient la nulle contre tour et pion de tour en attaquant le pion de côté, pas en se plaçant derrière.",
+          "seek": "La rangée du pion, à distance du roi adverse qui voudrait le soutenir.",
+          "method": "Passez sur la rangée du pion. Quand le roi approche, échec latéral et retour.",
+          "avoid": "Rester derrière le pion, ou quitter la rangée sans échec."
+        },
+        "en": {
+          "principle": "Vancura: the defending rook draws against rook and rook pawn by attacking the pawn from the side, not from behind.",
+          "seek": "The pawn’s rank, at a distance from the enemy king that wants to support it.",
+          "method": "Swing to the pawn’s rank. When the king approaches, check from the side and return.",
+          "avoid": "Staying behind the pawn, or leaving the rank without a check."
         }
       }
     }

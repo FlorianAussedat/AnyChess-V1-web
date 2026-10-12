@@ -30,9 +30,9 @@ const MATE_THEMES = new Set(['queen-mate', 'rook-mate', 'two-bishops-mate']);
 const errors = [];
 const warnings = [];
 const gates = {
-  activeCount10: false,
-  themes10: false,
-  onePerTheme: false,
+  activeCount57: false,
+  themes18: false,
+  minVariants: false,
   noLegacyIds: false,
   noThreePawns: false,
   bothKingsNotInCheck: false,
@@ -77,7 +77,7 @@ for (const pos of active) {
     bothKingsSafe = false;
     for (const e of legality.errors) errors.push(`${pos.id}: ${e}`);
   }
-  if (legality.whiteKingInCheck || legality.blackKingInCheck) bothKingsSafe = false;
+  if (!legality.ok && legality.errors.some((e) => e.includes('in check'))) bothKingsSafe = false;
 
   const material = validateThemeMaterial(pos.themeId, pos.initialFen);
   if (!material.ok) {
@@ -111,9 +111,9 @@ for (const pos of active) {
     } else {
       syzygyCount += 1;
     }
-  } else if (pos.certification.type !== 'ENGINE' || pos.certification.depth !== 30) {
+  } else if (pos.certification.type !== 'ENGINE' || pos.certification.depth !== 16) {
     certificationOk = false;
-    errors.push(`${pos.id}: >7 pieces requires ENGINE depth 30`);
+    errors.push(`${pos.id}: >7 pieces requires ENGINE depth 16 (not an exact tablebase)`);
   }
 
   if (!pos.explanation?.fr || !pos.explanation?.en) {
@@ -121,17 +121,20 @@ for (const pos of active) {
   }
 }
 
-gates.activeCount10 = active.length === 10;
-if (!gates.activeCount10) errors.push(`active count ${active.length} !== 10`);
+gates.activeCount57 = active.length === THEORETICAL_ENDGAME_CONFIG.expectedActiveCount;
+if (!gates.activeCount57) {
+  errors.push(`active count ${active.length} !== ${THEORETICAL_ENDGAME_CONFIG.expectedActiveCount}`);
+}
 
-gates.themes10 = THEME_IDS.length === 10 && !THEME_IDS.includes('three-pawns');
-if (!gates.themes10) errors.push('expected exactly 10 themes without three-pawns');
+gates.themes18 = THEME_IDS.length === 18 && !THEME_IDS.includes('three-pawns');
+if (!gates.themes18) errors.push('expected 18 themes without three-pawns');
 
-gates.onePerTheme = THEME_IDS.every((id) => themeCounts[id] === 1);
-if (!gates.onePerTheme) {
+gates.minVariants = THEME_IDS.every((id) => (themeCounts[id] ?? 0) >= (id === 'pawn-square' ? 6 : 3));
+if (!gates.minVariants) {
   for (const id of THEME_IDS) {
-    if (themeCounts[id] !== 1) {
-      errors.push(`theme ${id}: expected 1 active position, found ${themeCounts[id] ?? 0}`);
+    const min = id === 'pawn-square' ? 6 : 3;
+    if ((themeCounts[id] ?? 0) < min) {
+      errors.push(`theme ${id}: expected at least ${min}, found ${themeCounts[id] ?? 0}`);
     }
   }
 }

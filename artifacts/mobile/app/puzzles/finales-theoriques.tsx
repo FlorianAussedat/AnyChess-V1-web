@@ -25,6 +25,8 @@ import {
   getCatalogView,
   setCatalogView,
   getAllThemeScores,
+  getAllLegacyScores,
+  formatLegacyScore,
   pickRandomFromActiveThemes,
   getLastPositionId,
   pickPositionInTheme,
@@ -56,6 +58,7 @@ export default function TheoreticalEndgameCatalogScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewMode, setViewMode] = useState<CatalogViewMode>('cards');
   const [scores, setScores] = useState<Record<string, { score: number; count: number }>>({});
+  const [legacyScores, setLegacyScores] = useState<Record<string, { score: number; count: number }>>({});
   const [allMasteredMsg, setAllMasteredMsg] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [explanationThemeId, setExplanationThemeId] = useState<TheoreticalThemeId | null>(null);
@@ -79,6 +82,7 @@ export default function TheoreticalEndgameCatalogScreen() {
   const refresh = useCallback(async () => {
     setViewMode(await getCatalogView());
     setScores(await getAllThemeScores());
+    setLegacyScores(await getAllLegacyScores());
   }, []);
 
   useEffect(() => {
@@ -195,6 +199,16 @@ export default function TheoreticalEndgameCatalogScreen() {
             {scoreLabel}
             {mastered ? ` · ${t('quiz.theoreticalCompleted')}` : ''}
           </Text>
+          {(legacyScores[item.theme.id]?.count ?? 0) > 0 && (
+            <Text
+              style={{ color: colors.mutedForeground, fontSize: 12, textAlign: 'center' }}
+              testID={`theoretical-theme-legacy-${item.theme.id}`}
+            >
+              {t('quiz.theoreticalLegacyBadge', {
+                score: formatLegacyScore(legacyScores[item.theme.id]!.score),
+              })}
+            </Text>
+          )}
         </Pressable>
         <Pressable
           onPress={() => setExplanationThemeId(item.theme.id)}
@@ -236,6 +250,13 @@ export default function TheoreticalEndgameCatalogScreen() {
               {title}
             </Text>
             <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{scoreLabel}</Text>
+            {(legacyScores[item.theme.id]?.count ?? 0) > 0 && (
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                {t('quiz.theoreticalLegacyBadge', {
+                  score: formatLegacyScore(legacyScores[item.theme.id]!.score),
+                })}
+              </Text>
+            )}
             {mastered && (
               <Text style={{ color: '#398a55', fontSize: 12 }}>{t('quiz.theoreticalCompleted')}</Text>
             )}
