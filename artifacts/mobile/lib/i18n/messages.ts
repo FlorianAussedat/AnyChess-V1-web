@@ -218,9 +218,13 @@ export type MessageKey =
   | 'cloud.statusPending'
   | 'cloud.statusError'
   | 'cloud.statusOffline'
+  | 'cloud.statusWaitingWifi'
   | 'cloud.statusSignedOut'
   | 'cloud.statusUnconfigured'
   | 'cloud.syncNow'
+  | 'cloud.syncOnCellularTitle'
+  | 'cloud.syncOnCellularBody'
+  | 'cloud.syncOnCellularConfirm'
   | 'cloud.unconfiguredHint'
   | 'cloud.signedInAs'
   | 'cloud.errorInvalid'
@@ -251,6 +255,7 @@ export type MessageKey =
   | 'account.avatarCrop'
   | 'account.avatarUseFull'
   | 'account.avatarZoom'
+  | 'account.avatarUnsupported'
   | 'account.usernameRequired'
   | 'account.delete'
   | 'account.deleteTitle'
@@ -1016,6 +1021,7 @@ export type MessageKey =
   | 'settings.engineStrength'
   | 'settings.stockfishStrength'
   | 'settings.stockfishStrengthHint'
+  | 'settings.syncWifiOnly'
   | 'settings.translation'
   | 'settings.translateExistingPgn'
   | 'settings.translateImportedPgn'
@@ -1430,9 +1436,14 @@ const fr: Dict = {
   'cloud.statusPending': 'Synchronisation en cours…',
   'cloud.statusError': 'Erreur de synchronisation',
   'cloud.statusOffline': 'Hors ligne — synchro au retour du réseau',
+  'cloud.statusWaitingWifi': 'En attente du Wi-Fi',
   'cloud.statusSignedOut': 'Non connecté',
   'cloud.statusUnconfigured': 'Cloud non configuré',
   'cloud.syncNow': 'Synchroniser',
+  'cloud.syncOnCellularTitle': 'Synchroniser en données mobiles ?',
+  'cloud.syncOnCellularBody':
+    'Les modifications restent sur cet appareil jusqu’au Wi-Fi. Synchroniser maintenant quand même ?',
+  'cloud.syncOnCellularConfirm': 'Synchroniser maintenant',
   'cloud.unconfiguredHint':
     'Ajoutez EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY (offre gratuite). La clé DeepL reste sur le serveur de traduction.',
   'cloud.signedInAs': 'Connecté : {{email}}',
@@ -1465,6 +1476,8 @@ const fr: Dict = {
   'account.avatarCrop': 'Recadrer',
   'account.avatarUseFull': 'Image entière',
   'account.avatarZoom': 'Recadrage',
+  'account.avatarUnsupported':
+    'Ce format ne peut pas être recadré sur cette version. L’ancienne photo est conservée.',
   'account.usernameRequired': 'Indique un pseudo.',
   'account.delete': 'Supprimer mon compte',
   'account.deleteTitle': 'Supprimer le compte ?',
@@ -2318,6 +2331,7 @@ const fr: Dict = {
   'settings.stockfishStrength': 'Niveau adversaire Stockfish',
   'settings.stockfishStrengthHint':
     'Utilisé en Partie classique et lorsque tu sors du répertoire en Ouvertures.',
+  'settings.syncWifiOnly': 'Synchroniser uniquement en Wi-Fi',
   'settings.translation': 'Traduction',
   'settings.translateExistingPgn':
     'Traduire les commentaires des PGN déjà importés',
@@ -2752,9 +2766,14 @@ const en: Dict = {
   'cloud.statusPending': 'Syncing…',
   'cloud.statusError': 'Sync error',
   'cloud.statusOffline': 'Offline — will sync when the network returns',
+  'cloud.statusWaitingWifi': 'Waiting for Wi-Fi',
   'cloud.statusSignedOut': 'Signed out',
   'cloud.statusUnconfigured': 'Cloud not configured',
   'cloud.syncNow': 'Sync now',
+  'cloud.syncOnCellularTitle': 'Sync on mobile data?',
+  'cloud.syncOnCellularBody':
+    'Changes stay on this device until Wi-Fi. Sync once now anyway?',
+  'cloud.syncOnCellularConfirm': 'Sync now',
   'cloud.unconfiguredHint':
     'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (free plan). The DeepL key stays on the translation server.',
   'cloud.signedInAs': 'Signed in: {{email}}',
@@ -2787,6 +2806,8 @@ const en: Dict = {
   'account.avatarCrop': 'Crop',
   'account.avatarUseFull': 'Full image',
   'account.avatarZoom': 'Crop',
+  'account.avatarUnsupported':
+    'This format cannot be cropped in this version. The previous photo is kept.',
   'account.usernameRequired': 'Enter a username.',
   'account.delete': 'Delete my account',
   'account.deleteTitle': 'Delete the account?',
@@ -3634,6 +3655,7 @@ const en: Dict = {
   'settings.stockfishStrength': 'Stockfish opponent level',
   'settings.stockfishStrengthHint':
     'Used in Classic play and when you leave the repertoire in Openings training.',
+  'settings.syncWifiOnly': 'Sync on Wi-Fi only',
   'settings.translation': 'Translation',
   'settings.translateExistingPgn':
     'Translate comments in previously imported PGNs',

@@ -6,9 +6,12 @@ export function avatarCacheKey(userId: string): string {
   return `anychess.avatar.cache.${userId}`;
 }
 
+export type PendingAvatarIntent = 'upload' | 'remove';
+
 export type PendingAvatar = {
   email: string;
   dataUrl: string;
+  intent: PendingAvatarIntent;
 };
 
 export function normalizeAvatarEmail(email: string): string {
@@ -19,10 +22,12 @@ export async function savePendingAvatar(
   storage: KeyValueStorage,
   email: string,
   dataUrl: string,
+  intent: PendingAvatarIntent = 'upload',
 ): Promise<void> {
   const pending: PendingAvatar = {
     email: normalizeAvatarEmail(email),
     dataUrl,
+    intent,
   };
   await storage.setItem(PENDING_AVATAR_KEY, JSON.stringify(pending));
 }
@@ -37,8 +42,9 @@ export async function readPendingAvatar(
     if (!parsed || typeof parsed.email !== 'string' || typeof parsed.dataUrl !== 'string') {
       return null;
     }
-    if (!parsed.dataUrl.startsWith('data:image/')) return null;
-    return { email: normalizeAvatarEmail(parsed.email), dataUrl: parsed.dataUrl };
+    const intent = parsed.intent === 'remove' ? 'remove' : 'upload';
+    if (intent === 'upload' && !parsed.dataUrl.startsWith('data:image/')) return null;
+    return { email: normalizeAvatarEmail(parsed.email), dataUrl: parsed.dataUrl, intent };
   } catch {
     return null;
   }

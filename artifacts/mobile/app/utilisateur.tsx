@@ -31,12 +31,8 @@ import {
   CHESS_YEARS_MIN,
 } from '@/lib/profile';
 import { cloudSyncEngine } from '@/lib/cloud';
-import {
-  cacheRemoteAvatar,
-  removeLocalAndRemoteAvatar,
-  uploadAvatarObject,
-} from '@/lib/profile/avatarRemote';
-import { readAvatarCache, savePendingAvatar, writeAvatarCache } from '@/lib/profile/avatarLocal';
+import { cacheRemoteAvatar, commitAvatarChange } from '@/lib/profile/avatarRemote';
+import { normalizeAvatarEmail, readAvatarCache, readPendingAvatar } from '@/lib/profile/avatarLocal';
 import { defaultKeyValueStorage } from '@/lib/storage';
 import { repertoireService } from '@/lib/repertoire';
 import {
@@ -85,6 +81,15 @@ export default function UtilisateurScreen() {
     }
     let cancelled = false;
     void (async () => {
+      const pending = await readPendingAvatar(defaultKeyValueStorage);
+      if (cancelled) return;
+      if (
+        pending?.intent === 'remove' &&
+        pending.email === normalizeAvatarEmail(user.email)
+      ) {
+        setAvatarUri(null);
+        return;
+      }
       const cached = await readAvatarCache(defaultKeyValueStorage, user.id);
       if (cancelled) return;
       if (cached) {
@@ -110,26 +115,20 @@ export default function UtilisateurScreen() {
   const onAvatarChange = async (dataUrl: string | null) => {
     const user = cloud.user;
     if (!user) return;
-    const token = cloudSyncEngine.getAccessToken();
-    if (!dataUrl) {
-      setAvatarUri(null);
-      await removeLocalAndRemoteAvatar({
-        storage: defaultKeyValueStorage,
-        userId: user.id,
-        accessToken: token,
-      });
+    const previous = avatarUri;
+    const result = await commitAvatarChange({
+      storage: defaultKeyValueStorage,
+      userId: user.id,
+      email: user.email,
+      accessToken: cloudSyncEngine.getAccessToken(),
+      dataUrl,
+    });
+    if (result === 'failed') {
+      setAvatarUri(previous);
       return;
     }
+    if (result === 'waiting_wifi') cloudSyncEngine.markWaitingForWifi();
     setAvatarUri(dataUrl);
-    await writeAvatarCache(defaultKeyValueStorage, user.id, dataUrl);
-    const uploaded = token
-      ? await uploadAvatarObject(user.id, token, dataUrl)
-      : false;
-    if (uploaded) {
-      await updateProfile({ hasAvatar: true });
-      return;
-    }
-    await savePendingAvatar(defaultKeyValueStorage, user.email, dataUrl);
   };
 
   const summaryLine = useMemo(() => {
@@ -224,22 +223,16 @@ export default function UtilisateurScreen() {
         style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}
         testID="profil-summary"
       >
-        <View style={styles.identity}>
-          <AvatarField
-            username={profile.username}
-            imageUri={avatarUri}
-            onChange={(next) => {
-              void onAvatarChange(next);
-            }}
-            testID="profil-avatar"
-          />
-          <View style={styles.identityText}>
-            <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>
-            <Text style={[styles.summaryHint, { color: colors.mutedForeground }]}>
-              {t('profil.localData')}
-            </Text>
-          </View>
-        </View>
+        <AvatarField
+          username={profile.username}
+          imageUri={avatarUri}
+          onChange={(next) => {
+            void onAvatarChange(next);
+          }}
+          testID="profil-avatar"
+        >
+          <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>
+        </AvatarField>
       </View>
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
@@ -499,12 +492,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: DesignTokens.typography.weightRegular,
   },
-  identity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  identityText: { flex: 1, gap: 4 },
   summaryCard: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.lg,
@@ -514,10 +501,6 @@ const styles = StyleSheet.create({
   summaryName: {
     fontSize: 18,
     fontFamily: DesignTokens.typography.weightBold,
-  },
-  summaryHint: {
-    fontSize: 12,
-    fontFamily: DesignTokens.typography.weightRegular,
   },
   sectionLabel: {
     marginTop: DesignTokens.spacing.sm,

@@ -17,6 +17,6 @@ export function useCloudAccount() {
     recoverPassword: (email: string) => cloudSyncEngine.recoverPassword(email),
     resendSignupConfirmation: (email: string) => cloudSyncEngine.resendSignupConfirmation(email),
     dismissPendingConfirmation: () => cloudSyncEngine.dismissPendingConfirmation(),
-    sync: () => cloudSyncEngine.sync(),
+    sync: (options?: { allowCellular?: boolean }) => cloudSyncEngine.sync(options),
   };
 }

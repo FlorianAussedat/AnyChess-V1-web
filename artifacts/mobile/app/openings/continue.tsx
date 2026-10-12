@@ -112,6 +112,7 @@ export default function ContinueLineScreen() {
   const folderIdRef = useRef(mixedFolderIds[0]);
   const activeFolderIdRef = useRef<string | null>(null);
   const reviewLineRef = useRef<{ fileId: string; pathId: string } | null>(null);
+  const reviewSideRef = useRef<'white' | 'black' | undefined>(undefined);
   const reviewRecordedRef = useRef(false);
 
   useEffect(() => {
@@ -179,6 +180,7 @@ export default function ContinueLineScreen() {
       if (fromOrigin === 'review') {
         const existing = eph && eph.origin === 'review' && !ephConsumedRef.current ? eph : null;
         ephConsumedRef.current = true;
+        if (existing?.side) reviewSideRef.current = existing.side;
         const sessionData = existing
           ? eph!
           : (() => {
@@ -187,10 +189,13 @@ export default function ContinueLineScreen() {
                   repertoireService.getFolders(),
                   repertoireService.getAllFiles(),
                 ),
+                undefined,
+                reviewSideRef.current,
               );
               return pick ? applyReviewPick(pick, 'review') : null;
             })();
         if (sessionData) {
+          reviewSideRef.current = sessionData.side;
           const rep = repertoireFromSans(sessionData.pathSans);
           const path = rep.trainingPaths?.[0];
           const session = sessionRef.current;

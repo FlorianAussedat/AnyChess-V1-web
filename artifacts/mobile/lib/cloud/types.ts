@@ -1,4 +1,11 @@
-export type CloudSyncStatus = 'unconfigured' | 'signed_out' | 'synced' | 'pending' | 'error' | 'offline';
+export type CloudSyncStatus =
+  | 'unconfigured'
+  | 'signed_out'
+  | 'synced'
+  | 'pending'
+  | 'error'
+  | 'offline'
+  | 'waiting_wifi';
 
 export type PendingConfirmationReason = 'signup' | 'signin';
 

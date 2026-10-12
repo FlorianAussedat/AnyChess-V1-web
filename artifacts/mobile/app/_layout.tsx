@@ -21,6 +21,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { holdNativeSplash } from '@/lib/brand/holdNativeSplash';
 import { preferencesStore } from '@/lib/preferences';
 import { bindCloudLifecycle, hydrateCloudSession } from '@/lib/cloud';
 import { runStorageMigrations } from '@/lib/storage';
@@ -31,7 +32,7 @@ import {
 } from '@/lib/pgnComments';
 import { useReleaseEphemeralOpeningSession } from '@/hooks/useReleaseEphemeralOpeningSession';
 
-SplashScreen.preventAutoHideAsync();
+holdNativeSplash();
 
 const queryClient = new QueryClient();
 

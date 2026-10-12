@@ -1,18 +1,30 @@
 import { cloudSyncEngine } from './cloudStore.ts';
+import { subscribeSyncTransport } from './syncTransport.ts';
+import type { CloudSyncStatus } from './types.ts';
+import type { SyncTransport } from './wifiSyncPolicy.ts';
 
-export function onCloudAppState(state: string): void {
-  if (state !== 'active') return;
+const RESUME_STATUSES: CloudSyncStatus[] = ['pending', 'offline', 'error', 'waiting_wifi'];
+
+function resumeCloudSync(): void {
   const { status, user } = cloudSyncEngine.getState();
-  if (user && (status === 'pending' || status === 'offline' || status === 'error')) {
+  if (user && RESUME_STATUSES.includes(status)) {
     void cloudSyncEngine.sync();
   }
 }
 
+export function onCloudAppState(state: string): void {
+  if (state !== 'active') return;
+  resumeCloudSync();
+}
+
 export function onCloudNetworkOnline(): void {
-  const { status, user } = cloudSyncEngine.getState();
-  if (user && (status === 'pending' || status === 'offline' || status === 'error')) {
-    void cloudSyncEngine.sync();
-  }
+  resumeCloudSync();
+}
+
+/** Resume only when the link is known to be Wi-Fi. Offline stays offline. */
+export function onSyncTransportChange(transport: SyncTransport): void {
+  if (transport !== 'wifi') return;
+  resumeCloudSync();
 }
 
 let bound = false;
@@ -51,6 +63,7 @@ export function bindCloudLifecycle(): () => void {
       offlineRemove?.call(globalThis, 'online', onCloudNetworkOnline);
     });
   }
+  cleanups.push(subscribeSyncTransport(onSyncTransportChange));
   unbind = () => {
     bound = false;
     for (const cleanup of cleanups) cleanup();

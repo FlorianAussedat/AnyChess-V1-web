@@ -1,4 +1,5 @@
-import { pickBalanced, trainingPaths } from '../continueLine/RepertoireBranchSelector';
+import { trainingPaths } from '../continueLine/RepertoireBranchSelector';
+import { uniformLineIndex } from '../repertoire/pickReviewLine';
 import type { ContinueLinePath } from '../continueLine/types';
 /**
  * Move-source providers used by Opening Game Mode.
@@ -28,7 +29,6 @@ export interface MoveProvider {
 /** Selects opponent moves from a merged repertoire tree. */
 export class OpeningMoveProvider implements MoveProvider {
   private selectedPath: ContinueLinePath | null = null;
-  private recent: string[] = [];
 
   newGame(): void { this.selectedPath = null; }
 
@@ -40,7 +40,6 @@ export class OpeningMoveProvider implements MoveProvider {
   setRepertoire(repertoire: ParsedRepertoire): void {
     this.repertoire = repertoire;
     this.selectedPath = null;
-    this.recent = [];
   }
 
   /** All book moves for a FEN, or empty when out of book. */
@@ -60,8 +59,8 @@ export class OpeningMoveProvider implements MoveProvider {
       path.sans.length > history.length && history.every((san, index) => path.sans[index] === san) &&
       path.fensBefore[history.length]?.split(' ').slice(0, 4).join(' ') === fen.split(' ').slice(0, 4).join(' '));
     if (this.settings.mode === 'uniform-random' && !candidates.some(p => p.id === this.selectedPath?.id)) {
-      this.selectedPath = pickBalanced(candidates, p => p.id, this.recent, this.settings.rng ?? Math.random);
-      if (this.selectedPath) this.recent = [this.selectedPath.id, ...this.recent.filter(id => id !== this.selectedPath!.id)];
+      const index = uniformLineIndex(candidates.length, this.settings.rng ?? Math.random);
+      this.selectedPath = candidates[index] ?? null;
     }
     const choice = this.settings.mode === 'uniform-random' && this.selectedPath && candidates.some(p => p.id === this.selectedPath!.id)
       ? this.selectedPath.choices[history.length]

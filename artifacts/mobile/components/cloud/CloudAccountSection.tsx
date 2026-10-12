@@ -7,6 +7,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { DeleteAccountControl } from '@/components/cloud/DeleteAccountControl';
 import { confirmationResendWaitSeconds } from '@/lib/cloud';
+import { decideCloudTransfer } from '@/lib/cloud/syncTransport';
+import { confirmAction } from '@/lib/openings/confirmAction';
 import { consumeAuthReturn } from '@/lib/cloud/authReturn';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
 import type { MessageKey } from '@/lib/i18n/messages';
@@ -27,10 +29,16 @@ export const AUTH_ERROR_KEYS: Record<CloudAuthError, MessageKey> = {
 
 function backupStatusKey(
   status: CloudSyncStatus,
-): 'cloud.statusSynced' | 'cloud.statusPending' | 'cloud.statusError' | 'cloud.statusOffline' {
+):
+  | 'cloud.statusSynced'
+  | 'cloud.statusPending'
+  | 'cloud.statusError'
+  | 'cloud.statusOffline'
+  | 'cloud.statusWaitingWifi' {
   if (status === 'synced') return 'cloud.statusSynced';
   if (status === 'error') return 'cloud.statusError';
   if (status === 'offline') return 'cloud.statusOffline';
+  if (status === 'waiting_wifi') return 'cloud.statusWaitingWifi';
   return 'cloud.statusPending';
 }
 
@@ -237,7 +245,21 @@ export function CloudAccountSection() {
             testID="cloud-sync"
             disabled={busy}
             onPress={() => {
-              void cloud.sync();
+              void (async () => {
+                const decision = await decideCloudTransfer(false);
+                if (decision.defer) {
+                  confirmAction(
+                    t('cloud.syncOnCellularTitle'),
+                    t('cloud.syncOnCellularBody'),
+                    () => {
+                      void cloud.sync({ allowCellular: true });
+                    },
+                    { confirmLabel: t('cloud.syncOnCellularConfirm') },
+                  );
+                  return;
+                }
+                void cloud.sync();
+              })();
             }}
             style={[styles.btn, { borderColor: colors.border }]}
           >
