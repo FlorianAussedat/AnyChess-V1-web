@@ -45,16 +45,36 @@ export type PositionCertification =
   | { type: 'SYZYGY'; result: TheoreticalObjective }
   | { type: 'ENGINE'; engine: string; depth: number; result: TheoreticalObjective };
 
+/**
+ * WDL category returned by the source.
+ * Exact only when confidence is 'exact'. An engine category is a search
+ * conclusion, not a tablebase result, and it is not a mate distance.
+ */
+export type ProofCategory = 'win' | 'draw' | 'loss';
+
 /** How the catalog proof was obtained. Play never calls this service. */
 export type PositionProof = {
   method: 'syzygy-7' | 'stockfish-18-lite-depth-16';
   /** exact = 7-man tablebase. engine = deep search, not a tablebase proof. */
   confidence: 'exact' | 'engine';
-  /** Theoretical result from the user's side at the start. */
+  category: ProofCategory;
+  /** Theoretical result from the user's side at the start. Same outcome as category, not a distance. */
   playerResult: 'WIN' | 'DRAW' | 'LOSS';
+  /** Table DTZ. 0 on a draw is the measured zeroing distance, not a mate. */
   dtz: number | null;
-  /** Exact distance to mate in plies when confidence is exact and the side is winning. */
+  /**
+   * Mate distance in plies. Null when the source did not provide one:
+   * draws (a Syzygy 0 is not mate-in-zero) and engine searches that only
+   * returned centipawns.
+   */
   dtm: number | null;
+  /**
+   * DTM field as returned by the source, before a draw sentinel is discarded.
+   * Syzygy draws were consulted as 0. That 0 stays here and is not `dtm`.
+   */
+  dtmReported: number | null;
+  /** Where the numbers came from. Play does not call this source. */
+  source: 'lichess-syzygy' | 'stockfish-18-lite';
   consultedAt: string;
   bestMove?: string;
   depth?: number;
@@ -147,9 +167,8 @@ export type QualityGrade = {
     | 'interrupted'
     | 'unevaluated'
     | 'mate-distance'
-    | 'mechanism'
-    | 'draw-without-mechanism';
-  /** Measured detours (user moves beyond exact DTM, or mechanism slack). */
+    | 'mechanism';
+  /** Measured detours (wasted tempi on the positions faced, or mechanism slack). */
   extra: number | null;
   commentFr: string;
   commentEn: string;

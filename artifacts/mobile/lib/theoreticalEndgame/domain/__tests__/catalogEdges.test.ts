@@ -6,8 +6,9 @@ import { describe, it } from 'node:test';
 import { Chess } from 'chess.js';
 import { THEORETICAL_ENDGAME_POOL } from '../../data/pool.generated.ts';
 import { validateFenLegality, validateThemeMaterial } from '../fenLegality.ts';
-import { assessDefense } from '../defenseFinish.ts';
+import { assessDefense, defensePlayEnd } from '../defenseFinish.ts';
 import { meetsObjective } from '../theoreticalResult.ts';
+import { THEORETICAL_ENDGAME_CONFIG } from '../types.ts';
 
 describe('injected invalid positions', () => {
   it('rejects an illegal check, adjacent kings, and a terminal start', () => {
@@ -134,6 +135,84 @@ describe('defence finish', () => {
       objective: 'DRAW',
     });
     assert.equal(missed.complete, false);
+  });
+});
+
+const DEFENSIVE_THEMES = [
+  'philidor',
+  'vancura',
+  'bad-bishop',
+  'lateral-checks',
+  'pawn-square',
+  'rook-pawn',
+] as const;
+
+describe('defence end conditions', () => {
+  const positions = THEORETICAL_ENDGAME_POOL.filter(
+    (p) => p.objective === 'DRAW' && DEFENSIVE_THEMES.includes(p.themeId as (typeof DEFENSIVE_THEMES)[number]),
+  );
+
+  it('covers every defensive theme and does not finish on the start position', () => {
+    assert.ok(positions.length >= DEFENSIVE_THEMES.length);
+    const themes = new Set(positions.map((p) => p.themeId));
+    for (const theme of DEFENSIVE_THEMES) assert.equal(themes.has(theme), true, theme);
+    for (const pos of positions) {
+      const start = assessDefense({
+        themeId: pos.themeId,
+        initialFen: pos.initialFen,
+        sans: [],
+        playerColor: pos.playerColor,
+        objective: 'DRAW',
+      });
+      assert.equal(start.complete, false, pos.id);
+      assert.equal(start.demonstrated, false, pos.id);
+    }
+  });
+
+  it('does not treat a quiet move or an equal position as an immediate success', () => {
+    for (const pos of positions) {
+      const game = new Chess(pos.initialFen);
+      const quiet = game.moves({ verbose: true }).find((move) => {
+        const assessed = assessDefense({
+          themeId: pos.themeId,
+          initialFen: pos.initialFen,
+          sans: [move.san],
+          playerColor: pos.playerColor,
+          objective: 'DRAW',
+        });
+        return !assessed.complete;
+      });
+      assert.ok(quiet, `${pos.id} has no move that leaves the exercise open`);
+      const assessed = assessDefense({
+        themeId: pos.themeId,
+        initialFen: pos.initialFen,
+        sans: [quiet!.san],
+        playerColor: pos.playerColor,
+        objective: 'DRAW',
+      });
+      assert.equal(assessed.complete, false, pos.id);
+      assert.equal(
+        defensePlayEnd({ complete: false, userMoves: 1, cap: THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap }),
+        'continue',
+        pos.id,
+      );
+    }
+  });
+
+  it('stops at the technical cap instead of running without an end', () => {
+    assert.equal(
+      defensePlayEnd({
+        complete: false,
+        userMoves: THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap,
+        cap: THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap,
+      }),
+      'interrupted',
+    );
+    assert.equal(
+      defensePlayEnd({ complete: true, userMoves: 1, cap: THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap }),
+      'success',
+    );
+    assert.ok(THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap < 1000);
   });
 });
 

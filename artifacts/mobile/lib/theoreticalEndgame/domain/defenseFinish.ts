@@ -32,6 +32,21 @@ export type DefenseAssessment = {
   complete: boolean;
 };
 
+/**
+ * End of a scored defensive exercise.
+ * A 0.00 evaluation is not an input: only a demonstrated finish, or the
+ * technical cap, stops the loop. The cap is not a grade.
+ */
+export function defensePlayEnd(input: {
+  complete: boolean;
+  userMoves: number;
+  cap: number;
+}): 'continue' | 'success' | 'interrupted' {
+  if (input.complete) return 'success';
+  if (input.userMoves >= input.cap) return 'interrupted';
+  return 'continue';
+}
+
 const FILES = 'abcdefgh';
 
 function sideOf(color: PlayerColor): 'w' | 'b' {

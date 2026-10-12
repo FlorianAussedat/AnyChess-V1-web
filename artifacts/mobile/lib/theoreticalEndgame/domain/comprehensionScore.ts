@@ -2,31 +2,28 @@
  * Theoretical endgame grade — scale quality-5 (theoretical-quality-v1).
  *
  * Unit: a "coup" is one move by the user, from their side. It is not a ply
- * and not a full move (White+Black). Time and the old target-move count are
- * not inputs.
+ * and not a full move (White+Black). Time and any target-move count are
+ * not inputs. The initial mate distance is not a target for the whole game.
  *
  * Failure is 0. Abandon and technical interruption have no grade.
  * A success is 1, 1.5, …, 5. Half-points are the only fractions.
  * 0 is never used for a success.
  *
- * Two different measurements, never mixed into a centipawn conversion:
+ * Winning line. Each user decision is the position they actually faced and
+ * the position immediately after their move, before the opponent replies.
+ * wasted plies = max(0, dtmAfter - (dtmBefore - 1)).
+ * extra = ceil(sum of wasted plies / 2), plus 4 per temporary loss of the
+ * result that was later recovered on a complete trace.
+ * A reply that shortens the mate changes only the next dtmBefore. It does
+ * not cancel tempi already lost. Keeping the same distance is already waste.
  *
- * 1. Exact mate distance (Syzygy DTM, plies, user to move at the start).
- *    Minimum user moves = ceil(DTM / 2). That is the shortest win against
- *    perfect defence, not a stored pedagogical target.
- *    extra = max(0, userMoves - minimum) + 4 per temporary loss of the
- *    result that was later recovered.
- *    Several moves that keep the same DTM all score 5. A different winning
- *    method that is longer scores the extra moves only.
+ * Draw. Slack counts user moves that leave a demonstrated idea (barrier,
+ * lateral rook, saving corner, checking distance, capture, square).
+ * A recognised alternative is graded the same way. A success whose method
+ * was not measured has no grade: "Qualité non évaluée", never an automatic 2.
  *
- * 2. Theme mechanism (draws and fortresses). Slack counts user moves that
- *    leave the demonstrated idea (barrier, lateral rook, saving corner,
- *    checking distance). A repetition that keeps the idea is not slack.
- *    A regulatory draw that never shows the idea scores 2 (fragile), not 5.
- *
- * If neither exact DTM nor a mechanism measurement is available, the score
- * is null and the comment is "Qualité non évaluée". The objective result is
- * still reported. Missing data is never filled with 5.
+ * If any winning decision has no reliable distance, or a draw has no
+ * measured mechanism, the score is null. Missing data is never filled with 5.
  *
  * Bands (extra = measured detours):
  *   0 → 5   mastered
@@ -42,20 +39,32 @@
  * single tempo is smaller than "several detours" (3+).
  */
 import type { AttemptOutcome, QualityGrade, ScoreScaleId } from './types.ts';
+import { wastedPlies } from './mateDistance.ts';
 
 export const QUALITY_SCORE_VERSION = 'theoretical-quality-v1' as const;
 
 export type GradeOutcome = AttemptOutcome;
 
 export type GradeDecision = {
-  resultAfterReply: 'WIN' | 'DRAW' | 'LOSS' | null;
+  resultAfterReply?: 'WIN' | 'DRAW' | 'LOSS' | null;
+  /** Mate distance in plies, user to move, before this move. */
+  dtmBefore?: number | null;
+  /**
+   * Mate distance in plies immediately after this move, before the reply.
+   * 0 means the user has just checkmated.
+   */
+  dtmAfter?: number | null;
 };
 
 export type GradeInput = {
   outcome: GradeOutcome;
   objective: 'WIN' | 'DRAW';
   userMoves: number;
-  initialMatePlies: number | null;
+  /**
+   * Ignored. Kept so older callers cannot silently revive a target based on
+   * the starting distance. The path is `decisions`.
+   */
+  initialMatePlies?: number | null;
   mechanism?: { demonstrated: boolean; slackMoves: number } | null;
   decisions?: GradeDecision[];
 };
@@ -109,28 +118,48 @@ function commentForExtra(extra: number, kind: 'mate' | 'mechanism'): { fr: strin
           en: 'Mastered and efficient: the mechanism is kept without slack.',
         };
   }
+  const frUnit = kind === 'mate' ? 'temps' : n > 1 ? 'coups' : 'coup';
+  const enUnit = kind === 'mate' ? (n > 1 ? 'tempos' : 'tempo') : n > 1 ? 'moves' : 'move';
+  const perdu = n > 1 ? 'perdus' : 'perdu';
   if (n <= 2) {
     return {
-      fr: `Bonne maîtrise, quelques détours (${n} coup${n > 1 ? 's' : ''} de plus que la mesure exacte).`,
-      en: `Very good control, small detours (${n} move${n > 1 ? 's' : ''} beyond the exact measure).`,
+      fr: `Bonne maîtrise, quelques détours (${n} ${frUnit} ${perdu} sur les positions rencontrées).`,
+      en: `Very good control, small detours (${n} ${enUnit} lost on the positions actually faced).`,
     };
   }
   if (n <= 6) {
     return {
-      fr: `Bonne réalisation, plusieurs détours (${n} coups de plus que la mesure exacte).`,
-      en: `Good play, several detours (${n} moves beyond the exact measure).`,
+      fr: `Bonne réalisation, plusieurs détours (${n} ${frUnit} ${perdu} sur les positions rencontrées).`,
+      en: `Good play, several detours (${n} ${enUnit} lost on the positions actually faced).`,
     };
   }
   if (n <= 12) {
     return {
-      fr: `Méthode fragile (${n} coups de plus que la mesure exacte).`,
-      en: `Fragile method (${n} moves beyond the exact measure).`,
+      fr: `Méthode fragile (${n} ${frUnit} ${perdu} sur les positions rencontrées).`,
+      en: `Fragile method (${n} ${enUnit} lost on the positions actually faced).`,
     };
   }
   return {
-    fr: `Objectif atteint avec beaucoup de détours (${n} coups de plus que la mesure exacte).`,
-    en: `Objective reached with many detours (${n} moves beyond the exact measure).`,
+    fr: `Objectif atteint avec beaucoup de détours (${n} ${frUnit} ${perdu} sur les positions rencontrées).`,
+    en: `Objective reached with many detours (${n} ${enUnit} lost on the positions actually faced).`,
   };
+}
+
+function matePathExtra(
+  decisions: GradeDecision[] | undefined,
+): { extra: number } | { missing: true } {
+  if (!decisions || decisions.length === 0) return { missing: true };
+  let waste = 0;
+  for (const decision of decisions) {
+    const before = decision.dtmBefore;
+    const after = decision.dtmAfter;
+    if (before == null || after == null) return { missing: true };
+    if (!Number.isInteger(before) || !Number.isInteger(after) || before < 0 || after < 0) {
+      return { missing: true };
+    }
+    waste += wastedPlies(before, after);
+  }
+  return { extra: Math.ceil(waste / 2) };
 }
 
 function countRecoveries(
@@ -182,16 +211,19 @@ export function gradeQuality(input: GradeInput): QualityGrade {
   }
 
   const recovery = countRecoveries(input.objective, input.decisions);
-  // An incomplete trace must not erase an exact measure, and must not invent dips.
+  // A missing result trace must not invent dips. It also must not invent a mate distance.
   const dipPenalty = recovery.missing ? 0 : recovery.dips * 4;
 
-  if (
-    input.objective === 'WIN' &&
-    input.initialMatePlies != null &&
-    input.initialMatePlies > 0
-  ) {
-    const minimum = Math.ceil(input.initialMatePlies / 2);
-    const extra = Math.max(0, input.userMoves - minimum) + dipPenalty;
+  if (input.objective === 'WIN') {
+    const path = matePathExtra(input.decisions);
+    if ('missing' in path) {
+      return EMPTY_GRADE(
+        'unevaluated',
+        'Qualité non évaluée.',
+        'Quality not evaluated.',
+      );
+    }
+    const extra = path.extra + dipPenalty;
     const text = commentForExtra(extra, 'mate');
     return {
       scale: 'quality-5',
@@ -204,20 +236,7 @@ export function gradeQuality(input: GradeInput): QualityGrade {
     };
   }
 
-  if (input.mechanism) {
-    if (!input.mechanism.demonstrated) {
-      const extra = 12 + dipPenalty;
-      const text = commentForExtra(extra, 'mechanism');
-      return {
-        scale: 'quality-5',
-        version: QUALITY_SCORE_VERSION,
-        score: gradeFromExtra(extra),
-        reason: 'draw-without-mechanism',
-        extra,
-        commentFr: `Nulle obtenue sans le mécanisme demandé. ${text.fr}`,
-        commentEn: `Draw reached without the required mechanism. ${text.en}`,
-      };
-    }
+  if (input.mechanism?.demonstrated) {
     const extra = Math.max(0, input.mechanism.slackMoves) + dipPenalty;
     const text = commentForExtra(extra, 'mechanism');
     return {

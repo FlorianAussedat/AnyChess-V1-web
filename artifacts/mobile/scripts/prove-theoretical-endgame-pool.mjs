@@ -95,14 +95,20 @@ async function checkOne(pos) {
     if (n <= 7) {
       const tb = await syzygy(pos.initialFen);
       method = 'syzygy-7 exact';
-      const dtmOk = pos.objective !== 'WIN' || tb.dtm === pos.proof?.dtm;
+      const reportedDtm = tb.dtm == null ? null : tb.dtm;
+      const mateDtm = tb.category === 'win' && typeof reportedDtm === 'number' && reportedDtm > 0 ? reportedDtm : null;
+      const dtmOk =
+        pos.objective === 'WIN'
+          ? reportedDtm === pos.proof?.dtm && pos.proof?.dtm > 0
+          : pos.proof?.dtm == null && pos.proof?.dtmReported === reportedDtm;
       const dtzOk = tb.dtz === pos.proof?.dtz;
-      const ok = categoryMatches(pos.objective, tb.category) && dtmOk && dtzOk;
+      const categoryOk = pos.proof?.category === tb.category && categoryMatches(pos.objective, tb.category);
+      const ok = categoryOk && dtmOk && dtzOk;
       if (!ok) {
         status = 'rejected';
         failed += 1;
       }
-      detail = `category=${tb.category} dtz=${tb.dtz} dtm=${tb.dtm}`;
+      detail = `category=${tb.category} dtz=${tb.dtz} dtm=${mateDtm == null ? 'null' : mateDtm} dtmReported=${reportedDtm == null ? 'null' : reportedDtm} source=lichess-syzygy`;
     } else {
       const found = await stockfishBest(pos.initialFen);
       method = 'stockfish-18-lite depth 16 (not exact)';

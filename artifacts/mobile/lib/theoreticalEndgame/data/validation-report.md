@@ -2,67 +2,67 @@
 
 Généré le 2026-10-12T12:30:53.694Z. 57 variantes actives, 0 en échec.
 
-Méthode : table Syzygy Lichess pour 7 pièces ou moins (exacte, point de vue du trait). Stockfish 18 Lite profondeur 16 pour les percées à 8 pièces : recherche, pas une table. Le jeu n’appelle ni l’un ni l’autre.
+Méthode : table Syzygy Lichess pour 7 pièces ou moins (exacte, point de vue du trait). Chaque ligne conserve la catégorie, le DTZ, le DTM ou null, la source et la méthode. Une catégorie exacte n’est pas une distance de mat : les nulles ont été consultées avec `dtm = 0`, sentinelle conservée dans `dtmReported`, et `dtm` est null. Stockfish 18 Lite profondeur 16 pour les percées à 8 pièces : recherche, centipions, pas une table et pas une DTM. Le jeu n’appelle ni l’un ni l’autre. Les décisions intermédiaires, hors de ce rapport, sont mesurées dans la partie par le mat annoncé du moteur de l’appareil ; voir `SCORING.md`.
 
 | id | camp | objectif | statut | méthode | détail |
 | --- | --- | --- | --- | --- | --- |
-| TE-CANON-QUEEN-MATE | white | WIN | verified | syzygy-7 exact | category=win dtz=13 dtm=13 |
-| TE-CANON-QUEEN-MATE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=11 dtm=11 |
-| TE-CANON-QUEEN-MATE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=13 dtm=13 |
-| TE-CANON-ROOK-MATE | white | WIN | verified | syzygy-7 exact | category=win dtz=27 dtm=27 |
-| TE-CANON-ROOK-MATE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=11 dtm=11 |
-| TE-CANON-ROOK-MATE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=15 dtm=15 |
-| TE-CANON-TWO-BISHOPS-MATE | white | WIN | verified | syzygy-7 exact | category=win dtz=33 dtm=33 |
-| TE-CANON-TWO-BISHOPS-MATE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=29 dtm=29 |
-| TE-CANON-TWO-BISHOPS-MATE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=27 dtm=27 |
-| TE-CANON-PAWN-SQUARE | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=25 |
-| TE-CANON-PAWN-SQUARE-W2 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=27 |
-| TE-CANON-PAWN-SQUARE-W3 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=25 |
-| TE-CANON-PAWN-SQUARE-D1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-PAWN-SQUARE-D2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-PAWN-SQUARE-D3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-OPPOSITION | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=37 |
-| TE-CANON-OPPOSITION-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=7 dtm=39 |
-| TE-CANON-OPPOSITION-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=29 |
-| TE-CANON-KPK | white | WIN | verified | syzygy-7 exact | category=win dtz=9 dtm=41 |
-| TE-CANON-KPK-2 | black | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=39 |
-| TE-CANON-KPK-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=7 dtm=31 |
-| TE-CANON-KEY-SQUARES-1 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=33 |
-| TE-CANON-KEY-SQUARES-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=41 |
-| TE-CANON-KEY-SQUARES-3 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=31 |
-| TE-CANON-ROOK-PAWN-WIN | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=17 |
-| TE-CANON-ROOK-PAWN-DEF-H | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-ROOK-PAWN-DEF-A | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-PAWN-RACE | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=31 |
-| TE-CANON-PAWN-RACE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=7 dtm=51 |
-| TE-CANON-PAWN-RACE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=25 |
-| TE-CANON-OUTSIDE-1 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=41 |
-| TE-CANON-OUTSIDE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=41 |
-| TE-CANON-OUTSIDE-3 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=41 |
-| TE-CANON-TRIANGULATION-1 | white | WIN | verified | syzygy-7 exact | category=win dtz=11 dtm=33 |
-| TE-CANON-TRIANGULATION-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=37 |
-| TE-CANON-TRIANGULATION-3 | white | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-BAD-BISHOP-1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-BAD-BISHOP-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-BAD-BISHOP-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-QUEEN-PAWN-1 | black | WIN | verified | syzygy-7 exact | category=win dtz=15 dtm=23 |
-| TE-CANON-QUEEN-PAWN-2 | black | WIN | verified | syzygy-7 exact | category=win dtz=44 dtm=47 |
-| TE-CANON-QUEEN-PAWN-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-LUCENA | white | WIN | verified | syzygy-7 exact | category=win dtz=15 dtm=41 |
-| TE-CANON-LUCENA-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=15 |
-| TE-CANON-LUCENA-3 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=17 |
-| TE-CANON-PHILIDOR | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-PHILIDOR-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-PHILIDOR-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-LATERAL-1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-LATERAL-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-LATERAL-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-VANCURA-1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-VANCURA-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-VANCURA-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=0 |
-| TE-CANON-PAWN-BREAKTHROUGH | white | WIN | verified | stockfish-18-lite depth 16 (not exact) | best=b5b6 cp=640 depth=16 |
-| TE-CANON-PAWN-BREAKTHROUGH-2 | white | WIN | verified | stockfish-18-lite depth 16 (not exact) | best=b4a5 cp=587 depth=16 |
-| TE-CANON-PAWN-BREAKTHROUGH-3 | white | WIN | verified | stockfish-18-lite depth 16 (not exact) | best=d4e5 cp=735 depth=16 |
+| TE-CANON-QUEEN-MATE | white | WIN | verified | syzygy-7 exact | category=win dtz=13 dtm=13 dtmReported=13 source=lichess-syzygy |
+| TE-CANON-QUEEN-MATE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=11 dtm=11 dtmReported=11 source=lichess-syzygy |
+| TE-CANON-QUEEN-MATE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=13 dtm=13 dtmReported=13 source=lichess-syzygy |
+| TE-CANON-ROOK-MATE | white | WIN | verified | syzygy-7 exact | category=win dtz=27 dtm=27 dtmReported=27 source=lichess-syzygy |
+| TE-CANON-ROOK-MATE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=11 dtm=11 dtmReported=11 source=lichess-syzygy |
+| TE-CANON-ROOK-MATE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=15 dtm=15 dtmReported=15 source=lichess-syzygy |
+| TE-CANON-TWO-BISHOPS-MATE | white | WIN | verified | syzygy-7 exact | category=win dtz=33 dtm=33 dtmReported=33 source=lichess-syzygy |
+| TE-CANON-TWO-BISHOPS-MATE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=29 dtm=29 dtmReported=29 source=lichess-syzygy |
+| TE-CANON-TWO-BISHOPS-MATE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=27 dtm=27 dtmReported=27 source=lichess-syzygy |
+| TE-CANON-PAWN-SQUARE | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=25 dtmReported=25 source=lichess-syzygy |
+| TE-CANON-PAWN-SQUARE-W2 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=27 dtmReported=27 source=lichess-syzygy |
+| TE-CANON-PAWN-SQUARE-W3 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=25 dtmReported=25 source=lichess-syzygy |
+| TE-CANON-PAWN-SQUARE-D1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-PAWN-SQUARE-D2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-PAWN-SQUARE-D3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-OPPOSITION | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=37 dtmReported=37 source=lichess-syzygy |
+| TE-CANON-OPPOSITION-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=7 dtm=39 dtmReported=39 source=lichess-syzygy |
+| TE-CANON-OPPOSITION-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=29 dtmReported=29 source=lichess-syzygy |
+| TE-CANON-KPK | white | WIN | verified | syzygy-7 exact | category=win dtz=9 dtm=41 dtmReported=41 source=lichess-syzygy |
+| TE-CANON-KPK-2 | black | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=39 dtmReported=39 source=lichess-syzygy |
+| TE-CANON-KPK-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=7 dtm=31 dtmReported=31 source=lichess-syzygy |
+| TE-CANON-KEY-SQUARES-1 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=33 dtmReported=33 source=lichess-syzygy |
+| TE-CANON-KEY-SQUARES-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=41 dtmReported=41 source=lichess-syzygy |
+| TE-CANON-KEY-SQUARES-3 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=31 dtmReported=31 source=lichess-syzygy |
+| TE-CANON-ROOK-PAWN-WIN | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=17 dtmReported=17 source=lichess-syzygy |
+| TE-CANON-ROOK-PAWN-DEF-H | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-ROOK-PAWN-DEF-A | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-PAWN-RACE | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=31 dtmReported=31 source=lichess-syzygy |
+| TE-CANON-PAWN-RACE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=7 dtm=51 dtmReported=51 source=lichess-syzygy |
+| TE-CANON-PAWN-RACE-3 | black | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=25 dtmReported=25 source=lichess-syzygy |
+| TE-CANON-OUTSIDE-1 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=41 dtmReported=41 source=lichess-syzygy |
+| TE-CANON-OUTSIDE-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=41 dtmReported=41 source=lichess-syzygy |
+| TE-CANON-OUTSIDE-3 | white | WIN | verified | syzygy-7 exact | category=win dtz=1 dtm=41 dtmReported=41 source=lichess-syzygy |
+| TE-CANON-TRIANGULATION-1 | white | WIN | verified | syzygy-7 exact | category=win dtz=11 dtm=33 dtmReported=33 source=lichess-syzygy |
+| TE-CANON-TRIANGULATION-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=37 dtmReported=37 source=lichess-syzygy |
+| TE-CANON-TRIANGULATION-3 | white | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-BAD-BISHOP-1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-BAD-BISHOP-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-BAD-BISHOP-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-QUEEN-PAWN-1 | black | WIN | verified | syzygy-7 exact | category=win dtz=15 dtm=23 dtmReported=23 source=lichess-syzygy |
+| TE-CANON-QUEEN-PAWN-2 | black | WIN | verified | syzygy-7 exact | category=win dtz=44 dtm=47 dtmReported=47 source=lichess-syzygy |
+| TE-CANON-QUEEN-PAWN-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-LUCENA | white | WIN | verified | syzygy-7 exact | category=win dtz=15 dtm=41 dtmReported=41 source=lichess-syzygy |
+| TE-CANON-LUCENA-2 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=15 dtmReported=15 source=lichess-syzygy |
+| TE-CANON-LUCENA-3 | white | WIN | verified | syzygy-7 exact | category=win dtz=5 dtm=17 dtmReported=17 source=lichess-syzygy |
+| TE-CANON-PHILIDOR | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-PHILIDOR-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-PHILIDOR-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-LATERAL-1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-LATERAL-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-LATERAL-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-VANCURA-1 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-VANCURA-2 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-VANCURA-3 | black | DRAW | verified | syzygy-7 exact | category=draw dtz=0 dtm=null dtmReported=0 source=lichess-syzygy |
+| TE-CANON-PAWN-BREAKTHROUGH | white | WIN | verified | stockfish-18-lite depth 16 (not exact) | category=win dtz=null dtm=null dtmReported=null source=stockfish-18-lite best=b5b6 cp=640 depth=16 |
+| TE-CANON-PAWN-BREAKTHROUGH-2 | white | WIN | verified | stockfish-18-lite depth 16 (not exact) | category=win dtz=null dtm=null dtmReported=null source=stockfish-18-lite best=b4a5 cp=587 depth=16 |
+| TE-CANON-PAWN-BREAKTHROUGH-3 | white | WIN | verified | stockfish-18-lite depth 16 (not exact) | category=win dtz=null dtm=null dtmReported=null source=stockfish-18-lite best=d4e5 cp=735 depth=16 |
 
 ## Justification pédagogique
 

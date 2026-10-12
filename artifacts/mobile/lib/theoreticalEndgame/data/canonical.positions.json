@@ -24,9 +24,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 13,
         "dtm": 13,
+        "dtmReported": 13,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -83,9 +86,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 11,
         "dtm": 11,
+        "dtmReported": 11,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -142,9 +148,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 13,
         "dtm": 13,
+        "dtmReported": 13,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -201,9 +210,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 27,
         "dtm": 27,
+        "dtmReported": 27,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -260,9 +272,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 11,
         "dtm": 11,
+        "dtmReported": 11,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -319,9 +334,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 15,
         "dtm": 15,
+        "dtmReported": 15,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -378,9 +396,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 33,
         "dtm": 33,
+        "dtmReported": 33,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -437,9 +458,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 29,
         "dtm": 29,
+        "dtmReported": 29,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -496,9 +520,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 27,
         "dtm": 27,
+        "dtmReported": 27,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -555,9 +582,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 25,
+        "dtmReported": 25,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -615,9 +645,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 27,
+        "dtmReported": 27,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -676,9 +709,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 25,
+        "dtmReported": 25,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -736,9 +772,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -796,9 +835,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -857,9 +899,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -917,9 +962,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 37,
+        "dtmReported": 37,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -976,9 +1024,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 7,
         "dtm": 39,
+        "dtmReported": 39,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1035,9 +1086,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 29,
+        "dtmReported": 29,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1094,9 +1148,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 9,
         "dtm": 41,
+        "dtmReported": 41,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1153,9 +1210,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 5,
         "dtm": 39,
+        "dtmReported": 39,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1212,9 +1272,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 7,
         "dtm": 31,
+        "dtmReported": 31,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1271,9 +1334,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 5,
         "dtm": 33,
+        "dtmReported": 33,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1330,9 +1396,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 5,
         "dtm": 41,
+        "dtmReported": 41,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1389,9 +1458,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 5,
         "dtm": 31,
+        "dtmReported": 31,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1448,9 +1520,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 17,
+        "dtmReported": 17,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1508,9 +1583,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1568,9 +1646,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1628,9 +1709,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 31,
+        "dtmReported": 31,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1687,9 +1771,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 7,
         "dtm": 51,
+        "dtmReported": 51,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1746,9 +1833,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 25,
+        "dtmReported": 25,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -1807,9 +1897,12 @@
       "proof": {
         "method": "stockfish-18-lite-depth-16",
         "confidence": "engine",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": null,
         "dtm": null,
+        "dtmReported": null,
+        "source": "stockfish-18-lite",
         "consultedAt": "2026-10-12",
         "bestMove": "b5b6",
         "depth": 16,
@@ -1870,9 +1963,12 @@
       "proof": {
         "method": "stockfish-18-lite-depth-16",
         "confidence": "engine",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": null,
         "dtm": null,
+        "dtmReported": null,
+        "source": "stockfish-18-lite",
         "consultedAt": "2026-10-12",
         "bestMove": "b4a5",
         "depth": 16,
@@ -1933,9 +2029,12 @@
       "proof": {
         "method": "stockfish-18-lite-depth-16",
         "confidence": "engine",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": null,
         "dtm": null,
+        "dtmReported": null,
+        "source": "stockfish-18-lite",
         "consultedAt": "2026-10-12",
         "bestMove": "d4e5",
         "depth": 16,
@@ -1994,9 +2093,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 41,
+        "dtmReported": 41,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2053,9 +2155,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 41,
+        "dtmReported": 41,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2112,9 +2217,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 1,
         "dtm": 41,
+        "dtmReported": 41,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2171,9 +2279,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 11,
         "dtm": 33,
+        "dtmReported": 33,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2230,9 +2341,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 5,
         "dtm": 37,
+        "dtmReported": 37,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2289,9 +2403,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2348,9 +2465,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2407,9 +2527,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2466,9 +2589,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2525,9 +2651,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 15,
         "dtm": 23,
+        "dtmReported": 23,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2584,9 +2713,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 44,
         "dtm": 47,
+        "dtmReported": 47,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2643,9 +2775,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2703,9 +2838,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 15,
         "dtm": 41,
+        "dtmReported": 41,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2762,9 +2900,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 5,
         "dtm": 15,
+        "dtmReported": 15,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2821,9 +2962,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "win",
         "playerResult": "WIN",
         "dtz": 5,
         "dtm": 17,
+        "dtmReported": 17,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2880,9 +3024,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2939,9 +3086,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -2998,9 +3148,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -3057,9 +3210,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -3116,9 +3272,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -3175,9 +3334,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -3234,9 +3396,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -3293,9 +3458,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [
@@ -3352,9 +3520,12 @@
       "proof": {
         "method": "syzygy-7",
         "confidence": "exact",
+        "category": "draw",
         "playerResult": "DRAW",
         "dtz": 0,
-        "dtm": 0,
+        "dtm": null,
+        "dtmReported": 0,
+        "source": "lichess-syzygy",
         "consultedAt": "2026-10-12"
       },
       "tags": [

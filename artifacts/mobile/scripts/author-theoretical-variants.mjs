@@ -265,12 +265,17 @@ const EX = {
 };
 
 function syzygy(result, dtz, dtm) {
+  const category = result === 'WIN' ? 'win' : result === 'DRAW' ? 'draw' : 'loss';
+  const mate = category === 'win' && typeof dtm === 'number' && dtm > 0 ? dtm : null;
   return {
     method: 'syzygy-7',
     confidence: 'exact',
+    category,
     playerResult: result,
     dtz,
-    dtm,
+    dtm: mate,
+    dtmReported: dtm,
+    source: 'lichess-syzygy',
     consultedAt: '2026-10-12',
   };
 }
@@ -279,9 +284,12 @@ function engine(bestMove, centipawn) {
   return {
     method: 'stockfish-18-lite-depth-16',
     confidence: 'engine',
+    category: 'win',
     playerResult: 'WIN',
     dtz: null,
     dtm: null,
+    dtmReported: null,
+    source: 'stockfish-18-lite',
     consultedAt: '2026-10-12',
     bestMove,
     depth: 16,

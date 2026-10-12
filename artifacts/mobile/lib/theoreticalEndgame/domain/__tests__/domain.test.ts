@@ -35,34 +35,121 @@ describe('comprehension score', () => {
     assert.equal(stopped.score, null);
   });
 
-  it('scores an exact mate distance as 5 and detours on the half-point scale', () => {
-    const mastered = scoreAttempt({ outcome: 'success', objective: 'WIN', userMoves: 7, initialMatePlies: 13 });
+  it('scores a perfect path as 5 and wasted tempi on the half-point scale', () => {
+    const mastered = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 3,
+      initialMatePlies: 13,
+      decisions: [
+        { dtmBefore: 5, dtmAfter: 4 },
+        { dtmBefore: 3, dtmAfter: 2 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
     assert.equal(mastered.score, 5);
     assert.equal(mastered.extra, 0);
-    const small = scoreAttempt({ outcome: 'success', objective: 'WIN', userMoves: 8, initialMatePlies: 13 });
-    assert.equal(small.score, 4.5);
-    const many = scoreAttempt({ outcome: 'success', objective: 'WIN', userMoves: 19, initialMatePlies: 13 });
-    assert.equal(many.score, 2);
-    assert.ok(many.score! > 0 && many.score! < 5);
+    const sameDistance = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 1,
+      initialMatePlies: 5,
+      decisions: [{ dtmBefore: 5, dtmAfter: 5 }],
+    });
+    assert.equal(sameDistance.extra, 1);
+    assert.equal(sameDistance.score, 4.5);
+    const many = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 10,
+      decisions: Array.from({ length: 9 }, () => ({ dtmBefore: 5, dtmAfter: 8 })).concat([
+        { dtmBefore: 1, dtmAfter: 0 },
+      ]),
+    });
+    assert.equal(many.extra, 18);
+    assert.equal(many.score, 1);
+    assert.ok(many.score > 0 && many.score < 5);
   });
 
-  it('accepts two winning methods and ignores time and any old target', () => {
-    const a = scoreAttempt({ outcome: 'success', objective: 'WIN', userMoves: 7, initialMatePlies: 13 });
-    const b = scoreAttempt({ outcome: 'success', objective: 'WIN', userMoves: 7, initialMatePlies: 13 });
-    assert.deepEqual(a, b);
-    const longer = scoreAttempt({ outcome: 'success', objective: 'WIN', userMoves: 9, initialMatePlies: 13 });
-    assert.equal(longer.score, 4);
+  it('does not let a facilitating reply cancel tempi the user already lost', () => {
+    // Old rule: userMoves 3 versus ceil(11 / 2) = 6 would be extra 0 and 5/5.
+    const facilitated = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 3,
+      initialMatePlies: 11,
+      decisions: [
+        { dtmBefore: 11, dtmAfter: 12 },
+        { dtmBefore: 3, dtmAfter: 4 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(facilitated.extra, 2);
+    assert.equal(facilitated.score, 4);
+    assert.notEqual(facilitated.score, 5);
+
+    const several = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 4,
+      initialMatePlies: 11,
+      decisions: [
+        { dtmBefore: 11, dtmAfter: 12 },
+        { dtmBefore: 5, dtmAfter: 6 },
+        { dtmBefore: 3, dtmAfter: 4 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(several.extra, 3);
+    assert.equal(several.score, 3.5);
+    assert.notEqual(several.score, 5);
   });
 
-  it('penalises a recovered loss without treating a missing trace as unevaluated', () => {
+  it('accepts two winning methods that keep the distance and ignores the initial target', () => {
+    const a = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 2,
+      initialMatePlies: 99,
+      decisions: [
+        { dtmBefore: 3, dtmAfter: 2 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    const b = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 8,
+      initialMatePlies: 1,
+      decisions: [
+        { dtmBefore: 3, dtmAfter: 2 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(a.score, 5);
+    assert.equal(b.score, 5);
+    const longer = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 2,
+      decisions: [
+        { dtmBefore: 3, dtmAfter: 4 },
+        { dtmBefore: 3, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(longer.extra, 1);
+    assert.equal(longer.score, 4.5);
+  });
+
+  it('penalises a recovered loss and leaves a missing distance unevaluated', () => {
     const dipped = scoreAttempt({
       outcome: 'success',
       objective: 'WIN',
-      userMoves: 7,
+      userMoves: 2,
       initialMatePlies: 13,
       decisions: [
-        { resultAfterReply: 'DRAW' },
-        { resultAfterReply: 'WIN' },
+        { dtmBefore: 5, dtmAfter: 4, resultAfterReply: 'DRAW' },
+        { dtmBefore: 3, dtmAfter: 2, resultAfterReply: 'WIN' },
       ],
     });
     assert.equal(dipped.extra, 4);
@@ -72,9 +159,11 @@ describe('comprehension score', () => {
       objective: 'WIN',
       userMoves: 7,
       initialMatePlies: 13,
-      decisions: [{ resultAfterReply: null }],
+      decisions: [{ dtmBefore: 13, dtmAfter: null, resultAfterReply: 'WIN' }],
     });
-    assert.equal(missing.score, 5);
+    assert.equal(missing.score, null);
+    assert.equal(missing.reason, 'unevaluated');
+    assert.match(missing.commentFr, /Qualité non évaluée/);
   });
 
   it('leaves a success without DTM or mechanism unevaluated', () => {
@@ -84,7 +173,7 @@ describe('comprehension score', () => {
     assert.match(blind.commentFr, /Qualité non évaluée/);
   });
 
-  it('grades a demonstrated draw and a draw that skips the mechanism', () => {
+  it('grades a demonstrated draw and does not punish an unmeasured method', () => {
     const held = scoreAttempt({
       outcome: 'success',
       objective: 'DRAW',
@@ -93,15 +182,24 @@ describe('comprehension score', () => {
       mechanism: { demonstrated: true, slackMoves: 1 },
     });
     assert.equal(held.score, 4.5);
-    const fragile = scoreAttempt({
+    const alternative = scoreAttempt({
+      outcome: 'success',
+      objective: 'DRAW',
+      userMoves: 2,
+      mechanism: { demonstrated: true, slackMoves: 0 },
+    });
+    assert.equal(alternative.reason, 'mechanism');
+    assert.equal(alternative.score, 5);
+    const unknown = scoreAttempt({
       outcome: 'success',
       objective: 'DRAW',
       userMoves: 3,
       initialMatePlies: null,
       mechanism: { demonstrated: false, slackMoves: 0 },
     });
-    assert.equal(fragile.reason, 'draw-without-mechanism');
-    assert.equal(fragile.score, 2);
+    assert.equal(unknown.reason, 'unevaluated');
+    assert.equal(unknown.score, null);
+    assert.match(unknown.commentFr, /Qualité non évaluée/);
   });
 
   it('averages only the current scale and keeps legacy scores apart', () => {
@@ -191,6 +289,34 @@ describe('pool integrity', () => {
       assert.ok(p.explanation.fr.principle && p.explanation.en.principle, p.id);
     }
     assert.equal(colors.size, 2);
+  });
+
+  it('keeps category, DTZ, DTM and source apart for every variant', () => {
+    for (const p of THEORETICAL_ENDGAME_POOL) {
+      const proof = p.proof;
+      assert.ok(proof.method === 'syzygy-7' || proof.method === 'stockfish-18-lite-depth-16', p.id);
+      assert.ok(proof.source === 'lichess-syzygy' || proof.source === 'stockfish-18-lite', p.id);
+      assert.ok(proof.category === 'win' || proof.category === 'draw' || proof.category === 'loss', p.id);
+      assert.ok(proof.dtz === null || typeof proof.dtz === 'number', p.id);
+      assert.ok(proof.dtm === null || typeof proof.dtm === 'number', p.id);
+      assert.equal(proof.playerResult, proof.category.toUpperCase(), p.id);
+      if (proof.confidence === 'exact' && proof.category === 'win') {
+        assert.ok(proof.dtm != null && proof.dtm > 0, p.id);
+        assert.equal(proof.dtmReported, proof.dtm, p.id);
+        assert.equal(proof.source, 'lichess-syzygy', p.id);
+      }
+      if (proof.confidence === 'exact' && proof.category === 'draw') {
+        assert.equal(proof.dtm, null, p.id);
+        assert.equal(proof.dtmReported, 0, p.id);
+        assert.equal(proof.dtz, 0, p.id);
+      }
+      if (proof.confidence === 'engine') {
+        assert.equal(proof.dtm, null, p.id);
+        assert.equal(proof.dtmReported, null, p.id);
+        assert.equal(proof.source, 'stockfish-18-lite', p.id);
+        assert.equal(typeof proof.centipawn, 'number', true, p.id);
+      }
+    }
   });
 
   it('majority WIN objectives', () => {

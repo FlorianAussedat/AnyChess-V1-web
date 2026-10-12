@@ -114,9 +114,12 @@ export function FinishGameOverlay({ visible, payload, onClose }: Props) {
               proof: {
                 method: 'stockfish-18-lite-depth-16' as const,
                 confidence: 'engine' as const,
+                category: 'win' as const,
                 playerResult: 'WIN' as const,
                 dtz: null,
                 dtm: null,
+                dtmReported: null,
+                source: 'stockfish-18-lite' as const,
                 consultedAt: 'fallback',
               },
               contentVersion: 'variants-v2',

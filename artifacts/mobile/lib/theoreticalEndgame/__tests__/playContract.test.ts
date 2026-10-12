@@ -46,10 +46,13 @@ describe('theoretical play UI contract', () => {
     assert.match(play, /movesToAnnounce/);
   });
 
-  it('renders the /5 headline', () => {
+  it('renders the /5 headline through the result card', () => {
     assert.match(play, /headlineFor/);
-    assert.match(play, /theoretical-quality-headline/);
+    assert.match(play, /TheoreticalResultCard/);
     assert.match(play, /formatDuration/);
+    const card = read('lib/theoreticalEndgame/ui/TheoreticalResultCard.tsx');
+    assert.match(card, /theoretical-quality-headline/);
+    assert.match(card, /theoretical-result/);
   });
 });
 

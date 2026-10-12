@@ -5,8 +5,9 @@ import { Chess, type Move, type Square } from 'chess.js';
 import type { DefenseAnalyzer, DefenseAnalysis } from '../../defendDraw/defenseTypes.ts';
 import { chooseStrictBestMove } from '../../engines/policies/StrictBestPolicy.ts';
 import { THEORETICAL_ENDGAME_CONFIG, type TheoreticalEndgamePosition, type TheoreticalAttemptResult, type FirstTheoreticalLoss } from '../domain/types.ts';
-import { gradeQuality } from '../domain/comprehensionScore.ts';
-import { assessDefense, type DefenseAssessment } from '../domain/defenseFinish.ts';
+import { gradeQuality, type GradeDecision } from '../domain/comprehensionScore.ts';
+import { dtmAfterUserMove, dtmOnUserTurn } from '../domain/mateDistance.ts';
+import { assessDefense, defensePlayEnd, type DefenseAssessment } from '../domain/defenseFinish.ts';
 import { getPositionById } from '../selection/selectors.ts';
 import { evaluateRegulatoryEnd } from '../domain/regulatoryEnd.ts';
 import {
@@ -56,6 +57,9 @@ export type SessionSnapshot = {
   canOfferActions: boolean;
   finishGameActive: boolean;
   officialResultMessage: string | null;
+  /** Mate distances recorded on the positions the user actually faced. */
+  mateDecisions: GradeDecision[];
+  pendingDtmBefore: number | null;
 };
 
 export class TheoreticalEndgameSession {
@@ -80,6 +84,11 @@ export class TheoreticalEndgameSession {
   private generation = 0;
   private startedAt = 0;
   private defense: DefenseAssessment | null = null;
+  private mateDecisions: GradeDecision[] = [];
+  private pendingDtmBefore: number | null = null;
+  /** A resumed line whose earlier distances were not saved cannot be graded. */
+  private mateTraceIncomplete = false;
+  private lastReplyMateIn: number | null = null;
 
   constructor(analyzer?: DefenseAnalyzer | null) {
     this.analyzer = analyzer ?? null;
@@ -110,9 +119,15 @@ export class TheoreticalEndgameSession {
     this.generation += 1;
     this.startedAt = Date.now();
     this.defense = null;
+    this.mateDecisions = [];
+    this.pendingDtmBefore = null;
+    this.mateTraceIncomplete = false;
+    this.lastReplyMateIn = null;
 
     if (this.game.turn() !== playerToSide(position.playerColor)) {
       await this.playOpponent();
+    } else {
+      this.pendingDtmBefore = this.exactStartDtm(this.game.fen());
     }
     return this.snapshot();
   }
@@ -142,6 +157,8 @@ export class TheoreticalEndgameSession {
     moveSans?: string[];
     userMoves?: number;
     startedAt?: number;
+    mateDecisions?: GradeDecision[];
+    pendingDtmBefore?: number | null;
   }): SessionSnapshot {
     const stored = raw.position;
     if (!stored?.id || !raw.fen) return this.snapshot();
@@ -171,6 +188,16 @@ export class TheoreticalEndgameSession {
     this.lockedOutcome = null;
     this.checkmateWinner = undefined;
     this.defense = null;
+    const saved = Array.isArray(raw.mateDecisions) ? raw.mateDecisions.map((d) => ({ ...d })) : null;
+    this.mateDecisions = saved ?? [];
+    this.pendingDtmBefore =
+      typeof raw.pendingDtmBefore === 'number' ? raw.pendingDtmBefore : null;
+    this.mateTraceIncomplete =
+      this.userMoves > 0 && (saved == null || saved.length !== this.userMoves);
+    this.lastReplyMateIn = null;
+    if (!this.mateTraceIncomplete && this.userMoves === 0) {
+      this.pendingDtmBefore = this.exactStartDtm(this.game.fen());
+    }
     this.generation += 1;
     this.startedAt = typeof raw.startedAt === 'number' ? raw.startedAt : Date.now();
     return this.snapshot();
@@ -253,6 +280,10 @@ export class TheoreticalEndgameSession {
       return this.snapshot();
     }
 
+    const scoring = !this.offScore && !this.scoreLocked && !this.finishGameMode;
+    const dtmBefore = scoring ? this.distanceBeforeUserMove() : null;
+    this.lastReplyMateIn = null;
+
     let played: Move | null = null;
     try {
       played = this.game.move({
@@ -274,8 +305,12 @@ export class TheoreticalEndgameSession {
     this.lastMove = { from: played.from, to: played.to };
     this.moveSans.push(played.san);
 
-    if (!this.offScore && !this.scoreLocked && !this.finishGameMode) {
+    if (scoring) {
       this.userMoves += 1;
+    }
+
+    if (scoring && this.game.isCheckmate()) {
+      this.pushMateDecision(dtmBefore, 0);
     }
 
     // Regulatory success check
@@ -296,9 +331,10 @@ export class TheoreticalEndgameSession {
     }
 
     // Theoretical loss check (only when scored, not in finish-game)
-    if (!this.offScore && !this.scoreLocked && !this.finishGameMode) {
+    if (scoring) {
       const lost = await this.checkTheoreticalLoss(played.san, beforeFen);
       if (lost || this.scoreLocked) return this.snapshot();
+      this.pushMateDecision(dtmBefore, dtmAfterUserMove(this.lastReplyMateIn));
       if (this.maybeEndScoredPlay()) return this.snapshot();
     }
 
@@ -391,8 +427,10 @@ export class TheoreticalEndgameSession {
     try {
       analysis = await this.analyzer.analyze(this.game.fen(), thinkMs);
     } catch {
+      this.lastReplyMateIn = null;
       return false;
     }
+    this.lastReplyMateIn = analysis.mateIn;
     if (this.scoreLocked || this.phase === 'abandoned' || this.phase === 'interrupted') {
       return false;
     }
@@ -460,11 +498,16 @@ export class TheoreticalEndgameSession {
   private maybeEndScoredPlay(): boolean {
     if (this.scoreLocked || this.finishGameMode || this.offScore || !this.position) return false;
     this.refreshDefense();
-    if (this.defense?.complete) {
+    const end = defensePlayEnd({
+      complete: this.defense?.complete === true,
+      userMoves: this.userMoves,
+      cap: THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap,
+    });
+    if (end === 'success') {
       this.finishSuccess('position-defended');
       return true;
     }
-    if (this.userMoves >= THEORETICAL_ENDGAME_CONFIG.technicalUserMoveCap) {
+    if (end === 'interrupted') {
       this.scoreLocked = true;
       this.phase = 'interrupted';
       this.result = this.buildResult('interrupted');
@@ -485,15 +528,58 @@ export class TheoreticalEndgameSession {
     });
   }
 
-  private matePliesForGrade(): number | null {
+  /** Syzygy DTM of the catalog start only. Later positions are not this number. */
+  private exactStartDtm(fen: string): number | null {
     const pos = this.position;
     if (!pos || pos.objective !== 'WIN') return null;
-    const start = (this.startFen ?? '').split(' ')[0];
-    const catalog = pos.initialFen.split(' ')[0];
-    if (start !== catalog) return null;
+    const key = (value: string) => value.split(' ').slice(0, 4).join(' ');
+    if (key(fen) !== key(pos.initialFen)) return null;
+    if (this.startFen && key(this.startFen) !== key(pos.initialFen)) return null;
     const proof = pos.proof;
-    if (!proof || proof.confidence !== 'exact' || proof.dtm == null || proof.dtm <= 0) return null;
+    if (!proof || proof.confidence !== 'exact' || proof.category !== 'win') return null;
+    if (proof.dtm == null || proof.dtm <= 0) return null;
     return proof.dtm;
+  }
+
+  private distanceBeforeUserMove(): number | null {
+    if (this.mateTraceIncomplete) return null;
+    if (this.pendingDtmBefore != null) return this.pendingDtmBefore;
+    return this.exactStartDtm(this.game.fen());
+  }
+
+  private pushMateDecision(dtmBefore: number | null, dtmAfter: number | null): void {
+    if (this.mateTraceIncomplete || !this.position || this.position.objective !== 'WIN') return;
+    this.mateDecisions.push({ dtmBefore, dtmAfter });
+  }
+
+  /**
+   * Measure the position the user is about to face.
+   * A facilitating reply is whatever distance this position actually has.
+   * It does not rewrite the tempi already recorded.
+   */
+  private async measurePositionForUser(): Promise<void> {
+    if (!this.position || this.position.objective !== 'WIN' || this.mateTraceIncomplete) {
+      this.pendingDtmBefore = null;
+      return;
+    }
+    const exact = this.exactStartDtm(this.game.fen());
+    if (exact != null) {
+      this.pendingDtmBefore = exact;
+      return;
+    }
+    if (!this.analyzer || this.game.isGameOver()) {
+      this.pendingDtmBefore = null;
+      return;
+    }
+    try {
+      const analysis = await this.analyzer.analyze(
+        this.game.fen(),
+        THEORETICAL_ENDGAME_CONFIG.thinkTimeMs,
+      );
+      this.pendingDtmBefore = dtmOnUserTurn(analysis.mateIn);
+    } catch {
+      this.pendingDtmBefore = null;
+    }
   }
 
   private finishSuccess(reason: TheoreticalAttemptResult['officialEndReason']): void {
@@ -587,6 +673,7 @@ export class TheoreticalEndgameSession {
     } else if (this.offScore) {
       this.phase = 'off-score';
     } else if (!this.scoreLocked) {
+      await this.measurePositionForUser();
       this.phase = 'playing';
       this.lastFeedback = null;
     }
@@ -599,12 +686,15 @@ export class TheoreticalEndgameSession {
       this.defense?.applicable
         ? { demonstrated: this.defense.demonstrated, slackMoves: this.defense.slackMoves }
         : null;
+    const decisions = this.mateTraceIncomplete
+      ? [{ dtmBefore: null, dtmAfter: null }]
+      : this.mateDecisions;
     const quality = gradeQuality({
       outcome,
       objective: pos.objective,
       userMoves: this.userMoves,
-      initialMatePlies: this.matePliesForGrade(),
       mechanism,
+      decisions,
     });
 
     const officialResultMessage = theoreticalOfficialResultMessage({
@@ -661,6 +751,8 @@ export class TheoreticalEndgameSession {
       officialResultMessage:
         this.result?.officialResultMessage ??
         (this.phase === 'theoretical-loss' ? null : this.lastFeedback),
+      mateDecisions: this.mateDecisions.map((d) => ({ ...d })),
+      pendingDtmBefore: this.pendingDtmBefore,
     };
   }
 }

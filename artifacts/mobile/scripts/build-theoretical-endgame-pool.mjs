@@ -54,12 +54,16 @@ function certificationBlock(cert) {
 function proofBlock(proof) {
   const opt = (key, value) =>
     value == null || value === '' ? '' : `, ${key}: ${typeof value === 'number' ? value : `'${esc(String(value))}'`}`;
+  const num = (value) => (value == null ? 'null' : value);
   return `{
       method: '${proof.method}',
       confidence: '${proof.confidence}',
+      category: '${proof.category}',
       playerResult: '${proof.playerResult}',
-      dtz: ${proof.dtz == null ? 'null' : proof.dtz},
-      dtm: ${proof.dtm == null ? 'null' : proof.dtm},
+      dtz: ${num(proof.dtz)},
+      dtm: ${num(proof.dtm)},
+      dtmReported: ${num(proof.dtmReported)},
+      source: '${proof.source}',
       consultedAt: '${esc(proof.consultedAt)}'${opt('bestMove', proof.bestMove)}${opt('depth', proof.depth)}${opt('centipawn', proof.centipawn)},
     }`;
 }
@@ -162,6 +166,18 @@ for (const pos of active) {
   }
   if (pieces > 7 && pos.proof?.confidence !== 'engine') {
     errors.push(`${pos.id}: engine proof must not be labeled exact`);
+  }
+  if (!pos.proof?.category || !pos.proof?.source || !pos.proof?.method) {
+    errors.push(`${pos.id}: proof needs category, source and method`);
+  }
+  if (pos.proof?.confidence === 'exact' && pos.proof?.category === 'draw' && pos.proof?.dtm != null) {
+    errors.push(`${pos.id}: an exact draw has no mate distance; dtm must be null`);
+  }
+  if (pos.proof?.confidence === 'exact' && pos.proof?.category === 'win' && !(pos.proof?.dtm > 0)) {
+    errors.push(`${pos.id}: an exact win requires a positive mate distance`);
+  }
+  if (pos.proof?.confidence === 'engine' && pos.proof?.dtm != null) {
+    errors.push(`${pos.id}: an engine centipawn search must not be stored as a mate distance`);
   }
 
   try {

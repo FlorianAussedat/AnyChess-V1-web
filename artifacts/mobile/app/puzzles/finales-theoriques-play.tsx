@@ -59,6 +59,7 @@ import {
   type SessionSnapshot,
 } from '@/lib/theoreticalEndgame';
 import { movesToAnnounce } from '@/lib/theoreticalEndgame/voice/announceMoves';
+import { TheoreticalResultCard } from '@/lib/theoreticalEndgame/ui/TheoreticalResultCard';
 import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
 import { canOfferTheoreticalFinishGame } from '@/lib/theoreticalEndgame/domain/officialResultMessages';
@@ -554,49 +555,39 @@ export default function TheoreticalEndgamePlayScreen() {
         />
 
         {showResult && snap.result && (
-          <View style={styles.result} testID="theoretical-result">
+          <View style={styles.result}>
             {snap.position && (
               <PositionReferenceBadge id={snap.position.id} />
             )}
 
-            <Text
-              style={{
-                color: snap.phase === 'theoretical-loss' ? '#c44' : '#398a55',
-                fontFamily: DesignTokens.typography.weightSemiBold,
-                textAlign: 'center',
-              }}
-              testID="theoretical-quality-headline"
-            >
-              {headlineFor({
+            <TheoreticalResultCard
+              headline={headlineFor({
                 score: snap.result.attemptScore,
                 outcome: snap.result.outcome,
                 objective: snap.result.objective,
                 objectiveKind: snap.result.objectiveKind,
                 lang: language === 'en' ? 'en' : 'fr',
               })}
-            </Text>
-            {snap.result.quality && (
-              <Text style={{ color: colors.foreground, textAlign: 'center' }} testID="theoretical-quality-comment">
-                {language === 'en' ? snap.result.quality.commentEn : snap.result.quality.commentFr}
-              </Text>
-            )}
-            <Text style={{ color: colors.mutedForeground, textAlign: 'center' }} testID="theoretical-quality-stats">
-              {t('quiz.theoreticalResultStats', {
+              comment={
+                snap.result.quality
+                  ? language === 'en'
+                    ? snap.result.quality.commentEn
+                    : snap.result.quality.commentFr
+                  : null
+              }
+              stats={t('quiz.theoreticalResultStats', {
                 moves: snap.result.userMoves,
                 time: formatDuration(snap.result.durationMs)[language === 'en' ? 'en' : 'fr'],
               })}
-            </Text>
-            <Text
-              style={{
-                color: snap.phase === 'theoretical-loss' ? '#c44' : '#398a55',
-                textAlign: 'center',
-              }}
-              testID="theoretical-official-result"
-            >
-              {snap.result.officialResultMessage ??
+              official={
+                snap.result.officialResultMessage ??
                 snap.officialResultMessage ??
-                snap.lastFeedback}
-            </Text>
+                snap.lastFeedback
+              }
+              tone={snap.phase === 'theoretical-loss' ? '#c44' : '#398a55'}
+              commentColor={colors.foreground}
+              statsColor={colors.mutedForeground}
+            />
 
             {snap.result.firstTheoreticalLoss && snap.phase === 'theoretical-loss' && (
               <Text style={{ color: colors.foreground }}>
