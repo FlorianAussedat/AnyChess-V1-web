@@ -7,10 +7,18 @@ export const THEORETICAL_THEMES: readonly TheoreticalTheme[] = [
   { id: 'pawn-square', titleKey: 'PawnSquare', category: 'pawn', iconKey: 'defendsNulle' },
   { id: 'opposition', titleKey: 'Opposition', category: 'pawn', iconKey: 'defendsNulle' },
   { id: 'kp-vs-k', titleKey: 'KpVsK', category: 'pawn', iconKey: 'defendsNulle' },
+  { id: 'key-squares', titleKey: 'KeySquares', category: 'pawn', iconKey: 'defendsNulle' },
+  { id: 'rook-pawn', titleKey: 'RookPawn', category: 'pawn', iconKey: 'defendsNulle' },
   { id: 'pawn-race', titleKey: 'PawnRace', category: 'pawn', iconKey: 'defendsNulle' },
   { id: 'pawn-breakthrough', titleKey: 'PawnBreakthrough', category: 'pawn', iconKey: 'defendsNulle' },
+  { id: 'outside-passed', titleKey: 'OutsidePassed', category: 'pawn', iconKey: 'defendsNulle' },
+  { id: 'triangulation', titleKey: 'Triangulation', category: 'pawn', iconKey: 'defendsNulle' },
+  { id: 'bad-bishop', titleKey: 'BadBishop', category: 'pawn', iconKey: 'defendsNulle' },
+  { id: 'queen-vs-pawn', titleKey: 'QueenVsPawn', category: 'pawn', iconKey: 'jouerLeCoup' },
   { id: 'lucena', titleKey: 'Lucena', category: 'rook', iconKey: 'construisOuverture' },
   { id: 'philidor', titleKey: 'Philidor', category: 'rook', iconKey: 'construisOuverture' },
+  { id: 'lateral-checks', titleKey: 'LateralChecks', category: 'rook', iconKey: 'construisOuverture' },
+  { id: 'vancura', titleKey: 'Vancura', category: 'rook', iconKey: 'construisOuverture' },
 ] as const;
 
 export const THEME_IDS: readonly TheoreticalThemeId[] = THEORETICAL_THEMES.map((t) => t.id);

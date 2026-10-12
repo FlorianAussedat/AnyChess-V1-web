@@ -738,7 +738,11 @@ export type MessageKey =
   | 'quiz.theoreticalCompleted'
   | 'quiz.theoreticalObjectiveWin'
   | 'quiz.theoreticalObjectiveDraw'
+  | 'quiz.theoreticalObjectiveStopPawn'
+  | 'quiz.theoreticalObjectivePromote'
   | 'quiz.theoreticalMovesPlayed'
+  | 'quiz.theoreticalResultStats'
+  | 'quiz.theoreticalLegacyBadge'
   | 'quiz.theoreticalOffScore'
   | 'quiz.theoreticalVerifying'
   | 'quiz.theoreticalAnalyse'
@@ -764,6 +768,14 @@ export type MessageKey =
   | 'quiz.theoreticalThemeThreePawns'
   | 'quiz.theoreticalThemeLucena'
   | 'quiz.theoreticalThemePhilidor'
+  | 'quiz.theoreticalThemeKeySquares'
+  | 'quiz.theoreticalThemeRookPawn'
+  | 'quiz.theoreticalThemeOutsidePassed'
+  | 'quiz.theoreticalThemeTriangulation'
+  | 'quiz.theoreticalThemeBadBishop'
+  | 'quiz.theoreticalThemeQueenVsPawn'
+  | 'quiz.theoreticalThemeLateralChecks'
+  | 'quiz.theoreticalThemeVancura'
   | 'quiz.theoreticalExplainLink'
   | 'quiz.theoreticalExplainPrinciple'
   | 'quiz.theoreticalExplainSeek'
@@ -1998,16 +2010,20 @@ const fr: Dict = {
   'quiz.theoreticalViewList': 'Liste',
   'quiz.theoreticalViewCards': 'Cartes',
   'quiz.theoreticalAllMastered': 'Tous les thèmes sont maîtrisés — position aléatoire du pool.',
-  'quiz.theoreticalNoAttempts': '—/10',
+  'quiz.theoreticalNoAttempts': '—/5',
   'quiz.theoreticalCompleted': 'Terminé',
   'quiz.theoreticalObjectiveWin': 'Gagne la position',
-  'quiz.theoreticalObjectiveDraw': 'Obtiens la nulle',
-  'quiz.theoreticalMovesPlayed': 'Coups joués : {{count}} / cible {{target}}',
+  'quiz.theoreticalObjectiveDraw': 'Obtiens au moins la nulle',
+  'quiz.theoreticalObjectiveStopPawn': 'Arrêter le pion',
+  'quiz.theoreticalObjectivePromote': 'Promouvoir le pion et gagner',
+  'quiz.theoreticalMovesPlayed': 'Coups joués : {{count}}',
+  'quiz.theoreticalResultStats': '{{moves}} coups · {{time}}',
+  'quiz.theoreticalLegacyBadge': 'Ancien barème : {{score}}',
   'quiz.theoreticalOffScore': 'Suite hors score',
   'quiz.theoreticalVerifying': 'Vérification…',
   'quiz.theoreticalAnalyse': 'Analyser',
-  'quiz.theoreticalRetry': 'Retenter',
-  'quiz.theoreticalNext': 'Suivante',
+  'quiz.theoreticalRetry': 'Recommencer',
+  'quiz.theoreticalNext': 'Nouvelle position',
   'quiz.theoreticalContinueOffScore': 'Continuer hors score',
   'quiz.theoreticalBackThemes': 'Retour aux thèmes',
   'quiz.theoreticalExitTitle': 'Quitter cette finale ?',
@@ -2029,6 +2045,14 @@ const fr: Dict = {
   'quiz.theoreticalThemeThreePawns': 'Trois pions contre trois pions',
   'quiz.theoreticalThemeLucena': 'Position de Lucena',
   'quiz.theoreticalThemePhilidor': 'Position de Philidor',
+  'quiz.theoreticalThemeKeySquares': 'Cases clés du pion',
+  'quiz.theoreticalThemeRookPawn': 'Pion de tour contre roi',
+  'quiz.theoreticalThemeOutsidePassed': 'Pion passé éloigné',
+  'quiz.theoreticalThemeTriangulation': 'Triangulation et zugzwang',
+  'quiz.theoreticalThemeBadBishop': 'Fou et pion de tour : mauvais fou',
+  'quiz.theoreticalThemeQueenVsPawn': 'Dame contre pion sur la 7e rangée',
+  'quiz.theoreticalThemeLateralChecks': 'Défense par échecs latéraux',
+  'quiz.theoreticalThemeVancura': 'Position de Vancura',
   'quiz.theoreticalExplainLink': 'Explication de la finale',
   'quiz.theoreticalExplainPrinciple': 'Principe',
   'quiz.theoreticalExplainSeek': 'Ce qu’il faut chercher',
@@ -3324,16 +3348,20 @@ const en: Dict = {
   'quiz.theoreticalViewList': 'List',
   'quiz.theoreticalViewCards': 'Cards',
   'quiz.theoreticalAllMastered': 'All themes mastered — random position from the pool.',
-  'quiz.theoreticalNoAttempts': '—/10',
+  'quiz.theoreticalNoAttempts': '—/5',
   'quiz.theoreticalCompleted': 'Completed',
   'quiz.theoreticalObjectiveWin': 'Win the position',
-  'quiz.theoreticalObjectiveDraw': 'Obtain the draw',
-  'quiz.theoreticalMovesPlayed': 'Moves played: {{count}} / target {{target}}',
+  'quiz.theoreticalObjectiveDraw': 'Obtain at least a draw',
+  'quiz.theoreticalObjectiveStopPawn': 'Stop the pawn',
+  'quiz.theoreticalObjectivePromote': 'Promote the pawn and win',
+  'quiz.theoreticalMovesPlayed': 'Moves played: {{count}}',
+  'quiz.theoreticalResultStats': '{{moves}} moves · {{time}}',
+  'quiz.theoreticalLegacyBadge': 'Previous scale: {{score}}',
   'quiz.theoreticalOffScore': 'Off-score continuation',
   'quiz.theoreticalVerifying': 'Verifying…',
   'quiz.theoreticalAnalyse': 'Analyse',
-  'quiz.theoreticalRetry': 'Retry',
-  'quiz.theoreticalNext': 'Next',
+  'quiz.theoreticalRetry': 'Restart',
+  'quiz.theoreticalNext': 'New position',
   'quiz.theoreticalContinueOffScore': 'Continue off score',
   'quiz.theoreticalBackThemes': 'Back to themes',
   'quiz.theoreticalExitTitle': 'Leave this endgame?',
@@ -3355,6 +3383,14 @@ const en: Dict = {
   'quiz.theoreticalThemeThreePawns': 'Three pawns vs three pawns',
   'quiz.theoreticalThemeLucena': 'Lucena position',
   'quiz.theoreticalThemePhilidor': 'Philidor position',
+  'quiz.theoreticalThemeKeySquares': 'Pawn key squares',
+  'quiz.theoreticalThemeRookPawn': 'Rook pawn versus king',
+  'quiz.theoreticalThemeOutsidePassed': 'Outside passed pawn',
+  'quiz.theoreticalThemeTriangulation': 'Triangulation and zugzwang',
+  'quiz.theoreticalThemeBadBishop': 'Bishop and rook pawn: wrong bishop',
+  'quiz.theoreticalThemeQueenVsPawn': 'Queen versus pawn on the 7th rank',
+  'quiz.theoreticalThemeLateralChecks': 'Defence by lateral checks',
+  'quiz.theoreticalThemeVancura': 'Vancura position',
   'quiz.theoreticalExplainLink': 'Endgame explanation',
   'quiz.theoreticalExplainPrinciple': 'Principle',
   'quiz.theoreticalExplainSeek': 'What to look for',

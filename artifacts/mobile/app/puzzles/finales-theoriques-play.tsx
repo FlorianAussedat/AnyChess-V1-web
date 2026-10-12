@@ -20,6 +20,8 @@ import { ClassicCommandInputChrome } from '@/components/game/ClassicCommandInput
 import { GameMoveHistoryCard } from '@/components/game/GameMoveHistoryCard';
 import { GameStatusCard } from '@/components/game/GameStatusCard';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
+import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
+import { HiddenBoardPlaceholder } from '@/components/HiddenBoardPlaceholder';
 import { AppButton } from '@/components/ui/AppButton';
 import { PositionReferenceBadge } from '@/components/exercise/PositionReferenceBadge';
 import {
@@ -50,10 +52,16 @@ import {
   getTheme,
   recordAttempt,
   formatComprehensionScore,
+  formatDuration,
+  headlineFor,
   pickPositionInTheme,
   openTheoreticalInReader,
   type SessionSnapshot,
 } from '@/lib/theoreticalEndgame';
+import { movesToAnnounce } from '@/lib/theoreticalEndgame/voice/announceMoves';
+import { TheoreticalResultCard } from '@/lib/theoreticalEndgame/ui/TheoreticalResultCard';
+import { sanToVerbal } from '@/lib/chessParser';
+import { speechService } from '@/services/SpeechService';
 import { canOfferTheoreticalFinishGame } from '@/lib/theoreticalEndgame/domain/officialResultMessages';
 import type {
   FinishGamePayload,
@@ -78,12 +86,12 @@ export default function TheoreticalEndgamePlayScreen() {
     sessionId?: string;
   }>();
   const colors = useColors();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const router = useRouter();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
-  const { chessNotation } = usePreferences();
+  const { chessNotation, voiceEnabled } = usePreferences();
   const { inputMode, setChessInputMode, keypadActive } = useChessInputMode();
 
   const sessionRef = useRef(new TheoreticalEndgameSession());
@@ -97,7 +105,12 @@ export default function TheoreticalEndgamePlayScreen() {
   );
   const [overlay, setOverlay] = useState<ResultOverlayKind>(null);
   const startedRef = useRef(false);
+  const restoredRef = useRef(false);
   const recordedRef = useRef(false);
+  const [boardVisible, setBoardVisible] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const spokenThrough = useRef(0);
+  const spokenGeneration = useRef(0);
 
   const { sessionId } = usePersistedActivity({
     kind: 'theoretical-endgame',
@@ -112,8 +125,17 @@ export default function TheoreticalEndgamePlayScreen() {
     enabled:
       positionReady &&
       (snap.phase === 'playing' || snap.phase === 'thinking' || snap.phase === 'verifying'),
-    revision: `${snap.phase}|${snap.fen}`,
-    capture: () => sessionRef.current.snapshot(),
+    revision: `${snap.phase}|${snap.fen}|${snap.userMoves}|${boardVisible}`,
+    capture: () => ({ ...sessionRef.current.snapshot(), boardVisible }),
+    apply: (payload) => {
+      const data = payload as SessionSnapshot & { boardVisible?: boolean };
+      if (!data?.fen || !data.position) return;
+      restoredRef.current = true;
+      startedRef.current = true;
+      setBoardVisible(data.boardVisible !== false);
+      refresh(sessionRef.current.restore(data));
+      setPositionReady(true);
+    },
   });
 
   const {
@@ -162,7 +184,7 @@ export default function TheoreticalEndgamePlayScreen() {
   }, []);
 
   useEffect(() => {
-    if (startedRef.current || !positionId) return;
+    if (startedRef.current || restoredRef.current || !positionId) return;
     const pos = getPositionById(String(positionId));
     if (!pos) {
       setPositionMissing(true);
@@ -262,8 +284,25 @@ export default function TheoreticalEndgamePlayScreen() {
   const speech = useExerciseSpeechInput({
     enabled: true,
     forceOff: !canMove,
+    isSpeaking,
     onSan: submitSan,
   });
+
+  useEffect(() => speechService.onSpeakingChange(setIsSpeaking), []);
+
+  useEffect(() => {
+    if (snap.generation !== spokenGeneration.current) {
+      spokenGeneration.current = snap.generation;
+      spokenThrough.current = snap.moveSans.length;
+      speechService.stop();
+      return;
+    }
+    const plan = movesToAnnounce(spokenThrough.current, snap.moveSans, voiceEnabled);
+    spokenThrough.current = plan.nextCount;
+    for (const san of plan.toSpeak) {
+      speechService.speak(sanToVerbal(san), { ownerId: 'theoretical-endgame' });
+    }
+  }, [snap.generation, snap.moveSans, voiceEnabled]);
 
   const toggleInputMode = useCallback(() => {
     void setChessInputMode(inputMode === 'classic' ? 'keypad' : 'classic');
@@ -287,11 +326,18 @@ export default function TheoreticalEndgamePlayScreen() {
   const theme = snap.position ? getTheme(snap.position.themeId) : null;
   const themeTitle = theme ? t(themeTitleKey(theme.titleKey)) : '';
   const objectiveLabel =
-    snap.objective === 'WIN'
-      ? t('quiz.theoreticalObjectiveWin')
-      : t('quiz.theoreticalObjectiveDraw');
+    snap.position?.objectiveKind === 'stop-pawn'
+      ? t('quiz.theoreticalObjectiveStopPawn')
+      : snap.position?.objectiveKind === 'promote-and-win'
+        ? t('quiz.theoreticalObjectivePromote')
+        : snap.objective === 'WIN'
+          ? t('quiz.theoreticalObjectiveWin')
+          : t('quiz.theoreticalObjectiveDraw');
 
-  const showResult = snap.phase === 'success' || snap.phase === 'theoretical-loss';
+  const showResult =
+    snap.phase === 'success' ||
+    snap.phase === 'theoretical-loss' ||
+    snap.phase === 'interrupted';
   const board = useMemo(() => boardFromFen(snap.fen), [snap.fen]);
 
   const gameOver = useMemo(() => {
@@ -425,7 +471,7 @@ export default function TheoreticalEndgamePlayScreen() {
         )}
 
         <Text style={{ color: colors.mutedForeground, fontSize: 13 }} testID="theoretical-move-count">
-          {t('quiz.theoreticalMovesPlayed', { count: snap.userMoves, target: snap.targetUserMoves })}
+          {t('quiz.theoreticalMovesPlayed', { count: snap.userMoves })}
         </Text>
 
         <View style={styles.statusRow} testID="theoretical-status-row">
@@ -446,6 +492,10 @@ export default function TheoreticalEndgamePlayScreen() {
             />
           </View>
           <View style={styles.boardToggles}>
+            <BoardVisibilityToggle
+              visible={boardVisible}
+              onToggle={() => setBoardVisible((v) => !v)}
+            />
             <BoardCoordinatesToggle
               visible={showCoordinates}
               onToggle={() => {
@@ -456,17 +506,25 @@ export default function TheoreticalEndgamePlayScreen() {
         </View>
 
         <ChessBoardSection boardSize={boardSize} testID="theoretical-board">
-          <ChessBoard
-            board={board}
-            lastMove={snap.lastMove as LastMove | null}
-            isFlipped={snap.playerColor === 'b'}
-            selectedSquare={touchSelected}
-            legalDots={legalDests}
-            onSquarePress={onSquarePress}
-            showCoordinates={showCoordinates}
-            sizeMode="wide"
-            size={boardSize}
-          />
+          {boardVisible ? (
+            <ChessBoard
+              board={board}
+              lastMove={snap.lastMove as LastMove | null}
+              isFlipped={snap.playerColor === 'b'}
+              selectedSquare={touchSelected}
+              legalDots={legalDests}
+              onSquarePress={onSquarePress}
+              showCoordinates={showCoordinates}
+              sizeMode="wide"
+              size={boardSize}
+            />
+          ) : (
+            <HiddenBoardPlaceholder
+              size={boardSize}
+              sizeMode="wide"
+              onReveal={() => setBoardVisible(true)}
+            />
+          )}
         </ChessBoardSection>
 
         <EndgameEngineStatusBanner
@@ -474,17 +532,6 @@ export default function TheoreticalEndgamePlayScreen() {
           onRetry={() => void retryEngine()}
           onBack={confirmExit}
         />
-
-        {thinking && engineReady && (
-          <View style={styles.busyRow}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={{ color: colors.mutedForeground }}>
-              {snap.phase === 'verifying'
-                ? t('quiz.theoreticalVerifying')
-                : t('quiz.defendsNulleReflecting')}
-            </Text>
-          </View>
-        )}
 
         <ClassicCommandInputChrome
           keypadActive={keypadActive}
@@ -508,23 +555,39 @@ export default function TheoreticalEndgamePlayScreen() {
         />
 
         {showResult && snap.result && (
-          <View style={styles.result} testID="theoretical-result">
+          <View style={styles.result}>
             {snap.position && (
               <PositionReferenceBadge id={snap.position.id} />
             )}
 
-            <Text
-              style={{
-                color: snap.phase === 'theoretical-loss' ? '#c44' : '#398a55',
-                fontFamily: DesignTokens.typography.weightSemiBold,
-                textAlign: 'center',
-              }}
-              testID="theoretical-official-result"
-            >
-              {snap.result.officialResultMessage ??
+            <TheoreticalResultCard
+              headline={headlineFor({
+                score: snap.result.attemptScore,
+                outcome: snap.result.outcome,
+                objective: snap.result.objective,
+                objectiveKind: snap.result.objectiveKind,
+                lang: language === 'en' ? 'en' : 'fr',
+              })}
+              comment={
+                snap.result.quality
+                  ? language === 'en'
+                    ? snap.result.quality.commentEn
+                    : snap.result.quality.commentFr
+                  : null
+              }
+              stats={t('quiz.theoreticalResultStats', {
+                moves: snap.result.userMoves,
+                time: formatDuration(snap.result.durationMs)[language === 'en' ? 'en' : 'fr'],
+              })}
+              official={
+                snap.result.officialResultMessage ??
                 snap.officialResultMessage ??
-                snap.lastFeedback}
-            </Text>
+                snap.lastFeedback
+              }
+              tone={snap.phase === 'theoretical-loss' ? '#c44' : '#398a55'}
+              commentColor={colors.foreground}
+              statsColor={colors.mutedForeground}
+            />
 
             {snap.result.firstTheoreticalLoss && snap.phase === 'theoretical-loss' && (
               <Text style={{ color: colors.foreground }}>

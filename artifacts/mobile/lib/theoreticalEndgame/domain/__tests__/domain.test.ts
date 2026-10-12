@@ -8,6 +8,7 @@ import {
   averageComprehensionScore,
   isThemeMastered,
   formatComprehensionScore,
+  headlineFor,
 } from '../comprehensionScore.ts';
 import {
   lostTheoreticalObjective,
@@ -25,36 +26,212 @@ import { flipColors, mirrorHorizontal, isTransformSafe } from '../../transforms/
 import { Chess } from 'chess.js';
 
 describe('comprehension score', () => {
-  it('scores failure as 0', () => {
-    assert.equal(scoreAttempt({ outcome: 'theoretical-loss', userMoves: 5, targetUserMoves: 8 }), 0);
+  it('scores failure as 0 and abandon as no grade', () => {
+    const lost = scoreAttempt({ outcome: 'theoretical-loss', objective: 'WIN', userMoves: 5, initialMatePlies: 8 });
+    assert.equal(lost.score, 0);
+    const left = scoreAttempt({ outcome: 'abandoned', objective: 'WIN', userMoves: 5, initialMatePlies: 8 });
+    assert.equal(left.score, null);
+    const stopped = scoreAttempt({ outcome: 'interrupted', objective: 'DRAW', userMoves: 80, initialMatePlies: null });
+    assert.equal(stopped.score, null);
   });
 
-  it('scores fast success as 10', () => {
-    assert.equal(scoreAttempt({ outcome: 'success', userMoves: 8, targetUserMoves: 10 }), 10);
+  it('scores a perfect path as 5 and wasted tempi on the half-point scale', () => {
+    const mastered = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 3,
+      initialMatePlies: 13,
+      decisions: [
+        { dtmBefore: 5, dtmAfter: 4 },
+        { dtmBefore: 3, dtmAfter: 2 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(mastered.score, 5);
+    assert.equal(mastered.extra, 0);
+    const sameDistance = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 1,
+      initialMatePlies: 5,
+      decisions: [{ dtmBefore: 5, dtmAfter: 5 }],
+    });
+    assert.equal(sameDistance.extra, 1);
+    assert.equal(sameDistance.score, 4.5);
+    const many = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 10,
+      decisions: Array.from({ length: 9 }, () => ({ dtmBefore: 5, dtmAfter: 8 })).concat([
+        { dtmBefore: 1, dtmAfter: 0 },
+      ]),
+    });
+    assert.equal(many.extra, 18);
+    assert.equal(many.score, 1);
+    assert.ok(many.score > 0 && many.score < 5);
   });
 
-  it('scores slow success as 7', () => {
-    assert.equal(scoreAttempt({ outcome: 'success', userMoves: 16, targetUserMoves: 10 }), 7);
+  it('does not let a facilitating reply cancel tempi the user already lost', () => {
+    // Old rule: userMoves 3 versus ceil(11 / 2) = 6 would be extra 0 and 5/5.
+    const facilitated = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 3,
+      initialMatePlies: 11,
+      decisions: [
+        { dtmBefore: 11, dtmAfter: 12 },
+        { dtmBefore: 3, dtmAfter: 4 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(facilitated.extra, 2);
+    assert.equal(facilitated.score, 4);
+    assert.notEqual(facilitated.score, 5);
+
+    const several = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 4,
+      initialMatePlies: 11,
+      decisions: [
+        { dtmBefore: 11, dtmAfter: 12 },
+        { dtmBefore: 5, dtmAfter: 6 },
+        { dtmBefore: 3, dtmAfter: 4 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(several.extra, 3);
+    assert.equal(several.score, 3.5);
+    assert.notEqual(several.score, 5);
   });
 
-  it('averages last attempts and ignores abandon', () => {
+  it('accepts two winning methods that keep the distance and ignores the initial target', () => {
+    const a = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 2,
+      initialMatePlies: 99,
+      decisions: [
+        { dtmBefore: 3, dtmAfter: 2 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    const b = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 8,
+      initialMatePlies: 1,
+      decisions: [
+        { dtmBefore: 3, dtmAfter: 2 },
+        { dtmBefore: 1, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(a.score, 5);
+    assert.equal(b.score, 5);
+    const longer = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 2,
+      decisions: [
+        { dtmBefore: 3, dtmAfter: 4 },
+        { dtmBefore: 3, dtmAfter: 0 },
+      ],
+    });
+    assert.equal(longer.extra, 1);
+    assert.equal(longer.score, 4.5);
+  });
+
+  it('penalises a recovered loss and leaves a missing distance unevaluated', () => {
+    const dipped = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 2,
+      initialMatePlies: 13,
+      decisions: [
+        { dtmBefore: 5, dtmAfter: 4, resultAfterReply: 'DRAW' },
+        { dtmBefore: 3, dtmAfter: 2, resultAfterReply: 'WIN' },
+      ],
+    });
+    assert.equal(dipped.extra, 4);
+    assert.equal(dipped.score, 3.5);
+    const missing = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 7,
+      initialMatePlies: 13,
+      decisions: [{ dtmBefore: 13, dtmAfter: null, resultAfterReply: 'WIN' }],
+    });
+    assert.equal(missing.score, null);
+    assert.equal(missing.reason, 'unevaluated');
+    assert.match(missing.commentFr, /Qualité non évaluée/);
+  });
+
+  it('leaves a success without DTM or mechanism unevaluated', () => {
+    const blind = scoreAttempt({ outcome: 'success', objective: 'WIN', userMoves: 4, initialMatePlies: null });
+    assert.equal(blind.score, null);
+    assert.equal(blind.reason, 'unevaluated');
+    assert.match(blind.commentFr, /Qualité non évaluée/);
+  });
+
+  it('grades a demonstrated draw and does not punish an unmeasured method', () => {
+    const held = scoreAttempt({
+      outcome: 'success',
+      objective: 'DRAW',
+      userMoves: 6,
+      initialMatePlies: null,
+      mechanism: { demonstrated: true, slackMoves: 1 },
+    });
+    assert.equal(held.score, 4.5);
+    const alternative = scoreAttempt({
+      outcome: 'success',
+      objective: 'DRAW',
+      userMoves: 2,
+      mechanism: { demonstrated: true, slackMoves: 0 },
+    });
+    assert.equal(alternative.reason, 'mechanism');
+    assert.equal(alternative.score, 5);
+    const unknown = scoreAttempt({
+      outcome: 'success',
+      objective: 'DRAW',
+      userMoves: 3,
+      initialMatePlies: null,
+      mechanism: { demonstrated: false, slackMoves: 0 },
+    });
+    assert.equal(unknown.reason, 'unevaluated');
+    assert.equal(unknown.score, null);
+    assert.match(unknown.commentFr, /Qualité non évaluée/);
+  });
+
+  it('averages only the current scale and keeps legacy scores apart', () => {
     const avg = averageComprehensionScore([
-      { outcome: 'success', userMoves: 10, targetUserMoves: 10, attemptScore: 10 },
-      { outcome: 'abandoned', userMoves: 0, targetUserMoves: 10 },
-      { outcome: 'theoretical-loss', userMoves: 4, targetUserMoves: 10, attemptScore: 0 },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 5 },
+      { outcome: 'abandoned', scoreScale: 'quality-5', attemptScore: null },
+      { outcome: 'theoretical-loss', scoreScale: 'quality-5', attemptScore: 0 },
+      { outcome: 'success', scoreScale: 'legacy-10', attemptScore: 10 },
     ]);
     assert.equal(avg.count, 2);
-    assert.equal(avg.score, 5);
+    assert.equal(avg.score, 2.5);
   });
 
-  it('mastered at 10', () => {
-    assert.equal(isThemeMastered(10), true);
-    assert.equal(isThemeMastered(9.9), false);
+  it('mastered at 5 on the current scale', () => {
+    assert.equal(isThemeMastered(5), true);
+    assert.equal(isThemeMastered(4.5), false);
   });
 
-  it('formats score', () => {
-    assert.equal(formatComprehensionScore(9), '9/10');
-    assert.match(formatComprehensionScore(7.4), /7,4\/10/);
+  it('does not call an interruption a failed objective', () => {
+    assert.equal(
+      headlineFor({ score: null, outcome: 'interrupted', objective: 'DRAW', lang: 'fr' }),
+      'Tentative interrompue, sans note',
+    );
+    assert.match(
+      headlineFor({ score: null, outcome: 'success', objective: 'WIN', lang: 'fr' }),
+      /Qualité non évaluée — Finale gagnée/,
+    );
+  });
+
+  it('formats the current scale on 5', () => {
+    assert.equal(formatComprehensionScore(4), '4/5');
+    assert.match(formatComprehensionScore(3.5), /3,5\/5/);
   });
 });
 
@@ -76,15 +253,20 @@ describe('theoretical result', () => {
 });
 
 describe('pool integrity', () => {
-  it('has exactly 10 active positions', () => {
-    assert.equal(listPool().length, 10);
-    assert.equal(THEORETICAL_ENDGAME_POOL.length, 10);
+  it('has 57 active positions and does not weight a theme by its variant count', () => {
+    assert.equal(listPool().length, 57);
+    assert.equal(THEORETICAL_ENDGAME_POOL.length, 57);
+    assert.equal(THEME_IDS.length, 18);
   });
 
-  it('covers all mandatory themes once', () => {
+  it('gives every theme at least three variants, and the pawn square six', () => {
     for (const id of THEME_IDS) {
-      assert.equal(listByTheme(id).length, 1, id);
+      const n = listByTheme(id).length;
+      assert.ok(n >= (id === 'pawn-square' ? 6 : 3), id);
     }
+    const square = listByTheme('pawn-square');
+    assert.equal(square.filter((p) => p.objective === 'WIN').length, 3);
+    assert.equal(square.filter((p) => p.objective === 'DRAW').length, 3);
   });
 
   it('has unique ids and FENs', () => {
@@ -94,6 +276,47 @@ describe('pool integrity', () => {
       THEORETICAL_ENDGAME_POOL.map((p) => p.initialFen.split(' ').slice(0, 4).join(' ')),
     );
     assert.equal(fens.size, THEORETICAL_ENDGAME_POOL.length);
+  });
+
+  it('gives the user the move, both colours, and no stored target', () => {
+    const colors = new Set<string>();
+    for (const p of THEORETICAL_ENDGAME_POOL) {
+      const stm = p.initialFen.split(' ')[1] === 'b' ? 'black' : 'white';
+      assert.equal(p.playerColor, stm, p.id);
+      assert.equal(p.diagramOrientation, p.playerColor, p.id);
+      assert.equal('targetUserMoves' in p, false, p.id);
+      colors.add(p.playerColor);
+      assert.ok(p.explanation.fr.principle && p.explanation.en.principle, p.id);
+    }
+    assert.equal(colors.size, 2);
+  });
+
+  it('keeps category, DTZ, DTM and source apart for every variant', () => {
+    for (const p of THEORETICAL_ENDGAME_POOL) {
+      const proof = p.proof;
+      assert.ok(proof.method === 'syzygy-7' || proof.method === 'stockfish-18-lite-depth-16', p.id);
+      assert.ok(proof.source === 'lichess-syzygy' || proof.source === 'stockfish-18-lite', p.id);
+      assert.ok(proof.category === 'win' || proof.category === 'draw' || proof.category === 'loss', p.id);
+      assert.ok(proof.dtz === null || typeof proof.dtz === 'number', p.id);
+      assert.ok(proof.dtm === null || typeof proof.dtm === 'number', p.id);
+      assert.equal(proof.playerResult, proof.category.toUpperCase(), p.id);
+      if (proof.confidence === 'exact' && proof.category === 'win') {
+        assert.ok(proof.dtm != null && proof.dtm > 0, p.id);
+        assert.equal(proof.dtmReported, proof.dtm, p.id);
+        assert.equal(proof.source, 'lichess-syzygy', p.id);
+      }
+      if (proof.confidence === 'exact' && proof.category === 'draw') {
+        assert.equal(proof.dtm, null, p.id);
+        assert.equal(proof.dtmReported, 0, p.id);
+        assert.equal(proof.dtz, 0, p.id);
+      }
+      if (proof.confidence === 'engine') {
+        assert.equal(proof.dtm, null, p.id);
+        assert.equal(proof.dtmReported, null, p.id);
+        assert.equal(proof.source, 'stockfish-18-lite', p.id);
+        assert.equal(typeof proof.centipawn, 'number', true, p.id);
+      }
+    }
   });
 
   it('majority WIN objectives', () => {
@@ -129,11 +352,12 @@ describe('fen transforms', () => {
 });
 
 describe('selection', () => {
-  it('replays same position when theme has one entry', () => {
+  it('does not repeat the previous variant when another exists', () => {
     const themeId = 'queen-mate';
-    const first = pickPositionInTheme(themeId, null)!;
-    const second = pickPositionInTheme(themeId, first.id)!;
-    assert.equal(first.id, second.id);
+    const first = pickPositionInTheme(themeId, null, () => 0)!;
+    const second = pickPositionInTheme(themeId, first.id, () => 0)!;
+    assert.notEqual(first.id, second.id);
+    assert.equal(second.themeId, themeId);
   });
 
   it('random picks from non-mastered themes', () => {

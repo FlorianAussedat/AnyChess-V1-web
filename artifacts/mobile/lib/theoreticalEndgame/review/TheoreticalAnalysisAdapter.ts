@@ -24,7 +24,6 @@ export type TheoreticalAnalysisPayload = {
   firstMajorTurn: FirstMajorTurn | null;
   objective: 'WIN' | 'DRAW';
   userMoves: number;
-  targetUserMoves: number;
   outcome: TheoreticalAttemptResult['outcome'];
   timeline: EvaluationPoint[];
 };
@@ -65,7 +64,6 @@ function stashOverlay(gameId: string, result: TheoreticalAttemptResult): void {
       : null,
     objective: result.objective,
     userMoves: result.userMoves,
-    targetUserMoves: result.targetUserMoves,
     outcome: result.outcome,
     timeline: [],
   });

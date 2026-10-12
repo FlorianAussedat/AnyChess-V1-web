@@ -90,7 +90,8 @@ export type FenLegalityResult = {
 };
 
 /**
- * Strict FEN legality — BOTH kings must not be in check in the initial position.
+ * Strict FEN legality. A check against the side that is NOT to move is illegal.
+ * The side to move may be in check, as long as the position is not mate or stalemate.
  */
 export function validateFenLegality(fen: string): FenLegalityResult {
   const errors: string[] = [];
@@ -139,8 +140,13 @@ export function validateFenLegality(fen: string): FenLegalityResult {
 
   const whiteKingInCheck = game.isAttacked(wk as never, 'b');
   const blackKingInCheck = game.isAttacked(bk as never, 'w');
-  if (whiteKingInCheck) errors.push('white king is in check in the initial position');
-  if (blackKingInCheck) errors.push('black king is in check in the initial position');
+  const stm = game.turn();
+  if (stm === 'w' && blackKingInCheck) {
+    errors.push('black king is in check while White is to move');
+  }
+  if (stm === 'b' && whiteKingInCheck) {
+    errors.push('white king is in check while Black is to move');
+  }
 
   if (game.isGameOver()) errors.push('position is already terminal');
 
@@ -162,6 +168,22 @@ export function validateFenLegality(fen: string): FenLegalityResult {
   };
 }
 
+function rookPawnFile(fen: string): boolean {
+  try {
+    const game = new Chess(fen);
+    const board = game.board();
+    for (let r = 0; r < 8; r++) {
+      for (let f = 0; f < 8; f++) {
+        const p = board[r]?.[f];
+        if (p?.type === 'p' && (f === 0 || f === 7)) return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 export type ThemeMaterialResult = { ok: boolean; errors: string[] };
 
 export function validateThemeMaterial(
@@ -175,29 +197,26 @@ export function validateThemeMaterial(
 
   switch (themeId) {
     case 'queen-mate':
-      if (!(c.K === 1 && c.Q === 1 && c.k === 1 && total === 3)) {
-        errors.push('queen-mate requires KQK material');
+      if (!(c.K === 1 && c.k === 1 && c.Q + c.q === 1 && total === 3)) {
+        errors.push('queen-mate requires KQ vs K, either side');
       }
       break;
     case 'rook-mate':
-      if (!(c.K === 1 && c.R === 1 && c.k === 1 && total === 3)) {
-        errors.push('rook-mate requires KRK material');
+      if (!(c.K === 1 && c.k === 1 && c.R + c.r === 1 && total === 3)) {
+        errors.push('rook-mate requires KR vs K, either side');
       }
       break;
     case 'two-bishops-mate':
-      if (!(c.K === 1 && c.B === 2 && c.k === 1 && total === 4)) {
-        errors.push('two-bishops-mate requires KBBK material');
+      if (!(c.K === 1 && c.k === 1 && c.B + c.b === 2 && total === 4)) {
+        errors.push('two-bishops-mate requires KBB vs K, either side');
       } else {
-        // Opposite colors: bishops on different square colors
         const game = new Chess(fen);
         const squares: { file: number; rank: number }[] = [];
         const board = game.board();
         for (let r = 0; r < 8; r++) {
           for (let f = 0; f < 8; f++) {
             const p = board[r]?.[f];
-            if (p && p.type === 'b' && p.color === 'w') {
-              squares.push({ file: f, rank: 8 - r });
-            }
+            if (p && p.type === 'b') squares.push({ file: f, rank: 8 - r });
           }
         }
         if (squares.length === 2) {
@@ -212,10 +231,19 @@ export function validateThemeMaterial(
     case 'pawn-square':
     case 'opposition':
     case 'kp-vs-k':
-      if (!(c.K === 1 && c.P === 1 && c.k === 1 && total === 3)) {
-        errors.push(`${themeId} requires KPK material`);
+    case 'key-squares':
+      if (!(c.K === 1 && c.k === 1 && c.P + c.p === 1 && total === 3)) {
+        errors.push(`${themeId} requires KPK material, either side`);
       }
       break;
+    case 'rook-pawn': {
+      if (!(c.K === 1 && c.k === 1 && c.P + c.p === 1 && total === 3)) {
+        errors.push('rook-pawn requires KPK material');
+      } else if (!rookPawnFile(fen)) {
+        errors.push('rook-pawn requires the pawn on the a- or h-file');
+      }
+      break;
+    }
     case 'pawn-race':
       if (!(c.K === 1 && c.P >= 1 && c.k === 1 && c.p >= 1 && total === 4)) {
         errors.push('pawn-race requires K+P vs k+p');
@@ -261,8 +289,60 @@ export function validateThemeMaterial(
       }
       break;
     case 'philidor':
-      if (!(c.K === 1 && c.R === 1 && c.P === 1 && c.k === 1 && c.r === 1 && total === 5)) {
-        errors.push('philidor requires KRPKR material');
+    case 'lateral-checks':
+      if (
+        !(
+          c.K === 1 &&
+          c.k === 1 &&
+          c.R === 1 &&
+          c.r === 1 &&
+          c.P + c.p === 1 &&
+          total === 5
+        )
+      ) {
+        errors.push(`${themeId} requires KRPKR material`);
+      }
+      break;
+    case 'outside-passed':
+      if (!(c.P + c.p >= 3 && c.K === 1 && c.k === 1 && total === c.K + c.k + c.P + c.p)) {
+        errors.push('outside-passed requires kings and at least three pawns, no other pieces');
+      }
+      break;
+    case 'triangulation':
+      if (!(c.P + c.p >= 2 && c.K === 1 && c.k === 1 && total === c.K + c.k + c.P + c.p)) {
+        errors.push('triangulation requires a pure pawn ending');
+      }
+      break;
+    case 'bad-bishop': {
+      const bishops = c.B + c.b;
+      const pawns = c.P + c.p;
+      if (!(bishops === 1 && pawns === 1 && c.K === 1 && c.k === 1 && total === 4)) {
+        errors.push('bad-bishop requires KBP vs K');
+      }
+      break;
+    }
+    case 'queen-vs-pawn': {
+      const queens = c.Q + c.q;
+      const pawns = c.P + c.p;
+      if (!(queens === 1 && pawns === 1 && c.K === 1 && c.k === 1 && total === 4)) {
+        errors.push('queen-vs-pawn requires KQ vs KP');
+      }
+      break;
+    }
+    case 'vancura':
+      if (
+        !(
+          c.K === 1 &&
+          c.k === 1 &&
+          c.R === 1 &&
+          c.r === 1 &&
+          c.P + c.p === 1 &&
+          total === 5
+        )
+      ) {
+        errors.push('vancura requires KRPKR material');
+      } else if (!rookPawnFile(fen)) {
+        errors.push('vancura requires a rook pawn');
       }
       break;
     default:

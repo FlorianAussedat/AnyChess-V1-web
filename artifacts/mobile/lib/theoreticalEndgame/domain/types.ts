@@ -1,9 +1,21 @@
 /**
  * Theoretical endgame training — pure domain types.
+ *
+ * Score scales:
+ * - legacy-10: historical attempts graded by a target-move ratio. Kept for
+ *   history only. Never averaged with quality-5.
+ * - quality-5: current scale (theoretical-quality-v1). See comprehensionScore.ts.
  */
 export type PlayerColor = 'white' | 'black';
 
 export type TheoreticalObjective = 'WIN' | 'DRAW';
+
+export type ObjectiveKind =
+  | 'mate'
+  | 'win'
+  | 'draw'
+  | 'stop-pawn'
+  | 'promote-and-win';
 
 export type TheoreticalThemeId =
   | 'queen-mate'
@@ -15,7 +27,15 @@ export type TheoreticalThemeId =
   | 'pawn-race'
   | 'pawn-breakthrough'
   | 'lucena'
-  | 'philidor';
+  | 'philidor'
+  | 'key-squares'
+  | 'rook-pawn'
+  | 'outside-passed'
+  | 'triangulation'
+  | 'bad-bishop'
+  | 'queen-vs-pawn'
+  | 'lateral-checks'
+  | 'vancura';
 
 export type CompletionRule =
   | { type: 'CHECKMATE' }
@@ -24,6 +44,42 @@ export type CompletionRule =
 export type PositionCertification =
   | { type: 'SYZYGY'; result: TheoreticalObjective }
   | { type: 'ENGINE'; engine: string; depth: number; result: TheoreticalObjective };
+
+/**
+ * WDL category returned by the source.
+ * Exact only when confidence is 'exact'. An engine category is a search
+ * conclusion, not a tablebase result, and it is not a mate distance.
+ */
+export type ProofCategory = 'win' | 'draw' | 'loss';
+
+/** How the catalog proof was obtained. Play never calls this service. */
+export type PositionProof = {
+  method: 'syzygy-7' | 'stockfish-18-lite-depth-16';
+  /** exact = 7-man tablebase. engine = deep search, not a tablebase proof. */
+  confidence: 'exact' | 'engine';
+  category: ProofCategory;
+  /** Theoretical result from the user's side at the start. Same outcome as category, not a distance. */
+  playerResult: 'WIN' | 'DRAW' | 'LOSS';
+  /** Table DTZ. 0 on a draw is the measured zeroing distance, not a mate. */
+  dtz: number | null;
+  /**
+   * Mate distance in plies. Null when the source did not provide one:
+   * draws (a Syzygy 0 is not mate-in-zero) and engine searches that only
+   * returned centipawns.
+   */
+  dtm: number | null;
+  /**
+   * DTM field as returned by the source, before a draw sentinel is discarded.
+   * Syzygy draws were consulted as 0. That 0 stays here and is not `dtm`.
+   */
+  dtmReported: number | null;
+  /** Where the numbers came from. Play does not call this source. */
+  source: 'lichess-syzygy' | 'stockfish-18-lite';
+  consultedAt: string;
+  bestMove?: string;
+  depth?: number;
+  centipawn?: number;
+};
 
 export type PositionSource = {
   name: string;
@@ -49,27 +105,27 @@ export type TheoreticalEndgamePosition = {
   initialFen: string;
   playerColor: PlayerColor;
   objective: TheoreticalObjective;
+  /** Pedagogical label, finer than WIN/DRAW. */
+  objectiveKind: ObjectiveKind;
   completion: CompletionRule;
-  /** Target player moves for comprehension scoring. */
-  targetUserMoves: number;
   certification: PositionCertification;
-  /** Board orientation for diagrams (usually matches playerColor). */
+  proof: PositionProof;
+  /** Content revision of this variant. Historical attempts keep their own scale. */
+  contentVersion: string;
   diagramOrientation: PlayerColor;
   explanation: BilingualExplanation;
-  /** When false, excluded from runtime selectors (future multi-position themes). */
+  /** Short variant-specific justification. Not shown as a hint during play. */
+  variantNote: { fr: string; en: string };
   active: boolean;
   source?: PositionSource;
   tags: string[];
-  /** Optional variant group for color/transform siblings. */
   variantGroup?: string;
 };
 
 export type TheoreticalTheme = {
   id: TheoreticalThemeId;
-  /** i18n key suffix under quiz.theoreticalTheme* */
   titleKey: string;
   category: 'elementary-mate' | 'pawn' | 'rook';
-  /** Placeholder icon key in BrandAssets.exercises */
   iconKey: 'defendsNulle' | 'construisOuverture' | 'jouerLeCoup';
 };
 
@@ -77,7 +133,10 @@ export type AttemptOutcome =
   | 'success'
   | 'theoretical-loss'
   | 'abandoned'
+  | 'interrupted'
   | 'in-progress';
+
+export type ScoreScaleId = 'legacy-10' | 'quality-5';
 
 export type OfficialEndReason =
   | 'checkmate'
@@ -97,16 +156,39 @@ export type FirstTheoreticalLoss = {
   message: string;
 };
 
+export type QualityGrade = {
+  scale: 'quality-5';
+  version: 'theoretical-quality-v1';
+  /** null = not graded (abandon, interruption, or missing quality data). */
+  score: number | null;
+  reason:
+    | 'failed'
+    | 'abandoned'
+    | 'interrupted'
+    | 'unevaluated'
+    | 'mate-distance'
+    | 'mechanism';
+  /** Measured detours (wasted tempi on the positions faced, or mechanism slack). */
+  extra: number | null;
+  commentFr: string;
+  commentEn: string;
+};
+
 export type TheoreticalAttemptResult = {
   outcome: AttemptOutcome;
   positionId: string;
   themeId: TheoreticalThemeId;
   objective: TheoreticalObjective;
+  objectiveKind: ObjectiveKind;
   playerColor: PlayerColor;
+  /** Moves played by the user. Not plies and not full-move pairs. */
   userMoves: number;
-  targetUserMoves: number;
-  /** Score for this attempt (0–10). */
-  attemptScore: number;
+  scoreScale: ScoreScaleId;
+  /** Null when the attempt has no grade. Never a fabricated 5. */
+  attemptScore: number | null;
+  quality: QualityGrade | null;
+  /** Wall-clock statistic only. Not an input of the grade. */
+  durationMs: number;
   firstTheoreticalLoss: FirstTheoreticalLoss | null;
   startFen: string;
   endFen: string;
@@ -122,12 +204,17 @@ export type CatalogViewMode = 'cards' | 'list';
 export const THEORETICAL_ENDGAME_CONFIG = {
   thinkTimeMs: 1000,
   confirmThinkMs: 1500,
-  /** Rolling window for theme comprehension score. */
   scoreWindow: 10,
-  /** WDL threshold (permille) to call a theoretical result lost. */
   wdlLossThreshold: 700,
   wdlDrawThreshold: 700,
+  /**
+   * Safety stop so a fortress cannot run forever.
+   * It is not a pedagogical target and must not be shown as one.
+   * Hitting it does not score 0.
+   */
+  technicalUserMoveCap: 80,
   datasetVersion: '2.0.0',
-  contentVersion: 'canonical-10-v1',
-  expectedActiveCount: 10,
+  contentVersion: 'variants-v2',
+  scoreVersion: 'theoretical-quality-v1',
+  expectedActiveCount: 57,
 } as const;

@@ -52,5 +52,6 @@ export function meetsObjective(
   playerResult: PlayerTheoreticalResult,
 ): boolean {
   if (objective === 'WIN') return playerResult === 'WIN';
-  return playerResult === 'DRAW';
+  // A draw objective is "at least a draw": the defender's win also succeeds.
+  return playerResult === 'DRAW' || playerResult === 'WIN';
 }

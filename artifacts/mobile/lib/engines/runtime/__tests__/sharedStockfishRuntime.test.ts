@@ -62,7 +62,8 @@ describe('position decoupled from engine', () => {
     const snap = await session.start(pos!);
     assert.equal(snap.phase, 'playing');
     assert.equal(snap.fen, pos!.initialFen);
-    assert.equal(snap.targetUserMoves, pos!.targetUserMoves);
+    assert.equal(snap.userMoves, 0);
+    assert.equal('targetUserMoves' in snap, false);
     assert.equal(snap.userMoves, 0);
   });
 });
@@ -120,7 +121,8 @@ describe('SharedStockfishRuntime (static contract)', () => {
     const wdl = read('lib/defendDraw/practicalPressure.ts');
     assert.match(wdl, /pickPracticalPressureMove/);
     const session = read('lib/theoreticalEndgame/session/TheoreticalEndgameSession.ts');
-    assert.match(session, /targetUserMoves/);
+    assert.match(session, /gradeQuality/);
+    assert.doesNotMatch(session, /targetUserMoves/);
   });
 });
 
@@ -131,10 +133,10 @@ describe('pool counts unchanged', () => {
     assert.equal(matches?.length, 209);
   });
 
-  it('theoretical pool has 10 canonical positions', () => {
+  it('theoretical pool has 57 canonical positions', () => {
     const pool = read('lib/theoreticalEndgame/data/pool.generated.ts');
     const matches = pool.match(/\bid: 'TE-CANON-/g);
-    assert.equal(matches?.length, 10);
+    assert.equal(matches?.length, 57);
     assert.doesNotMatch(pool, /three-pawns/);
     assert.doesNotMatch(pool, /id: 'TE-\d{3}'/);
   });

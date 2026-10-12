@@ -1,0 +1,427 @@
+/**
+ * Writes canonical.positions.json for Finales théoriques (variants-v2).
+ * Proof fields are the tablebase / engine results checked by
+ * prove-theoretical-endgame-pool.mjs. Playing never calls those services.
+ */
+import { writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const OUT = join(dirname(fileURLToPath(import.meta.url)), '../lib/theoreticalEndgame/data/canonical.positions.json');
+
+const EX = {
+  'queen-mate': {
+    fr: {
+      principle: 'Dame et roi contre roi seul gagnent en réduisant l’espace du roi adverse, puis en rapprochant le sien.',
+      seek: 'Conduire le roi adverse vers un bord, la dame à distance de sécurité.',
+      method: 'Coupez de larges bandes, approchez le roi, puis matez sur la dernière rangée avec le roi en soutien.',
+      avoid: 'Le pat : ne collez pas la dame au roi adverse sans soutien.',
+    },
+    en: {
+      principle: 'Queen and king versus lone king wins by shrinking the enemy king, then bringing your own king in.',
+      seek: 'Drive the enemy king to an edge, keeping the queen at a safe distance.',
+      method: 'Cut large strips, approach with the king, then mate on the back rank with king support.',
+      avoid: 'Stalemate: do not place the queen next to the enemy king without support.',
+    },
+  },
+  'rook-mate': {
+    fr: {
+      principle: 'Tour et roi contre roi gagnent en coupant le roi, en opposant le sien, puis en le poussant vers le bord.',
+      seek: 'Confier le roi adverse à une bande, puis l’opposition des rois.',
+      method: 'Coupez une rangée, amenez le roi face à face, échec de tour pour reculer d’une case, jusqu’au mat.',
+      avoid: 'Sans le roi, la tour seule ne mate pas. Ne l’éloignez pas.',
+    },
+    en: {
+      principle: 'Rook and king versus king wins by cutting the king off, opposing with yours, then driving him to the edge.',
+      seek: 'Confine the enemy king to a strip, then king opposition.',
+      method: 'Cut a rank, bring the kings face to face, check with the rook to push one square, until mate.',
+      avoid: 'The rook alone cannot mate. Do not leave your king behind.',
+    },
+  },
+  'two-bishops-mate': {
+    fr: {
+      principle: 'Deux fous de couleurs opposées et le roi forcent le mat en réduisant les deux complexes de cases.',
+      seek: 'Un coin dont la couleur est contrôlée par un des fous.',
+      method: 'Barrière de fous, roi qui avance, roi adverse poussé vers le coin.',
+      avoid: 'Fous sur la même couleur, ou pat en resserrant trop tôt.',
+    },
+    en: {
+      principle: 'Two opposite-coloured bishops and the king force mate by shrinking both colour complexes.',
+      seek: 'A corner whose colour one bishop controls.',
+      method: 'Build a bishop barrier, advance the king, push the enemy king to the corner.',
+      avoid: 'Bishops on one colour, or stalemate by tightening too early.',
+    },
+  },
+  'pawn-square': {
+    fr: {
+      principle: 'Le carré du pion dit si le roi adverse peut rattraper un pion passé. Le trait et le double pas initial changent le carré.',
+      seek: 'Le chemin du roi vers le carré, ou l’avance juste du pion. Le roi du camp du pion ne sert pas d’escorte ici.',
+      method: 'Côté défense : entrez dans le carré par le plus court chemin. Côté pion : poussez tant que le roi est dehors ; un coup de roi laisse souvent le roi entrer.',
+      avoid: 'Un pion impossible à rattraper n’enseigne pas la défense. Une promotion immédiatement reprise n’est pas un gain.',
+    },
+    en: {
+      principle: 'The pawn’s square says whether the enemy king can catch a passer. The move and the initial double step change the square.',
+      seek: 'The king’s path into the square, or the right pawn push. The pawn-side king is not an escort here.',
+      method: 'As defender: step into the square by the shortest path. With the pawn: push while the king is outside; a king move often lets him in.',
+      avoid: 'An uncatchable pawn does not teach the defence. A promotion that is taken at once is not a win.',
+    },
+  },
+  opposition: {
+    fr: {
+      principle: 'L’opposition place les rois face à face : celui qui n’a pas le trait la conserve et peut forcer la pénétration.',
+      seek: 'Prendre ou garder l’opposition, distincte des cases clés du pion.',
+      method: 'Avancez le roi pour imposer le face-à-face. Ne poussez le pion que lorsque l’adversaire a cédé.',
+      avoid: 'Pousser le pion trop tôt rend l’opposition inutile.',
+    },
+    en: {
+      principle: 'Opposition puts the kings face to face: the side not to move holds it and can force a way in.',
+      seek: 'Take or keep the opposition, which is not the same lesson as the pawn’s key squares.',
+      method: 'Step the king to impose the face-off. Push the pawn only after the opponent has yielded.',
+      avoid: 'Pushing the pawn too early throws the opposition away.',
+    },
+  },
+  'kp-vs-k': {
+    fr: {
+      principle: 'Roi et pion contre roi : le roi précède le pion et l’épaule du roi adverse décide, au-delà d’un simple face-à-face.',
+      seek: 'Placer le roi devant le pion et écarter le roi adverse.',
+      method: 'Le roi d’abord, le pion ensuite. Un seul coup garde parfois le gain.',
+      avoid: 'Pion en 7e sans contrôle des cases devant lui.',
+    },
+    en: {
+      principle: 'King and pawn versus king: the king goes in front and shoulders the enemy king, beyond a plain face-off.',
+      seek: 'Put the king in front of the pawn and shoulder the enemy king aside.',
+      method: 'King first, pawn second. Sometimes only one move keeps the win.',
+      avoid: 'A pawn on the 7th without control of the squares in front of it.',
+    },
+  },
+  'key-squares': {
+    fr: {
+      principle: 'Les cases clés sont les cases devant le pion dont l’occupation force le gain. Ce n’est pas l’opposition elle-même.',
+      seek: 'Atteindre une case clé (deux rangs devant le pion s’il n’est pas encore en 5e).',
+      method: 'Le roi vise la case clé. Le pion ne bouge que lorsque le roi y est.',
+      avoid: 'Confondre un face-à-face des rois avec l’occupation de la case clé.',
+    },
+    en: {
+      principle: 'Key squares are the squares in front of the pawn whose occupation forces the win. They are not opposition itself.',
+      seek: 'Reach a key square (two ranks ahead of the pawn before it reaches the 5th).',
+      method: 'The king aims at the key square. The pawn moves only once the king is there.',
+      avoid: 'Treating a king face-off as if it were occupation of the key square.',
+    },
+  },
+  'rook-pawn': {
+    fr: {
+      principle: 'Le pion de tour nulle souvent : le roi adverse, au coin, ne peut plus être délogé sans pat.',
+      seek: 'Savoir si le roi défenseur atteint le coin, ou si le roi attaquant contrôle l’approche.',
+      method: 'En défense, gagnez le coin. En attaque, ne poussez que si le roi adverse en est écarté.',
+      avoid: 'Jouer un pion de tour nulle comme s’il s’agissait d’un gain obligatoire.',
+    },
+    en: {
+      principle: 'A rook pawn is often drawn: once the defending king reaches the corner he cannot be driven out without stalemate.',
+      seek: 'See whether the defending king reaches the corner, or the attacking king controls the approach.',
+      method: 'In defence, reach the corner. In attack, push only if the enemy king is kept away from it.',
+      avoid: 'Treating a drawn rook pawn as a forced win.',
+    },
+  },
+  'pawn-race': {
+    fr: {
+      principle: 'Dans une course, comptez jusqu’à la promotion : qui dame en premier, et la dame donne-t-elle échec.',
+      seek: 'Le nombre exact de coups, pas une impression.',
+      method: 'Poussez le pion dont le calcul gagne. Un coup de roi perd souvent un temps.',
+      avoid: 'Oublier l’échec à la promotion ou le trait qui suit.',
+    },
+    en: {
+      principle: 'In a race, count to promotion: who queens first, and whether the new queen checks.',
+      seek: 'The exact move count, not a feeling.',
+      method: 'Push the pawn the count says wins. A king move often loses a tempo.',
+      avoid: 'Forgetting the check on promotion or whose move follows.',
+    },
+  },
+  'pawn-breakthrough': {
+    fr: {
+      principle: 'La percée sacrifie un pion pour en créer un passé hors de portée du roi adverse.',
+      seek: 'Le sacrifice juste, puis le pion passé qui en sort.',
+      method: 'Jouez la percée, acceptez la reprise, poussez le pion passé.',
+      avoid: 'Pousser un autre pion : la structure adverse reste alors fermée.',
+    },
+    en: {
+      principle: 'A breakthrough sacrifices a pawn to create a passer the enemy king cannot catch.',
+      seek: 'The right sacrifice, then the passer that comes out of it.',
+      method: 'Play the break, accept the recapture, push the passer.',
+      avoid: 'Pushing another pawn, which leaves the enemy structure closed.',
+    },
+  },
+  'outside-passed': {
+    fr: {
+      principle: 'Un pion passé éloigné attire le roi adverse, puis l’autre aile décide.',
+      seek: 'Le pion qui détourne, et le pion qui reste pour le roi.',
+      method: 'Avancez le passé éloigné pour déplacer le roi adverse, puis prenez l’avantage de l’autre côté.',
+      avoid: 'Une course de promotion à un seul pion, ou pousser le pion qui se fait bloquer.',
+    },
+    en: {
+      principle: 'An outside passed pawn draws the enemy king away, then the other wing decides.',
+      seek: 'The pawn that diverts, and the pawn left for your king.',
+      method: 'Advance the outside passer to pull the enemy king, then take the advantage on the other side.',
+      avoid: 'A one-pawn promotion race, or pushing the pawn that gets blockaded.',
+    },
+  },
+  triangulation: {
+    fr: {
+      principle: 'La triangulation perd un temps : le roi fait un triangle pour rendre le trait à l’adversaire en zugzwang.',
+      seek: 'Le détour de roi qui reprend la même case avec l’autre au trait.',
+      method: 'Refusez le coup direct qui cède l’opposition. Contournez, puis revenez.',
+      avoid: 'Croire qu’avancer est toujours gagner un temps.',
+    },
+    en: {
+      principle: 'Triangulation loses a tempo: the king takes a triangle so the opponent has the move in zugzwang.',
+      seek: 'The king detour that returns to the same square with the opponent to move.',
+      method: 'Refuse the direct step that gives up the opposition. Go around, then come back.',
+      avoid: 'Assuming that stepping forward always gains a tempo.',
+    },
+  },
+  'bad-bishop': {
+    fr: {
+      principle: 'Fou et pion de tour « mauvais fou » : le fou ne contrôle pas la case de promotion. Le roi qui y entre tient la nulle.',
+      seek: 'Le coin de la couleur opposée au fou.',
+      method: 'Amenez le roi au coin salvateur et n’en sortez plus.',
+      avoid: 'Le coin de la couleur du fou, ou une case où le roi se fait écarter.',
+    },
+    en: {
+      principle: 'Bishop and rook pawn, wrong bishop: the bishop does not control the promotion square. The king that reaches it holds the draw.',
+      seek: 'The corner of the opposite colour to the bishop.',
+      method: 'Bring the king to the saving corner and stay there.',
+      avoid: 'The bishop’s corner, or a square from which the king is driven off.',
+    },
+  },
+  'queen-vs-pawn': {
+    fr: {
+      principle: 'Dame contre pion en 7e : la dame gagne en se plaçant devant ou par des échecs, sauf des exceptions de pion a, c, f ou h selon les rois.',
+      seek: 'La case devant le pion, ou l’exception réelle de cette position.',
+      method: 'Placez la dame devant le pion quand c’est le gain. En nulle théorique, ne forcez pas une ligne perdante.',
+      avoid: 'Traiter toute dame contre pion en 7e comme un gain, ou toute promotion comme une nulle.',
+    },
+    en: {
+      principle: 'Queen versus a pawn on the 7th: the queen wins by getting in front or by checks, except real a, c, f or h cases depending on the kings.',
+      seek: 'The square in front of the pawn, or the real exception of this position.',
+      method: 'Put the queen in front when that wins. In a theoretical draw, do not force a losing try.',
+      avoid: 'Treating every queen versus a 7th-rank pawn as a win, or every promotion as a draw.',
+    },
+  },
+  lucena: {
+    fr: {
+      principle: 'Lucena : pion en 7e, roi sur la case de promotion, roi adverse coupé. Le pont de la tour abrite le roi.',
+      seek: 'La 4e rangée pour interposer la tour contre les échecs latéraux.',
+      method: 'Éloignez la tour adverse, sortez le roi, interposez la tour (le pont).',
+      avoid: 'Sortir le roi sans le pont : les échecs empêchent la promotion.',
+    },
+    en: {
+      principle: 'Lucena: pawn on the 7th, king on the promotion square, enemy king cut off. The rook bridge shelters the king.',
+      seek: 'The 4th rank, to interpose the rook against side checks.',
+      method: 'Drive the enemy rook away, step the king out, interpose the rook (the bridge).',
+      avoid: 'Stepping the king out without the bridge: checks stop promotion.',
+    },
+  },
+  philidor: {
+    fr: {
+      principle: 'Philidor : nulle. La tour tient la rangée devant le pion tant qu’il n’est pas en 6e, puis passe derrière pour les échecs.',
+      seek: 'La barrière, puis les échecs par derrière quand le pion avance.',
+      method: 'Gardez la tour sur la rangée critique. Quand le pion arrive en 6e, basculez derrière le roi adverse.',
+      avoid: 'Quitter la barrière trop tôt, ou attaquer le pion sans raison.',
+    },
+    en: {
+      principle: 'Philidor is a draw. The rook holds the rank in front of the pawn until the 6th, then swings behind for checks.',
+      seek: 'The barrier, then checks from behind once the pawn advances.',
+      method: 'Keep the rook on the critical rank. When the pawn reaches the 6th, drop behind the enemy king.',
+      avoid: 'Leaving the barrier too early, or attacking the pawn for no reason.',
+    },
+  },
+  'lateral-checks': {
+    fr: {
+      principle: 'Les échecs latéraux : la tour échec sur la rangée, assez loin pour que le roi ne puisse pas à la fois sortir et attaquer la tour.',
+      seek: 'La distance d’échec. Un échec trop proche perd la tour ou le pion.',
+      method: 'Échec depuis l’aile, à trois files au moins. Répétez tant que le roi s’approche.',
+      avoid: 'Un échec collé au roi, ou une tour passive sans échec quand le roi entre.',
+    },
+    en: {
+      principle: 'Lateral checks: the rook checks along the rank, far enough that the king cannot both step out and attack the rook.',
+      seek: 'Checking distance. A check that is too close loses the rook or the pawn.',
+      method: 'Check from the flank, at least three files away. Repeat while the king approaches.',
+      avoid: 'A check next to the king, or a passive rook with no check once the king comes in.',
+    },
+  },
+  vancura: {
+    fr: {
+      principle: 'Vancura : la tour défense tient la nulle contre tour et pion de tour en attaquant le pion de côté, pas en se plaçant derrière.',
+      seek: 'La rangée du pion, à distance du roi adverse qui voudrait le soutenir.',
+      method: 'Passez sur la rangée du pion. Quand le roi approche, échec latéral et retour.',
+      avoid: 'Rester derrière le pion, ou quitter la rangée sans échec.',
+    },
+    en: {
+      principle: 'Vancura: the defending rook draws against rook and rook pawn by attacking the pawn from the side, not from behind.',
+      seek: 'The pawn’s rank, at a distance from the enemy king that wants to support it.',
+      method: 'Swing to the pawn’s rank. When the king approaches, check from the side and return.',
+      avoid: 'Staying behind the pawn, or leaving the rank without a check.',
+    },
+  },
+};
+
+function syzygy(result, dtz, dtm) {
+  const category = result === 'WIN' ? 'win' : result === 'DRAW' ? 'draw' : 'loss';
+  const mate = category === 'win' && typeof dtm === 'number' && dtm > 0 ? dtm : null;
+  return {
+    method: 'syzygy-7',
+    confidence: 'exact',
+    category,
+    playerResult: result,
+    dtz,
+    dtm: mate,
+    dtmReported: dtm,
+    source: 'lichess-syzygy',
+    consultedAt: '2026-10-12',
+  };
+}
+
+function engine(bestMove, centipawn) {
+  return {
+    method: 'stockfish-18-lite-depth-16',
+    confidence: 'engine',
+    category: 'win',
+    playerResult: 'WIN',
+    dtz: null,
+    dtm: null,
+    dtmReported: null,
+    source: 'stockfish-18-lite',
+    consultedAt: '2026-10-12',
+    bestMove,
+    depth: 16,
+    centipawn,
+  };
+}
+
+function P(fields) {
+  const themeId = fields.themeId;
+  const playerColor = fields.fen.split(' ')[1] === 'b' ? 'black' : 'white';
+  const proof = fields.proof;
+  const objective = fields.objective;
+  const mate = ['queen-mate', 'rook-mate', 'two-bishops-mate'].includes(themeId);
+  return {
+    id: fields.id,
+    themeId,
+    titleKey: fields.titleKey,
+    initialFen: fields.fen,
+    playerColor,
+    objective,
+    objectiveKind: fields.kind,
+    completion: { type: mate ? 'CHECKMATE' : 'OFFICIAL_GAME_RESULT' },
+    diagramOrientation: playerColor,
+    active: true,
+    contentVersion: 'variants-v2',
+    certification:
+      proof.confidence === 'exact'
+        ? { type: 'SYZYGY', result: objective }
+        : { type: 'ENGINE', engine: 'stockfish-18-lite', depth: 16, result: objective },
+    proof,
+    tags: fields.tags,
+    variantNote: fields.note,
+    choiceRationale: fields.note.en,
+    sourceReferences: [
+      {
+        name: proof.confidence === 'exact' ? 'Lichess Syzygy tablebase' : 'Stockfish 18 Lite depth 16',
+        url:
+          proof.confidence === 'exact'
+            ? `https://tablebase.lichess.ovh/standard?fen=${encodeURIComponent(fields.fen)}`
+            : undefined,
+        consultedAt: '2026-10-12',
+        principle: fields.note.en,
+        method: proof.method,
+      },
+    ],
+    explanation: EX[themeId],
+  };
+}
+
+const positions = [
+  P({ id: 'TE-CANON-QUEEN-MATE', themeId: 'queen-mate', titleKey: 'QueenMate', fen: '8/8/8/4k3/8/8/8/4K2Q w - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 13, 13), tags: ['elementary-mate', 'queen'], note: { fr: 'Roi noir au centre, dame en h1 : le réseau se construit sans échec initial.', en: 'Black king in the centre, queen on h1: the net is built without an initial check.' } }),
+  P({ id: 'TE-CANON-QUEEN-MATE-2', themeId: 'queen-mate', titleKey: 'QueenMate', fen: '6k1/8/8/8/8/8/5K2/7Q w - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 11, 11), tags: ['elementary-mate', 'queen'], note: { fr: 'Roi déjà au bord, dame loin : il faut rapprocher sans pater.', en: 'King already on the edge, queen far away: approach without stalemate.' } }),
+  P({ id: 'TE-CANON-QUEEN-MATE-3', themeId: 'queen-mate', titleKey: 'QueenMate', fen: '6q1/8/k7/8/8/8/8/5K2 b - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 13, 13), tags: ['elementary-mate', 'queen'], note: { fr: 'Les Noirs ont la dame, roi blanc en f1 : autre géométrie, pas un simple retournement.', en: 'Black has the queen, white king on f1: a different geometry, not a colour swap.' } }),
+
+  P({ id: 'TE-CANON-ROOK-MATE', themeId: 'rook-mate', titleKey: 'RookMate', fen: '8/8/8/4k3/8/8/8/4K2R w - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 27, 27), tags: ['elementary-mate', 'rook'], note: { fr: 'Tour en h1, rois au centre : la méthode du couloir entier.', en: 'Rook on h1, kings central: the full corridor method.' } }),
+  P({ id: 'TE-CANON-ROOK-MATE-2', themeId: 'rook-mate', titleKey: 'RookMate', fen: '7k/8/8/8/8/3K4/8/R7 w - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 11, 11), tags: ['elementary-mate', 'rook'], note: { fr: 'Roi noir déjà en h8, tour en a1 : il reste à coordonner le roi.', en: 'Black king already on h8, rook on a1: the king still has to be coordinated.' } }),
+  P({ id: 'TE-CANON-ROOK-MATE-3', themeId: 'rook-mate', titleKey: 'RookMate', fen: '8/8/2k5/8/8/8/r7/3K4 b - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 15, 15), tags: ['elementary-mate', 'rook'], note: { fr: 'Les Noirs ont la tour en a2, roi blanc en d1.', en: 'Black has the rook on a2, white king on d1.' } }),
+
+  P({ id: 'TE-CANON-TWO-BISHOPS-MATE', themeId: 'two-bishops-mate', titleKey: 'TwoBishopsMate', fen: '8/8/8/4k3/8/8/8/2B1KB2 w - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 33, 33), tags: ['elementary-mate', 'bishops'], note: { fr: 'Fous en c1 et f1, couleurs opposées, roi noir au centre.', en: 'Bishops on c1 and f1, opposite colours, black king central.' } }),
+  P({ id: 'TE-CANON-TWO-BISHOPS-MATE-2', themeId: 'two-bishops-mate', titleKey: 'TwoBishopsMate', fen: '8/8/1k6/8/8/8/3B4/1K3B2 w - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 29, 29), tags: ['elementary-mate', 'bishops'], note: { fr: 'Fous en b1 et d2, rois sur la colonne b : autre cage.', en: 'Bishops on b1 and d2, kings on the b-file: a different cage.' } }),
+  P({ id: 'TE-CANON-TWO-BISHOPS-MATE-3', themeId: 'two-bishops-mate', titleKey: 'TwoBishopsMate', fen: '8/b3k3/8/8/8/8/3K4/1b6 b - - 0 1', objective: 'WIN', kind: 'mate', proof: syzygy('WIN', 27, 27), tags: ['elementary-mate', 'bishops'], note: { fr: 'Les Noirs ont les fous en a7 et b1, roi blanc en d2.', en: 'Black has the bishops on a7 and b1, white king on d2.' } }),
+
+  P({ id: 'TE-CANON-PAWN-SQUARE', themeId: 'pawn-square', titleKey: 'PawnSquare', fen: '8/8/6k1/8/1P6/8/8/7K w - - 0 1', objective: 'WIN', kind: 'promote-and-win', proof: syzygy('WIN', 1, 25), tags: ['pawn', 'square', 'attacker'], note: { fr: 'Pion b4, roi noir en g6, roi blanc en h1 trop loin pour escorter. Seul b5 gagne : les coups de roi laissent entrer le roi.', en: 'Pawn b4, black king g6, white king h1 too far to escort. Only b5 wins: king moves let the enemy king in.' } }),
+  P({ id: 'TE-CANON-PAWN-SQUARE-W2', themeId: 'pawn-square', titleKey: 'PawnSquare', fen: '8/8/8/6k1/8/8/P7/7K w - - 0 1', objective: 'WIN', kind: 'promote-and-win', proof: syzygy('WIN', 1, 27), tags: ['pawn', 'square', 'attacker', 'double-step'], note: { fr: 'Pion a2 : seul le double pas a4 gagne. a3 laisse le roi de g5 entrer dans le carré.', en: 'Pawn a2: only the double step a4 wins. a3 lets the king on g5 into the square.' } }),
+  P({ id: 'TE-CANON-PAWN-SQUARE-W3', themeId: 'pawn-square', titleKey: 'PawnSquare', fen: '8/8/7k/8/2P5/8/8/7K w - - 0 1', objective: 'WIN', kind: 'promote-and-win', proof: syzygy('WIN', 1, 25), tags: ['pawn', 'square', 'attacker'], note: { fr: 'Pion c4, roi en h6 juste hors du carré. Seul c5 gagne.', en: 'Pawn c4, king on h6 just outside the square. Only c5 wins.' } }),
+  P({ id: 'TE-CANON-PAWN-SQUARE-D1', themeId: 'pawn-square', titleKey: 'PawnSquare', fen: '7k/8/8/8/2P5/8/8/7K b - - 0 1', objective: 'DRAW', kind: 'stop-pawn', proof: syzygy('DRAW', 0, 0), tags: ['pawn', 'square', 'defender'], note: { fr: 'Même aile mais le trait est aux Noirs : le roi de h8 peut entrer. Un mauvais pas laisse le pion filer. Pas une capture immédiate.', en: 'The defender is to move: the king on h8 can step into the square. One wrong step lets the pawn run. Not an immediate capture.' } }),
+  P({ id: 'TE-CANON-PAWN-SQUARE-D2', themeId: 'pawn-square', titleKey: 'PawnSquare', fen: '8/8/1k6/8/8/8/3P4/7K b - - 0 1', objective: 'DRAW', kind: 'stop-pawn', proof: syzygy('DRAW', 0, 0), tags: ['pawn', 'square', 'defender', 'double-step'], note: { fr: 'Pion d2 et son double pas : le roi de b6 doit choisir le chemin du carré. Le roi blanc en h1 n’escorte pas.', en: 'Pawn d2 and its double step: the king on b6 must choose the path into the square. The white king on h1 does not escort.' } }),
+  P({ id: 'TE-CANON-PAWN-SQUARE-D3', themeId: 'pawn-square', titleKey: 'PawnSquare', fen: '8/1k6/8/8/6P1/8/8/K7 b - - 0 1', objective: 'DRAW', kind: 'stop-pawn', proof: syzygy('DRAW', 0, 0), tags: ['pawn', 'square', 'defender'], note: { fr: 'Pion g4, roi en b7, roi blanc en a1. Autre aile, trajet réel, pas une symétrie des précédents.', en: 'Pawn g4, king on b7, white king on a1. The other wing, a real route, not a mirror of the earlier ones.' } }),
+
+  P({ id: 'TE-CANON-OPPOSITION', themeId: 'opposition', titleKey: 'Opposition', fen: '8/8/4k3/8/4K3/8/4P3/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 1, 37), tags: ['pawn', 'opposition'], note: { fr: 'Rois en e4 et e6, pion e2, trait aux Blancs : il faut reprendre l’opposition. L’ancienne position laissait le trait aux Noirs.', en: 'Kings on e4 and e6, pawn e2, White to move: the opposition must be taken. The old position gave the move to Black.' } }),
+  P({ id: 'TE-CANON-OPPOSITION-2', themeId: 'opposition', titleKey: 'Opposition', fen: '8/8/8/5k2/8/4K3/4P3/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 7, 39), tags: ['pawn', 'opposition'], note: { fr: 'Rois en décalage e3/f5 : l’opposition se prend par le côté, pas par un face-à-face déjà fait.', en: 'Kings offset on e3/f5: opposition is taken from the side, not from an existing face-off.' } }),
+  P({ id: 'TE-CANON-OPPOSITION-3', themeId: 'opposition', titleKey: 'Opposition', fen: '8/8/2p5/8/2k5/8/2K5/8 b - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 1, 29), tags: ['pawn', 'opposition'], note: { fr: 'Les Noirs ont le pion c6, rois en c4 et c2. Le pion est déjà avancé : autre décision que le pion en 2e.', en: 'Black has the c6-pawn, kings on c4 and c2. The pawn is already advanced: a different decision from a pawn on the 2nd.' } }),
+
+  P({ id: 'TE-CANON-KPK', themeId: 'kp-vs-k', titleKey: 'KpVsK', fen: '8/8/8/4k3/8/3K4/4P3/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 9, 41), tags: ['pawn', 'kpk'], note: { fr: 'Roi en d3 devant le pion e2, roi noir en e5 : un seul coup garde le gain.', en: 'King on d3 in front of the e2-pawn, black king on e5: only one move keeps the win.' } }),
+  P({ id: 'TE-CANON-KPK-2', themeId: 'kp-vs-k', titleKey: 'KpVsK', fen: '8/4p3/3k4/8/8/3K4/8/8 b - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 5, 39), tags: ['pawn', 'kpk'], note: { fr: 'Les Noirs ont le pion e7, roi d6 contre roi d3. L’épaule se joue par Ke5 ou Kd5.', en: 'Black has the e7-pawn, king d6 versus king d3. The shoulder is Ke5 or Kd5.' } }),
+  P({ id: 'TE-CANON-KPK-3', themeId: 'kp-vs-k', titleKey: 'KpVsK', fen: '8/8/2k5/2p5/8/5K2/8/8 b - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 7, 31), tags: ['pawn', 'kpk'], note: { fr: 'Pion c5, rois c6 et f3 : le roi noir doit écarter le roi blanc, pas seulement pousser.', en: 'Pawn c5, kings c6 and f3: the black king must shoulder the white king, not merely push.' } }),
+
+  P({ id: 'TE-CANON-KEY-SQUARES-1', themeId: 'key-squares', titleKey: 'KeySquares', fen: '8/4k3/8/8/2K5/4P3/8/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 5, 33), tags: ['pawn', 'key-squares'], note: { fr: 'Pion e3 : la case clé d5. Seul Kd5 gagne. Ce n’est pas un face-à-face déjà installé.', en: 'Pawn e3: the key square is d5. Only Kd5 wins. The kings are not already face to face.' } }),
+  P({ id: 'TE-CANON-KEY-SQUARES-2', themeId: 'key-squares', titleKey: 'KeySquares', fen: '8/8/4k3/8/8/2K5/4P3/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 5, 41), tags: ['pawn', 'key-squares'], note: { fr: 'Pion e2 : les cases clés sont en 4e. Seul Kd4 les occupe utilement.', en: 'Pawn e2: the key squares are on the 4th rank. Only Kd4 occupies one usefully.' } }),
+  P({ id: 'TE-CANON-KEY-SQUARES-3', themeId: 'key-squares', titleKey: 'KeySquares', fen: '8/3k4/8/8/4K3/4P3/8/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 5, 31), tags: ['pawn', 'key-squares'], note: { fr: 'Roi noir en d7, pion e3 : plusieurs accès aux cases clés, les coups de pion nuls.', en: 'Black king on d7, pawn e3: several ways onto the key squares, pawn moves draw.' } }),
+
+  P({ id: 'TE-CANON-ROOK-PAWN-WIN', themeId: 'rook-pawn', titleKey: 'RookPawn', fen: '2k5/8/PK6/8/8/8/8/8 w - - 0 1', objective: 'WIN', kind: 'promote-and-win', proof: syzygy('WIN', 1, 17), tags: ['pawn', 'rook-pawn', 'win'], note: { fr: 'Pion a6, roi en b6 qui ferme le coin. Seul a7 gagne : les coups de roi nullent.', en: 'Pawn a6, king on b6 sealing the corner. Only a7 wins: king moves draw.' } }),
+  P({ id: 'TE-CANON-ROOK-PAWN-DEF-H', themeId: 'rook-pawn', titleKey: 'RookPawn', fen: '6k1/7P/6K1/8/8/8/8/8 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['pawn', 'rook-pawn', 'defense'], note: { fr: 'Pion h7. Seul Kh8 nulle. Kf8 perd. Le coin h est la particularité du pion de tour.', en: 'Pawn h7. Only Kh8 draws. Kf8 loses. The h-corner is the rook pawn’s peculiarity.' } }),
+  P({ id: 'TE-CANON-ROOK-PAWN-DEF-A', themeId: 'rook-pawn', titleKey: 'RookPawn', fen: 'k7/8/1K6/P7/8/8/8/8 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['pawn', 'rook-pawn', 'defense'], note: { fr: 'Pion a5, roi en a8. Seul Kb8 reste dans la zone du coin. Ce n’est pas un gain à forcer.', en: 'Pawn a5, king on a8. Only Kb8 stays in the corner zone. This is not a win to force.' } }),
+
+  P({ id: 'TE-CANON-PAWN-RACE', themeId: 'pawn-race', titleKey: 'PawnRace', fen: '8/k7/8/1p6/8/8/6P1/4K3 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 1, 31), tags: ['pawn', 'race'], note: { fr: 'Pions b5 et g2, rois a7 et e1. Un seul coup gagne la course.', en: 'Pawns b5 and g2, kings a7 and e1. Only one move wins the race.' } }),
+  P({ id: 'TE-CANON-PAWN-RACE-2', themeId: 'pawn-race', titleKey: 'PawnRace', fen: '8/8/8/p5k1/8/8/1P6/2K5 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 7, 51), tags: ['pawn', 'race'], note: { fr: 'Pions a5 et b2, rois g5 et c1. La course est longue : le calcul va jusqu’à la dame.', en: 'Pawns a5 and b2, kings g5 and c1. The race is long: the count goes all the way to the queen.' } }),
+  P({ id: 'TE-CANON-PAWN-RACE-3', themeId: 'pawn-race', titleKey: 'PawnRace', fen: '8/6k1/8/5p2/8/8/P7/K7 b - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 1, 25), tags: ['pawn', 'race'], note: { fr: 'Les Noirs au trait, pions f5 et a2. Un seul coup gagne, d’autres perdent la course.', en: 'Black to move, pawns f5 and a2. Only one move wins; others lose the race.' } }),
+
+  P({ id: 'TE-CANON-PAWN-BREAKTHROUGH', themeId: 'pawn-breakthrough', titleKey: 'PawnBreakthrough', fen: '7k/ppp5/8/PPP5/8/8/8/4K3 w - - 0 1', objective: 'WIN', kind: 'win', proof: engine('b5b6', 640), tags: ['pawn', 'breakthrough'], note: { fr: 'Percée classique a5-b5-c5 contre a7-b7-c7. Stockfish 18 Lite profondeur 16 : b6, +6,40, dame dans la variante. Ke2 est 0,00. Ce n’est pas une table de finales à 7 pièces.', en: 'Classic break a5-b5-c5 versus a7-b7-c7. Stockfish 18 Lite depth 16: b6, +6.40, with a queen in the line. Ke2 is 0.00. This is not a 7-man tablebase.' } }),
+  P({ id: 'TE-CANON-PAWN-BREAKTHROUGH-2', themeId: 'pawn-breakthrough', titleKey: 'PawnBreakthrough', fen: '4k3/8/8/ppp5/PPP5/8/8/4K3 w - - 0 1', objective: 'WIN', kind: 'win', proof: engine('b4a5', 587), tags: ['pawn', 'breakthrough'], note: { fr: 'Pions déjà au contact, roi noir en e8. Seule la prise bxa5 perce. À la profondeur 16 le score est d’environ +5,87, pas une table.', en: 'Pawns already in contact, black king on e8. Only bxa5 breaks through. At depth 16 the score is about +5.87, not a tablebase.' } }),
+  P({ id: 'TE-CANON-PAWN-BREAKTHROUGH-3', themeId: 'pawn-breakthrough', titleKey: 'PawnBreakthrough', fen: '8/8/8/3ppp2/3PPP2/8/8/4K2k w - - 0 1', objective: 'WIN', kind: 'win', proof: engine('d4e5', 735), tags: ['pawn', 'breakthrough'], note: { fr: 'Percée centrale d4-e4-f4 contre d5-e5-f5, roi noir en h1. Profondeur 16 : environ +7,35. Autre secteur que l’aile dame.', en: 'Central break d4-e4-f4 versus d5-e5-f5, black king on h1. Depth 16: about +7.35. A different sector from the queenside.' } }),
+
+  P({ id: 'TE-CANON-OUTSIDE-1', themeId: 'outside-passed', titleKey: 'OutsidePassed', fen: '8/8/3k4/p7/8/6P1/1P6/4K3 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 1, 41), tags: ['pawn', 'outside'], note: { fr: 'Pion a5 éloigné contre b2 et g3. b4 perd le gain : il faut traiter le passé sans le pousser dans le roi.', en: 'Outside a5-pawn against b2 and g3. b4 loses the win: the passer must be handled, not pushed into the king.' } }),
+  P({ id: 'TE-CANON-OUTSIDE-2', themeId: 'outside-passed', titleKey: 'OutsidePassed', fen: '8/8/2k5/p7/8/6P1/1P6/4K3 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 1, 41), tags: ['pawn', 'outside'], note: { fr: 'Même structure, roi noir en c6 : b4 nulle. Le roi est plus près du pion éloigné, le détour change.', en: 'Same pawns, black king on c6: b4 draws. The king is closer to the outside pawn, so the diversion changes.' } }),
+  P({ id: 'TE-CANON-OUTSIDE-3', themeId: 'outside-passed', titleKey: 'OutsidePassed', fen: '8/8/6k1/1p6/8/5P2/P7/6K1 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 1, 41), tags: ['pawn', 'outside'], note: { fr: 'Pion a2 passé et f3, pion noir b5. a4 perd, f4 nulle : l’aile utile n’est pas le coup le plus bruyant.', en: 'Passed a2 and f3, black pawn b5. a4 loses, f4 draws: the useful wing is not the loudest push.' } }),
+
+  P({ id: 'TE-CANON-TRIANGULATION-1', themeId: 'triangulation', titleKey: 'Triangulation', fen: '8/6k1/4p1p1/4P1P1/4K3/8/8/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 11, 33), tags: ['pawn', 'triangulation'], note: { fr: 'Pions e5-g5 contre e6-g6, roi loin en g7. Kd4, Kd3 ou Ke3 gagnent ; Kf3 et Kf4 nullent. Le détour de roi rend le trait.', en: 'Pawns e5-g5 versus e6-g6, king far on g7. Kd4, Kd3 or Ke3 win; Kf3 and Kf4 draw. The king detour passes the move.' } }),
+  P({ id: 'TE-CANON-TRIANGULATION-2', themeId: 'triangulation', titleKey: 'Triangulation', fen: '8/8/8/3k4/1p1P4/1P6/3K4/8 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 5, 37), tags: ['pawn', 'zugzwang'], note: { fr: 'Rois d2 et d5, pions b3-d4 contre b4. Seuls Kd3 et Ke3 gagnent : le pas direct ailleurs cède le zugzwang.', en: 'Kings d2 and d5, pawns b3-d4 versus b4. Only Kd3 and Ke3 win: stepping elsewhere gives up the zugzwang.' } }),
+  P({ id: 'TE-CANON-TRIANGULATION-3', themeId: 'triangulation', titleKey: 'Triangulation', fen: '8/4k3/2p1p3/2P1P3/4K3/8/8/8 w - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['pawn', 'zugzwang'], note: { fr: 'Même idée de pions doublés, mais le roi noir est en e7 : aux Blancs de tenir la nulle. Kd3 et Kd4 perdent.', en: 'The same doubled pawns, but the black king is on e7: White must hold the draw. Kd3 and Kd4 lose.' } }),
+
+  P({ id: 'TE-CANON-BAD-BISHOP-1', themeId: 'bad-bishop', titleKey: 'BadBishop', fen: '5k2/8/6K1/7P/8/8/2B5/8 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['bishop', 'rook-pawn'], note: { fr: 'Fou c2 cases claires, pion h5, coin h8 noir. Seul Kg8 mène au coin. Ke7 et Ke8 perdent.', en: 'Light-squared bishop c2, pawn h5, dark corner h8. Only Kg8 leads to the corner. Ke7 and Ke8 lose.' } }),
+  P({ id: 'TE-CANON-BAD-BISHOP-2', themeId: 'bad-bishop', titleKey: 'BadBishop', fen: '1k6/8/P7/1K6/8/8/8/2B5 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['bishop', 'rook-pawn'], note: { fr: 'Fou c1 cases noires, pion a6, coin a8 clair. Seuls Ka7 et Ka8 nullent.', en: 'Dark-squared bishop c1, pawn a6, light corner a8. Only Ka7 and Ka8 draw.' } }),
+  P({ id: 'TE-CANON-BAD-BISHOP-3', themeId: 'bad-bishop', titleKey: 'BadBishop', fen: '6k1/8/8/7P/6K1/8/8/5B2 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['bishop', 'rook-pawn'], note: { fr: 'Fou f1 cases claires, pion h5, roi déjà en g8. Kh8 est le coin ; toutes les cases voisines nullent encore.', en: 'Light-squared bishop f1, pawn h5, king already on g8. h8 is the corner; the neighbouring squares still draw.' } }),
+
+  P({ id: 'TE-CANON-QUEEN-PAWN-1', themeId: 'queen-vs-pawn', titleKey: 'QueenVsPawn', fen: '8/2P5/1K6/8/8/8/7k/q7 b - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 15, 23), tags: ['queen', 'pawn-7'], note: { fr: 'Pion c7, dame a1. Seul Da8 se place devant. Les autres essais nullent ou perdent.', en: 'Pawn c7, queen a1. Only Qa8 gets in front. Other tries draw or lose.' } }),
+  P({ id: 'TE-CANON-QUEEN-PAWN-2', themeId: 'queen-vs-pawn', titleKey: 'QueenVsPawn', fen: '8/3P4/3K4/8/8/8/8/4q2k b - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 44, 47), tags: ['queen', 'pawn-7'], note: { fr: 'Pion central d7, dame e1, roi en h1. Gain long : plusieurs méthodes, beaucoup de nulles si la dame se trompe de colonne.', en: 'Central pawn d7, queen e1, king on h1. A long win: several methods, many draws if the queen picks the wrong file.' } }),
+  P({ id: 'TE-CANON-QUEEN-PAWN-3', themeId: 'queen-vs-pawn', titleKey: 'QueenVsPawn', fen: '8/5P2/5K2/8/8/8/q7/6k1 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['queen', 'pawn-7', 'exception'], note: { fr: 'Pion f7 et roi f6 : exception. La dame au trait ne force pas le gain. Un coup perd.', en: 'Pawn f7 and king f6: the exception. The queen to move does not force a win. One move loses.' } }),
+
+  P({ id: 'TE-CANON-LUCENA', themeId: 'lucena', titleKey: 'Lucena', fen: '1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 15, 41), tags: ['rook', 'lucena'], note: { fr: 'Pion b7, roi b8, tour c1 contre tour a2 et roi d8. Pont classique.', en: 'Pawn b7, king b8, rook c1 versus rook a2 and king d8. The classic bridge.' } }),
+  P({ id: 'TE-CANON-LUCENA-2', themeId: 'lucena', titleKey: 'Lucena', fen: '4K2k/4P3/8/8/8/8/r7/4R3 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 5, 15), tags: ['rook', 'lucena'], note: { fr: 'Pion e7, roi e8, roi noir en h8, tour noire en a2. Autre colonne, roi adverse dans le coin.', en: 'Pawn e7, king e8, black king on h8, black rook on a2. Another file, the enemy king in the corner.' } }),
+  P({ id: 'TE-CANON-LUCENA-3', themeId: 'lucena', titleKey: 'Lucena', fen: '3K1k2/3P4/8/8/8/8/6r1/3R4 w - - 0 1', objective: 'WIN', kind: 'win', proof: syzygy('WIN', 5, 17), tags: ['rook', 'lucena'], note: { fr: 'Pion d7, rois d8 et f8, tour noire en g2. Le pont se construit sur une autre aile.', en: 'Pawn d7, kings d8 and f8, black rook on g2. The bridge is built on another wing.' } }),
+
+  P({ id: 'TE-CANON-PHILIDOR', themeId: 'philidor', titleKey: 'Philidor', fen: '4k3/R7/1r6/4PK2/8/8/8/8 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'philidor'], note: { fr: 'Tour b6, pion e5, rois e8 et f5. Le trait est aux Noirs, qui tiennent la 6e. Huit coups perdent.', en: 'Rook b6, pawn e5, kings e8 and f5. Black is to move and holds the 6th. Eight moves lose.' } }),
+  P({ id: 'TE-CANON-PHILIDOR-2', themeId: 'philidor', titleKey: 'Philidor', fen: '2k5/8/r7/2P5/2K5/8/8/2R5 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'philidor'], note: { fr: 'Pion c5, tour a6, roi c8 devant le pion. La barrière est sur la 6e, colonne c.', en: 'Pawn c5, rook a6, king c8 in front of the pawn. The barrier is on the 6th, c-file.' } }),
+  P({ id: 'TE-CANON-PHILIDOR-3', themeId: 'philidor', titleKey: 'Philidor', fen: '8/8/3r1k2/3P4/3K4/8/8/3R4 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'philidor'], note: { fr: 'Le roi n’est pas encore devant : seul Re7 nulle. La tour en d6 ne suffit pas si le roi reste en f6.', en: 'The king is not yet in front: only Ke7 draws. The rook on d6 is not enough if the king stays on f6.' } }),
+
+  P({ id: 'TE-CANON-LATERAL-1', themeId: 'lateral-checks', titleKey: 'LateralChecks', fen: '8/8/4k3/8/4P3/4K3/r7/4R3 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'lateral'], note: { fr: 'Pion e4, roi e3, tour a2. Ra3+ et Ra4 tiennent ; Re2+ est trop proche et perd.', en: 'Pawn e4, king e3, rook a2. Ra3+ and Ra4 hold; Re2+ is too close and loses.' } }),
+  P({ id: 'TE-CANON-LATERAL-2', themeId: 'lateral-checks', titleKey: 'LateralChecks', fen: '2k5/8/2P5/1K6/7r/8/8/2R5 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'lateral'], note: { fr: 'Pion c6 déjà avancé, tour h4. Les échecs longs sur la 4e tiennent ; Rb4+ est trop court.', en: 'Pawn c6 already advanced, rook h4. Long checks on the 4th hold; Rb4+ is too short.' } }),
+  P({ id: 'TE-CANON-LATERAL-3', themeId: 'lateral-checks', titleKey: 'LateralChecks', fen: '6k1/8/6P1/5K2/r7/8/8/6R1 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'lateral'], note: { fr: 'Pion g6, roi f5, tour a4. Ra4+ tient à distance ; Re4 perd.', en: 'Pawn g6, king f5, rook a4. Ra4+ keeps the distance; Re4 loses.' } }),
+
+  P({ id: 'TE-CANON-VANCURA-1', themeId: 'vancura', titleKey: 'Vancura', fen: '8/8/2r5/P7/8/6k1/8/K6R b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'vancura'], note: { fr: 'Pion a5, tour c6. Seuls Rc5 (attaque latérale), Rf4 et Rg4 nullent. La prise du pion n’est pas immédiate.', en: 'Pawn a5, rook c6. Only Rc5 (lateral attack), Kf4 and Kg4 draw. The pawn cannot be taken at once.' } }),
+  P({ id: 'TE-CANON-VANCURA-2', themeId: 'vancura', titleKey: 'Vancura', fen: '4k3/8/8/2r5/P7/8/8/K5R1 b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'vancura'], note: { fr: 'Pion a4, tour déjà en c5 sur la rangée du pion. Rester sur la 5e nulle ; Rg5 et Rc1+ perdent.', en: 'Pawn a4, rook already on c5 on the pawn’s rank. Staying on the 5th draws; Rg5 and Rc1+ lose.' } }),
+  P({ id: 'TE-CANON-VANCURA-3', themeId: 'vancura', titleKey: 'Vancura', fen: '6k1/8/8/P2r4/8/8/8/K6R b - - 0 1', objective: 'DRAW', kind: 'draw', proof: syzygy('DRAW', 0, 0), tags: ['rook', 'vancura'], note: { fr: 'Pion a5, tour d5. La rangée du pion tient ; descendre en d4, d3, d6 ou d7 perd.', en: 'Pawn a5, rook d5. The pawn’s rank holds; dropping to d4, d3, d6 or d7 loses.' } }),
+];
+
+const doc = {
+  datasetVersion: '2.0.0',
+  contentVersion: 'variants-v2',
+  expectedActiveCount: positions.length,
+  positions,
+};
+
+writeFileSync(OUT, `${JSON.stringify(doc, null, 2)}\n`);
+console.log(`wrote ${positions.length} positions to ${OUT}`);

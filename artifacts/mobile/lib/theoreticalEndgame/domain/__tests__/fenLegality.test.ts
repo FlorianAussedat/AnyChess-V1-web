@@ -64,19 +64,19 @@ describe('validateThemeMaterial', () => {
 });
 
 describe('canonical pool contract', () => {
-  it('has exactly 10 active positions and 10 themes', () => {
+  it('has 57 active positions and 18 themes', () => {
     const active = THEORETICAL_ENDGAME_POOL.filter((p) => p.active !== false);
-    assert.equal(active.length, 10);
-    assert.equal(THEME_IDS.length, 10);
+    assert.equal(active.length, 57);
+    assert.equal(THEME_IDS.length, 18);
     assert.ok(!THEME_IDS.includes('three-pawns' as never));
   });
 
-  it('has one position per theme', () => {
+  it('has at least three positions per theme', () => {
     for (const id of THEME_IDS) {
       const n = THEORETICAL_ENDGAME_POOL.filter(
         (p) => p.active !== false && p.themeId === id,
       ).length;
-      assert.equal(n, 1, id);
+      assert.ok(n >= 3, id);
     }
   });
 

@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-08-23T13:37:34.072Z",
+  "generatedAt": "2026-10-12T12:29:37.792Z",
   "datasetVersion": "2.0.0",
-  "contentVersion": "canonical-10-v1",
+  "contentVersion": "variants-v2",
   "summary": {
     "positionsBefore": 44,
-    "positionsAfter": 10,
+    "positionsAfter": 57,
     "legacyIdsPresent": 0,
     "themesBefore": [
       "queen-mate",
@@ -13,10 +13,18 @@
       "pawn-square",
       "opposition",
       "kp-vs-k",
+      "key-squares",
+      "rook-pawn",
       "pawn-race",
       "pawn-breakthrough",
+      "outside-passed",
+      "triangulation",
+      "bad-bishop",
+      "queen-vs-pawn",
       "lucena",
       "philidor",
+      "lateral-checks",
+      "vancura",
       "three-pawns"
     ],
     "themesAfter": [
@@ -26,23 +34,31 @@
       "pawn-square",
       "opposition",
       "kp-vs-k",
+      "key-squares",
+      "rook-pawn",
       "pawn-race",
       "pawn-breakthrough",
+      "outside-passed",
+      "triangulation",
+      "bad-bishop",
+      "queen-vs-pawn",
       "lucena",
-      "philidor"
+      "philidor",
+      "lateral-checks",
+      "vancura"
     ],
-    "winCount": 9,
-    "drawCount": 1,
-    "whitePlayerPositions": 9,
-    "blackPlayerPositions": 1,
-    "syzygyCertified": 9,
+    "winCount": 38,
+    "drawCount": 19,
+    "whitePlayerPositions": 30,
+    "blackPlayerPositions": 27,
+    "syzygyCertified": 54,
     "errorCount": 0,
     "warningCount": 0,
     "valid": true,
     "gates": {
-      "activeCount10": true,
-      "themes10": true,
-      "onePerTheme": true,
+      "activeCount57": true,
+      "themes18": true,
+      "minVariants": true,
       "noLegacyIds": true,
       "noThreePawns": true,
       "bothKingsNotInCheck": true,
@@ -73,20 +89,67 @@
       "sources": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2Q_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KQK is a forced win; reduce the box then mate with king support",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Mating with Queen",
-          "url": "https://www.chessprogramming.org/Mate_with_Queen",
-          "consultedAt": "2026-08-23",
-          "principle": "Restrict the opposing king then bring own king",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F8%2F8%2F4K2Q%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black king in the centre, queen on h1: the net is built without an initial check.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Open board with Black king centralized and White queen on h1 — teaches gradual restriction without an initial check.",
+      "choiceRationale": "Black king in the centre, queen on h1: the net is built without an initial check.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-QUEEN-MATE-2",
+      "themeId": "queen-mate",
+      "fen": "6k1/8/8/8/8/8/5K2/7Q w - - 0 1",
+      "pieces": "White: K Q · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F8%2F8%2F8%2F8%2F5K2%2F7Q%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "King already on the edge, queen far away: approach without stalemate.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "King already on the edge, queen far away: approach without stalemate.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-QUEEN-MATE-3",
+      "themeId": "queen-mate",
+      "fen": "6q1/8/k7/8/8/8/8/5K2 b - - 0 1",
+      "pieces": "White: K · Black: k q",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6q1%2F8%2Fk7%2F8%2F8%2F8%2F8%2F5K2%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the queen, white king on f1: a different geometry, not a colour swap.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black has the queen, white king on f1: a different geometry, not a colour swap.",
       "alerts": []
     },
     {
@@ -107,20 +170,67 @@
       "sources": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/4K2R_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KRK is a forced win by cutting the king and mating on the edge",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Mating with Rook",
-          "url": "https://www.chessprogramming.org/Mate_with_Rook",
-          "consultedAt": "2026-08-23",
-          "principle": "Cut ranks/files then coordinate king and rook",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F8%2F8%2F4K2R%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Rook on h1, kings central: the full corridor method.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Standard KRK start with kings facing and rook on h1 — illustrates cutting the king before mating on the edge.",
+      "choiceRationale": "Rook on h1, kings central: the full corridor method.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-ROOK-MATE-2",
+      "themeId": "rook-mate",
+      "fen": "7k/8/8/8/8/3K4/8/R7 w - - 0 1",
+      "pieces": "White: K R · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=7k%2F8%2F8%2F8%2F8%2F3K4%2F8%2FR7%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black king already on h8, rook on a1: the king still has to be coordinated.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black king already on h8, rook on a1: the king still has to be coordinated.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-ROOK-MATE-3",
+      "themeId": "rook-mate",
+      "fen": "8/8/2k5/8/8/8/r7/3K4 b - - 0 1",
+      "pieces": "White: K · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2k5%2F8%2F8%2F8%2Fr7%2F3K4%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the rook on a2, white king on d1.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black has the rook on a2, white king on d1.",
       "alerts": []
     },
     {
@@ -141,26 +251,73 @@
       "sources": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/8/8/2B1KB2_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KBBK with opposite-colored bishops is a forced win",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Mating with Two Bishops",
-          "url": "https://www.chessprogramming.org/Mate_with_Two_Bishops",
-          "consultedAt": "2026-08-23",
-          "principle": "Drive the king to a corner of the right color complex",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F8%2F8%2F2B1KB2%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Bishops on c1 and f1, opposite colours, black king central.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Opposite-colored bishops on c1 and f1 with centralized black king — teaches coordination without an initial check.",
+      "choiceRationale": "Bishops on c1 and f1, opposite colours, black king central.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-TWO-BISHOPS-MATE-2",
+      "themeId": "two-bishops-mate",
+      "fen": "8/8/1k6/8/8/8/3B4/1K3B2 w - - 0 1",
+      "pieces": "White: K 2×B · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F1k6%2F8%2F8%2F8%2F3B4%2F1K3B2%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Bishops on b1 and d2, kings on the b-file: a different cage.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Bishops on b1 and d2, kings on the b-file: a different cage.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-TWO-BISHOPS-MATE-3",
+      "themeId": "two-bishops-mate",
+      "fen": "8/b3k3/8/8/8/8/3K4/1b6 b - - 0 1",
+      "pieces": "White: K · Black: k 2×b",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2Fb3k3%2F8%2F8%2F8%2F8%2F3K4%2F1b6%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the bishops on a7 and b1, white king on d2.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black has the bishops on a7 and b1, white king on d2.",
       "alerts": []
     },
     {
       "id": "TE-CANON-PAWN-SQUARE",
       "themeId": "pawn-square",
-      "fen": "8/8/8/3P4/8/8/8/k6K w - - 0 1",
+      "fen": "8/8/6k1/8/1P6/8/8/7K w - - 0 1",
       "pieces": "White: K P · Black: k",
       "sideToMove": "white",
       "trainedColor": "white",
@@ -175,28 +332,21 @@
       "sources": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/3P4/8/8/8/k6K_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "Black king is outside the pawn's square; white promotes",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Wikipedia — Square of the pawn",
-          "url": "https://en.wikipedia.org/wiki/Passed_pawn#The_square_of_the_pawn",
-          "consultedAt": "2026-08-23",
-          "principle": "If the defending king cannot enter the square, the pawn queens",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F6k1%2F8%2F1P6%2F8%2F8%2F7K%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn b4, black king g6, white king h1 too far to escort. Only b5 wins: king moves let the enemy king in.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Pawn on d5, black king on a1 outside the square, white king on h1 — pure illustration of the square rule.",
+      "choiceRationale": "Pawn b4, black king g6, white king h1 too far to escort. Only b5 wins: king moves let the enemy king in.",
       "alerts": []
     },
     {
-      "id": "TE-CANON-OPPOSITION",
-      "themeId": "opposition",
-      "fen": "8/8/4k3/8/4K3/8/4P3/8 b - - 0 1",
+      "id": "TE-CANON-PAWN-SQUARE-W2",
+      "themeId": "pawn-square",
+      "fen": "8/8/8/6k1/8/8/P7/7K w - - 0 1",
       "pieces": "White: K P · Black: k",
-      "sideToMove": "black",
+      "sideToMove": "white",
       "trainedColor": "white",
       "objective": "WIN",
       "pieceCount": 3,
@@ -209,20 +359,202 @@
       "sources": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/4k3/8/4K3/8/4P3/8_b_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "With Black to move, White has the opposition and wins KPK",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Wikipedia — Opposition (chess)",
-          "url": "https://en.wikipedia.org/wiki/Opposition_(chess)",
-          "consultedAt": "2026-08-23",
-          "principle": "The player who does not have to move holds the opposition",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F6k1%2F8%2F8%2FP7%2F7K%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a2: only the double step a4 wins. a3 lets the king on g5 into the square.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Kings face on the e-file with Black to move — White holds the opposition. Stockfish plays Black’s first move; the trainee then exploits opposition.",
+      "choiceRationale": "Pawn a2: only the double step a4 wins. a3 lets the king on g5 into the square.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-W3",
+      "themeId": "pawn-square",
+      "fen": "8/8/7k/8/2P5/8/8/7K w - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F7k%2F8%2F2P5%2F8%2F8%2F7K%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c4, king on h6 just outside the square. Only c5 wins.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn c4, king on h6 just outside the square. Only c5 wins.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-D1",
+      "themeId": "pawn-square",
+      "fen": "7k/8/8/8/2P5/8/8/7K b - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=7k%2F8%2F8%2F8%2F2P5%2F8%2F8%2F7K%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "The defender is to move: the king on h8 can step into the square. One wrong step lets the pawn run. Not an immediate capture.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "The defender is to move: the king on h8 can step into the square. One wrong step lets the pawn run. Not an immediate capture.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-D2",
+      "themeId": "pawn-square",
+      "fen": "8/8/1k6/8/8/8/3P4/7K b - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F1k6%2F8%2F8%2F8%2F3P4%2F7K%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn d2 and its double step: the king on b6 must choose the path into the square. The white king on h1 does not escort.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn d2 and its double step: the king on b6 must choose the path into the square. The white king on h1 does not escort.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-SQUARE-D3",
+      "themeId": "pawn-square",
+      "fen": "8/1k6/8/8/6P1/8/8/K7 b - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F1k6%2F8%2F8%2F6P1%2F8%2F8%2FK7%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn g4, king on b7, white king on a1. The other wing, a real route, not a mirror of the earlier ones.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn g4, king on b7, white king on a1. The other wing, a real route, not a mirror of the earlier ones.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-OPPOSITION",
+      "themeId": "opposition",
+      "fen": "8/8/4k3/8/4K3/8/4P3/8 w - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F4k3%2F8%2F4K3%2F8%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Kings on e4 and e6, pawn e2, White to move: the opposition must be taken. The old position gave the move to Black.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Kings on e4 and e6, pawn e2, White to move: the opposition must be taken. The old position gave the move to Black.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-OPPOSITION-2",
+      "themeId": "opposition",
+      "fen": "8/8/8/5k2/8/4K3/4P3/8 w - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F5k2%2F8%2F4K3%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Kings offset on e3/f5: opposition is taken from the side, not from an existing face-off.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Kings offset on e3/f5: opposition is taken from the side, not from an existing face-off.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-OPPOSITION-3",
+      "themeId": "opposition",
+      "fen": "8/8/2p5/8/2k5/8/2K5/8 b - - 0 1",
+      "pieces": "White: K · Black: k p",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2p5%2F8%2F2k5%2F8%2F2K5%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the c6-pawn, kings on c4 and c2. The pawn is already advanced: a different decision from a pawn on the 2nd.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black has the c6-pawn, kings on c4 and c2. The pawn is already advanced: a different decision from a pawn on the 2nd.",
       "alerts": []
     },
     {
@@ -243,20 +575,229 @@
       "sources": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/8/8/4k3/8/3K4/4P3/8_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "King ahead of the pawn with access to key squares is winning",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — King and Pawn vs King",
-          "url": "https://www.chessprogramming.org/King_and_Pawn_versus_King",
-          "consultedAt": "2026-08-23",
-          "principle": "Key squares and opposition decide KPK",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F4k3%2F8%2F3K4%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "King on d3 in front of the e2-pawn, black king on e5: only one move keeps the win.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "White king on d3 supports the e2-pawn against black king on e5 — classic key-square technique.",
+      "choiceRationale": "King on d3 in front of the e2-pawn, black king on e5: only one move keeps the win.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-KPK-2",
+      "themeId": "kp-vs-k",
+      "fen": "8/4p3/3k4/8/8/3K4/8/8 b - - 0 1",
+      "pieces": "White: K · Black: k p",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F4p3%2F3k4%2F8%2F8%2F3K4%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black has the e7-pawn, king d6 versus king d3. The shoulder is Ke5 or Kd5.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black has the e7-pawn, king d6 versus king d3. The shoulder is Ke5 or Kd5.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-KPK-3",
+      "themeId": "kp-vs-k",
+      "fen": "8/8/2k5/2p5/8/5K2/8/8 b - - 0 1",
+      "pieces": "White: K · Black: k p",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2k5%2F2p5%2F8%2F5K2%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c5, kings c6 and f3: the black king must shoulder the white king, not merely push.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn c5, kings c6 and f3: the black king must shoulder the white king, not merely push.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-KEY-SQUARES-1",
+      "themeId": "key-squares",
+      "fen": "8/4k3/8/8/2K5/4P3/8/8 w - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F4k3%2F8%2F8%2F2K5%2F4P3%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e3: the key square is d5. Only Kd5 wins. The kings are not already face to face.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn e3: the key square is d5. Only Kd5 wins. The kings are not already face to face.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-KEY-SQUARES-2",
+      "themeId": "key-squares",
+      "fen": "8/8/4k3/8/8/2K5/4P3/8 w - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F4k3%2F8%2F8%2F2K5%2F4P3%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e2: the key squares are on the 4th rank. Only Kd4 occupies one usefully.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn e2: the key squares are on the 4th rank. Only Kd4 occupies one usefully.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-KEY-SQUARES-3",
+      "themeId": "key-squares",
+      "fen": "8/3k4/8/8/4K3/4P3/8/8 w - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F3k4%2F8%2F8%2F4K3%2F4P3%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black king on d7, pawn e3: several ways onto the key squares, pawn moves draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black king on d7, pawn e3: several ways onto the key squares, pawn moves draw.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-ROOK-PAWN-WIN",
+      "themeId": "rook-pawn",
+      "fen": "2k5/8/PK6/8/8/8/8/8 w - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=2k5%2F8%2FPK6%2F8%2F8%2F8%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a6, king on b6 sealing the corner. Only a7 wins: king moves draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn a6, king on b6 sealing the corner. Only a7 wins: king moves draw.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-ROOK-PAWN-DEF-H",
+      "themeId": "rook-pawn",
+      "fen": "6k1/7P/6K1/8/8/8/8/8 b - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": false,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F7P%2F6K1%2F8%2F8%2F8%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn h7. Only Kh8 draws. Kf8 loses. The h-corner is the rook pawn’s peculiarity.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn h7. Only Kh8 draws. Kf8 loses. The h-corner is the rook pawn’s peculiarity.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-ROOK-PAWN-DEF-A",
+      "themeId": "rook-pawn",
+      "fen": "k7/8/1K6/P7/8/8/8/8 b - - 0 1",
+      "pieces": "White: K P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 3,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=k7%2F8%2F1K6%2FP7%2F8%2F8%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a5, king on a8. Only Kb8 stays in the corner zone. This is not a win to force.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn a5, king on a8. Only Kb8 stays in the corner zone. This is not a win to force.",
       "alerts": []
     },
     {
@@ -277,20 +818,67 @@
       "sources": [
         {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=8/k7/8/1p6/8/8/6P1/4K3_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "White promotes first with a decisive tempo",
-          "method": "syzygy-wdl"
-        },
-        {
-          "name": "Chess Programming Wiki — Pawn Race",
-          "url": "https://www.chessprogramming.org/Pawn_Race",
-          "consultedAt": "2026-08-23",
-          "principle": "Count tempi to promotion and check after queening",
-          "method": "theoretical-reference"
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2Fk7%2F8%2F1p6%2F8%2F8%2F6P1%2F4K3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns b5 and g2, kings a7 and e1. Only one move wins the race.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Split pawns on b5 and g2 — White queens first; calculation of promotion order is the lesson.",
+      "choiceRationale": "Pawns b5 and g2, kings a7 and e1. Only one move wins the race.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-RACE-2",
+      "themeId": "pawn-race",
+      "fen": "8/8/8/p5k1/8/8/1P6/2K5 w - - 0 1",
+      "pieces": "White: K P · Black: k p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2Fp5k1%2F8%2F8%2F1P6%2F2K5%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns a5 and b2, kings g5 and c1. The race is long: the count goes all the way to the queen.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawns a5 and b2, kings g5 and c1. The race is long: the count goes all the way to the queen.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-RACE-3",
+      "themeId": "pawn-race",
+      "fen": "8/6k1/8/5p2/8/8/P7/K7 b - - 0 1",
+      "pieces": "White: K P · Black: k p",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F6k1%2F8%2F5p2%2F8%2F8%2FP7%2FK7%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Black to move, pawns f5 and a2. Only one move wins; others lose the race.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Black to move, pawns f5 and a2. Only one move wins; others lose the race.",
       "alerts": []
     },
     {
@@ -304,42 +892,407 @@
       "pieceCount": 8,
       "certification": {
         "type": "ENGINE",
-        "engine": "stockfish",
-        "depth": 30,
+        "engine": "stockfish-18-lite",
+        "depth": 16,
         "result": "WIN"
       },
       "bothKingsNotInCheck": true,
       "theoreticalStructureOk": true,
       "sources": [
         {
-          "name": "Chess Programming Wiki — Pawn Breakthrough",
-          "url": "https://www.chessprogramming.org/Pawn_Breakthrough",
-          "consultedAt": "2026-08-23",
-          "principle": "Sacrificial pawn push creates a distant passer",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Wikipedia — Pawn breakthrough",
-          "url": "https://en.wikipedia.org/wiki/Pawn_breakthrough",
-          "consultedAt": "2026-08-23",
-          "principle": "b6 creates a passed pawn that the enemy king cannot catch",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Lichess tablebase (partial, 8 pieces)",
-          "url": "https://tablebase.lichess.ovh/standard?fen=7k/ppp5/8/PPP5/8/8/8/4K3_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "Category maybe-win / dtc hint consistent with forced breakthrough win",
-          "method": "tablebase-hint"
+          "name": "Stockfish 18 Lite depth 16",
+          "consultedAt": "2026-10-12",
+          "principle": "Classic break a5-b5-c5 versus a7-b7-c7. Stockfish 18 Lite depth 16: b6, +6.40, with a queen in the line. Ke2 is 0.00. This is not a 7-man tablebase.",
+          "method": "stockfish-18-lite-depth-16"
         }
       ],
-      "choiceRationale": "Textbook three-versus-three breakthrough on the queenside. Not a separate « three pawns » theme — the lesson is the sacrificial break b6.",
+      "choiceRationale": "Classic break a5-b5-c5 versus a7-b7-c7. Stockfish 18 Lite depth 16: b6, +6.40, with a queen in the line. Ke2 is 0.00. This is not a 7-man tablebase.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-BREAKTHROUGH-2",
+      "themeId": "pawn-breakthrough",
+      "fen": "4k3/8/8/ppp5/PPP5/8/8/4K3 w - - 0 1",
+      "pieces": "White: K 3×P · Black: k 3×p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 8,
+      "certification": {
+        "type": "ENGINE",
+        "engine": "stockfish-18-lite",
+        "depth": 16,
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Stockfish 18 Lite depth 16",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns already in contact, black king on e8. Only bxa5 breaks through. Kd2 is 0.00 at the same depth.",
+          "method": "stockfish-18-lite-depth-16"
+        }
+      ],
+      "choiceRationale": "Pawns already in contact, black king on e8. Only bxa5 breaks through. Kd2 is 0.00 at the same depth.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PAWN-BREAKTHROUGH-3",
+      "themeId": "pawn-breakthrough",
+      "fen": "8/8/8/3ppp2/3PPP2/8/8/4K2k w - - 0 1",
+      "pieces": "White: K 3×P · Black: k 3×p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 8,
+      "certification": {
+        "type": "ENGINE",
+        "engine": "stockfish-18-lite",
+        "depth": 16,
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Stockfish 18 Lite depth 16",
+          "consultedAt": "2026-10-12",
+          "principle": "Central break d4-e4-f4 versus d5-e5-f5, black king on h1. A different sector from the queenside.",
+          "method": "stockfish-18-lite-depth-16"
+        }
+      ],
+      "choiceRationale": "Central break d4-e4-f4 versus d5-e5-f5, black king on h1. A different sector from the queenside.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-OUTSIDE-1",
+      "themeId": "outside-passed",
+      "fen": "8/8/3k4/p7/8/6P1/1P6/4K3 w - - 0 1",
+      "pieces": "White: K 2×P · Black: k p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F3k4%2Fp7%2F8%2F6P1%2F1P6%2F4K3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Outside a5-pawn against b2 and g3. b4 loses the win: the passer must be handled, not pushed into the king.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Outside a5-pawn against b2 and g3. b4 loses the win: the passer must be handled, not pushed into the king.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-OUTSIDE-2",
+      "themeId": "outside-passed",
+      "fen": "8/8/2k5/p7/8/6P1/1P6/4K3 w - - 0 1",
+      "pieces": "White: K 2×P · Black: k p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2k5%2Fp7%2F8%2F6P1%2F1P6%2F4K3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Same pawns, black king on c6: b4 draws. The king is closer to the outside pawn, so the diversion changes.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Same pawns, black king on c6: b4 draws. The king is closer to the outside pawn, so the diversion changes.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-OUTSIDE-3",
+      "themeId": "outside-passed",
+      "fen": "8/8/6k1/1p6/8/5P2/P7/6K1 w - - 0 1",
+      "pieces": "White: K 2×P · Black: k p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F6k1%2F1p6%2F8%2F5P2%2FP7%2F6K1%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Passed a2 and f3, black pawn b5. a4 loses, f4 draws: the useful wing is not the loudest push.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Passed a2 and f3, black pawn b5. a4 loses, f4 draws: the useful wing is not the loudest push.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-TRIANGULATION-1",
+      "themeId": "triangulation",
+      "fen": "8/6k1/4p1p1/4P1P1/4K3/8/8/8 w - - 0 1",
+      "pieces": "White: K 2×P · Black: k 2×p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 6,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F6k1%2F4p1p1%2F4P1P1%2F4K3%2F8%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawns e5-g5 versus e6-g6, king far on g7. Kd4, Kd3 or Ke3 win; Kf3 and Kf4 draw. The king detour passes the move.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawns e5-g5 versus e6-g6, king far on g7. Kd4, Kd3 or Ke3 win; Kf3 and Kf4 draw. The king detour passes the move.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-TRIANGULATION-2",
+      "themeId": "triangulation",
+      "fen": "8/8/8/3k4/1p1P4/1P6/3K4/8 w - - 0 1",
+      "pieces": "White: K 2×P · Black: k p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F8%2F3k4%2F1p1P4%2F1P6%2F3K4%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Kings d2 and d5, pawns b3-d4 versus b4. Only Kd3 and Ke3 win: stepping elsewhere gives up the zugzwang.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Kings d2 and d5, pawns b3-d4 versus b4. Only Kd3 and Ke3 win: stepping elsewhere gives up the zugzwang.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-TRIANGULATION-3",
+      "themeId": "triangulation",
+      "fen": "8/4k3/2p1p3/2P1P3/4K3/8/8/8 w - - 0 1",
+      "pieces": "White: K 2×P · Black: k 2×p",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "DRAW",
+      "pieceCount": 6,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F4k3%2F2p1p3%2F2P1P3%2F4K3%2F8%2F8%2F8%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "The same doubled pawns, but the black king is on e7: White must hold the draw. Kd3 and Kd4 lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "The same doubled pawns, but the black king is on e7: White must hold the draw. Kd3 and Kd4 lose.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-BAD-BISHOP-1",
+      "themeId": "bad-bishop",
+      "fen": "5k2/8/6K1/7P/8/8/2B5/8 b - - 0 1",
+      "pieces": "White: K B P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=5k2%2F8%2F6K1%2F7P%2F8%2F8%2F2B5%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Light-squared bishop c2, pawn h5, dark corner h8. Only Kg8 leads to the corner. Ke7 and Ke8 lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Light-squared bishop c2, pawn h5, dark corner h8. Only Kg8 leads to the corner. Ke7 and Ke8 lose.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-BAD-BISHOP-2",
+      "themeId": "bad-bishop",
+      "fen": "1k6/8/P7/1K6/8/8/8/2B5 b - - 0 1",
+      "pieces": "White: K B P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=1k6%2F8%2FP7%2F1K6%2F8%2F8%2F8%2F2B5%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Dark-squared bishop c1, pawn a6, light corner a8. Only Ka7 and Ka8 draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Dark-squared bishop c1, pawn a6, light corner a8. Only Ka7 and Ka8 draw.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-BAD-BISHOP-3",
+      "themeId": "bad-bishop",
+      "fen": "6k1/8/8/7P/6K1/8/8/5B2 b - - 0 1",
+      "pieces": "White: K B P · Black: k",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F8%2F7P%2F6K1%2F8%2F8%2F5B2%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Light-squared bishop f1, pawn h5, king already on g8. h8 is the corner; the neighbouring squares still draw.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Light-squared bishop f1, pawn h5, king already on g8. h8 is the corner; the neighbouring squares still draw.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-QUEEN-PAWN-1",
+      "themeId": "queen-vs-pawn",
+      "fen": "8/2P5/1K6/8/8/8/7k/q7 b - - 0 1",
+      "pieces": "White: K P · Black: k q",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F2P5%2F1K6%2F8%2F8%2F8%2F7k%2Fq7%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c7, queen a1. Only Qa8 gets in front. Other tries draw or lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn c7, queen a1. Only Qa8 gets in front. Other tries draw or lose.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-QUEEN-PAWN-2",
+      "themeId": "queen-vs-pawn",
+      "fen": "8/3P4/3K4/8/8/8/8/4q2k b - - 0 1",
+      "pieces": "White: K P · Black: k q",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "WIN",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F3P4%2F3K4%2F8%2F8%2F8%2F8%2F4q2k%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Central pawn d7, queen e1, king on h1. A long win: several methods, many draws if the queen picks the wrong file.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Central pawn d7, queen e1, king on h1. A long win: several methods, many draws if the queen picks the wrong file.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-QUEEN-PAWN-3",
+      "themeId": "queen-vs-pawn",
+      "fen": "8/5P2/5K2/8/8/8/q7/6k1 b - - 0 1",
+      "pieces": "White: K P · Black: k q",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 4,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F5P2%2F5K2%2F8%2F8%2F8%2Fq7%2F6k1%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn f7 and king f6: the exception. The queen to move does not force a win. One move loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn f7 and king f6: the exception. The queen to move does not force a win. One move loses.",
       "alerts": []
     },
     {
       "id": "TE-CANON-LUCENA",
       "themeId": "lucena",
-      "fen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 4 1",
+      "fen": "1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1",
       "pieces": "White: K R P · Black: k r",
       "sideToMove": "white",
       "trainedColor": "white",
@@ -353,36 +1306,76 @@
       "theoreticalStructureOk": true,
       "sources": [
         {
-          "name": "Wikipedia — Lucena position",
-          "url": "https://en.wikipedia.org/wiki/Lucena_position",
-          "consultedAt": "2026-08-23",
-          "principle": "Attacking king on promotion square, pawn on 7th, build the bridge",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Chess Programming Wiki — Rook Endgame",
-          "url": "https://www.chessprogramming.org/Rook_Endgame",
-          "consultedAt": "2026-08-23",
-          "principle": "Bridge-building shields the king from rear checks",
-          "method": "theoretical-reference"
-        },
-        {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=1K1k4/1P6/8/8/8/8/r7/2R5_w_-_-_4_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KRPKR Lucena structure is a tablebase win",
-          "method": "syzygy-wdl"
+          "url": "https://tablebase.lichess.ovh/standard?fen=1K1k4%2F1P6%2F8%2F8%2F8%2F8%2Fr7%2F2R5%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn b7, king b8, rook c1 versus rook a2 and king d8. The classic bridge.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Verified candidate FEN: Kb8, Pb7, Rc1 vs Kd8, Ra2. Non-rook pawn on 7th, attacking king on promotion square, defending king cut off, defending rook on the far side — classic bridge-building win.",
+      "choiceRationale": "Pawn b7, king b8, rook c1 versus rook a2 and king d8. The classic bridge.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-LUCENA-2",
+      "themeId": "lucena",
+      "fen": "4K2k/4P3/8/8/8/8/r7/4R3 w - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=4K2k%2F4P3%2F8%2F8%2F8%2F8%2Fr7%2F4R3%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e7, king e8, black king on h8, black rook on a2. Another file, the enemy king in the corner.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn e7, king e8, black king on h8, black rook on a2. Another file, the enemy king in the corner.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-LUCENA-3",
+      "themeId": "lucena",
+      "fen": "3K1k2/3P4/8/8/8/8/6r1/3R4 w - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "white",
+      "trainedColor": "white",
+      "objective": "WIN",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "WIN"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=3K1k2%2F3P4%2F8%2F8%2F8%2F8%2F6r1%2F3R4%20w%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn d7, kings d8 and f8, black rook on g2. The bridge is built on another wing.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn d7, kings d8 and f8, black rook on g2. The bridge is built on another wing.",
       "alerts": []
     },
     {
       "id": "TE-CANON-PHILIDOR",
       "themeId": "philidor",
-      "fen": "4k3/R7/1r6/4PK2/8/8/8/8 w - - 0 1",
+      "fen": "4k3/R7/1r6/4PK2/8/8/8/8 b - - 0 1",
       "pieces": "White: K R P · Black: k r",
-      "sideToMove": "white",
+      "sideToMove": "black",
       "trainedColor": "black",
       "objective": "DRAW",
       "pieceCount": 5,
@@ -394,28 +1387,230 @@
       "theoreticalStructureOk": true,
       "sources": [
         {
-          "name": "Wikipedia — Philidor position",
-          "url": "https://en.wikipedia.org/wiki/Philidor_position",
-          "consultedAt": "2026-08-23",
-          "principle": "Defending king in front of pawn, rook on the third rank holds the draw",
-          "method": "theoretical-reference"
-        },
-        {
-          "name": "Exeter Chess Club — Rook endings theory",
-          "url": "https://www.exeterchessclub.org.uk/content/rook-endings-theory",
-          "consultedAt": "2026-08-23",
-          "principle": "Third-rank barrier until the pawn reaches the 6th, then checks from behind",
-          "method": "theoretical-reference"
-        },
-        {
           "name": "Lichess Syzygy tablebase",
-          "url": "https://tablebase.lichess.ovh/standard?fen=4k3/R7/1r6/4PK2/8/8/8/8_w_-_-_0_1",
-          "consultedAt": "2026-08-23",
-          "principle": "KRPKR Philidor structure is a tablebase draw with correct defence",
-          "method": "syzygy-wdl"
+          "url": "https://tablebase.lichess.ovh/standard?fen=4k3%2FR7%2F1r6%2F4PK2%2F8%2F8%2F8%2F8%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Rook b6, pawn e5, kings e8 and f5. Black is to move and holds the 6th. Eight moves lose.",
+          "method": "syzygy-7"
         }
       ],
-      "choiceRationale": "Mission candidate FEN verified: Kf5, Pe5, Ra7 vs Ke8, Rb6. White to move; trainee plays Black. Stockfish moves first, then Black holds the third-rank defence.",
+      "choiceRationale": "Rook b6, pawn e5, kings e8 and f5. Black is to move and holds the 6th. Eight moves lose.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PHILIDOR-2",
+      "themeId": "philidor",
+      "fen": "2k5/8/r7/2P5/2K5/8/8/2R5 b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=2k5%2F8%2Fr7%2F2P5%2F2K5%2F8%2F8%2F2R5%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c5, rook a6, king c8 in front of the pawn. The barrier is on the 6th, c-file.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn c5, rook a6, king c8 in front of the pawn. The barrier is on the 6th, c-file.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-PHILIDOR-3",
+      "themeId": "philidor",
+      "fen": "8/8/3r1k2/3P4/3K4/8/8/3R4 b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F3r1k2%2F3P4%2F3K4%2F8%2F8%2F3R4%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "The king is not yet in front: only Ke7 draws. The rook on d6 is not enough if the king stays on f6.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "The king is not yet in front: only Ke7 draws. The rook on d6 is not enough if the king stays on f6.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-LATERAL-1",
+      "themeId": "lateral-checks",
+      "fen": "8/8/4k3/8/4P3/4K3/r7/4R3 b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F4k3%2F8%2F4P3%2F4K3%2Fr7%2F4R3%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn e4, king e3, rook a2. Ra3+ and Ra4 hold; Re2+ is too close and loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn e4, king e3, rook a2. Ra3+ and Ra4 hold; Re2+ is too close and loses.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-LATERAL-2",
+      "themeId": "lateral-checks",
+      "fen": "2k5/8/2P5/1K6/7r/8/8/2R5 b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=2k5%2F8%2F2P5%2F1K6%2F7r%2F8%2F8%2F2R5%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn c6 already advanced, rook h4. Long checks on the 4th hold; Rb4+ is too short.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn c6 already advanced, rook h4. Long checks on the 4th hold; Rb4+ is too short.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-LATERAL-3",
+      "themeId": "lateral-checks",
+      "fen": "6k1/8/6P1/5K2/r7/8/8/6R1 b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F6P1%2F5K2%2Fr7%2F8%2F8%2F6R1%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn g6, king f5, rook a4. Ra4+ keeps the distance; Re4 loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn g6, king f5, rook a4. Ra4+ keeps the distance; Re4 loses.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-VANCURA-1",
+      "themeId": "vancura",
+      "fen": "8/8/2r5/P7/8/6k1/8/K6R b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=8%2F8%2F2r5%2FP7%2F8%2F6k1%2F8%2FK6R%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a5, rook c6. Only Rc5 (lateral attack), Kf4 and Kg4 draw. The pawn cannot be taken at once.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn a5, rook c6. Only Rc5 (lateral attack), Kf4 and Kg4 draw. The pawn cannot be taken at once.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-VANCURA-2",
+      "themeId": "vancura",
+      "fen": "4k3/8/8/2r5/P7/8/8/K5R1 b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=4k3%2F8%2F8%2F2r5%2FP7%2F8%2F8%2FK5R1%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a4, rook already on c5 on the pawn’s rank. Staying on the 5th draws; Rg5 and Rc1+ lose.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn a4, rook already on c5 on the pawn’s rank. Staying on the 5th draws; Rg5 and Rc1+ lose.",
+      "alerts": []
+    },
+    {
+      "id": "TE-CANON-VANCURA-3",
+      "themeId": "vancura",
+      "fen": "6k1/8/8/P2r4/8/8/8/K6R b - - 0 1",
+      "pieces": "White: K R P · Black: k r",
+      "sideToMove": "black",
+      "trainedColor": "black",
+      "objective": "DRAW",
+      "pieceCount": 5,
+      "certification": {
+        "type": "SYZYGY",
+        "result": "DRAW"
+      },
+      "bothKingsNotInCheck": true,
+      "theoreticalStructureOk": true,
+      "sources": [
+        {
+          "name": "Lichess Syzygy tablebase",
+          "url": "https://tablebase.lichess.ovh/standard?fen=6k1%2F8%2F8%2FP2r4%2F8%2F8%2F8%2FK6R%20b%20-%20-%200%201",
+          "consultedAt": "2026-10-12",
+          "principle": "Pawn a5, rook d5. The pawn’s rank holds; dropping to d4, d3, d6 or d7 loses.",
+          "method": "syzygy-7"
+        }
+      ],
+      "choiceRationale": "Pawn a5, rook d5. The pawn’s rank holds; dropping to d4, d3, d6 or d7 loses.",
       "alerts": []
     }
   ]
