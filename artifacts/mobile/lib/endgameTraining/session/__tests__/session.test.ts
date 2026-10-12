@@ -8,6 +8,7 @@ import { createMockDefenseAnalyzer } from '../../../defendDraw/mockDefenseAnalyz
 import type { DefenseAnalysis } from '../../../defendDraw/defenseTypes.ts';
 import type { EndgameTrainingPosition } from '../../domain/types.ts';
 import { EndgameTrainingSession } from '../EndgameTrainingSession.ts';
+import { formatDecisiveMoveLabel, formatReviewEval } from '../../domain/reviewDiagnostic.ts';
 
 function baseAnalysis(partial: Partial<DefenseAnalysis> = {}): DefenseAnalysis {
   return {
@@ -274,5 +275,69 @@ describe('EndgameTrainingSession', () => {
     );
     assert.equal(final.movesResisted, 30);
     assert.equal(final.result?.outcome, 'win-30-moves');
+  });
+
+  it('stores the eval from before the losing move and the real move number', async () => {
+    const fen = '4k3/8/8/8/8/8/4K3/q6R w - - 0 52';
+    const pos = samplePosition({
+      id: 'TEST-LOSS-52',
+      fen,
+      defender: 'white',
+      family: 'rook',
+      materialSignature: 'KR-k',
+    });
+    const analyzer = createMockDefenseAnalyzer((current) =>
+      baseAnalysis({
+        bestMove: firstLegalBest(current),
+        scoreCp: stmForDefenderPov(current, 'white', -400),
+        mateIn: null,
+      }),
+    );
+    const session = new EndgameTrainingSession({ analyzer });
+    await session.start(pos);
+    const snap = await session.attemptMove('h1', 'h2');
+    assert.equal(snap.phase, 'lost');
+    assert.equal(snap.result?.fenBeforeLoss, fen);
+    assert.equal(snap.result?.losingSan, 'Rh2');
+    assert.equal(snap.result?.evalBeforeLossCp, 0);
+    assert.ok((snap.result?.evalAfterLossCp ?? 0) <= -200);
+    assert.notEqual(snap.result?.evalBeforeLossCp, snap.result?.evalAfterLossCp);
+    assert.equal(formatDecisiveMoveLabel(fen, snap.result?.losingSan ?? '', 'white', 'en'), '52. Rh2');
+    const again = session.snapshot();
+    assert.equal(again.result?.attemptId, snap.result?.attemptId);
+    assert.equal(again.attemptId, snap.attemptId);
+  });
+
+  it('records a defender mate as mate, not a huge centipawn score', async () => {
+    const fen = '4k3/8/8/8/8/8/4K3/q6R w - - 0 52';
+    const pos = samplePosition({
+      id: 'TEST-MATE',
+      fen,
+      defender: 'white',
+      family: 'rook',
+      materialSignature: 'KR-k',
+    });
+    const analyzer = createMockDefenseAnalyzer((current) => {
+      const stm = current.trim().split(/\s+/)[1];
+      return baseAnalysis({
+        bestMove: firstLegalBest(current),
+        scoreCp: 0,
+        mateIn: stm === 'w' ? -3 : 3,
+      });
+    });
+    const session = new EndgameTrainingSession({ analyzer });
+    await session.start(pos);
+    const snap = await session.attemptMove('h1', 'h2');
+    assert.equal(snap.phase, 'lost');
+    assert.equal(snap.result?.evalAfterLossMate, -3);
+    const shown = formatReviewEval(
+      snap.result?.evalAfterLossCp,
+      snap.result?.evalAfterLossMate,
+    );
+    assert.equal(shown.kind, 'mate');
+    if (shown.kind === 'mate') {
+      assert.equal(shown.text, '#-3');
+      assert.doesNotMatch(shown.text, /999/);
+    }
   });
 });

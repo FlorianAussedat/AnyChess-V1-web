@@ -475,17 +475,6 @@ export default function TheoreticalEndgamePlayScreen() {
           onBack={confirmExit}
         />
 
-        {thinking && engineReady && (
-          <View style={styles.busyRow}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={{ color: colors.mutedForeground }}>
-              {snap.phase === 'verifying'
-                ? t('quiz.theoreticalVerifying')
-                : t('quiz.defendsNulleReflecting')}
-            </Text>
-          </View>
-        )}
-
         <ClassicCommandInputChrome
           keypadActive={keypadActive}
           draftMove={draftMove}

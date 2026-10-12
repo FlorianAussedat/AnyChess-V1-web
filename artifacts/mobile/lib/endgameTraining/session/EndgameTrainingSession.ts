@@ -33,6 +33,7 @@ import { chooseOpponentMove } from '../engine/PracticalPressurePolicy.ts';
 import { chooseStrictBestMove } from '../../engines/policies/StrictBestPolicy.ts';
 import { verifyLoss, LOSS_CONFIRM_THINK_MS } from '../engine/LossVerifier.ts';
 import { officialResultMessage } from '../domain/officialResultMessages.ts';
+import { createDefendDrawAttemptId } from '../persistence/defendDrawReview.ts';
 import { tMsg } from '../../i18n/tMsg.ts';
 import {
   findDrawAlternatives,
@@ -73,6 +74,8 @@ export type SessionSnapshot = {
   canOfferActions: boolean;
   finishGameActive: boolean;
   officialResultMessage: string | null;
+  /** Stable for this attempt. Resume reuses it; retry mints another. */
+  attemptId: string;
 };
 
 export type SessionOptions = {
@@ -97,6 +100,7 @@ export class EndgameTrainingSession {
   private finishGameMode = false;
   private fenBeforeLastMove: string | null = null;
   private pendingDrawAlternatives: DrawAlternativesResult | null = null;
+  private attemptId = '';
 
   constructor(options: SessionOptions = {}) {
     this.analyzer = options.analyzer ?? null;
@@ -107,6 +111,7 @@ export class EndgameTrainingSession {
   }
 
   async start(position: EndgameTrainingPosition): Promise<SessionSnapshot> {
+    this.attemptId = createDefendDrawAttemptId();
     this.position = position;
     this.startFen = position.fen;
     this.game = new Chess(position.fen);
@@ -131,6 +136,74 @@ export class EndgameTrainingSession {
     this.finishGameMode = false;
     this.fenBeforeLastMove = null;
     this.pendingDrawAlternatives = null;
+    return this.snapshot();
+  }
+
+  /**
+   * Resume an active snapshot. Does not mint an attempt and does not finish one.
+   * A missing attempt id on an in-progress snapshot is created once.
+   */
+  restore(saved: SessionSnapshot): SessionSnapshot {
+    if (!saved.position || !saved.fen) return this.snapshot();
+    this.position = saved.position;
+    this.startFen = saved.startFen ?? saved.position.fen;
+    this.game = new Chess(saved.fen);
+    this.phase = saved.phase;
+    this.counter = {
+      movesResisted: saved.movesResisted,
+      outcome: saved.result?.outcome ?? 'in-progress',
+      scoreLocked: saved.scoreLocked,
+      offScore: saved.offScore,
+    };
+    this.timeline = saved.timeline ? [...saved.timeline] : [];
+    this.moveSans = saved.moveSans ? [...saved.moveSans] : [];
+    this.lastMove = saved.lastMove;
+    this.lastFeedback = saved.lastFeedback;
+    this.evalCp = saved.evalCp;
+    this.mateIn = saved.mateIn;
+    this.result = saved.result;
+    this.finishGameMode = saved.finishGameActive;
+    this.attemptId = saved.attemptId || saved.result?.attemptId || '';
+    if (!this.attemptId && saved.phase !== 'idle') {
+      this.attemptId = createDefendDrawAttemptId();
+    }
+    return this.snapshot();
+  }
+
+  /** Show a stored attempt without starting or recording another one. */
+  presentStoredReview(
+    position: EndgameTrainingPosition,
+    result: AttemptResult,
+  ): SessionSnapshot {
+    this.position = { ...position, fen: result.startFen || position.fen, defender: position.defender };
+    this.startFen = result.startFen || position.fen;
+    this.game = new Chess(result.endFen || this.startFen);
+    this.phase =
+      result.outcome === 'loss'
+        ? 'lost'
+        : result.outcome === 'win-30-moves'
+          ? 'won-30'
+          : result.outcome === 'abandoned'
+            ? 'abandoned'
+            : result.outcome === 'win-official-draw'
+              ? 'won-draw'
+              : 'playing';
+    this.counter = {
+      movesResisted: result.movesResisted,
+      outcome: result.outcome,
+      scoreLocked: result.outcome !== 'abandoned' && result.outcome !== 'in-progress',
+      offScore: false,
+    };
+    this.timeline = result.timeline ? [...result.timeline] : [];
+    this.moveSans = result.moveSans ? [...result.moveSans] : [];
+    this.lastMove = null;
+    this.lastFeedback = null;
+    this.evalCp = this.timeline.length ? this.timeline[this.timeline.length - 1]!.scoreCp : 0;
+    this.mateIn = this.timeline.length ? this.timeline[this.timeline.length - 1]!.mateIn : null;
+    this.result = { ...result, attemptId: result.attemptId };
+    this.finishGameMode = false;
+    this.attemptId = result.attemptId ?? '';
+    this.officialDrawReason = result.officialDrawReason;
     return this.snapshot();
   }
 
@@ -326,33 +399,36 @@ export class EndgameTrainingSession {
         );
 
         if (verdict.lost) {
+          const beforePoint = this.timeline[this.timeline.length - 1];
+          const evalBeforeCp = beforePoint?.scoreCp;
+          const evalBeforeMate = beforePoint?.mateIn ?? null;
+          const afterMate = confNorm?.mateIn ?? norm.mateIn;
           this.evalCp = verdict.confirmedScoreCp;
+          this.mateIn = afterMate;
           this.pushTimeline(played.san);
           this.counter = registerConfirmedLoss(this.counter);
           this.phase = 'lost';
-          this.result = this.buildResult({
+          const lossExtra = {
             fenBeforeLoss: this.fenBeforeLastMove ?? undefined,
             losingSan: played.san,
-            evalBeforeCp: this.timeline[this.timeline.length - 1]?.scoreCp,
+            evalBeforeCp,
+            evalBeforeMate,
             evalAfterCp: verdict.confirmedScoreCp,
-          });
+            evalAfterMate: afterMate,
+          };
+          this.result = this.buildResult(lossExtra);
           if (this.analyzer && this.fenBeforeLastMove) {
             try {
               this.pendingDrawAlternatives = await findDrawAlternatives({
                 fenBeforeLoss: this.fenBeforeLastMove,
                 losingSan: played.san,
-                evalBeforeCp:
-                  this.timeline[this.timeline.length - 1]?.scoreCp ?? 0,
+                evalBeforeCp: evalBeforeCp ?? 0,
                 evalAfterCp: verdict.confirmedScoreCp,
                 defender: this.position.defender,
                 analyzer: this.analyzer,
               });
               this.result = this.buildResult({
-                fenBeforeLoss: this.fenBeforeLastMove,
-                losingSan: played.san,
-                evalBeforeCp:
-                  this.timeline[this.timeline.length - 1]?.scoreCp ?? 0,
-                evalAfterCp: verdict.confirmedScoreCp,
+                ...lossExtra,
                 drawAlternatives: this.pendingDrawAlternatives,
               });
             } catch {
@@ -627,7 +703,9 @@ export class EndgameTrainingSession {
     fenBeforeLoss?: string;
     losingSan?: string;
     evalBeforeCp?: number;
+    evalBeforeMate?: number | null;
     evalAfterCp?: number;
+    evalAfterMate?: number | null;
     drawAlternatives?: DrawAlternativesResult | null;
     checkmateWinner?: 'w' | 'b';
   }): AttemptResult {
@@ -637,6 +715,7 @@ export class EndgameTrainingSession {
       timeline: this.timeline,
       moveSans: this.moveSans,
       startFen: this.startFen ?? this.game.fen(),
+      attemptId: this.attemptId,
       endFen: this.game.fen(),
       positionId: pos?.id ?? '',
       officialDrawReason: this.officialDrawReason,
@@ -662,6 +741,9 @@ export class EndgameTrainingSession {
     if (extra?.losingSan) result.losingSan = extra.losingSan;
     if (extra?.evalBeforeCp != null) result.evalBeforeLossCp = extra.evalBeforeCp;
     if (extra?.evalAfterCp != null) result.evalAfterLossCp = extra.evalAfterCp;
+    if (extra && 'evalBeforeMate' in extra) result.evalBeforeLossMate = extra.evalBeforeMate ?? null;
+    if (extra && 'evalAfterMate' in extra) result.evalAfterLossMate = extra.evalAfterMate ?? null;
+    if (extra?.checkmateWinner) result.checkmateWinner = extra.checkmateWinner;
 
     if (extra?.drawAlternatives?.reliable) {
       result.drawAlternatives = extra.drawAlternatives.alternatives.map((a) => ({
@@ -715,6 +797,7 @@ export class EndgameTrainingSession {
         this.phase === 'won-draw',
       finishGameActive: this.finishGameMode,
       officialResultMessage: this.result?.officialResultMessage ?? null,
+      attemptId: this.attemptId,
     };
   }
 

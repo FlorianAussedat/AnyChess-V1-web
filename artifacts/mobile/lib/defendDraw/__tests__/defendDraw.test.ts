@@ -229,8 +229,10 @@ describe('DefendDrawSession with mock Stockfish', () => {
 describe('navigation still under Entraînement tactique', () => {
   it('hub card routes to endgame menu; play uses StockfishAnalysisService — no random opponent', () => {
     const menu = read('app/puzzles/defends-nulle.tsx');
-    assert.match(menu, /endgameNewFinales|Nouvelles Finales/);
-    assert.match(menu, /endgameTryAgain|Essaie encore/);
+    assert.match(menu, /ddNewFinale|Nouvelle finale/);
+    assert.match(menu, /ddReviewFinales|Finales à revoir/);
+    assert.match(menu, /ddHistory/);
+    assert.doesNotMatch(menu, /Essaie encore/);
     assert.doesNotMatch(menu, /DEBUG ENDGAME/);
     assert.doesNotMatch(menu, /from ['\"]@?\/?.*engines\/random/);
     assert.doesNotMatch(menu, /createOpponentEngine/);

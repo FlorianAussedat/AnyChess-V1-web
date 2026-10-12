@@ -28,6 +28,12 @@ export {
   isInTryAgain,
   getTryAgainIds,
   recordFinishedAttempt,
+  listDefendDrawHistory,
+  getDefendDrawHistoryAttempt,
+  listDefendDrawFavorites,
+  isDefendDrawStarred,
+  starDefendDrawPosition,
+  unstarDefendDrawPosition,
   getPositionStats,
   getFinishedIds,
   getVarietyContext,
@@ -37,6 +43,23 @@ export {
   sanitizeStoreAgainstPool,
 } from './persistence/EndgameTrainingStore.ts';
 export type { PositionAttemptStats } from './persistence/EndgameTrainingStore.ts';
+export type {
+  DefendDrawFavorite,
+  DefendDrawHistoryAttempt,
+} from './persistence/defendDrawReview.ts';
+export {
+  DEFEND_DRAW_HISTORY_LIMIT,
+  defendDrawFavoriteId,
+  applyUnstarChoice,
+  attemptFromHistory,
+} from './persistence/defendDrawReview.ts';
+export {
+  buildDiagnosticView,
+  formatDecisiveMoveLabel,
+  formatReviewEval,
+  reviewHeadlineKey,
+  showReviewGauge,
+} from './domain/reviewDiagnostic.ts';
 export {
   listPool,
   getPositionById,

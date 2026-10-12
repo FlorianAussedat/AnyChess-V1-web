@@ -129,14 +129,21 @@ export type AttemptResult = {
   startFen: string;
   endFen: string;
   positionId: string;
+  /** Stable id for this attempt. Replays mint a new one. Remounts reuse it. */
+  attemptId?: string;
   /** Minimal position snapshot for history after pool changes. */
   positionSnapshot?: PositionSnapshot;
   finishedAt: string;
+  /** Set when the exercise ended by checkmate. Does not change the outcome enum. */
+  checkmateWinner?: 'w' | 'b';
   /** FEN immediately before the losing move (loss only). */
   fenBeforeLoss?: string;
   losingSan?: string;
+  /** Defender-POV centipawns. Omitted when the eval was not available. */
   evalBeforeLossCp?: number;
   evalAfterLossCp?: number;
+  evalBeforeLossMate?: number | null;
+  evalAfterLossMate?: number | null;
   drawAlternatives?: DrawAlternativeSummary[];
   drawAlternativesHasMore?: boolean;
   drawAlternativesReliable?: boolean;

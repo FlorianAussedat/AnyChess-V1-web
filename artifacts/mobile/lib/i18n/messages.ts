@@ -721,6 +721,32 @@ export type MessageKey =
   | 'quiz.endgameContinueOffScore'
   | 'quiz.endgameRemoveTryAgain'
   | 'quiz.endgameBackMenu'
+  | 'quiz.ddNewFinale'
+  | 'quiz.ddReviewFinales'
+  | 'quiz.ddHistory'
+  | 'quiz.ddFavoritesEmpty'
+  | 'quiz.ddHistoryEmpty'
+  | 'quiz.ddDefendWithWhite'
+  | 'quiz.ddDefendWithBlack'
+  | 'quiz.ddResultDraw'
+  | 'quiz.ddResultStalemate'
+  | 'quiz.ddResultLoss'
+  | 'quiz.ddResultWin'
+  | 'quiz.ddResultInterrupted'
+  | 'quiz.ddResultUnknown'
+  | 'quiz.ddDecisiveMove'
+  | 'quiz.ddAfterMove'
+  | 'quiz.ddBeforeMove'
+  | 'quiz.ddKeepDraw'
+  | 'quiz.ddMoreAlternatives'
+  | 'quiz.ddNoAlternatives'
+  | 'quiz.ddDiagnosticUncertain'
+  | 'quiz.ddEvalMissing'
+  | 'quiz.ddEvalPerspective'
+  | 'quiz.ddUnstarTitle'
+  | 'quiz.ddUnstarConfirm'
+  | 'quiz.ddStarAdd'
+  | 'quiz.ddStarRemove'
   | 'quiz.endgameObjectiveWin'
   | 'quiz.endgameObjectiveDraw'
   | 'quiz.endgameOfferDraw'
@@ -1930,8 +1956,7 @@ const fr: Dict = {
   'quiz.defendsNullePageTitle': 'Entraînement aux Finales',
   'quiz.defendsNulleDesc':
     'Tiens une position égale face à Stockfish.',
-  'quiz.defendsNulleLead':
-    'Choisis une nouvelle finale ou rejoue une position de Essaie encore !',
+  'quiz.defendsNulleLead': 'Choisis une finale.',
   'quiz.defendsNulleProgress': 'Coups joués : {{current}}',
   'quiz.defendsNulleThinking': 'Stockfish analyse…',
   'quiz.defendsNullePreparing': 'Préparation de Stockfish…',
@@ -1957,13 +1982,12 @@ const fr: Dict = {
   'quiz.endgameNewFinales': 'Nouvelles Finales !',
   'quiz.endgameNewFinalesDesc':
     'Une position aléatoire et variée que tu n’as jamais terminée.',
-  'quiz.endgameTryAgain': 'Essaie encore !',
-  'quiz.endgameTryAgainDesc':
-    'Rejoue une position que tu as choisie d’ajouter après une tentative.',
+  'quiz.endgameTryAgain': 'Finales à revoir',
+  'quiz.endgameTryAgainDesc': 'Positions marquées d’une étoile.',
   'quiz.endgameTryAgainEmpty':
-    'Aucune position pour l’instant. Tu pourras en ajouter après une tentative perdue.',
+    'Aucune finale à revoir. Une étoile ajoute une finale.',
   'quiz.endgamePoolExhausted':
-    'Tu as terminé toutes les nouvelles positions disponibles. Reviens plus tard ou ouvre Essaie encore !',
+    'Tu as terminé toutes les nouvelles positions disponibles.',
   'quiz.endgamePoolPreparing':
     'De nouvelles finales sont en préparation.',
   'quiz.endgameMovesResisted': 'Coups résistés : {{count}}',
@@ -1977,13 +2001,39 @@ const fr: Dict = {
   'quiz.endgameAnalyse': 'Analyse !',
   'quiz.analyseGame': 'Analyser la partie',
   'quiz.analysePosition': 'Analyser la position',
-  'quiz.endgameAddTryAgain': 'Ajouter à Essaie encore',
-  'quiz.endgameAddedTryAgain': 'Ajoutée à Essaie encore',
+  'quiz.endgameAddTryAgain': 'Ajouter aux finales à revoir',
+  'quiz.endgameAddedTryAgain': 'Ajoutée aux finales à revoir',
   'quiz.endgameRetry': 'Retenter',
   'quiz.endgameContinuePosition': 'Continuer la position',
   'quiz.endgameContinueOffScore': 'Continuer hors score',
-  'quiz.endgameRemoveTryAgain': 'Retirer de Essaie encore',
+  'quiz.endgameRemoveTryAgain': 'Retirer des finales à revoir',
   'quiz.endgameBackMenu': 'Retour au menu',
+  'quiz.ddNewFinale': 'Nouvelle finale',
+  'quiz.ddReviewFinales': 'Finales à revoir',
+  'quiz.ddHistory': 'Historique',
+  'quiz.ddFavoritesEmpty': 'Aucune finale à revoir. Une étoile ajoute une finale.',
+  'quiz.ddHistoryEmpty': 'Aucune tentative. Les dernières apparaîtront ici.',
+  'quiz.ddDefendWithWhite': 'Défends la nulle avec les Blancs',
+  'quiz.ddDefendWithBlack': 'Défends la nulle avec les Noirs',
+  'quiz.ddResultDraw': 'Nulle obtenue — Bien joué !',
+  'quiz.ddResultStalemate': 'Nulle obtenue par pat',
+  'quiz.ddResultLoss': 'Nulle perdue',
+  'quiz.ddResultWin': 'Position gagnée — Bien joué !',
+  'quiz.ddResultInterrupted': 'Tentative interrompue',
+  'quiz.ddResultUnknown': 'Résultat indisponible',
+  'quiz.ddDecisiveMove': 'Le coup décisif',
+  'quiz.ddAfterMove': 'Après ce coup',
+  'quiz.ddBeforeMove': 'Avant ce coup',
+  'quiz.ddKeepDraw': 'Pour conserver la nulle',
+  'quiz.ddMoreAlternatives': 'D’autres coups convenaient aussi.',
+  'quiz.ddNoAlternatives': 'Aucun autre coup confirmé.',
+  'quiz.ddDiagnosticUncertain': 'Le diagnostic de ce coup n’est pas disponible.',
+  'quiz.ddEvalMissing': 'Évaluation indisponible',
+  'quiz.ddEvalPerspective': 'Évaluation du camp que tu défends.',
+  'quiz.ddUnstarTitle': 'Retirer cette finale des finales à revoir ?',
+  'quiz.ddUnstarConfirm': 'Retirer',
+  'quiz.ddStarAdd': 'Ajouter aux finales à revoir',
+  'quiz.ddStarRemove': 'Retirer des finales à revoir',
   'quiz.endgameObjectiveWin': 'Objectif : gagne cette finale',
   'quiz.endgameObjectiveDraw': 'Objectif : sauve la nulle',
   'quiz.endgameOfferDraw': 'Proposer la nulle',
@@ -2431,8 +2481,8 @@ const fr: Dict = {
   'campPicker.randomSide': 'Camp aléatoire',
   'campPicker.hint': 'Touche les pièces Blanches ou Noires, ou choisis un camp aléatoire.',
   'exercise.referenceCopied': 'Référence copiée',
-  'exercise.tryAgainAlready': 'Déjà dans « Essaie encore ! »',
-  'exercise.tryAgainAddTitle': 'Ajouter cette position à « Essaie encore ! » ?',
+  'exercise.tryAgainAlready': 'Déjà dans les finales à revoir',
+  'exercise.tryAgainAddTitle': 'Ajouter cette finale aux finales à revoir ?',
   'review.bestMove': 'Meilleur coup : {{san}}',
   'review.returnToPosition': 'Retour à la position',
   'review.finishGameTitle': 'Finir la partie ?',
@@ -3257,8 +3307,7 @@ const en: Dict = {
   'quiz.defendsNullePageTitle': 'Endgame Training',
   'quiz.defendsNulleDesc':
     'Hold an equal position against Stockfish.',
-  'quiz.defendsNulleLead':
-    'Pick a new endgame or replay a position from Try again!',
+  'quiz.defendsNulleLead': 'Choose an endgame.',
   'quiz.defendsNulleProgress': 'Moves played: {{current}}',
   'quiz.defendsNulleThinking': 'Stockfish is analyzing…',
   'quiz.defendsNullePreparing': 'Preparing Stockfish…',
@@ -3283,13 +3332,12 @@ const en: Dict = {
   'quiz.endgameNewFinales': 'New Endgames!',
   'quiz.endgameNewFinalesDesc':
     'A random varied position you have never finished.',
-  'quiz.endgameTryAgain': 'Try again!',
-  'quiz.endgameTryAgainDesc':
-    'Replay a position you chose to add after an attempt.',
+  'quiz.endgameTryAgain': 'Endgames to review',
+  'quiz.endgameTryAgainDesc': 'Positions marked with a star.',
   'quiz.endgameTryAgainEmpty':
-    'No positions yet. You can add some after a lost attempt.',
+    'No endgame to review. A star adds one.',
   'quiz.endgamePoolExhausted':
-    'You have finished every available new position. Come back later or open Try again!',
+    'You have finished every available new position.',
   'quiz.endgamePoolPreparing':
     'New endgames are being prepared.',
   'quiz.endgameMovesResisted': 'Moves resisted: {{count}}',
@@ -3303,13 +3351,39 @@ const en: Dict = {
   'quiz.endgameAnalyse': 'Analyse!',
   'quiz.analyseGame': 'Analyse game',
   'quiz.analysePosition': 'Analyse position',
-  'quiz.endgameAddTryAgain': 'Add to Try again',
-  'quiz.endgameAddedTryAgain': 'Added to Try again',
+  'quiz.endgameAddTryAgain': 'Add to endgames to review',
+  'quiz.endgameAddedTryAgain': 'Added to endgames to review',
   'quiz.endgameRetry': 'Retry',
   'quiz.endgameContinuePosition': 'Continue the position',
   'quiz.endgameContinueOffScore': 'Continue off score',
-  'quiz.endgameRemoveTryAgain': 'Remove from Try again',
+  'quiz.endgameRemoveTryAgain': 'Remove from endgames to review',
   'quiz.endgameBackMenu': 'Back to menu',
+  'quiz.ddNewFinale': 'New endgame',
+  'quiz.ddReviewFinales': 'Endgames to review',
+  'quiz.ddHistory': 'History',
+  'quiz.ddFavoritesEmpty': 'No endgame to review. A star adds one.',
+  'quiz.ddHistoryEmpty': 'No attempts yet. The latest ones will appear here.',
+  'quiz.ddDefendWithWhite': 'Defend the draw with White',
+  'quiz.ddDefendWithBlack': 'Defend the draw with Black',
+  'quiz.ddResultDraw': 'Draw saved — Well played!',
+  'quiz.ddResultStalemate': 'Draw by stalemate',
+  'quiz.ddResultLoss': 'Draw lost',
+  'quiz.ddResultWin': 'Position won — Well played!',
+  'quiz.ddResultInterrupted': 'Attempt interrupted',
+  'quiz.ddResultUnknown': 'Result unavailable',
+  'quiz.ddDecisiveMove': 'The decisive move',
+  'quiz.ddAfterMove': 'After this move',
+  'quiz.ddBeforeMove': 'Before this move',
+  'quiz.ddKeepDraw': 'To keep the draw',
+  'quiz.ddMoreAlternatives': 'Other moves worked too.',
+  'quiz.ddNoAlternatives': 'No other move confirmed.',
+  'quiz.ddDiagnosticUncertain': 'The diagnosis for this move is unavailable.',
+  'quiz.ddEvalMissing': 'Evaluation unavailable',
+  'quiz.ddEvalPerspective': 'Evaluation from the side you are defending.',
+  'quiz.ddUnstarTitle': 'Remove this endgame from endgames to review?',
+  'quiz.ddUnstarConfirm': 'Remove',
+  'quiz.ddStarAdd': 'Add to endgames to review',
+  'quiz.ddStarRemove': 'Remove from endgames to review',
   'quiz.endgameObjectiveWin': 'Objective: win this endgame',
   'quiz.endgameObjectiveDraw': 'Objective: save the draw',
   'quiz.endgameOfferDraw': 'Offer draw',
@@ -3754,8 +3828,8 @@ const en: Dict = {
   'campPicker.randomSide': 'Random side',
   'campPicker.hint': 'Tap the white or black pieces, or choose a random side.',
   'exercise.referenceCopied': 'Reference copied',
-  'exercise.tryAgainAlready': 'Already in “Try again!”',
-  'exercise.tryAgainAddTitle': 'Add this position to “Try again!”?',
+  'exercise.tryAgainAlready': 'Already in endgames to review',
+  'exercise.tryAgainAddTitle': 'Add this endgame to endgames to review?',
   'review.bestMove': 'Best move: {{san}}',
   'review.returnToPosition': 'Back to the position',
   'review.finishGameTitle': 'Finish the game?',
