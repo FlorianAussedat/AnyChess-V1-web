@@ -124,37 +124,86 @@ export async function prepareAvatarImage(input: {
   return prepareAvatarImageNative(input.uri, zoom);
 }
 
+function nativeManipulatorReady(): boolean {
+  try {
+    const core = require('expo-modules-core') as {
+      requireOptionalNativeModule?: (name: string) => object | null;
+    };
+    return Boolean(core.requireOptionalNativeModule?.('ExpoImageManipulator'));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[AnyChess] ExpoImageManipulator probe failed: ${message}`);
+    return false;
+  }
+}
+
+async function prepareAvatarWithInstalledManipulator(
+  uri: string,
+  zoom: number,
+): Promise<{ dataUrl: string } | { error: 'unsupported' }> {
+  const { Image } = await import('react-native');
+  const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+    Image.getSize(uri, (width, height) => resolve({ width, height }), reject);
+  });
+  const crop = centerCropRect(size.width, size.height, zoom);
+  const fitted = fittedEdge(crop.width, crop.height);
+  const manipulator = await import('expo-image-manipulator');
+  const result = await manipulator.manipulateAsync(
+    uri,
+    [
+      {
+        crop: {
+          originX: Math.round(crop.x),
+          originY: Math.round(crop.y),
+          width: Math.max(1, Math.round(crop.width)),
+          height: Math.max(1, Math.round(crop.height)),
+        },
+      },
+      { resize: fitted },
+    ],
+    { compress: 1, format: manipulator.SaveFormat.PNG },
+  );
+  const response = await fetch(result.uri);
+  const buffer = await response.arrayBuffer();
+  return { dataUrl: bytesToDataUrl(new Uint8Array(buffer), 'image/png') };
+}
+
+async function prepareAvatarWithJavascript(
+  uri: string,
+  zoom: number,
+): Promise<{ dataUrl: string } | { error: 'unsupported' }> {
+  const response = await fetch(uri);
+  if (!response.ok) {
+    console.warn(`[AnyChess] avatar read failed: ${response.status}`);
+    return { error: 'unsupported' };
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const { prepareAvatarBytes } = await import('./avatarRaster.ts');
+  const prepared = prepareAvatarBytes(bytes, zoom);
+  if (!prepared) {
+    console.warn(
+      '[AnyChess] avatar format unsupported without ExpoImageManipulator. The previous photo is kept.',
+    );
+    return { error: 'unsupported' };
+  }
+  return { dataUrl: bytesToDataUrl(prepared.bytes, prepared.mime) };
+}
+
 async function prepareAvatarImageNative(
   uri: string,
   zoom: number,
 ): Promise<{ dataUrl: string } | { error: 'unsupported' }> {
   try {
-    const { Image } = await import('react-native');
-    const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-      Image.getSize(uri, (width, height) => resolve({ width, height }), reject);
-    });
-    const crop = centerCropRect(size.width, size.height, zoom);
-    const fitted = fittedEdge(crop.width, crop.height);
-    const manipulator = await import('expo-image-manipulator');
-    const result = await manipulator.manipulateAsync(
-      uri,
-      [
-        {
-          crop: {
-            originX: Math.round(crop.x),
-            originY: Math.round(crop.y),
-            width: Math.max(1, Math.round(crop.width)),
-            height: Math.max(1, Math.round(crop.height)),
-          },
-        },
-        { resize: fitted },
-      ],
-      { compress: 1, format: manipulator.SaveFormat.PNG },
+    if (nativeManipulatorReady()) {
+      return await prepareAvatarWithInstalledManipulator(uri, zoom);
+    }
+    console.warn(
+      '[AnyChess] ExpoImageManipulator is not in this client. JPEG and PNG are cropped in JavaScript. WebP still needs a rebuilt dev client.',
     );
-    const response = await fetch(result.uri);
-    const buffer = await response.arrayBuffer();
-    return { dataUrl: bytesToDataUrl(new Uint8Array(buffer), 'image/png') };
-  } catch {
+    return await prepareAvatarWithJavascript(uri, zoom);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[AnyChess] avatar crop failed: ${message}`);
     return { error: 'unsupported' };
   }
 }

@@ -100,6 +100,8 @@ export {
   listReviewPoolEntries,
   countReviewLines,
   flattenReviewLines,
+  eligibleReviewLines,
+  uniformLineIndex,
   pickReviewLine,
   pickReviewLineFromMemory,
   reviewPickToSession,

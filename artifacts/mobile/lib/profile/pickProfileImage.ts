@@ -58,13 +58,19 @@ function pickOnWeb(): Promise<PickedProfileImage | null> {
 
 export async function pickProfileImage(): Promise<PickedProfileImage | null> {
   if (Platform.OS === 'web') return pickOnWeb();
-  const result = await DocumentPicker.getDocumentAsync({
-    type: ['image/*', 'image/png', 'image/jpeg', 'image/webp'],
-    copyToCacheDirectory: true,
-    multiple: false,
-  });
-  if (result.canceled || !result.assets?.length) return null;
-  const asset = result.assets[0];
-  if (!asset?.uri) return null;
-  return { uri: asset.uri, mime: asset.mimeType || 'image/png' };
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['image/*', 'image/png', 'image/jpeg', 'image/webp'],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled || !result.assets?.length) return null;
+    const asset = result.assets[0];
+    if (!asset?.uri) return null;
+    return { uri: asset.uri, mime: asset.mimeType || 'image/png' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[AnyChess] profile image picker failed: ${message}`);
+    return null;
+  }
 }

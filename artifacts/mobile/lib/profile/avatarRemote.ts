@@ -1,3 +1,4 @@
+import { decideCloudTransfer } from '../cloud/syncTransport.ts';
 import { resolveSupabaseAnonKey, resolveSupabaseUrl } from '../cloud/supabaseConfig.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import {
@@ -5,6 +6,7 @@ import {
   clearPendingAvatar,
   normalizeAvatarEmail,
   readPendingAvatar,
+  savePendingAvatar,
   writeAvatarCache,
 } from './avatarLocal.ts';
 import { dataUrlToBytes } from './avatarImage.ts';
@@ -111,11 +113,23 @@ export async function flushPendingAvatar(input: {
   accessToken: string | null;
   fetchImpl?: typeof fetch;
   markHasAvatar?: (hasAvatar: boolean) => Promise<void>;
-}): Promise<'uploaded' | 'skipped' | 'failed'> {
+}): Promise<'uploaded' | 'removed' | 'skipped' | 'failed' | 'waiting_wifi'> {
   const pending = await readPendingAvatar(input.storage);
   if (!pending) return 'skipped';
   if (pending.email !== normalizeAvatarEmail(input.email)) return 'skipped';
+  const decision = await decideCloudTransfer(false);
+  if (decision.defer || decision.offline) return 'waiting_wifi';
   if (!input.accessToken) return 'failed';
+  if (pending.intent === 'remove') {
+    const removed = await deleteAvatarObject(input.userId, input.accessToken, input.fetchImpl);
+    if (!removed) return 'failed';
+    await clearPendingAvatar(input.storage);
+    if (input.markHasAvatar) await input.markHasAvatar(false);
+    else if (profileStore.usesStorage(input.storage)) {
+      await profileStore.update({ hasAvatar: false });
+    }
+    return 'removed';
+  }
   const ok = await uploadAvatarObject(
     input.userId,
     input.accessToken,
@@ -158,4 +172,62 @@ export async function removeLocalAndRemoteAvatar(input: {
   }
   if (!input.accessToken) return true;
   return deleteAvatarObject(input.userId, input.accessToken, input.fetchImpl);
+}
+
+export type AvatarCommitResult = 'uploaded' | 'removed' | 'waiting_wifi' | 'stored' | 'failed';
+
+async function markAvatarFlag(storage: KeyValueStorage, hasAvatar: boolean): Promise<void> {
+  if (profileStore.usesStorage(storage)) {
+    await profileStore.update({ hasAvatar });
+  }
+}
+
+/**
+ * Upload or remove the profile photo.
+ * A failed transfer keeps the previous cached image.
+ * Cellular + Wi-Fi-only stores the change locally and waits for Wi-Fi.
+ */
+export async function commitAvatarChange(input: {
+  storage: KeyValueStorage;
+  userId: string;
+  email: string;
+  accessToken: string | null;
+  dataUrl: string | null;
+  fetchImpl?: typeof fetch;
+}): Promise<AvatarCommitResult> {
+  const decision = await decideCloudTransfer(false);
+  if (!input.dataUrl) {
+    if (decision.defer || decision.offline || !input.accessToken) {
+      await clearAvatarCache(input.storage, input.userId);
+      await markAvatarFlag(input.storage, false);
+      await savePendingAvatar(input.storage, input.email, '', 'remove');
+      return decision.defer ? 'waiting_wifi' : 'stored';
+    }
+    const removed = await deleteAvatarObject(
+      input.userId,
+      input.accessToken,
+      input.fetchImpl,
+    );
+    if (!removed) return 'failed';
+    await clearAvatarCache(input.storage, input.userId);
+    await clearPendingAvatar(input.storage);
+    await markAvatarFlag(input.storage, false);
+    return 'removed';
+  }
+  if (decision.defer || decision.offline || !input.accessToken) {
+    await writeAvatarCache(input.storage, input.userId, input.dataUrl);
+    await savePendingAvatar(input.storage, input.email, input.dataUrl, 'upload');
+    return decision.defer ? 'waiting_wifi' : 'stored';
+  }
+  const uploaded = await uploadAvatarObject(
+    input.userId,
+    input.accessToken,
+    input.dataUrl,
+    input.fetchImpl,
+  );
+  if (!uploaded) return 'failed';
+  await writeAvatarCache(input.storage, input.userId, input.dataUrl);
+  await clearPendingAvatar(input.storage);
+  await markAvatarFlag(input.storage, true);
+  return 'uploaded';
 }

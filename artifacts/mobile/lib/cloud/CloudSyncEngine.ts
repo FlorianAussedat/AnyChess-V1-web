@@ -12,6 +12,7 @@ import {
   cloudBackupKey,
   cloudWorkspaceKey,
 } from './syncableKeys.ts';
+import { decideCloudTransfer } from './syncTransport.ts';
 import type {
   CloudAuth,
   CloudRemote,
@@ -397,7 +398,12 @@ export class CloudSyncEngine {
     return result;
   }
 
-  async sync(): Promise<CloudEngineState> {
+  markWaitingForWifi(): void {
+    if (this.deletionLocked || !this.state.user) return;
+    this.setState({ status: 'waiting_wifi', lastError: null });
+  }
+
+  async sync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
     if (this.deletionLocked) return this.getState();
     if (typeof this.auth.token === 'function' && !this.auth.token()?.trim()) {
       this.setState({
@@ -414,6 +420,15 @@ export class CloudSyncEngine {
     }
     if (!user) {
       this.setState({ status: 'signed_out', user: null });
+      return this.getState();
+    }
+    const decision = await decideCloudTransfer(options?.allowCellular === true);
+    if (decision.defer) {
+      this.setState({ user, status: 'waiting_wifi', lastError: null });
+      return this.getState();
+    }
+    if (decision.offline) {
+      this.setState({ user, status: 'offline', lastError: null });
       return this.getState();
     }
     this.setState({ user, status: 'pending', lastError: null });
@@ -449,6 +464,7 @@ export class CloudSyncEngine {
         lastSyncedAt: new Date().toISOString(),
         lastError: null,
       });
+      await this.settleAccountLifecycle();
     } catch (error) {
       const offline = error instanceof Error && /network|fetch|offline/i.test(error.message);
       this.setState({
@@ -470,6 +486,20 @@ export class CloudSyncEngine {
 
   notifyLocalMutation(): void {
     if (this.deletionLocked || this.silentWrites > 0 || this.syncing || !this.state.user) return;
+    void this.queueLocalMutation();
+  }
+
+  private async queueLocalMutation(): Promise<void> {
+    const decision = await decideCloudTransfer(false);
+    if (!this.state.user || this.deletionLocked || this.syncing) return;
+    if (decision.defer) {
+      this.setState({ status: 'waiting_wifi', lastError: null });
+      return;
+    }
+    if (decision.offline) {
+      this.setState({ status: 'offline', lastError: null });
+      return;
+    }
     this.markPending();
     this.scheduleSync();
   }

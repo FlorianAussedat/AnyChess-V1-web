@@ -66,5 +66,6 @@ export function usePreferences() {
     stockfishStrengthBandId: preferences.stockfishStrengthBandId,
     translateExistingPgnComments: preferences.translateExistingPgnComments,
     translateImportedPgnComments: preferences.translateImportedPgnComments,
+    syncOnWifiOnly: preferences.syncOnWifiOnly,
   };
 }

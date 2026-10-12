@@ -61,6 +61,52 @@ describe('PGN translation settings policy', () => {
     assert.deepEqual(policyFromPreferences(prefs), { catchup: false, import: false });
   });
 
+  it('a fresh queue does not call the provider and keeps translations already stored', async () => {
+    const kv = new MemoryKeyValueStorage();
+    const store = new PgnCommentTranslationStore(kv);
+    const queue = new PgnTranslationQueue(kv, store);
+    assert.deepEqual(queue.getPolicy(), { catchup: false, import: false });
+    let calls = 0;
+    queue.setProvider({
+      configured: true,
+      async translateComments() {
+        calls += 1;
+        return [];
+      },
+    });
+    await store.upsert({
+      anchor: {
+        source: 'repertoire',
+        fileId: 'kept',
+        gameIndex: 0,
+        nodeId: 'n1',
+        slot: 'after',
+      },
+      sourceLang: 'en',
+      targetLang: 'fr',
+      originalFingerprint: 'fp',
+      originalText: 'White occupies the center.',
+      translatedText: 'Les Blancs occupent le centre.',
+      status: 'ready',
+      method: 'automatic',
+    });
+    await queue.enqueuePgn(PGN_OPENING, 'repertoire', 'kept', 'catchup');
+    const result = await queue.processNext();
+    assert.equal(result.done, 0);
+    assert.equal(calls, 0);
+    assert.equal(
+      store.getRecord({
+        source: 'repertoire',
+        fileId: 'kept',
+        gameIndex: 0,
+        nodeId: 'n1',
+        slot: 'after',
+      })?.translatedText,
+      'Les Blancs occupent le centre.',
+    );
+    assert.match(PGN_OPENING, /White occupies the center\./);
+  });
+
   it('1. persists the two options after a store remount', async () => {
     const storage = new MemoryKeyValueStorage();
     const prefs = new PreferencesStore(storage);
@@ -78,6 +124,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const prefs = new PreferencesStore(kv);
     await prefs.update({ translateExistingPgnComments: true });
     await applyPgnTranslationPreferences({
@@ -99,6 +146,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const prefs = new PreferencesStore(kv);
     const off = await scheduleImportedPgnComments(PGN_PARTY, 'gameLibrary', 'imp-off', {
       queue,
@@ -122,6 +170,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const files = [{ source: 'repertoire' as const, fileId: 'open-1', pgnText: PGN_OPENING }];
     const first = await enqueueExistingPgns(files, { origin: 'catchup' }, queue);
     const second = await enqueueExistingPgns(files, { origin: 'catchup' }, queue);
@@ -134,6 +183,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store, { timeoutMs: 200 });
+    queue.setPolicy({ catchup: true, import: true });
     const pgn = englishPgn(3, 'Pause');
     queue.setProvider(new FakePgnTranslationProvider(fakeMapFor(pgn, 'repertoire', 'p1')));
     await queue.enqueuePgn(pgn, 'repertoire', 'p1', 'catchup');
@@ -158,6 +208,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const catchupPgn = englishPgn(1, 'Catch');
     const importPgn = englishPgn(1, 'Imp');
     queue.setProvider(
@@ -181,6 +232,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const firstQueue = new PgnTranslationQueue(kv, store);
+    firstQueue.setPolicy({ catchup: true, import: true });
     const pgn = englishPgn(12, 'Stuck');
     firstQueue.setProvider(new FakePgnTranslationProvider(fakeMapFor(pgn, 'repertoire', 'big')));
     await firstQueue.enqueuePgn(pgn, 'repertoire', 'big', 'catchup');
@@ -230,6 +282,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store, { timeoutMs: 30 });
+    queue.setPolicy({ catchup: true, import: true });
     const pgn = `[Event "Err"]\n\n1. e4 {White occupies the center.} *`;
     await queue.enqueuePgn(pgn, 'repertoire', 'err', 'catchup');
 
@@ -297,6 +350,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     queue.setProvider(
       new FakePgnTranslationProvider({
         ...fakeMapFor(PGN_OPENING, 'repertoire', 'open-1'),
@@ -332,6 +386,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const original = 'White occupies the center.';
     queue.setProvider(new FakePgnTranslationProvider({ [original]: 'Les Blancs occupent le centre.' }));
     await queue.enqueuePgn(PGN_OPENING, 'repertoire', 'open-1', 'catchup');
@@ -373,6 +428,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const pgn = englishPgn(4, 'Bg');
     let calls = 0;
     queue.setProvider({
@@ -413,6 +469,7 @@ describe('PGN translation settings policy', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const pgn = `[Event "RL"]\n\n1. e4 {White occupies the center.} *`;
     await queue.enqueuePgn(pgn, 'repertoire', 'rl', 'catchup');
     queue.setProvider({

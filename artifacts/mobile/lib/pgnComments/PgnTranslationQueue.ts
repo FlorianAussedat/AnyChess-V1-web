@@ -109,7 +109,8 @@ export class PgnTranslationQueue {
   private lastError: PgnTranslationServiceError = null;
   private retryAfterMs: number | null = null;
   private appForeground = true;
-  private policy: PgnTranslationPolicy = { catchup: true, import: true };
+  /** Off until the user turns a translation option on. Missing prefs must not enqueue work. */
+  private policy: PgnTranslationPolicy = { catchup: false, import: false };
   private readonly listeners = new Set<() => void>();
   private provider: PgnTranslationProvider = defaultPgnTranslationProvider;
   private readonly translations: PgnCommentTranslationStore;
@@ -677,7 +678,7 @@ export class PgnTranslationQueue {
     this.lastError = null;
     this.retryAfterMs = null;
     this.appForeground = true;
-    this.policy = { catchup: true, import: true };
+    this.policy = { catchup: false, import: false };
     this.provider = defaultPgnTranslationProvider;
   }
 

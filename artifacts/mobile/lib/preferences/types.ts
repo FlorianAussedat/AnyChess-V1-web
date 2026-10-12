@@ -58,6 +58,11 @@ export type UserPreferences = {
    */
   translateImportedPgnComments: boolean;
   /**
+   * Defer cloud document and avatar transfers while the link is mobile data.
+   * Absent on older documents: treated as on. Does not disable sign-in or translation.
+   */
+  syncOnWifiOnly: boolean;
+  /**
    * `device` — created from the phone locale, not yet a confirmed account preference.
    * `user` — the person changed or reset these settings.
    * Absent on documents saved before this flag: those keep last-write-wins.
@@ -84,6 +89,7 @@ export type UserPreferencesPatch = Partial<{
   stockfishStrengthBandId: string;
   translateExistingPgnComments: boolean;
   translateImportedPgnComments: boolean;
+  syncOnWifiOnly: boolean;
 }>;
 
 export const DEFAULT_APP_LANGUAGE: AppLanguage = 'fr';

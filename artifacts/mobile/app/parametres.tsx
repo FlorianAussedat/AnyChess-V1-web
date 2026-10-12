@@ -72,6 +72,7 @@ export default function ParametresScreen() {
     visualProblemDifficulty,
     blindProblemDifficulty,
     stockfishStrengthBandId,
+    syncOnWifiOnly,
     updatePreferences,
     resetPreferences,
   } = usePreferences();
@@ -144,6 +145,14 @@ export default function ParametresScreen() {
         {t('profil.sectionPreferences')}
       </Text>
       <View style={styles.section}>
+        <BooleanSettingRow
+          label={t('settings.syncWifiOnly')}
+          value={syncOnWifiOnly}
+          onToggle={() => {
+            void updatePreferences({ syncOnWifiOnly: !syncOnWifiOnly });
+          }}
+          testID="parametres-sync-wifi-only"
+        />
         <View
           testID="profil-row-language"
           style={[styles.languageCard, { backgroundColor: colors.card, borderColor: colors.border }]}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, type ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Image } from 'react-native';
@@ -13,19 +13,28 @@ type Props = {
   username: string | null;
   imageUri: string | null;
   onChange: (dataUrl: string | null) => void;
+  children?: ReactNode;
   testID?: string;
 };
 
-export function AvatarField({ username, imageUri, onChange, testID = 'avatar-field' }: Props) {
+export function AvatarField({
+  username,
+  imageUri,
+  onChange,
+  children,
+  testID = 'avatar-field',
+}: Props) {
   const colors = useColors();
   const { t } = useTranslation();
   const [pickedUri, setPickedUri] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [busy, setBusy] = useState(false);
+  const [cropError, setCropError] = useState(false);
 
   const openPicker = async () => {
     const picked = await pickProfileImage();
     if (!picked) return;
+    setCropError(false);
     setZoom(1);
     setPickedUri(picked.uri);
   };
@@ -35,13 +44,20 @@ export function AvatarField({ username, imageUri, onChange, testID = 'avatar-fie
     setBusy(true);
     const prepared = await prepareAvatarImage({ uri: pickedUri, zoom });
     setBusy(false);
+    if ('error' in prepared) {
+      setCropError(true);
+      return;
+    }
+    setCropError(false);
     setPickedUri(null);
-    if ('dataUrl' in prepared) onChange(prepared.dataUrl);
+    onChange(prepared.dataUrl);
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.row}>
       <ProfileAvatar username={username} imageUri={imageUri} testID={testID} />
+      <View style={styles.side}>
+        {children}
       <View style={styles.actions}>
         <Pressable
           testID={`${testID}-add`}
@@ -63,6 +79,12 @@ export function AvatarField({ username, imageUri, onChange, testID = 'avatar-fie
             <Text style={{ color: colors.destructive }}>{t('account.avatarRemove')}</Text>
           </Pressable>
         ) : null}
+      </View>
+      {cropError ? (
+        <Text style={{ color: colors.destructive }} testID="avatar-crop-error">
+          {t('account.avatarUnsupported')}
+        </Text>
+      ) : null}
       </View>
       <Modal visible={pickedUri != null} transparent animationType="fade" onRequestClose={() => setPickedUri(null)}>
         <View style={styles.backdrop}>
@@ -107,9 +129,17 @@ export function AvatarField({ username, imageUri, onChange, testID = 'avatar-fie
               >
                 <Text style={{ color: colors.primary }}>{t('common.validate')}</Text>
               </Pressable>
+              {cropError ? (
+                <Text style={{ color: colors.destructive }} testID="avatar-crop-error-modal">
+                  {t('account.avatarUnsupported')}
+                </Text>
+              ) : null}
               <Pressable
                 testID="avatar-crop-cancel"
-                onPress={() => setPickedUri(null)}
+                onPress={() => {
+                  setCropError(false);
+                  setPickedUri(null);
+                }}
                 style={[styles.btn, { borderColor: colors.border }]}
               >
                 <Text style={{ color: colors.mutedForeground }}>{t('common.cancel')}</Text>
@@ -123,7 +153,8 @@ export function AvatarField({ username, imageUri, onChange, testID = 'avatar-fie
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  side: { flex: 1, gap: 8 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   btn: {
     borderWidth: 1,

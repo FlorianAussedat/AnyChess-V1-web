@@ -66,6 +66,7 @@ describe('store and queue', () => {
     const kv = new MemoryKeyValueStorage();
     store = new PgnCommentTranslationStore(kv);
     queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
   });
 
   it('does not invent translations when the provider is unconfigured', async () => {
@@ -145,6 +146,7 @@ describe('existing-file catch-up', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const first = await queue.enqueuePgn(PGN, 'repertoire', 'file-a');
     const second = await queue.enqueuePgn(PGN, 'repertoire', 'file-a');
     assert.equal(first, 2);
@@ -155,6 +157,7 @@ describe('existing-file catch-up', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     queue.setProvider(
       new FakePgnTranslationProvider({
         'A strong central pawn.': 'Un pion central fort.',
@@ -183,6 +186,7 @@ describe('quota and service failure keep originals', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     queue.setProvider({
       configured: true,
       async translateComments(batch) {
@@ -202,6 +206,7 @@ describe('quota and service failure keep originals', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     const units = collectPgnCommentUnits(PGN, 'repertoire', 'file-a');
     const first = units[0]!;
     await store.upsert({
@@ -284,6 +289,7 @@ describe('live DeepL proxy translation persists after reload', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     queue.setProvider(new HttpPgnTranslationProvider('https://example.test/api/pgn-comments/translate'));
     const pgn = `[Event "Live"]\n\n1. e4 {White develops the knight toward the center.} *`;
     const added = await queue.enqueuePgn(pgn, 'gameLibrary', 'live-1');
@@ -326,6 +332,7 @@ describe('live DeepL proxy translation persists after reload', () => {
     const kv = new MemoryKeyValueStorage();
     const store = new PgnCommentTranslationStore(kv);
     const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
     queue.setProvider(new HttpPgnTranslationProvider('https://example.test/api/pgn-comments/translate'));
     const existing = `[Event "Old"]\n\n1. e4 {White occupies the center.} e5 {[%eval 0.12] Black answers in kind.} *`;
     const imported = `[Event "New"]\n\n1. e4 e5 2. Nf3 (2. Nc3 {White develops the knight.}) *`;
@@ -404,6 +411,7 @@ describe('live DeepL proxy translation persists after reload', () => {
       const kv = new MemoryKeyValueStorage();
       const store = new PgnCommentTranslationStore(kv);
       const queue = new PgnTranslationQueue(kv, store);
+    queue.setPolicy({ catchup: true, import: true });
       queue.setProvider(new HttpPgnTranslationProvider('https://example.test/api/pgn-comments/translate'));
       await queue.enqueuePgn(`[Event "E"]\n\n1. e4 {White occupies the center.} *`, 'repertoire', row.error);
       const result = await queue.processNext(1);

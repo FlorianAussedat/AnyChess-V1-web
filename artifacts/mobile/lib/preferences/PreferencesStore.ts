@@ -90,6 +90,7 @@ export function defaultUserPreferences(): UserPreferences {
     stockfishStrengthBandId: DEFAULT_STRENGTH_BAND_ID,
     translateExistingPgnComments: false,
     translateImportedPgnComments: false,
+    syncOnWifiOnly: true,
     updatedAt: nowIso(),
   };
 }
@@ -153,6 +154,9 @@ export function mergePreferencesDocument(
     typeof o.autoTranslateImportedPgnComments === 'boolean'
   ) {
     next.translateImportedPgnComments = o.autoTranslateImportedPgnComments;
+  }
+  if (typeof o.syncOnWifiOnly === 'boolean') {
+    next.syncOnWifiOnly = o.syncOnWifiOnly;
   }
 
   if (typeof o.updatedAt === 'string' && o.updatedAt) {
@@ -433,6 +437,10 @@ export class PreferencesStore {
         patch.translateImportedPgnComments !== undefined
           ? Boolean(patch.translateImportedPgnComments)
           : current.translateImportedPgnComments,
+      syncOnWifiOnly:
+        patch.syncOnWifiOnly !== undefined
+          ? Boolean(patch.syncOnWifiOnly)
+          : current.syncOnWifiOnly,
       updatedAt: nowIso(),
       version: USER_PREFERENCES_DOCUMENT_VERSION,
     };

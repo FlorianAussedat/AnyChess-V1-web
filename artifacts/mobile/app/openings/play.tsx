@@ -233,7 +233,7 @@ export default function OpeningPlayRoute() {
       repertoireService.getFolders(),
       repertoireService.getAllFiles(),
     );
-    const pick = pickReviewLineFromMemory(entries);
+    const pick = pickReviewLineFromMemory(entries, undefined, parkedRef.current?.side);
     if (!pick) return;
     const session = applyReviewPick(pick, 'review');
     rememberParked(session);

@@ -181,14 +181,6 @@ export function PgnTranslationSettingsSection() {
           })}
         </Text>
       ) : null}
-      {progress.total > 0 ? (
-        <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          {t('settings.translationProgressHint', {
-            done: progress.translated,
-            total: progress.total,
-          })}
-        </Text>
-      ) : null}
       {retryable ? (
         <Pressable
           onPress={() => {
