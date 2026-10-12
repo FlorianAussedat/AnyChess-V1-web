@@ -16,10 +16,12 @@ function read(rel: string): string {
 }
 
 describe('endgame training rebuild smoke', () => {
-  it('menu screen has two card keys', () => {
+  it('menu screen has new, review, and history cards', () => {
     const menu = read('app/puzzles/defends-nulle.tsx');
     assert.match(menu, /testID="endgame-card-new"/);
-    assert.match(menu, /testID="endgame-card-try-again"/);
+    assert.match(menu, /testID="endgame-card-review"/);
+    assert.match(menu, /testID="endgame-card-history"/);
+    assert.doesNotMatch(menu, /endgame-card-try-again/);
   });
 
   it('play screen has no Undo / Annuler for scored attempt', () => {

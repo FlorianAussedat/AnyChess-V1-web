@@ -192,14 +192,13 @@ describe('mode handoff wiring (source)', () => {
     assert.match(opening, /opened\.href/);
   });
 
-  it('endgame Analyse CTAs call open*InReader adapters for game and position', () => {
+  it('analyse CTAs open the reader: defend-draw keeps the game, theoretical keeps game and position', () => {
     const endgame = read('app/puzzles/defends-nulle-play.tsx');
     const theoretical = read('app/puzzles/finales-theoriques-play.tsx');
     assert.match(endgame, /openEndgameInReader/);
     assert.match(endgame, /testID="endgame-analyse-game"/);
-    assert.match(endgame, /testID="endgame-analyse-position"/);
     assert.match(endgame, /mode:\s*'game'/);
-    assert.match(endgame, /mode:\s*'position'/);
+    assert.doesNotMatch(endgame, /testID="endgame-analyse-position"/);
     assert.doesNotMatch(endgame, /setOverlay\('analysis'\)/);
     assert.match(theoretical, /openTheoreticalInReader/);
     assert.match(theoretical, /testID="theoretical-analyse-game"/);
