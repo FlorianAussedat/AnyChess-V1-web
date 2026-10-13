@@ -35,6 +35,8 @@ import { gradeTokenCurrent, takeGradeToken } from './gradeGate.ts';
 export const POST_GAME_MOVETIME_MS = 1500;
 /** Progressive fill of holes. A later step only re-searches missing mates. */
 export const POST_GAME_BUDGET_STEPS_MS = [400, 900, 1600] as const;
+/** Last step for long wins (two bishops, DTM ~30) where 1600 ms still misses the opening. */
+export const POST_GAME_LONG_BUDGET_STEPS_MS = [400, 900, 1600, 3000] as const;
 /** Fallback when the caller does not pass a deadline. Long lines use adaptiveDeadlineMs. */
 export const POST_GAME_DEADLINE_MS = 12_000;
 
@@ -217,11 +219,12 @@ export async function resumePendingGrades(
   }
 }
 
-function budgetStepsFor(request: PostGameRequest): number[] {
+function budgetStepsFor(request: PostGameRequest, decisionCount: number): number[] {
   if (request.budgetStepsMs && request.budgetStepsMs.length > 0) {
     return request.budgetStepsMs.filter((ms) => ms > 0);
   }
   if (request.movetimeMs != null) return [request.movetimeMs];
+  if (decisionCount >= 10) return [...POST_GAME_LONG_BUDGET_STEPS_MS];
   return [...POST_GAME_BUDGET_STEPS_MS];
 }
 
@@ -242,8 +245,6 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
 
   const now = request.now ?? Date.now;
   const started = now();
-  const steps = budgetStepsFor(request);
-  const expired = () => now() - started >= deadlineFor(request, current);
 
   if (!current.startFen || !current.playerColor || !current.moveSans) {
     return save(request, {
@@ -255,6 +256,8 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
   }
 
   const points = replayUserDecisions(current.startFen, current.playerColor, current.moveSans);
+  const steps = budgetStepsFor(request, points.length);
+  const expired = () => now() - started >= deadlineFor(request, current, points.length);
   if (points.length === 0) {
     return save(request, {
       analysisStatus: 'failed',
@@ -406,7 +409,7 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
       gradeConfidence: null,
       gradeCause: null,
     });
-    for (let index = 0; index < points.length; index += 1) {
+    for (let index = points.length - 1; index >= 0; index -= 1) {
       if (decisionComplete(measured[index])) continue;
       if (!gradeTokenCurrent(token)) return interrupt(points.length, 'interrupted-by-play', 'pending');
       if (expired()) return interrupt(points.length, 'deadline', 'failed');
@@ -449,8 +452,12 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
   });
 }
 
-function deadlineFor(request: PostGameRequest, current: ThemeAttemptRecord): number {
+function deadlineFor(
+  request: PostGameRequest,
+  current: ThemeAttemptRecord,
+  decisionCount?: number,
+): number {
   if (request.deadlineMs != null) return request.deadlineMs;
-  const moves = current.moveSans?.length ?? current.userMoves ?? 1;
-  return adaptiveDeadlineMs(Math.max(1, Math.ceil(moves / 2)));
+  const count = decisionCount ?? Math.max(1, Math.ceil((current.moveSans?.length ?? current.userMoves ?? 1) / 2));
+  return adaptiveDeadlineMs(count);
 }

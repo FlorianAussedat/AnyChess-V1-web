@@ -85,8 +85,10 @@ Protocoles de mesure :
 - **Trajectoires enregistrées** — réalisations complètes, niveaux
   `efficient` et `detour`. Une note plus nombreuse n’est pas un succès si
   elle ne sépare pas le détour.
-- **Budget progressif** — paliers 400 / 900 / 1600 ms, uniquement sur les
-  trous. Un `go depth` ne coupe pas l’annonce de mat.
+- **Budget progressif** — paliers 400 / 900 / 1600 ms, plus 3000 ms au-delà
+  de 10 décisions. Un trou n’arrête pas la passe ; le palier suivant ne
+  relance que les trous, depuis la fin (plus proche du mat). Un `go depth`
+  ne coupe pas l’annonce de mat.
 
 Le rapport distingue : parties lancées ; terminées gagnées / perdues ;
 interrompues par le plafond ; réussites effectivement notées ; temps de
@@ -97,19 +99,35 @@ Mesure Stockfish 18 Lite WASM, 13 octobre 2026 (suite de #97) :
 
 | | |
 | --- | --- |
-| Parties lancées | 35 |
-| Terminées gagnées | 33 |
-| Terminées perdues | 2 |
+| Parties lancées | 37 |
+| Terminées gagnées | 36 |
+| Terminées perdues | 1 |
 | Interrompues par le plafond | 0 |
-| Réussites effectivement notées | 23 |
+| Réussites effectivement notées | 26 |
 | Deux fous (lancées / gagnées / notées) | 5 / 5 / 2 |
-| Notes deux fous | 5 (efficace) et 3,5 (détours) |
+| Notes deux fous | 5 (court efficace) et 3,5 (détours) |
 | Dame | 5 vs 4,5 |
+| Tour catalogue | 4 vs 2,5 |
+| Lucena catalogue | 2,5 |
 | Philidor, Vancura | 4 notées chacune, 5 vs 4,5 |
 | Mauvais fou, échecs latéraux, carré, pion de tour | ≥ 2 notées |
 
-Les trois FEN catalogue des deux fous vont au mat avec le plafond 36
-(un plafond 20 les arrêtait). Leur note catalogue reste souvent vide :
-un `score mate` sur ~17 décisions dépasse encore un budget court. Les
-réussites notées de ce thème viennent de trajectoires enregistrées où le
-moteur annonce le mat à chaque coup. Ce n’est pas une note inventée.
+Budget progressif, trajectoires catalogue :
+
+| Protocole | Délai réel | Note |
+| --- | ---: | --- |
+| DTM 33, un seul palier 400 ms (abandon au premier trou) | 11,8 s | aucune (`engine-no-mate`) |
+| DTM 33, paliers 400 / 900 / 1600 / 3000 ms, trous depuis la fin | 80,8 s | aucune (ouverture trop longue pour Lite) |
+| DTM 27 (`TE-CANON-TWO-BISHOPS-MATE-3`), mêmes paliers | 17–27 s | **2/5** (parfois `engine-no-mate` / délai) |
+| Lucena DTM 15 (`TE-CANON-LUCENA-2`) | 6,3 s | **2,5/5** |
+| Dame contre pion DTM 23 | ~19 s | parfois 4,5, parfois `engine-no-mate` |
+
+Le plafond 36 termine les FEN catalogue des deux fous. Le budget
+progressif **peut** noter la variante à 27 plies alors qu’un palier
+unique à 400 ms ne note jamais le DTM 33. Ce n’est pas garanti à chaque
+passe : Lite n’annonce pas toujours le mat sur tout le chemin. Le nombre
+de coups ne fait pas la note : la tour catalogue en 7 coups utilisateur
+vaut 2,5, la même finale en 8 coups vaut 4. Opposition, pion contre roi,
+cases clés, course, pion extérieur et triangulation vont au mat
+automatisé sans note (DTM trop longue pour Lite). Percée : nulle, donc
+échec. Aucune note n’est inventée.
