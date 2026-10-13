@@ -9,7 +9,11 @@ import { CloudSyncEngine, restoreBackup } from '../CloudSyncEngine.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import { mergeDocumentPayload, mergeUserPreferences } from '../mergeDocuments.ts';
 import type { CloudAuth, CloudDocument, CloudUser } from '../types.ts';
-import { assertNoDeepLKeyInCloudConfig } from '../supabaseConfig.ts';
+import {
+  assertNoDeepLKeyInCloudConfig,
+  isSupabaseConfigured,
+  resolveSupabaseAnonKey,
+} from '../supabaseConfig.ts';
 import { SYNCABLE_STORAGE_KEYS, cloudBackupKey } from '../syncableKeys.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -183,6 +187,38 @@ describe('account sync engine', () => {
     assert.match(sql, /auth\.uid\(\) = user_id/);
     assert.doesNotMatch(sql, /service_role/);
     assert.doesNotMatch(sql, /deepl|api-free\.deepl/i);
+    const saved = {
+      url: process.env.EXPO_PUBLIC_SUPABASE_URL,
+      anon: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      aliasUrl: process.env.ANYCHESS_SUPABASE_URL,
+      aliasAnon: process.env.ANYCHESS_SUPABASE_ANON_KEY,
+      role: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      deepl: process.env.DEEPL_API_KEY,
+      token: process.env.SUPABASE_ACCESS_TOKEN,
+    };
+    delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+    delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.ANYCHESS_SUPABASE_URL;
+    delete process.env.ANYCHESS_SUPABASE_ANON_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service_role-fixture';
+    process.env.DEEPL_API_KEY = 'deepl-fixture';
+    process.env.SUPABASE_ACCESS_TOKEN = 'sbp_fixture';
+    try {
+      assert.equal(isSupabaseConfigured(), false);
+      assert.equal(resolveSupabaseAnonKey(), null);
+    } finally {
+      const restore = (key: string, value: string | undefined) => {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      };
+      restore('EXPO_PUBLIC_SUPABASE_URL', saved.url);
+      restore('EXPO_PUBLIC_SUPABASE_ANON_KEY', saved.anon);
+      restore('ANYCHESS_SUPABASE_URL', saved.aliasUrl);
+      restore('ANYCHESS_SUPABASE_ANON_KEY', saved.aliasAnon);
+      restore('SUPABASE_SERVICE_ROLE_KEY', saved.role);
+      restore('DEEPL_API_KEY', saved.deepl);
+      restore('SUPABASE_ACCESS_TOKEN', saved.token);
+    }
   });
 });
 

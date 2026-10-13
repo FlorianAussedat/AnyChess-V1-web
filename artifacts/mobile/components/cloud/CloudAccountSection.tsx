@@ -105,7 +105,7 @@ export function CloudAccountSection() {
       </Text>
       <Text
         style={[styles.status, { color: cloud.user ? colors.foreground : colors.mutedForeground }]}
-        testID="cloud-account-status"
+        testID={cloud.status === 'unconfigured' ? 'cloud-unconfigured' : 'cloud-account-status'}
       >
         {accountText}
       </Text>
@@ -129,11 +129,6 @@ export function CloudAccountSection() {
             {t(backupStatusKey(cloud.status))}
           </Text>
         </View>
-      ) : null}
-      {cloud.status === 'unconfigured' ? (
-        <Text style={[styles.hint, { color: colors.mutedForeground }]} testID="cloud-unconfigured">
-          {t('cloud.unconfiguredHint')}
-        </Text>
       ) : null}
       {pending && !cloud.user ? (
         <View style={styles.form} testID="cloud-confirm-panel">

@@ -9,6 +9,8 @@ function host(type: string) {
 export const View = host('View');
 export const Text = host('Text');
 export const Pressable = host('Pressable');
+export const TextInput = host('TextInput');
+export const Modal = host('Modal');
 export const Image = host('Image');
 export const ActivityIndicator = host('ActivityIndicator');
 export const StyleSheet = { create: (styles: unknown) => styles };

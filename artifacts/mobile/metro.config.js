@@ -1,5 +1,58 @@
 const { getDefaultConfig } = require('expo/metro-config');
+const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const http = require('node:http');
+const path = require('node:path');
+
+/**
+ * Expo reads .env once, before this file, and does not override variables
+ * already present in the shell. Fill the public Supabase URL and anon key
+ * from the gitignored .env, or from the management API when its token works.
+ * A refused management token is not a client key and is never written here.
+ */
+function applyPublicSupabaseEnv(root) {
+  const file = path.join(root, '.env');
+  let text = '';
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch {
+    return false;
+  }
+  let applied = 0;
+  for (const line of text.split('\n')) {
+    const match = line.match(/^(EXPO_PUBLIC_SUPABASE_URL|EXPO_PUBLIC_SUPABASE_ANON_KEY)=(.*)$/);
+    if (!match || !match[2].trim()) continue;
+    if (/service_role|sb_secret_|DEEPL/i.test(match[2])) continue;
+    process.env[match[1]] = match[2].trim();
+    applied += 1;
+  }
+  return applied === 2;
+}
+
+function ensurePublicSupabaseEnv(root) {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+  const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (url && anon) return;
+  const script = path.join(root, 'scripts', 'ensure-supabase-public-env.mjs');
+  if (fs.existsSync(script)) {
+    const result = spawnSync(process.execPath, [script], {
+      cwd: root,
+      env: process.env,
+      encoding: 'utf8',
+    });
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.status !== 0) {
+      const detail = (result.stderr || '').trim();
+      if (detail) process.stderr.write(`${detail}\n`);
+      console.warn(
+        '[anychess] Public Supabase URL or anon key is still missing. The account form stays hidden. The management token is not a client key.',
+      );
+    }
+  }
+  applyPublicSupabaseEnv(root);
+}
+
+ensurePublicSupabaseEnv(__dirname);
 
 const config = getDefaultConfig(__dirname);
 

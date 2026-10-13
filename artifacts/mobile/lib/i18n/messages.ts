@@ -1480,14 +1480,13 @@ const fr: Dict = {
   'cloud.statusOffline': 'Hors ligne — synchro au retour du réseau',
   'cloud.statusWaitingWifi': 'En attente du Wi-Fi',
   'cloud.statusSignedOut': 'Non connecté',
-  'cloud.statusUnconfigured': 'Cloud non configuré',
+  'cloud.statusUnconfigured': 'Connexion au compte temporairement indisponible.',
   'cloud.syncNow': 'Synchroniser',
   'cloud.syncOnCellularTitle': 'Synchroniser en données mobiles ?',
   'cloud.syncOnCellularBody':
     'Les modifications restent sur cet appareil jusqu’au Wi-Fi. Synchroniser maintenant quand même ?',
   'cloud.syncOnCellularConfirm': 'Synchroniser maintenant',
-  'cloud.unconfiguredHint':
-    'Ajoutez EXPO_PUBLIC_SUPABASE_URL et EXPO_PUBLIC_SUPABASE_ANON_KEY (offre gratuite). La clé DeepL reste sur le serveur de traduction.',
+  'cloud.unconfiguredHint': 'Connexion au compte temporairement indisponible.',
   'cloud.signedInAs': 'Connecté : {{email}}',
   'cloud.errorInvalid': 'E-mail ou mot de passe incorrect.',
   'cloud.errorTaken': 'Un compte existe déjà pour cet e-mail.',
@@ -2850,14 +2849,13 @@ const en: Dict = {
   'cloud.statusOffline': 'Offline — will sync when the network returns',
   'cloud.statusWaitingWifi': 'Waiting for Wi-Fi',
   'cloud.statusSignedOut': 'Signed out',
-  'cloud.statusUnconfigured': 'Cloud not configured',
+  'cloud.statusUnconfigured': 'Account sign-in is temporarily unavailable.',
   'cloud.syncNow': 'Sync now',
   'cloud.syncOnCellularTitle': 'Sync on mobile data?',
   'cloud.syncOnCellularBody':
     'Changes stay on this device until Wi-Fi. Sync once now anyway?',
   'cloud.syncOnCellularConfirm': 'Sync now',
-  'cloud.unconfiguredHint':
-    'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY (free plan). The DeepL key stays on the translation server.',
+  'cloud.unconfiguredHint': 'Account sign-in is temporarily unavailable.',
   'cloud.signedInAs': 'Signed in: {{email}}',
   'cloud.errorInvalid': 'Incorrect email or password.',
   'cloud.errorTaken': 'An account already exists for this email.',

@@ -23,6 +23,19 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(resolveSupabaseUrl() && resolveSupabaseAnonKey());
 }
 
+/** Development diagnostic. Names the missing variables and never prints their values. */
+export function logMissingSupabaseConfig(): void {
+  if (isSupabaseConfigured()) return;
+  const dev = typeof __DEV__ === 'undefined' || __DEV__ === true;
+  if (!dev) return;
+  const missing: string[] = [];
+  if (!resolveSupabaseUrl()) missing.push('EXPO_PUBLIC_SUPABASE_URL');
+  if (!resolveSupabaseAnonKey()) missing.push('EXPO_PUBLIC_SUPABASE_ANON_KEY');
+  console.warn(
+    `[anychess] Supabase client is not configured. Missing ${missing.join(' and ') || 'public project settings'}.`,
+  );
+}
+
 /**
  * Where Supabase sends the browser after it verifies an email link
  * (signup confirmation and password recovery).

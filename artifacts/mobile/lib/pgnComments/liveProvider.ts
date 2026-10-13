@@ -88,7 +88,15 @@ function translateToken(): string | null {
   );
 }
 
+/** Undefined uses the signed-in session. A string or null is test-only. */
+let accessTokenForTests: string | null | undefined;
+
+export function setUserAccessTokenForTests(token: string | null | undefined): void {
+  accessTokenForTests = token;
+}
+
 async function resolveUserAccessToken(): Promise<string | null> {
+  if (accessTokenForTests !== undefined) return accessTokenForTests;
   try {
     const { cloudSyncEngine } = await import('../cloud/cloudStore.ts');
     const live = cloudSyncEngine.getAccessToken();
@@ -137,11 +145,13 @@ async function fetchWithTimeout(
 function classifyProxyStatus(httpStatus: number, bodyError?: string): PgnTranslationProviderResult['error'] {
   if (bodyError === 'quota' || httpStatus === 456) return 'quota';
   if (bodyError === 'rate_limited' || httpStatus === 429) return 'rate_limited';
-  if (bodyError === 'not_configured' || httpStatus === 401 || httpStatus === 403) {
-    return 'not_configured';
+  if (bodyError === 'not_configured') return 'not_configured';
+  // A function outage or a rejected function token is not a missing client config.
+  if (httpStatus === 401 || httpStatus === 403 || (httpStatus >= 500 && httpStatus <= 504)) {
+    return 'offline';
   }
   if (bodyError === 'offline' || httpStatus === 503) {
-    return bodyError === 'not_configured' ? 'not_configured' : 'offline';
+    return 'offline';
   }
   if (bodyError === 'timeout') return 'timeout';
   const classified = classifyMyMemoryResponse({ httpStatus });

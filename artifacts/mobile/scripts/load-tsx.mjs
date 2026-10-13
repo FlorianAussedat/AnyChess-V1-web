@@ -2,19 +2,21 @@
  * Loads .tsx for the Node test runner. Type-only .ts files stay on
  * --experimental-strip-types. `@/` matches the mobile tsconfig paths.
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transformSync } from 'esbuild';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shims = new Map([
   ['react-native', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/reactNative.ts')],
+  ['expo-router', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/expoRouter.ts')],
   ['@/hooks/useColors', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/hooks.ts')],
   ['@/hooks/useTranslation', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/hooks.ts')],
   ['@/constants/BrandAssets', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/assets.ts')],
   ['@/constants/designTokens', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/assets.ts')],
   ['@/lib/game/boardSize', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/assets.ts')],
+  ['@/lib/cloud/exportAccountPgns', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/exportAccountPgns.ts')],
 ]);
 
 function useUiShims(parentURL) {
@@ -27,11 +29,22 @@ function useUiShims(parentURL) {
   );
 }
 
+function fileCandidate(base) {
+  const candidates = [`${base}.ts`, `${base}.tsx`, `${base}.js`, join(base, 'index.ts'), join(base, 'index.tsx')];
+  if (existsSync(base) && statSync(base).isFile()) candidates.unshift(base);
+  return candidates.find((candidate) => existsSync(candidate) && statSync(candidate).isFile()) ?? null;
+}
+
 function rewriteBare(specifier) {
   if (!specifier.startsWith('@/')) return null;
-  const base = join(root, specifier.slice(2));
-  const candidates = [base, `${base}.ts`, `${base}.tsx`, `${base}.js`, join(base, 'index.ts'), join(base, 'index.tsx')];
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+  return fileCandidate(join(root, specifier.slice(2)));
+}
+
+function rewriteRelative(specifier, parentURL) {
+  if (!parentURL || !(specifier.startsWith('./') || specifier.startsWith('../'))) return null;
+  if (/\.(tsx?|jsx?|mjs|cjs|json)$/.test(specifier)) return null;
+  const parent = fileURLToPath(parentURL.split('?')[0]);
+  return fileCandidate(resolvePath(dirname(parent), specifier));
 }
 
 export async function resolve(specifier, context, nextResolve) {
@@ -41,7 +54,7 @@ export async function resolve(specifier, context, nextResolve) {
       shortCircuit: true,
     };
   }
-  const found = rewriteBare(specifier);
+  const found = rewriteBare(specifier) ?? rewriteRelative(specifier, context.parentURL);
   if (found) {
     return {
       url: pathToFileURL(found).href,

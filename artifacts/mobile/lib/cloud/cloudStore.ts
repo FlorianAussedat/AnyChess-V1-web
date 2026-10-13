@@ -6,7 +6,7 @@ import {
 import { CloudSyncEngine } from './CloudSyncEngine.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from './MemoryCloud.ts';
 import { SupabaseCloudAuth, SupabaseCloudRemote } from './SupabaseCloud.ts';
-import { isSupabaseConfigured } from './supabaseConfig.ts';
+import { isSupabaseConfigured, logMissingSupabaseConfig } from './supabaseConfig.ts';
 import { CLOUD_SESSION_KEY, isSyncableStorageKey } from './syncableKeys.ts';
 import type { CloudAuth, CloudRemote, CloudSession } from './types.ts';
 
@@ -34,6 +34,7 @@ export function createCloudEngine(
   if (deps?.auth && deps.remote) {
     return new CloudSyncEngine(storage, deps.auth, deps.remote);
   }
+  if (!isSupabaseConfigured()) logMissingSupabaseConfig();
   if (isSupabaseConfigured()) {
     const auth = new SupabaseCloudAuth({
       async load() {

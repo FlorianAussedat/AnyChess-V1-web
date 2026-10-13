@@ -89,8 +89,16 @@ describe('i18n dictionaries', () => {
     assert.match(translate('fr', 'cloud.errorOffline'), /réseau/);
     assert.match(translate('fr', 'cloud.errorRateLimit'), /Trop de tentatives/);
     assert.doesNotMatch(translate('fr', 'cloud.errorUnexpected'), /refusée/);
-    assert.match(translate('fr', 'cloud.unconfiguredHint'), /EXPO_PUBLIC_SUPABASE/);
-    assert.doesNotMatch(translate('fr', 'cloud.unconfiguredHint'), /DEEPL_API_KEY/);
+    assert.equal(
+      translate('fr', 'cloud.statusUnconfigured'),
+      'Connexion au compte temporairement indisponible.',
+    );
+    assert.equal(
+      translate('en', 'cloud.statusUnconfigured'),
+      'Account sign-in is temporarily unavailable.',
+    );
+    assert.doesNotMatch(translate('fr', 'cloud.unconfiguredHint'), /EXPO_PUBLIC_SUPABASE|DEEPL/);
+    assert.doesNotMatch(translate('en', 'cloud.unconfiguredHint'), /EXPO_PUBLIC_SUPABASE|DEEPL/);
   });
 
   it('reset confirmation copy clarifies scope', () => {

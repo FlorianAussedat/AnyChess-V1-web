@@ -14,6 +14,14 @@ const FR: Record<string, string> = {
   'quiz.theoreticalRecalculate': 'Recalculer la note',
   'quiz.theoreticalEstimatedScore': 'Note estimée : {{score}}',
   'quiz.theoreticalAttemptWins': '{{attempts}} tentative(s), {{wins}} victoire(s)',
+  'cloud.section': 'COMPTE',
+  'cloud.statusUnconfigured': 'Connexion au compte temporairement indisponible.',
+  'cloud.statusSignedOut': 'Non connecté',
+  'cloud.email': 'E-mail',
+  'cloud.password': 'Mot de passe',
+  'cloud.signIn': 'Se connecter',
+  'cloud.signUp': 'Créer un compte',
+  'cloud.recover': 'Mot de passe oublié',
 };
 
 export function useColors() {
@@ -23,6 +31,8 @@ export function useColors() {
     foreground: '#DCE8F5',
     mutedForeground: '#5B7FA0',
     primary: '#F5A623',
+    input: '#070F1E',
+    destructive: '#BE3030',
   };
 }
 
