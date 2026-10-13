@@ -42,7 +42,18 @@ export {
   migrateTheoreticalStore,
 } from './persistence/TheoreticalEndgameStore.ts';
 export type { ThemeAttemptRecord, RecordedAttemptDelta } from './persistence/TheoreticalEndgameStore.ts';
-export { runPostGameGrade, resumePendingGrades } from './analysis/postGameGrade.ts';
+export {
+  runPostGameGrade,
+  resumePendingGrades,
+  POST_GAME_BUDGET_STEPS_MS,
+  adaptiveDeadlineMs,
+} from './analysis/postGameGrade.ts';
+export {
+  playTowardObjective,
+  playCapFor,
+  pickDefenseUserSan,
+  replayRecordedLine,
+} from './analysis/playTowardObjective.ts';
 export { claimEngineForPlay, releaseEngineFromPlay } from './analysis/gradeGate.ts';
 export {
   listPool,

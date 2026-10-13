@@ -226,4 +226,86 @@ describe('post-game grade flow', { concurrency: 1 }, () => {
     assert.notEqual(kept?.attemptScore, other?.attemptScore);
     assert.equal((await getThemeAttempts('queen-mate')).length, 2);
   });
+
+  it('fills a missing mate on a later budget step instead of aborting', async () => {
+    const finishedAt = '2026-10-12T12:06:00.000Z';
+    await recordAttempt(win({ finishedAt, moveSans: ['Qh7'], startFen: MATE, userMoves: 1 }));
+    const times: number[] = [];
+    const graded = await runPostGameGrade({
+      themeId: 'queen-mate',
+      positionId: 'TE-CANON-QUEEN-MATE',
+      finishedAt,
+      analyzer: {
+        analyze: async (_fen, ms) => {
+          times.push(ms ?? 0);
+          if ((ms ?? 0) < 900) return analysis(null);
+          return analysis(1);
+        },
+      },
+      budgetStepsMs: [400, 900],
+      deadlineMs: 5000,
+    });
+    assert.equal(typeof graded?.attemptScore, 'number');
+    assert.equal(graded?.analysisStatus, 'estimated');
+    assert.equal(graded?.gradeCause, null);
+    assert.equal(graded?.gradeBudgetMs, 900);
+    assert.ok(times.includes(400));
+    assert.ok(times.includes(900));
+    assert.ok(times.length >= 2, 'first step leaves a hole, later step retries it');
+  });
+
+  it('does not turn a centipawn search into a mate-distance score', async () => {
+    const finishedAt = '2026-10-12T12:07:00.000Z';
+    await recordAttempt(win({ finishedAt, moveSans: ['Qh7'], startFen: MATE, userMoves: 1 }));
+    const graded = await runPostGameGrade({
+      themeId: 'queen-mate',
+      positionId: 'TE-CANON-QUEEN-MATE',
+      finishedAt,
+      analyzer: {
+        analyze: async () => ({
+          scoreCp: 32000,
+          mateIn: null,
+          depth: 20,
+          wdl: { win: 1000, draw: 0, loss: 0 },
+          bestMove: { from: 'g7', to: 'h7' },
+        }),
+      },
+      budgetStepsMs: [50, 80],
+      deadlineMs: 2000,
+    });
+    assert.equal(graded?.attemptScore, null);
+    assert.equal(graded?.analysisStatus, 'failed');
+    assert.equal(graded?.gradeCause, 'engine-no-mate');
+    assert.equal((await getAttempt('queen-mate', 'TE-CANON-QUEEN-MATE', finishedAt))?.outcome, 'success');
+  });
+
+  it('grades a draw by the demonstrated mechanism, not by a mate score', async () => {
+    const finishedAt = '2026-10-12T12:08:00.000Z';
+    await recordAttempt(
+      win({
+        themeId: 'philidor',
+        positionId: 'TE-CANON-PHILIDOR',
+        objective: 'DRAW',
+        objectiveKind: 'draw',
+        playerColor: 'black',
+        startFen: '4k3/R7/1r6/4PK2/8/8/8/8 b - - 0 1',
+        endFen: '4k3/R7/2r5/4PK2/8/8/8/8 w - - 1 2',
+        moveSans: ['Rc6'],
+        userMoves: 1,
+        finishedAt,
+      }),
+    );
+    const graded = await runPostGameGrade({
+      themeId: 'philidor',
+      positionId: 'TE-CANON-PHILIDOR',
+      finishedAt,
+      analyzer: { analyze: async () => analysis(null) },
+      movetimeMs: 20,
+      deadlineMs: 1000,
+    });
+    assert.equal(graded?.attemptScore, 5);
+    assert.equal(graded?.analysisStatus, 'scored');
+    assert.equal(graded?.gradeConfidence, 'exact');
+    assert.equal(graded?.gradeCause, null);
+  });
 });

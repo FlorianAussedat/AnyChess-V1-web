@@ -584,7 +584,7 @@ export function studyElementaryTables(): ElementaryStudy[] {
     bytes: 64 * 64 * 32 * 32 * 2,
     buildMs: 0,
     maxDtm: null,
-    note: 'Non intégrée : 8 Mo de table et un calcul rétrograde trop long pour le fil de l’application. Ces finales passent par le moteur, note estimée.',
+    note: 'Non construite ici : 8 Mo, trop lourd pour le fil de l’application. Ce n’est pas une preuve qu’une DTM locale exacte est impossible. Sans table vérifiée, ces finales passent par le moteur, note estimée.',
   });
   return reports;
 }

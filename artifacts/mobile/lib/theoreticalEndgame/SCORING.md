@@ -27,11 +27,21 @@ Deux origines de distance, jamais une conversion de centipions :
 
 Si une de ces décisions n’a pas de distance fiable, la réussite est **enregistrée tout de suite** : résultat, une seule tentative, FEN de départ, camp, coups, durée, variante. La note reste nulle et le statut d’analyse est distinct (`pending`, `running`, `failed`, `estimated`, `scored`). L’écran affiche « Finale gagnée ! » puis « Note en cours de calcul… ». Une note absente s’écrit —/5 et n’entre pas dans les moyennes. On n’affiche jamais 0/5 ni « 0 tentative comptabilisée » pour une victoire sans note. Un 0/5 reste réservé à l’échec.
 
-Les mesures pendant le jeu (1 s) ne publient une note que si **toutes** les distances sont exactes (table ou mat observé). Un mélange avec le moteur court n’est pas publié : une passe complémentaire reprend la trajectoire, avec un budget plus élevé et le même protocole pour chaque décision. Les résultats sont enregistrés décision par décision. Une analyse interrompue reprend le curseur, sans tout recommencer. Un nouveau jeu prend le moteur (`stop`) : les réponses tardives d’une autre session sont ignorées.
+Les mesures pendant le jeu (1 s) ne publient une note que si **toutes** les distances sont exactes (table ou mat observé). Un mélange avec le moteur court n’est pas publié : une passe complémentaire reprend la trajectoire.
 
-Les tables rétrogrades locales ont été mesurées puis **laissées hors service**. Voir `EXACT_EVAL.md`. Tous les thèmes, y compris les deux fous, reçoivent une note **estimée** quand le moteur annonce un mat sur tout le chemin. Exact et estimé ne sont pas mélangés dans la même moyenne.
+**Budget progressif.** Les paliers par défaut sont 400, 900, puis 1600 ms. Un trou (`score mate` absent) n’arrête pas les décisions suivantes. Le palier suivant ne relance que les trous. Le curseur, les décisions déjà mesurées et le palier courant sont enregistrés. Un délai borné s’adapte au nombre de décisions (plancher 12 s, plafond 60 s). Si le dernier palier n’a toujours pas de mat, la victoire reste, la note reste vide (`engine-no-mate`). Les centipions, même gagnants, ne deviennent pas une distance.
 
-Le traitement est borné (délai global, pas d’attente infinie). Si l’analyse échoue, la victoire reste, la note reste vide, et « Recalculer la note » relance le même protocole. Aucune note n’est inventée pour masquer l’échec.
+**Objectif.** Tous les thèmes ne passent pas par `score mate` :
+
+- Mat élémentaire : distance de mat, exacte ou estimée.
+- Gain (promotion, percée) : même distance si le moteur l’annonce dans le budget ; sinon pas de note, pas de conversion.
+- Défense : mécanisme démontré (barrière, coin, carré, échecs latéraux, prise). Une nulle réussie n’exige pas un mat.
+
+Les tables rétrogrades locales ont été mesurées puis **laissées hors service** à cause des défauts de **cette** construction. Voir `EXACT_EVAL.md`. Ce n’est pas une preuve qu’une DTM locale exacte est impossible. Les deux fous reçoivent une note **estimée** quand le moteur annonce un mat sur tout le chemin. Exact et estimé ne sont pas mélangés dans la même moyenne.
+
+Le traitement est borné. Si l’analyse échoue, la victoire reste, la note reste vide, et « Recalculer la note » relance le même protocole. Aucune note n’est inventée pour masquer l’échec.
+
+**Protocoles de mesure automatisée.** Un plafond de 20 coups utilisateur peut arrêter une réalisation correcte des deux fous (DTM 33). Le plafond de test suit la distance catalogue, avec un plancher de 36 coups pour ce thème. Les défenses choisissent un coup légal qui complète le mécanisme. Des trajectoires complètes enregistrées (`efficient` / `detour`) vérifient que la note baisse quand il y a des détours. Le rapport sépare parties lancées, terminées (gagnées / perdues), interrompues par le plafond, et réussites effectivement notées.
 
 On ne retombe pas sur la cible initiale. Une session reprise sans la trace des distances déjà jouées passe par cette analyse complémentaire. Les percées à 8 pièces n’ont pas de DTM de table : sans mat annoncé sur tout le chemin, elles restent sans note.
 

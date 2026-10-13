@@ -174,6 +174,11 @@ export type MeasuredDecision = {
   dtmAfter: number | null;
   beforeSource: DistanceSource | null;
   afterSource: DistanceSource | null;
+  /**
+   * WDL category after the user's move, from the user's side.
+   * Used only for recovered-result dips. Never converted into a mate distance.
+   */
+  resultAfterReply?: 'WIN' | 'DRAW' | 'LOSS' | null;
 };
 
 export type OfficialEndReason =

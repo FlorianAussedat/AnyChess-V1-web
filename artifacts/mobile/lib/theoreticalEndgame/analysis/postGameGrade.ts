@@ -3,15 +3,18 @@
  *
  * In-play searches are short and can mix a catalog distance with an engine
  * distance. This pass uses one protocol for every user decision: the exact
- * table when it covers the whole line, otherwise one engine movetime.
- * A deadline ends the job. Finished decisions stay stored so a retry continues.
+ * table when it covers the whole line, otherwise a progressive engine budget.
+ * A hole is filled at the next step instead of aborting the job. Finished
+ * decisions stay stored so a retry continues. Centipawns never become a
+ * mate distance. Draw successes are graded by the demonstrated mechanism.
  */
 import { Chess } from 'chess.js';
-import type { DefenseAnalyzer } from '../../defendDraw/defenseTypes.ts';
+import type { DefenseAnalysis, DefenseAnalyzer } from '../../defendDraw/defenseTypes.ts';
 import { assessDefense } from '../domain/defenseFinish.ts';
 import { exactUserDtm } from '../domain/exactElementary.ts';
 import { gradeQuality } from '../domain/comprehensionScore.ts';
 import { dtmAfterUserMove, dtmOnUserTurn } from '../domain/mateDistance.ts';
+import { wdlToPlayerResult } from '../domain/theoreticalResult.ts';
 import type {
   AnalysisStatus,
   GradeCause,
@@ -28,9 +31,11 @@ import {
 import { replayUserDecisions, type UserDecisionPoint } from './decisionPath.ts';
 import { gradeTokenCurrent, takeGradeToken } from './gradeGate.ts';
 
-/** Higher than the in-game think time (1000 ms), and the same value for every position. */
+/** Homogeneous first step, higher than the in-game think time (1000 ms). */
 export const POST_GAME_MOVETIME_MS = 1500;
-/** The whole job stops. A single position cannot wait forever. */
+/** Progressive fill of holes. A later step only re-searches missing mates. */
+export const POST_GAME_BUDGET_STEPS_MS = [400, 900, 1600] as const;
+/** Fallback when the caller does not pass a deadline. Long lines use adaptiveDeadlineMs. */
 export const POST_GAME_DEADLINE_MS = 12_000;
 
 export type PostGameRequest = {
@@ -40,9 +45,15 @@ export type PostGameRequest = {
   analyzer: DefenseAnalyzer;
   movetimeMs?: number;
   deadlineMs?: number;
+  budgetStepsMs?: number[];
   now?: () => number;
   onProgress?: (record: ThemeAttemptRecord) => void | Promise<void>;
 };
+
+export function adaptiveDeadlineMs(decisionCount: number): number {
+  // Two analyses per decision, then hole retries at later steps.
+  return Math.min(90_000, Math.max(POST_GAME_DEADLINE_MS, decisionCount * 3500 + 8000));
+}
 
 function attackerOf(color: PlayerColor): 'w' | 'b' {
   return color === 'white' ? 'w' : 'b';
@@ -54,6 +65,21 @@ function isCheckmate(fen: string): boolean {
   } catch {
     return false;
   }
+}
+
+function resultFromAnalysis(
+  analysis: DefenseAnalysis | null,
+  fen: string,
+  playerColor: PlayerColor,
+): 'WIN' | 'DRAW' | 'LOSS' | null {
+  if (isCheckmate(fen)) return 'WIN';
+  if (!analysis) return null;
+  const stm = fen.split(' ')[1] === 'b' ? 'b' : 'w';
+  return wdlToPlayerResult(analysis.wdl, stm, playerColor);
+}
+
+function decisionComplete(decision: MeasuredDecision | undefined): boolean {
+  return decision != null && decision.dtmBefore != null && decision.dtmAfter != null;
 }
 
 /** Exact distances for the whole line, or null when any position is outside the table. */
@@ -76,6 +102,7 @@ export function exactTrace(
       dtmAfter: after,
       beforeSource: 'exact',
       afterSource: mate ? 'observed' : 'exact',
+      resultAfterReply: mate ? 'WIN' : null,
     });
   }
   return measured;
@@ -118,6 +145,7 @@ function publishFrom(
     decisions: measured.map((decision) => ({
       dtmBefore: decision.dtmBefore,
       dtmAfter: decision.dtmAfter,
+      resultAfterReply: decision.resultAfterReply,
     })),
   });
   if (typeof quality.score !== 'number') return null;
@@ -163,10 +191,11 @@ async function settleDraw(
     analysisStatus: 'scored',
     gradeConfidence: 'exact',
     gradeCause: null,
+    gradeProtocol: 'exact',
   });
 }
 
-/** Continue stored wins whose analysis was interrupted. Failures stay for an explicit retry. */
+/** Continue stored successes whose analysis was interrupted. Failures stay for an explicit retry. */
 export async function resumePendingGrades(
   analyzer: DefenseAnalyzer,
   options: { movetimeMs?: number; deadlineMs?: number } = {},
@@ -175,7 +204,7 @@ export async function resumePendingGrades(
   for (const attempts of Object.values(store.themeAttempts)) {
     for (const attempt of attempts) {
       if (attempt.analysisStatus !== 'pending' || attempt.outcome !== 'success') continue;
-      if (attempt.objective === 'DRAW' || !attempt.startFen) continue;
+      if (!attempt.startFen) continue;
       await runPostGameGrade({
         themeId: attempt.themeId,
         positionId: attempt.positionId,
@@ -186,6 +215,14 @@ export async function resumePendingGrades(
       });
     }
   }
+}
+
+function budgetStepsFor(request: PostGameRequest): number[] {
+  if (request.budgetStepsMs && request.budgetStepsMs.length > 0) {
+    return request.budgetStepsMs.filter((ms) => ms > 0);
+  }
+  if (request.movetimeMs != null) return [request.movetimeMs];
+  return [...POST_GAME_BUDGET_STEPS_MS];
 }
 
 export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeAttemptRecord | null> {
@@ -205,9 +242,8 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
 
   const now = request.now ?? Date.now;
   const started = now();
-  const deadline = request.deadlineMs ?? POST_GAME_DEADLINE_MS;
-  const movetime = request.movetimeMs ?? POST_GAME_MOVETIME_MS;
-  const expired = () => now() - started >= deadline;
+  const steps = budgetStepsFor(request);
+  const expired = () => now() - started >= deadlineFor(request, current);
 
   if (!current.startFen || !current.playerColor || !current.moveSans) {
     return save(request, {
@@ -249,6 +285,8 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
   let cursor = current.gradeProtocol === 'engine' ? current.gradeCursor ?? measured.length : 0;
   if (cursor > measured.length) cursor = measured.length;
   measured = measured.slice(0, cursor);
+  let stepIndex = current.gradeProtocol === 'engine' ? current.gradeStepIndex ?? 0 : 0;
+  if (stepIndex < 0 || stepIndex >= steps.length) stepIndex = 0;
 
   const interrupt = async (
     index: number,
@@ -261,6 +299,8 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
       measuredDecisions: measured,
       gradeCursor: index,
       gradeProtocol: 'engine',
+      gradeBudgetMs: steps[stepIndex] ?? steps[0],
+      gradeStepIndex: stepIndex,
       attemptScore: null,
       gradeConfidence: null,
     });
@@ -270,58 +310,126 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
     gradeProtocol: 'engine',
     measuredDecisions: measured,
     gradeCursor: cursor,
+    gradeBudgetMs: steps[stepIndex] ?? steps[0],
+    gradeStepIndex: stepIndex,
     attemptScore: null,
     gradeConfidence: null,
     gradeCause: null,
   });
 
-  for (let index = cursor; index < points.length; index += 1) {
-    if (!gradeTokenCurrent(token)) return interrupt(index, 'interrupted-by-play', 'pending');
-    if (expired()) return interrupt(index, 'deadline', 'failed');
-    const point = points[index]!;
+  const measurePoint = async (
+    point: UserDecisionPoint,
+    existing: MeasuredDecision | undefined,
+    movetime: number,
+    index: number,
+  ): Promise<'ok' | 'interrupt'> => {
+    if (decisionComplete(existing)) return 'ok';
+    if (!gradeTokenCurrent(token)) return 'interrupt';
+    if (expired()) return 'interrupt';
     try {
       const beforeAnalysis = await request.analyzer.analyze(point.fenBefore, movetime);
-      if (!gradeTokenCurrent(token)) return interrupt(index, 'interrupted-by-play', 'pending');
+      if (!gradeTokenCurrent(token)) return 'interrupt';
       const dtmBefore = dtmOnUserTurn(beforeAnalysis.mateIn);
       let dtmAfter: number | null = null;
       let afterSource: MeasuredDecision['afterSource'] = null;
+      let afterAnalysis: DefenseAnalysis | null = null;
       if (isCheckmate(point.fenAfter)) {
         dtmAfter = 0;
         afterSource = 'observed';
       } else {
-        if (expired()) return interrupt(index, 'deadline', 'failed');
-        const afterAnalysis = await request.analyzer.analyze(point.fenAfter, movetime);
-        if (!gradeTokenCurrent(token)) return interrupt(index, 'interrupted-by-play', 'pending');
+        if (expired()) return 'interrupt';
+        afterAnalysis = await request.analyzer.analyze(point.fenAfter, movetime);
+        if (!gradeTokenCurrent(token)) return 'interrupt';
         dtmAfter = dtmAfterUserMove(afterAnalysis.mateIn);
         afterSource = dtmAfter == null ? null : 'engine';
       }
-      if (dtmBefore == null || dtmAfter == null) {
-        return interrupt(index, 'engine-no-mate', 'failed');
+      const next: MeasuredDecision = {
+        fenBefore: point.fenBefore,
+        san: point.san,
+        fenAfter: point.fenAfter,
+        dtmBefore,
+        dtmAfter,
+        beforeSource: dtmBefore == null ? null : 'engine',
+        afterSource,
+        resultAfterReply: resultFromAnalysis(
+          afterAnalysis,
+          point.fenAfter,
+          current.playerColor!,
+        ),
+      };
+      if (existing) measured[index] = next;
+      else measured = [...measured, next];
+      return 'ok';
+    } catch {
+      return 'interrupt';
+    }
+  };
+
+  for (let index = cursor; index < points.length; index += 1) {
+    if (!gradeTokenCurrent(token)) return interrupt(index, 'interrupted-by-play', 'pending');
+    if (expired()) return interrupt(index, 'deadline', 'failed');
+    const point = points[index]!;
+    const status = await measurePoint(point, measured[index], steps[stepIndex]!, index);
+    if (status === 'interrupt') {
+      const live = gradeTokenCurrent(token);
+      return interrupt(index, live ? (expired() ? 'deadline' : 'engine-error') : 'interrupted-by-play', live ? 'failed' : 'pending');
+    }
+    await save(request, {
+      analysisStatus: 'running',
+      gradeProtocol: 'engine',
+      measuredDecisions: measured,
+      gradeCursor: index + 1,
+      gradeBudgetMs: steps[stepIndex],
+      gradeStepIndex: stepIndex,
+      attemptScore: null,
+      gradeConfidence: null,
+      gradeCause: null,
+    });
+  }
+
+  while (measured.some((decision) => !decisionComplete(decision))) {
+    if (!gradeTokenCurrent(token)) return interrupt(points.length, 'interrupted-by-play', 'pending');
+    if (expired()) return interrupt(points.length, 'deadline', 'failed');
+    if (stepIndex + 1 >= steps.length) {
+      return interrupt(points.length, 'engine-no-mate', 'failed');
+    }
+    stepIndex += 1;
+    const movetime = steps[stepIndex]!;
+    await save(request, {
+      analysisStatus: 'running',
+      gradeProtocol: 'engine',
+      measuredDecisions: measured,
+      gradeCursor: points.length,
+      gradeBudgetMs: movetime,
+      gradeStepIndex: stepIndex,
+      attemptScore: null,
+      gradeConfidence: null,
+      gradeCause: null,
+    });
+    for (let index = 0; index < points.length; index += 1) {
+      if (decisionComplete(measured[index])) continue;
+      if (!gradeTokenCurrent(token)) return interrupt(points.length, 'interrupted-by-play', 'pending');
+      if (expired()) return interrupt(points.length, 'deadline', 'failed');
+      const status = await measurePoint(points[index]!, measured[index], movetime, index);
+      if (status === 'interrupt') {
+        const live = gradeTokenCurrent(token);
+        return interrupt(
+          points.length,
+          live ? (expired() ? 'deadline' : 'engine-error') : 'interrupted-by-play',
+          live ? 'failed' : 'pending',
+        );
       }
-      measured = [
-        ...measured,
-        {
-          fenBefore: point.fenBefore,
-          san: point.san,
-          fenAfter: point.fenAfter,
-          dtmBefore,
-          dtmAfter,
-          beforeSource: 'engine',
-          afterSource,
-        },
-      ];
       await save(request, {
         analysisStatus: 'running',
         gradeProtocol: 'engine',
         measuredDecisions: measured,
-        gradeCursor: index + 1,
+        gradeCursor: points.length,
+        gradeBudgetMs: movetime,
+        gradeStepIndex: stepIndex,
         attemptScore: null,
         gradeConfidence: null,
         gradeCause: null,
       });
-    } catch {
-      const live = gradeTokenCurrent(token);
-      return interrupt(index, live ? 'engine-error' : 'interrupted-by-play', live ? 'failed' : 'pending');
     }
   }
 
@@ -335,6 +443,14 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
     measuredDecisions: measured,
     gradeCursor: measured.length,
     gradeProtocol: 'engine',
+    gradeBudgetMs: steps[stepIndex] ?? steps[0],
+    gradeStepIndex: stepIndex,
     gradeCause: null,
   });
+}
+
+function deadlineFor(request: PostGameRequest, current: ThemeAttemptRecord): number {
+  if (request.deadlineMs != null) return request.deadlineMs;
+  const moves = current.moveSans?.length ?? current.userMoves ?? 1;
+  return adaptiveDeadlineMs(Math.max(1, Math.ceil(moves / 2)));
 }

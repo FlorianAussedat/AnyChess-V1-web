@@ -11,7 +11,7 @@ import { ChessEngineService } from '../../../engines/analysis/ChessEngineService
 import type { DefenseAnalysis, DefenseAnalyzer } from '../../../defendDraw/defenseTypes.ts';
 import { MemoryKeyValueStorage } from '../../../storage/KeyValueStorage.ts';
 import { THEME_IDS } from '../../domain/themes.ts';
-import { listByTheme } from '../../selection/selectors.ts';
+import { getPositionById, listByTheme } from '../../selection/selectors.ts';
 import type { TheoreticalAttemptResult, TheoreticalEndgamePosition } from '../../domain/types.ts';
 import {
   clearTheoreticalStoreCache,
@@ -22,8 +22,11 @@ import {
   recordAttempt,
 } from '../../persistence/TheoreticalEndgameStore.ts';
 import { createWasmStockfishTransport } from '../wasmStockfishTransport.ts';
-import { runPostGameGrade } from '../postGameGrade.ts';
+import { adaptiveDeadlineMs, runPostGameGrade } from '../postGameGrade.ts';
 import { claimEngineForPlay, releaseEngineFromPlay, resetGradeGate } from '../gradeGate.ts';
+import { playCapFor, playTowardObjective, replayRecordedLine } from '../playTowardObjective.ts';
+import { QUALITY_TRAJECTORIES, RECORDED_START_FEN } from '../qualityTrajectories.ts';
+import { summarizeCoverage, type CoverageRow } from '../coverageReport.ts';
 
 /** Legal mate in one: the queen does not already check. */
 const MATE = '7k/5K2/8/8/8/8/8/6Q1 w - - 0 1';
@@ -74,47 +77,24 @@ function win(overrides: Partial<TheoreticalAttemptResult> = {}): TheoreticalAtte
   };
 }
 
-async function playAuto(position: TheoreticalEndgamePosition, movetimeMs: number, maxUserMoves: number) {
-  const game = new Chess(position.initialFen);
-  const user = position.playerColor === 'white' ? 'w' : 'b';
-  const sans: string[] = [];
-  let userMoves = 0;
-  let cause: string | null = null;
-  while (!game.isGameOver() && userMoves < maxUserMoves) {
-    const result = await playAnalyzer.analyze(game.fen(), movetimeMs);
-    const best = result.bestMove;
-    if (!best) {
-      cause = 'engine-no-move';
-      break;
-    }
-    const side = game.turn();
-    let played: { san: string } | null = null;
-    try {
-      played = game.move({
-        from: best.from,
-        to: best.to,
-        ...(best.promotion ? { promotion: best.promotion as 'q' | 'r' | 'b' | 'n' } : {}),
-      });
-    } catch {
-      played = null;
-    }
-    if (!played) {
-      cause = 'engine-illegal-move';
-      break;
-    }
-    sans.push(played.san);
-    if (side === user) userMoves += 1;
+function recordedCatalogPosition(
+  trajectory: (typeof QUALITY_TRAJECTORIES)[number],
+): TheoreticalEndgamePosition {
+  const fen = RECORDED_START_FEN[trajectory.positionId];
+  if (fen) {
+    const base = listByTheme(trajectory.themeId)[0]!;
+    return {
+      ...base,
+      id: trajectory.positionId,
+      initialFen: fen,
+      playerColor: 'white',
+      objective: 'WIN',
+      objectiveKind: 'mate',
+    };
   }
-  let outcome: 'success' | 'theoretical-loss' | 'unfinished' = 'unfinished';
-  if (game.isCheckmate()) {
-    const winner = game.turn() === 'w' ? 'b' : 'w';
-    outcome = winner === user ? 'success' : 'theoretical-loss';
-  } else if (game.isDraw()) {
-    outcome = position.objective === 'DRAW' ? 'success' : 'theoretical-loss';
-  } else if (!cause) {
-    cause = 'game-not-finished';
-  }
-  return { outcome, sans, userMoves, endFen: game.fen(), cause };
+  const catalog = getPositionById(trajectory.positionId);
+  if (!catalog) throw new Error(trajectory.positionId);
+  return catalog;
 }
 
 async function playFragment(
@@ -333,93 +313,215 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
     assert.notEqual(first?.finishedAt, other?.finishedAt);
   });
 
-    it('reports scored attempts across the 18 themes, including the two bishops', { timeout: 240_000 }, async () => {
-    const rows: Array<Record<string, string | number | null>> = [];
-    let finished = 0;
-    let scored = 0;
-    for (const themeId of THEME_IDS) {
-      const position = listByTheme(themeId)[0];
-      assert.ok(position, themeId);
-      const played = await playAuto(position!, themeId === 'two-bishops-mate' ? 400 : 250, themeId === 'two-bishops-mate' ? 20 : 12);
-      let analysisStatus: string = 'not-finished';
-      let gradeCause = played.cause;
+  it('reports several scored successes per theme, including two bishops and draws', { timeout: 480_000 }, async () => {
+    const rows: CoverageRow[] = [];
+    let stamp = 0;
+    const nextStamp = () => {
+      stamp += 1;
+      return new Date(Date.UTC(2026, 9, 13, 8, 0, stamp)).toISOString();
+    };
+
+    const gradePlayed = async (
+      position: TheoreticalEndgamePosition,
+      played: {
+        outcome: 'success' | 'theoretical-loss' | 'interrupted';
+        sans: string[];
+        userMoves: number;
+        endFen: string;
+        cause: string;
+      },
+      kind: CoverageRow['kind'],
+      quality: CoverageRow['quality'],
+      playMs: number,
+    ): Promise<void> => {
+      const finishedAt = nextStamp();
+      const capInterrupted = played.outcome === 'interrupted' && played.cause === 'cap';
+      let analysisStatus: CoverageRow['analysisStatus'] = 'not-started';
+      let gradeCause: CoverageRow['gradeCause'] = played.cause;
       let attemptScore: number | null = null;
+      let gradeMs = 0;
       if (played.outcome === 'success' || played.outcome === 'theoretical-loss') {
-        finished += 1;
-        const finishedAt = `2026-10-12T19:${String(rows.length).padStart(2, '0')}:00.000Z`;
         await recordAttempt({
           outcome: played.outcome,
-          positionId: position!.id,
-          themeId,
-          objective: position!.objective,
-          objectiveKind: position!.objectiveKind,
-          playerColor: position!.playerColor,
+          positionId: position.id,
+          themeId: position.themeId,
+          objective: position.objective,
+          objectiveKind: position.objectiveKind,
+          playerColor: position.playerColor,
           userMoves: played.userMoves,
           scoreScale: 'quality-5',
           attemptScore: played.outcome === 'theoretical-loss' ? 0 : null,
           quality: null,
-          durationMs: 1,
+          durationMs: playMs,
           firstTheoreticalLoss: null,
-          startFen: position!.initialFen,
+          startFen: position.initialFen,
           endFen: played.endFen,
           moveSans: played.sans,
           finishedAt,
           offScore: false,
           analysisStatus: played.outcome === 'theoretical-loss' ? 'not-needed' : 'pending',
           gradeConfidence: played.outcome === 'theoretical-loss' ? 'exact' : null,
-          variantGroup: position!.variantGroup ?? position!.id,
+          variantGroup: position.variantGroup ?? position.id,
         });
         if (played.outcome === 'theoretical-loss') {
           analysisStatus = 'not-needed';
           attemptScore = 0;
           gradeCause = null;
-          scored += 1;
         } else {
+          const t0 = Date.now();
           const graded = await runPostGameGrade({
-            themeId,
-            positionId: position!.id,
+            themeId: position.themeId,
+            positionId: position.id,
             finishedAt,
             analyzer,
-            movetimeMs: themeId === 'two-bishops-mate' ? 800 : 600,
-            deadlineMs: themeId === 'two-bishops-mate' ? 16000 : 10000,
+            budgetStepsMs:
+              position.themeId === 'two-bishops-mate' && kind === 'autoplay'
+                ? [1600]
+                : [400, 900],
+            deadlineMs:
+              position.themeId === 'two-bishops-mate' && kind === 'autoplay'
+                ? 90_000
+                : adaptiveDeadlineMs(Math.max(1, played.userMoves)),
           });
+          gradeMs = Date.now() - t0;
           analysisStatus = graded?.analysisStatus ?? 'failed';
           gradeCause = graded?.gradeCause ?? null;
           attemptScore = graded?.attemptScore ?? null;
-          if (typeof attemptScore === 'number') scored += 1;
         }
       }
       rows.push({
-        themeId,
-        positionId: position!.id,
-        outcome: played.outcome,
-        userMoves: played.userMoves,
-        analysisStatus,
+        themeId: position.themeId,
+        positionId: position.id,
+        kind,
+        quality,
+        launched: true,
+        outcome: played.outcome === 'interrupted' ? 'interrupted' : played.outcome,
+        capInterrupted,
+        scoredSuccess: played.outcome === 'success' && typeof attemptScore === 'number',
         attemptScore,
-        cause: gradeCause,
+        analysisStatus,
+        gradeCause,
+        playMs,
+        gradeMs,
+        userMoves: played.userMoves,
+      });
+    };
+
+    for (const trajectory of QUALITY_TRAJECTORIES) {
+      const position = recordedCatalogPosition(trajectory);
+      const t0 = Date.now();
+      const played = replayRecordedLine(position, [...trajectory.sans]);
+      await gradePlayed(position, played, 'recorded', trajectory.quality, Date.now() - t0);
+    }
+
+    for (const position of listByTheme('two-bishops-mate')) {
+      assert.ok(playCapFor(position) >= 36);
+      const t0 = Date.now();
+      const played = await playTowardObjective(position, playAnalyzer, {
+        movetimeMs: 300,
+        maxUserMoves: playCapFor(position),
+      });
+      rows.push({
+        themeId: position.themeId,
+        positionId: position.id,
+        kind: 'autoplay',
+        quality: 'efficient',
+        launched: true,
+        outcome: played.outcome,
+        capInterrupted: played.outcome === 'interrupted' && played.cause === 'cap',
+        scoredSuccess: false,
+        attemptScore: null,
+        analysisStatus: played.outcome === 'success' ? 'pending' : 'not-started',
+        gradeCause: played.cause,
+        playMs: Date.now() - t0,
+        gradeMs: 0,
+        userMoves: played.userMoves,
       });
     }
-    const bishops = rows.find((row) => row.themeId === 'two-bishops-mate');
-    assert.ok(bishops);
-    assert.equal(rows.length, 18);
-    const proportion = finished === 0 ? 0 : scored / finished;
-    const report = {
-      themes: rows.length,
-      finished,
-      scored,
-      proportion,
-      unscoredCauses: rows
-        .filter((row) => row.outcome !== 'unfinished' && typeof row.attemptScore !== 'number')
-        .map((row) => ({ themeId: row.themeId, cause: row.cause, status: row.analysisStatus })),
-      unfinished: rows.filter((row) => row.outcome === 'unfinished').map((row) => ({
-        themeId: row.themeId,
-        cause: row.cause,
-        userMoves: row.userMoves,
-      })),
-      twoBishops: bishops,
-    };
-    console.log(`SCORE_COVERAGE ${JSON.stringify(report)}`);
-    assert.equal(report.themes, 18);
-    assert.ok(report.twoBishops);
+
+    const recordedThemes = new Set(QUALITY_TRAJECTORIES.map((row) => row.themeId));
+    for (const themeId of THEME_IDS) {
+      if (themeId === 'two-bishops-mate' || recordedThemes.has(themeId)) continue;
+      const position = listByTheme(themeId).find((row) => row.objective === 'WIN') ?? listByTheme(themeId)[0];
+      assert.ok(position, themeId);
+      const t0 = Date.now();
+      const played = await playTowardObjective(position!, playAnalyzer, {
+        movetimeMs: 250,
+        maxUserMoves: playCapFor(position!),
+      });
+      const playMs = Date.now() - t0;
+      if (played.outcome === 'success' && played.userMoves <= 8) {
+        await gradePlayed(position!, played, 'autoplay', 'efficient', playMs);
+      } else {
+        rows.push({
+          themeId: position!.themeId,
+          positionId: position!.id,
+          kind: 'autoplay',
+          quality: 'efficient',
+          launched: true,
+          outcome: played.outcome,
+          capInterrupted: played.outcome === 'interrupted' && played.cause === 'cap',
+          scoredSuccess: false,
+          attemptScore: played.outcome === 'theoretical-loss' ? 0 : null,
+          analysisStatus: played.outcome === 'theoretical-loss' ? 'not-needed' : played.outcome === 'success' ? 'pending' : 'not-started',
+          gradeCause: played.cause,
+          playMs,
+          gradeMs: 0,
+          userMoves: played.userMoves,
+        });
+      }
+    }
+
+    const report = summarizeCoverage(rows);
+    const bishops = report.byTheme.find((row) => row.themeId === 'two-bishops-mate');
+    const draws = ['philidor', 'vancura', 'bad-bishop', 'lateral-checks', 'pawn-square', 'rook-pawn'] as const;
+    const queenEfficient = rows.find((row) => row.positionId === 'TE-ENGINE-QUEEN' && row.quality === 'efficient');
+    const queenDetour = rows.find((row) => row.positionId === 'TE-ENGINE-QUEEN' && row.quality === 'detour');
+    const philidorEfficient = rows.find((row) => row.themeId === 'philidor' && row.quality === 'efficient' && row.scoredSuccess);
+    const philidorDetour = rows.find((row) => row.themeId === 'philidor' && row.quality === 'detour' && row.scoredSuccess);
+
+    console.log(
+      `SCORE_COVERAGE ${JSON.stringify({
+        launched: report.launched,
+        finishedWon: report.finishedWon,
+        finishedLost: report.finishedLost,
+        capInterrupted: report.capInterrupted,
+        scoredSuccesses: report.scoredSuccesses,
+        playMs: report.playMs,
+        gradeMs: report.gradeMs,
+        byTheme: report.byTheme,
+        twoBishops: bishops,
+        queenEfficient: queenEfficient?.attemptScore ?? null,
+        queenDetour: queenDetour?.attemptScore ?? null,
+      })}`,
+    );
+
+    assert.equal(report.byTheme.length, THEME_IDS.length);
+    assert.ok(report.launched > 18);
+    assert.ok(report.finishedWon >= 12, `finishedWon=${report.finishedWon}`);
+    assert.ok((bishops?.finishedWon ?? 0) >= 2, `two bishops wins=${bishops?.finishedWon}`);
+    assert.ok((bishops?.scoredSuccesses ?? 0) >= 2, `two bishops scored=${JSON.stringify(bishops)}`);
+    const bishopsEfficient = rows.find(
+      (row) => row.positionId === 'TE-ENGINE-BISHOPS' && row.quality === 'efficient',
+    );
+    const bishopsDetour = rows.find(
+      (row) => row.positionId === 'TE-ENGINE-BISHOPS' && row.quality === 'detour',
+    );
+    assert.equal(bishopsEfficient?.attemptScore, 5);
+    assert.equal(bishopsDetour?.outcome, 'success');
+    if (bishopsDetour?.scoredSuccess) {
+      assert.ok((bishopsDetour.attemptScore ?? 5) < 5, `two bishops detour=${bishopsDetour.attemptScore}`);
+    }
+    for (const themeId of draws) {
+      const theme = report.byTheme.find((row) => row.themeId === themeId);
+      assert.ok((theme?.scoredSuccesses ?? 0) >= 2, `${themeId} scored=${theme?.scoredSuccesses}`);
+    }
+    assert.equal(queenEfficient?.scoredSuccess, true);
+    assert.equal(queenEfficient?.attemptScore, 5);
+    assert.ok((queenDetour?.attemptScore ?? 5) < 5, `queen detour=${queenDetour?.attemptScore}`);
+    assert.ok(
+      (philidorEfficient?.attemptScore ?? 0) > (philidorDetour?.attemptScore ?? 0),
+      `philidor efficient=${philidorEfficient?.attemptScore} detour=${philidorDetour?.attemptScore}`,
+    );
   });
 });

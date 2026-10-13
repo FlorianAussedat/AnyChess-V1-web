@@ -52,6 +52,10 @@ export type ThemeAttemptRecord = {
   measuredDecisions?: MeasuredDecision[];
   /** Next decision index. Earlier decisions are already measured. */
   gradeCursor?: number;
+  /** Current complementary-search budget, persisted so a retry continues. */
+  gradeBudgetMs?: number;
+  /** Index into the progressive budget steps. */
+  gradeStepIndex?: number;
 };
 
 const ANALYSIS_STATUSES: readonly AnalysisStatus[] = [
@@ -147,6 +151,12 @@ function asDecisions(value: unknown): MeasuredDecision[] | undefined {
         row.afterSource === 'exact' || row.afterSource === 'engine' || row.afterSource === 'observed'
           ? row.afterSource
           : null,
+      resultAfterReply:
+        row.resultAfterReply === 'WIN' || row.resultAfterReply === 'DRAW' || row.resultAfterReply === 'LOSS'
+          ? row.resultAfterReply
+          : row.resultAfterReply === null
+            ? null
+            : undefined,
     });
   }
   return out;
@@ -181,6 +191,8 @@ function normalizeAttempt(raw: Record<string, unknown>): ThemeAttemptRecord | nu
     gradeProtocol: raw.gradeProtocol === 'exact' || raw.gradeProtocol === 'engine' ? raw.gradeProtocol : null,
     measuredDecisions: asDecisions(raw.measuredDecisions),
     gradeCursor: typeof raw.gradeCursor === 'number' ? raw.gradeCursor : undefined,
+    gradeBudgetMs: typeof raw.gradeBudgetMs === 'number' ? raw.gradeBudgetMs : undefined,
+    gradeStepIndex: typeof raw.gradeStepIndex === 'number' ? raw.gradeStepIndex : undefined,
   };
 }
 
@@ -476,6 +488,8 @@ export async function updateAttemptGrade(
       | 'gradeProtocol'
       | 'measuredDecisions'
       | 'gradeCursor'
+      | 'gradeBudgetMs'
+      | 'gradeStepIndex'
     >
   >,
 ): Promise<ThemeAttemptRecord | null> {
