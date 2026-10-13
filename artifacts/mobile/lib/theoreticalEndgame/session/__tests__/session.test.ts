@@ -8,6 +8,7 @@ import { createMockDefenseAnalyzer } from '../../../defendDraw/mockDefenseAnalyz
 import type { DefenseAnalysis } from '../../../defendDraw/defenseTypes.ts';
 import type { TheoreticalEndgamePosition } from '../domain/types.ts';
 import { TheoreticalEndgameSession } from '../TheoreticalEndgameSession.ts';
+import { gradeQuality } from '../../domain/comprehensionScore.ts';
 import { THEORETICAL_ENDGAME_POOL } from '../../data/pool.generated.ts';
 import { assessDefense } from '../../domain/defenseFinish.ts';
 import { THEORETICAL_ENDGAME_CONFIG } from '../../domain/types.ts';
@@ -221,8 +222,8 @@ describe('TheoreticalEndgameSession', () => {
       { from: 'f6', to: 'g5' },
       { from: 'g5', to: 'h4' },
     ];
-    const afterUser = [-12, -6, -4];
-    const beforeNext = [5, 3, 1];
+    const afterUser = [-6, -3, -2];
+    const beforeNext = [3, 2, 1];
     const byFen = new Map<string, DefenseAnalysis>();
     const game = new Chess(fen);
     for (let i = 0; i < opponent.length; i++) {
@@ -258,9 +259,26 @@ describe('TheoreticalEndgameSession', () => {
     }
     assert.equal(snap.phase, 'success');
     assert.equal(snap.userMoves, 4);
-    assert.equal(snap.result?.attemptScore, 3.5);
-    assert.notEqual(snap.result?.attemptScore, 5);
-    assert.equal(snap.result?.quality?.reason, 'mate-distance');
+    assert.equal(snap.result?.attemptScore, null);
+    assert.equal(snap.result?.analysisStatus, 'pending');
+    assert.deepEqual(
+      snap.mateDecisions.map((decision) => [decision.dtmBefore, decision.dtmAfter]),
+      [
+        [11, 12],
+        [5, 6],
+        [3, 4],
+        [1, 0],
+      ],
+    );
+    const provisional = gradeQuality({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 4,
+      decisions: snap.mateDecisions,
+    });
+    assert.equal(provisional.score, 3.5);
+    assert.notEqual(provisional.score, 5);
+    assert.equal(provisional.reason, 'mate-distance');
   });
 
   it('does not end a defence just because the evaluation is 0.00', async () => {

@@ -38,7 +38,13 @@
  * A one-move wobble is a half-point because the scale allows halves and a
  * single tempo is smaller than "several detours" (3+).
  */
-import type { AttemptOutcome, QualityGrade, ScoreScaleId } from './types.ts';
+import type {
+  AttemptOutcome,
+  GradeConfidence,
+  QualityGrade,
+  ScoreScaleId,
+  DistanceSource,
+} from './types.ts';
 import { wastedPlies } from './mateDistance.ts';
 
 export const QUALITY_SCORE_VERSION = 'theoretical-quality-v1' as const;
@@ -54,6 +60,11 @@ export type GradeDecision = {
    * 0 means the user has just checkmated.
    */
   dtmAfter?: number | null;
+  beforeSource?: DistanceSource | null;
+  afterSource?: DistanceSource | null;
+  fenBefore?: string;
+  fenAfter?: string;
+  san?: string;
 };
 
 export type GradeInput = {
@@ -74,6 +85,7 @@ export type ScoredAttempt = {
   userMoves?: number;
   scoreScale?: ScoreScaleId;
   attemptScore?: number | null;
+  gradeConfidence?: GradeConfidence;
 };
 
 const EMPTY_GRADE = (
@@ -262,6 +274,51 @@ export function scoreAttempt(input: GradeInput): QualityGrade {
   return gradeQuality(input);
 }
 
+export type ThemeScoreSummary = {
+  /** Average of exact and legacy quality-5 grades. Estimated grades are excluded. */
+  score: number;
+  count: number;
+  estimatedScore: number;
+  estimatedCount: number;
+  /** Finished exercises, including a win whose score is still missing. */
+  attemptCount: number;
+  winCount: number;
+};
+
+function averageOf(values: number[]): { score: number; count: number } {
+  if (values.length === 0) return { score: 0, count: 0 };
+  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return { score: Math.round(avg * 10) / 10, count: values.length };
+}
+
+/** Exact grades and engine estimates stay in separate averages. */
+export function summarizeAttempts(attempts: ScoredAttempt[], window = 10): ThemeScoreSummary {
+  const finished = attempts.filter(
+    (attempt) =>
+      attempt.scoreScale === 'quality-5' &&
+      (attempt.outcome === 'success' || attempt.outcome === 'theoretical-loss'),
+  );
+  const numeric = (attempt: ScoredAttempt) => typeof attempt.attemptScore === 'number';
+  const exact = finished
+    .filter((attempt) => numeric(attempt) && attempt.gradeConfidence !== 'estimated')
+    .slice(0, window)
+    .map((attempt) => attempt.attemptScore as number);
+  const estimated = finished
+    .filter((attempt) => numeric(attempt) && attempt.gradeConfidence === 'estimated')
+    .slice(0, window)
+    .map((attempt) => attempt.attemptScore as number);
+  const exactAvg = averageOf(exact);
+  const estimatedAvg = averageOf(estimated);
+  return {
+    score: exactAvg.score,
+    count: exactAvg.count,
+    estimatedScore: estimatedAvg.score,
+    estimatedCount: estimatedAvg.count,
+    attemptCount: finished.length,
+    winCount: finished.filter((attempt) => attempt.outcome === 'success').length,
+  };
+}
+
 export function averageComprehensionScore(
   attempts: ScoredAttempt[],
   window = 10,
@@ -308,6 +365,12 @@ export function formatComprehensionScore(score: number): string {
   return `${score.toFixed(1).replace('.', ',')}/5`;
 }
 
+/** A missing average is an em dash. A real 0/5 (only losses) keeps the zero. */
+export function formatAverageOrDash(count: number, score: number): string {
+  if (count <= 0) return '—/5';
+  return formatComprehensionScore(score);
+}
+
 export function formatLegacyScore(score: number): string {
   if (Number.isInteger(score)) return `${score}/10`;
   return `${score.toFixed(1).replace('.', ',')}/10`;
@@ -352,6 +415,10 @@ export function headlineFor(input: {
         : 'Objective failed';
   const title = input.lang === 'en' ? enTitle : frTitle;
   if (input.score == null) {
+    if (input.outcome === 'success') {
+      const bang = input.lang === 'en' ? `${enTitle}!` : `${frTitle} !`;
+      return bang;
+    }
     const q = input.lang === 'en' ? 'Quality not evaluated' : 'Qualité non évaluée';
     return `${q} — ${title}`;
   }

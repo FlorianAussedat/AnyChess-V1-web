@@ -6,10 +6,13 @@ import { describe, it } from 'node:test';
 import {
   scoreAttempt,
   averageComprehensionScore,
+  summarizeAttempts,
   isThemeMastered,
   formatComprehensionScore,
+  formatAverageOrDash,
   headlineFor,
 } from '../comprehensionScore.ts';
+import { dtmAfterUserMove, dtmOnUserTurn, uciMateToPlies } from '../mateDistance.ts';
 import {
   lostTheoreticalObjective,
   wdlToPlayerResult,
@@ -223,15 +226,46 @@ describe('comprehension score', () => {
       headlineFor({ score: null, outcome: 'interrupted', objective: 'DRAW', lang: 'fr' }),
       'Tentative interrompue, sans note',
     );
-    assert.match(
+    assert.equal(
       headlineFor({ score: null, outcome: 'success', objective: 'WIN', lang: 'fr' }),
-      /Qualité non évaluée — Finale gagnée/,
+      'Finale gagnée !',
+    );
+    assert.equal(
+      headlineFor({ score: null, outcome: 'success', objective: 'DRAW', lang: 'en' }),
+      'Defence held!',
     );
   });
 
   it('formats the current scale on 5', () => {
     assert.equal(formatComprehensionScore(4), '4/5');
     assert.match(formatComprehensionScore(3.5), /3,5\/5/);
+    assert.equal(formatComprehensionScore(0), '0/5');
+    assert.equal(formatAverageOrDash(0, 0), '—/5');
+    assert.equal(formatAverageOrDash(1, 0), '0/5');
+  });
+
+  it('keeps an unscored win in the attempt count and out of both averages', () => {
+    const summary = summarizeAttempts([
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: null },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 4, gradeConfidence: 'estimated' },
+      { outcome: 'theoretical-loss', scoreScale: 'quality-5', attemptScore: 0, gradeConfidence: 'exact' },
+    ]);
+    assert.equal(summary.attemptCount, 3);
+    assert.equal(summary.winCount, 2);
+    assert.equal(summary.count, 1);
+    assert.equal(summary.score, 0);
+    assert.equal(summary.estimatedCount, 1);
+    assert.equal(summary.estimatedScore, 4);
+  });
+
+  it('converts UCI mate moves into plies', () => {
+    assert.equal(uciMateToPlies(1), 1);
+    assert.equal(uciMateToPlies(4), 7);
+    assert.equal(uciMateToPlies(-1), 2);
+    assert.equal(uciMateToPlies(-3), 6);
+    assert.equal(dtmOnUserTurn(3), 5);
+    assert.equal(dtmAfterUserMove(-6), 12);
+    assert.equal(dtmOnUserTurn(0), null);
   });
 });
 

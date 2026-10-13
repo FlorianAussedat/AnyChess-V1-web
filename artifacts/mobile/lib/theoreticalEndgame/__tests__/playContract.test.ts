@@ -50,6 +50,12 @@ describe('theoretical play UI contract', () => {
     assert.match(play, /headlineFor/);
     assert.match(play, /TheoreticalResultCard/);
     assert.match(play, /formatDuration/);
+    assert.match(play, /theoretical-score-pending/);
+    assert.match(play, /quiz\.theoreticalScorePending/);
+    assert.match(play, /theoretical-recalculate/);
+    assert.match(play, /formatAverageOrDash/);
+    assert.match(play, /theoreticalAttemptWins/);
+    assert.doesNotMatch(play, /theoreticalScoreAttempts/);
     const card = read('lib/theoreticalEndgame/ui/TheoreticalResultCard.tsx');
     assert.match(card, /theoretical-quality-headline/);
     assert.match(card, /theoretical-result/);

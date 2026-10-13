@@ -783,6 +783,10 @@ export type MessageKey =
   | 'quiz.theoreticalScoreOld'
   | 'quiz.theoreticalScoreNew'
   | 'quiz.theoreticalScoreAttempts'
+  | 'quiz.theoreticalScorePending'
+  | 'quiz.theoreticalRecalculate'
+  | 'quiz.theoreticalEstimatedScore'
+  | 'quiz.theoreticalAttemptWins'
   | 'quiz.theoreticalThemeQueenMate'
   | 'quiz.theoreticalThemeRookMate'
   | 'quiz.theoreticalThemeTwoBishopsMate'
@@ -2084,6 +2088,10 @@ const fr: Dict = {
   'quiz.theoreticalScoreOld': 'Ancienne note : {{score}}',
   'quiz.theoreticalScoreNew': 'Nouvelle note : {{score}}',
   'quiz.theoreticalScoreAttempts': '{{count}} tentative(s) comptabilisée(s)',
+  'quiz.theoreticalScorePending': 'Note en cours de calcul…',
+  'quiz.theoreticalRecalculate': 'Recalculer la note',
+  'quiz.theoreticalEstimatedScore': 'Note estimée : {{score}}',
+  'quiz.theoreticalAttemptWins': '{{attempts}} tentative(s), {{wins}} victoire(s)',
   'quiz.theoreticalThemeQueenMate': 'Dame et roi contre roi',
   'quiz.theoreticalThemeRookMate': 'Tour et roi contre roi',
   'quiz.theoreticalThemeTwoBishopsMate': 'Deux fous contre roi',
@@ -3446,6 +3454,10 @@ const en: Dict = {
   'quiz.theoreticalScoreOld': 'Previous score: {{score}}',
   'quiz.theoreticalScoreNew': 'New score: {{score}}',
   'quiz.theoreticalScoreAttempts': '{{count}} scored attempt(s)',
+  'quiz.theoreticalScorePending': 'Score is being calculated…',
+  'quiz.theoreticalRecalculate': 'Recalculate the score',
+  'quiz.theoreticalEstimatedScore': 'Estimated score: {{score}}',
+  'quiz.theoreticalAttemptWins': '{{attempts}} attempt(s), {{wins}} win(s)',
   'quiz.theoreticalThemeQueenMate': 'Queen and king vs king',
   'quiz.theoreticalThemeRookMate': 'Rook and king vs king',
   'quiz.theoreticalThemeTwoBishopsMate': 'Two bishops vs king',

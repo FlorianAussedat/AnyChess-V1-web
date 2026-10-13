@@ -6,7 +6,10 @@ import type { DefenseAnalyzer, DefenseAnalysis } from '../../defendDraw/defenseT
 import { chooseStrictBestMove } from '../../engines/policies/StrictBestPolicy.ts';
 import { THEORETICAL_ENDGAME_CONFIG, type TheoreticalEndgamePosition, type TheoreticalAttemptResult, type FirstTheoreticalLoss } from '../domain/types.ts';
 import { gradeQuality, type GradeDecision } from '../domain/comprehensionScore.ts';
+import { publicationFor } from '../domain/gradePublication.ts';
+import { exactUserDtm } from '../domain/exactElementary.ts';
 import { dtmAfterUserMove, dtmOnUserTurn } from '../domain/mateDistance.ts';
+import type { DistanceSource } from '../domain/types.ts';
 import { assessDefense, defensePlayEnd, type DefenseAssessment } from '../domain/defenseFinish.ts';
 import { getPositionById } from '../selection/selectors.ts';
 import { evaluateRegulatoryEnd } from '../domain/regulatoryEnd.ts';
@@ -86,6 +89,7 @@ export class TheoreticalEndgameSession {
   private defense: DefenseAssessment | null = null;
   private mateDecisions: GradeDecision[] = [];
   private pendingDtmBefore: number | null = null;
+  private pendingDtmSource: DistanceSource | null = null;
   /** A resumed line whose earlier distances were not saved cannot be graded. */
   private mateTraceIncomplete = false;
   private lastReplyMateIn: number | null = null;
@@ -121,13 +125,14 @@ export class TheoreticalEndgameSession {
     this.defense = null;
     this.mateDecisions = [];
     this.pendingDtmBefore = null;
+    this.pendingDtmSource = null;
     this.mateTraceIncomplete = false;
     this.lastReplyMateIn = null;
 
     if (this.game.turn() !== playerToSide(position.playerColor)) {
       await this.playOpponent();
     } else {
-      this.pendingDtmBefore = this.exactStartDtm(this.game.fen());
+      this.rememberDistance(this.exactDistance(this.game.fen()));
     }
     return this.snapshot();
   }
@@ -192,11 +197,12 @@ export class TheoreticalEndgameSession {
     this.mateDecisions = saved ?? [];
     this.pendingDtmBefore =
       typeof raw.pendingDtmBefore === 'number' ? raw.pendingDtmBefore : null;
+    this.pendingDtmSource = this.pendingDtmBefore == null ? null : 'exact';
     this.mateTraceIncomplete =
       this.userMoves > 0 && (saved == null || saved.length !== this.userMoves);
     this.lastReplyMateIn = null;
     if (!this.mateTraceIncomplete && this.userMoves === 0) {
-      this.pendingDtmBefore = this.exactStartDtm(this.game.fen());
+      this.rememberDistance(this.exactDistance(this.game.fen()));
     }
     this.generation += 1;
     this.startedAt = typeof raw.startedAt === 'number' ? raw.startedAt : Date.now();
@@ -310,7 +316,7 @@ export class TheoreticalEndgameSession {
     }
 
     if (scoring && this.game.isCheckmate()) {
-      this.pushMateDecision(dtmBefore, 0);
+      this.pushMateDecision(dtmBefore, 0, 'observed');
     }
 
     // Regulatory success check
@@ -334,7 +340,8 @@ export class TheoreticalEndgameSession {
     if (scoring) {
       const lost = await this.checkTheoreticalLoss(played.san, beforeFen);
       if (lost || this.scoreLocked) return this.snapshot();
-      this.pushMateDecision(dtmBefore, dtmAfterUserMove(this.lastReplyMateIn));
+      const after = dtmAfterUserMove(this.lastReplyMateIn);
+      this.pushMateDecision(dtmBefore, after, after == null ? null : 'engine');
       if (this.maybeEndScoredPlay()) return this.snapshot();
     }
 
@@ -528,6 +535,21 @@ export class TheoreticalEndgameSession {
     });
   }
 
+  private rememberDistance(distance: { dtm: number | null; source: DistanceSource | null }): void {
+    this.pendingDtmBefore = distance.dtm;
+    this.pendingDtmSource = distance.dtm == null ? null : distance.source;
+  }
+
+  /** Catalog DTM, then a disabled-by-default local table. Never an engine estimate. */
+  private exactDistance(fen: string): { dtm: number | null; source: DistanceSource | null } {
+    const catalog = this.exactStartDtm(fen);
+    if (catalog != null) return { dtm: catalog, source: 'exact' };
+    const side = this.position ? (this.position.playerColor === 'white' ? 'w' : 'b') : 'w';
+    const local = exactUserDtm(fen, side);
+    if (local != null) return { dtm: local, source: 'exact' };
+    return { dtm: null, source: null };
+  }
+
   /** Syzygy DTM of the catalog start only. Later positions are not this number. */
   private exactStartDtm(fen: string): number | null {
     const pos = this.position;
@@ -544,12 +566,27 @@ export class TheoreticalEndgameSession {
   private distanceBeforeUserMove(): number | null {
     if (this.mateTraceIncomplete) return null;
     if (this.pendingDtmBefore != null) return this.pendingDtmBefore;
-    return this.exactStartDtm(this.game.fen());
+    const exact = this.exactDistance(this.game.fen());
+    this.pendingDtmSource = exact.source;
+    return exact.dtm;
   }
 
-  private pushMateDecision(dtmBefore: number | null, dtmAfter: number | null): void {
+  private pushMateDecision(
+    dtmBefore: number | null,
+    dtmAfter: number | null,
+    afterSource: DistanceSource | null,
+  ): void {
     if (this.mateTraceIncomplete || !this.position || this.position.objective !== 'WIN') return;
-    this.mateDecisions.push({ dtmBefore, dtmAfter });
+    this.mateDecisions.push({
+      dtmBefore,
+      dtmAfter,
+      beforeSource: dtmBefore == null ? null : this.pendingDtmSource,
+      afterSource: dtmAfter == null ? null : afterSource,
+      fenBefore: this.fenBeforeLastPlayerMove ?? undefined,
+      fenAfter: this.game.fen(),
+    });
+    this.pendingDtmBefore = null;
+    this.pendingDtmSource = null;
   }
 
   /**
@@ -559,16 +596,16 @@ export class TheoreticalEndgameSession {
    */
   private async measurePositionForUser(): Promise<void> {
     if (!this.position || this.position.objective !== 'WIN' || this.mateTraceIncomplete) {
-      this.pendingDtmBefore = null;
+      this.rememberDistance({ dtm: null, source: null });
       return;
     }
-    const exact = this.exactStartDtm(this.game.fen());
-    if (exact != null) {
-      this.pendingDtmBefore = exact;
+    const exact = this.exactDistance(this.game.fen());
+    if (exact.dtm != null) {
+      this.rememberDistance(exact);
       return;
     }
     if (!this.analyzer || this.game.isGameOver()) {
-      this.pendingDtmBefore = null;
+      this.rememberDistance({ dtm: null, source: null });
       return;
     }
     try {
@@ -576,9 +613,10 @@ export class TheoreticalEndgameSession {
         this.game.fen(),
         THEORETICAL_ENDGAME_CONFIG.thinkTimeMs,
       );
-      this.pendingDtmBefore = dtmOnUserTurn(analysis.mateIn);
+      const plies = dtmOnUserTurn(analysis.mateIn);
+      this.rememberDistance({ dtm: plies, source: plies == null ? null : 'engine' });
     } catch {
-      this.pendingDtmBefore = null;
+      this.rememberDistance({ dtm: null, source: null });
     }
   }
 
@@ -696,6 +734,13 @@ export class TheoreticalEndgameSession {
       mechanism,
       decisions,
     });
+    const published = publicationFor({
+      outcome,
+      objective: pos.objective,
+      quality,
+      decisions,
+      mechanismDemonstrated: mechanism?.demonstrated === true,
+    });
 
     const officialResultMessage = theoreticalOfficialResultMessage({
       outcome: outcome === 'interrupted' ? 'abandoned' : outcome,
@@ -714,7 +759,7 @@ export class TheoreticalEndgameSession {
       playerColor: pos.playerColor,
       userMoves: this.userMoves,
       scoreScale: 'quality-5',
-      attemptScore: quality.score,
+      attemptScore: published.attemptScore,
       quality,
       durationMs: Math.max(0, Date.now() - this.startedAt),
       firstTheoreticalLoss: this.firstLoss,
@@ -725,6 +770,9 @@ export class TheoreticalEndgameSession {
       officialResultMessage,
       finishedAt: new Date().toISOString(),
       offScore: this.offScore,
+      variantGroup: pos.variantGroup ?? pos.id,
+      analysisStatus: published.analysisStatus,
+      gradeConfidence: published.gradeConfidence,
     };
   }
 

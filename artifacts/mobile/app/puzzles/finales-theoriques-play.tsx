@@ -50,13 +50,25 @@ import {
   TheoreticalEndgameSession,
   getPositionById,
   getTheme,
+  getAttempt,
+  getThemeComprehension,
   recordAttempt,
+  updateAttemptGrade,
+  runPostGameGrade,
+  resumePendingGrades,
+  claimEngineForPlay,
+  releaseEngineFromPlay,
   formatComprehensionScore,
+  formatAverageOrDash,
   formatDuration,
   headlineFor,
   pickPositionInTheme,
   openTheoreticalInReader,
   type SessionSnapshot,
+  type AnalysisStatus,
+  type GradeConfidence,
+  type RecordedAttemptDelta,
+  type TheoreticalAttemptResult,
 } from '@/lib/theoreticalEndgame';
 import { movesToAnnounce } from '@/lib/theoreticalEndgame/voice/announceMoves';
 import { TheoreticalResultCard } from '@/lib/theoreticalEndgame/ui/TheoreticalResultCard';
@@ -77,6 +89,34 @@ function boardFromFen(fen: string): (BoardPiece | null)[][] {
 
 function themeTitleKey(titleKey: string): MessageKey {
   return `quiz.theoreticalTheme${titleKey}` as MessageKey;
+}
+
+type ScoreView = {
+  oldScore: number;
+  newScore: number;
+  count: number;
+  estimatedScore: number;
+  estimatedCount: number;
+  attemptCount: number;
+  winCount: number;
+  attemptScore: number | null;
+  analysisStatus: AnalysisStatus;
+  gradeConfidence: GradeConfidence;
+};
+
+function viewFromDelta(delta: RecordedAttemptDelta): ScoreView {
+  return {
+    oldScore: delta.oldScore,
+    newScore: delta.newScore,
+    count: delta.count,
+    estimatedScore: delta.estimatedScore,
+    estimatedCount: delta.estimatedCount,
+    attemptCount: delta.attemptCount,
+    winCount: delta.winCount,
+    attemptScore: delta.attemptScore,
+    analysisStatus: delta.analysisStatus,
+    gradeConfidence: delta.gradeConfidence,
+  };
 }
 
 export default function TheoreticalEndgamePlayScreen() {
@@ -100,9 +140,9 @@ export default function TheoreticalEndgamePlayScreen() {
   const [busy, setBusy] = useState(false);
   const [positionMissing, setPositionMissing] = useState(false);
   const [positionReady, setPositionReady] = useState(false);
-  const [scoreDelta, setScoreDelta] = useState<{ old: number; new: number; count: number } | null>(
-    null,
-  );
+  const [scoreDelta, setScoreDelta] = useState<ScoreView | null>(null);
+  const playClaimRef = useRef(0);
+  const gradingKeyRef = useRef<string | null>(null);
   const [overlay, setOverlay] = useState<ResultOverlayKind>(null);
   const startedRef = useRef(false);
   const restoredRef = useRef(false);
@@ -158,6 +198,19 @@ export default function TheoreticalEndgamePlayScreen() {
     setDraftMove('');
   }, [chessNotation]);
 
+  const stopSharedEngine = useCallback(() => {
+    const service = runtime.getService();
+    if (service) void service.getEngine().stop();
+  }, [runtime]);
+
+  useEffect(() => {
+    playClaimRef.current = claimEngineForPlay(stopSharedEngine);
+    gradingKeyRef.current = null;
+    return () => {
+      playClaimRef.current = claimEngineForPlay(stopSharedEngine);
+    };
+  }, [positionId, stopSharedEngine]);
+
   useEffect(() => {
     return () => {
       sessionRef.current.setAnalyzer(null);
@@ -202,14 +255,83 @@ export default function TheoreticalEndgamePlayScreen() {
     })();
   }, [positionId, refresh]);
 
+  const applyRecord = useCallback((record: {
+    attemptScore: number | null;
+    analysisStatus?: AnalysisStatus;
+    gradeConfidence?: GradeConfidence;
+  }, summary: { score: number; count: number; estimatedScore: number; estimatedCount: number; attemptCount: number; winCount: number }) => {
+    setScoreDelta((prev) => ({
+      oldScore: prev?.oldScore ?? summary.score,
+      newScore: summary.score,
+      count: summary.count,
+      estimatedScore: summary.estimatedScore,
+      estimatedCount: summary.estimatedCount,
+      attemptCount: summary.attemptCount,
+      winCount: summary.winCount,
+      attemptScore: record.attemptScore,
+      analysisStatus: record.analysisStatus ?? 'pending',
+      gradeConfidence: record.gradeConfidence ?? null,
+    }));
+  }, []);
+
+  const gradeStored = useCallback(async (result: TheoreticalAttemptResult) => {
+    const key = `${result.positionId}|${result.finishedAt}`;
+    if (gradingKeyRef.current === key) return;
+    gradingKeyRef.current = key;
+    try {
+      const service = runtime.getService();
+      if (!service) {
+        const failed = await updateAttemptGrade(result.themeId, result.positionId, result.finishedAt, {
+          analysisStatus: 'failed',
+          gradeCause: 'engine-unavailable',
+          attemptScore: null,
+          gradeConfidence: null,
+        });
+        if (failed) {
+          const summary = await getThemeComprehension(result.themeId);
+          applyRecord(failed, summary);
+        }
+        return;
+      }
+      releaseEngineFromPlay(playClaimRef.current);
+      const finished = await runPostGameGrade({
+        themeId: result.themeId,
+        positionId: result.positionId,
+        finishedAt: result.finishedAt,
+        analyzer: service,
+        onProgress: (record) => {
+          void getThemeComprehension(result.themeId).then((summary) => applyRecord(record, summary));
+        },
+      });
+      if (!finished) return;
+      const summary = await getThemeComprehension(result.themeId);
+      applyRecord(finished, summary);
+      await resumePendingGrades(service);
+    } finally {
+      if (gradingKeyRef.current === key) gradingKeyRef.current = null;
+    }
+  }, [applyRecord, runtime]);
+
   useEffect(() => {
-    if (!snap.result || recordedRef.current) return;
-    if (snap.result.outcome !== 'success' && snap.result.outcome !== 'theoretical-loss') return;
-    recordedRef.current = true;
-    void recordAttempt(snap.result).then((d) =>
-      setScoreDelta({ old: d.oldScore, new: d.newScore, count: d.count }),
-    );
-  }, [snap.result]);
+    const result = snap.result;
+    if (!result) return;
+    if (result.outcome !== 'success' && result.outcome !== 'theoretical-loss') return;
+    let cancelled = false;
+    void (async () => {
+      if (!recordedRef.current) {
+        recordedRef.current = true;
+        const delta = await recordAttempt(result);
+        if (!cancelled) setScoreDelta(viewFromDelta(delta));
+      }
+      if (cancelled || !engineReady) return;
+      const stored = await getAttempt(result.themeId, result.positionId, result.finishedAt);
+      if (!stored || stored.analysisStatus !== 'pending') return;
+      await gradeStored(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [snap.result, engineReady, gradeStored]);
 
   const goHub = useCallback(
     () => router.replace('/puzzles/finales-theoriques' as Href),
@@ -385,6 +507,8 @@ export default function TheoreticalEndgamePlayScreen() {
   }, [snap.result, snap.position, snap.fen, snap.moveSans]);
 
   const handleRetry = async () => {
+    playClaimRef.current = claimEngineForPlay(stopSharedEngine);
+    gradingKeyRef.current = null;
     recordedRef.current = false;
     setScoreDelta(null);
     setOverlay(null);
@@ -562,13 +686,14 @@ export default function TheoreticalEndgamePlayScreen() {
 
             <TheoreticalResultCard
               headline={headlineFor({
-                score: snap.result.attemptScore,
+                score: scoreDelta ? scoreDelta.attemptScore : snap.result.attemptScore,
                 outcome: snap.result.outcome,
                 objective: snap.result.objective,
                 objectiveKind: snap.result.objectiveKind,
                 lang: language === 'en' ? 'en' : 'fr',
               })}
               comment={
+                (scoreDelta ? scoreDelta.attemptScore : snap.result.attemptScore) != null &&
                 snap.result.quality
                   ? language === 'en'
                     ? snap.result.quality.commentEn
@@ -595,20 +720,56 @@ export default function TheoreticalEndgamePlayScreen() {
               </Text>
             )}
 
+            {(scoreDelta?.analysisStatus === 'pending' || scoreDelta?.analysisStatus === 'running' ||
+              (!scoreDelta && snap.result.analysisStatus === 'pending')) &&
+              (scoreDelta ? scoreDelta.attemptScore : snap.result.attemptScore) == null && (
+              <Text style={{ color: colors.foreground }} testID="theoretical-score-pending">
+                {t('quiz.theoreticalScorePending')}
+              </Text>
+            )}
+
+            {scoreDelta?.gradeConfidence === 'estimated' && scoreDelta.attemptScore != null && (
+              <Text style={{ color: colors.foreground }} testID="theoretical-estimated-score">
+                {t('quiz.theoreticalEstimatedScore', {
+                  score: formatComprehensionScore(scoreDelta.attemptScore),
+                })}
+              </Text>
+            )}
+
             {scoreDelta && (
               <View style={styles.statsBox}>
                 <Text style={{ color: colors.mutedForeground }}>
-                  {t('quiz.theoreticalScoreOld', { score: formatComprehensionScore(scoreDelta.old) })}
+                  {t('quiz.theoreticalScoreOld', {
+                    score: formatAverageOrDash(scoreDelta.count, scoreDelta.oldScore),
+                  })}
                 </Text>
                 <Text style={{ color: colors.foreground }}>
-                  {t('quiz.theoreticalScoreNew', { score: formatComprehensionScore(scoreDelta.new) })}
+                  {t('quiz.theoreticalScoreNew', {
+                    score: formatAverageOrDash(scoreDelta.count, scoreDelta.newScore),
+                  })}
                 </Text>
-                {scoreDelta.count < 10 && (
-                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-                    {t('quiz.theoreticalScoreAttempts', { count: scoreDelta.count })}
+                {scoreDelta.attemptCount > 0 && scoreDelta.attemptCount < 10 && (
+                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }} testID="theoretical-attempt-count">
+                    {t('quiz.theoreticalAttemptWins', {
+                      attempts: scoreDelta.attemptCount,
+                      wins: scoreDelta.winCount,
+                    })}
                   </Text>
                 )}
               </View>
+            )}
+
+            {scoreDelta?.analysisStatus === 'failed' && snap.result.outcome === 'success' && (
+              <AppButton
+                label={t('quiz.theoreticalRecalculate')}
+                onPress={() => {
+                  if (!snap.result) return;
+                  gradingKeyRef.current = null;
+                  void gradeStored(snap.result);
+                }}
+                variant="secondary"
+                testID="theoretical-recalculate"
+              />
             )}
 
             <AppButton

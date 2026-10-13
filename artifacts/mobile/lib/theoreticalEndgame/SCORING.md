@@ -25,7 +25,15 @@ Deux origines de distance, jamais une conversion de centipions :
 1. **DTM Syzygy du départ seulement.** Si la position est encore le FEN du catalogue, le trait est à l’utilisateur, la confiance est exacte, la catégorie est `win` et `dtm > 0`, cette distance est le `dtmAvant` du premier coup. La validation initiale ne connaît pas les positions suivantes. Le jeu ne rappelle pas Syzygy.
 2. **Mat annoncé par le moteur de l’appareil**, après le départ. `score mate N` (UCI) est la distance du camp qui a le trait, en plies. Après le coup de l’utilisateur, un mat négatif pour l’adversaire devient la distance restante ; un échec et mat vaut 0. Après la réponse, la position où l’utilisateur doit rejouer est mesurée de la même façon. Un score en centipions n’est pas une distance de mat.
 
-Si une de ces décisions n’a pas de distance fiable, la réussite reste affichée et la qualité est « Qualité non évaluée ». On ne retombe pas sur la cible initiale. Une session reprise sans la trace des distances déjà jouées est dans le même cas. Les percées à 8 pièces n’ont pas de DTM de table : sans mat annoncé sur tout le chemin, elles restent non évaluées.
+Si une de ces décisions n’a pas de distance fiable, la réussite est **enregistrée tout de suite** : résultat, une seule tentative, FEN de départ, camp, coups, durée, variante. La note reste nulle et le statut d’analyse est distinct (`pending`, `running`, `failed`, `estimated`, `scored`). L’écran affiche « Finale gagnée ! » puis « Note en cours de calcul… ». Une note absente s’écrit —/5 et n’entre pas dans les moyennes. On n’affiche jamais 0/5 ni « 0 tentative comptabilisée » pour une victoire sans note. Un 0/5 reste réservé à l’échec.
+
+Les mesures pendant le jeu (1 s) ne publient une note que si **toutes** les distances sont exactes (table ou mat observé). Un mélange avec le moteur court n’est pas publié : une passe complémentaire reprend la trajectoire, avec un budget plus élevé et le même protocole pour chaque décision. Les résultats sont enregistrés décision par décision. Une analyse interrompue reprend le curseur, sans tout recommencer. Un nouveau jeu prend le moteur (`stop`) : les réponses tardives d’une autre session sont ignorées.
+
+Les tables rétrogrades locales ont été mesurées puis **laissées hors service**. Voir `EXACT_EVAL.md`. Tous les thèmes, y compris les deux fous, reçoivent une note **estimée** quand le moteur annonce un mat sur tout le chemin. Exact et estimé ne sont pas mélangés dans la même moyenne.
+
+Le traitement est borné (délai global, pas d’attente infinie). Si l’analyse échoue, la victoire reste, la note reste vide, et « Recalculer la note » relance le même protocole. Aucune note n’est inventée pour masquer l’échec.
+
+On ne retombe pas sur la cible initiale. Une session reprise sans la trace des distances déjà jouées passe par cette analyse complémentaire. Les percées à 8 pièces n’ont pas de DTM de table : sans mat annoncé sur tout le chemin, elles restent sans note.
 
 **Défense.** Le relâchement compte les coups qui quittent une idée reconnue (barrière, tour latérale, coin salvateur, distance d’échec, entrée dans le carré, prise). Une autre méthode reconnue est notée de la même façon, y compris à 5 si elle est tenue sans relâchement. Une nulle obtenue par une méthode que l’exercice ne sait pas mesurer n’est pas un 2 automatique : la réussite de l’objectif reste, la qualité est « Qualité non évaluée ».
 
@@ -63,7 +71,7 @@ Une décision sans distance, même avec une DTM initiale : « Qualité non éval
 
 Nulle dont le mécanisme est tenu sans relâchement : **5/5**. Nulle dont la méthode n’est pas mesurée : « Qualité non évaluée — Défense réussie », pas 2/5.
 
-Percée gagnée sans distance de mat : « Qualité non évaluée — Finale gagnée ».
+Percée gagnée sans distance de mat : « Finale gagnée ! », note —/5, « Note en cours de calcul… » puis éventuellement « Recalculer la note ».
 
 ## Objectif
 
