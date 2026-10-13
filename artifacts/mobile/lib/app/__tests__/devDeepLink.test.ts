@@ -30,4 +30,21 @@ describe('rewriteDevSystemPath', () => {
     assert.equal(rewriteDevSystemPath('/classic'), '/classic');
     assert.equal(rewriteDevSystemPath('/'), '/');
   });
+
+  it('opens the app instead of navigating to the Metro URL', () => {
+    const url =
+      'exp+mobile://expo-development-client/?url=' +
+      encodeURIComponent('http://192.168.1.10:8081');
+    assert.equal(rewriteDevSystemPath(url), '/');
+    assert.equal(rewriteDevSystemPath('http://10.0.0.8:8081'), '/');
+    assert.equal(rewriteDevSystemPath('http://10.0.0.8:8081/'), '/');
+    assert.equal(rewriteDevSystemPath(url, false), '');
+  });
+
+  it('keeps an app path carried by the dev-client URL', () => {
+    const url =
+      'exp+mobile://expo-development-client/?url=' +
+      encodeURIComponent('http://192.168.1.10:8081/classic?side=white');
+    assert.equal(rewriteDevSystemPath(url), '/classic?side=white');
+  });
 });

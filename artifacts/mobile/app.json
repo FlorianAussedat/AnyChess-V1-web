@@ -38,6 +38,7 @@
       "expo-font",
       "expo-web-browser",
       "expo-dev-client",
+      "./plugins/withAndroidSingleTask.js",
       [
         "expo-speech-recognition",
         {
