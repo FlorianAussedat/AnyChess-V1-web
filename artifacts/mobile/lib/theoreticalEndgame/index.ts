@@ -42,7 +42,24 @@ export {
   migrateTheoreticalStore,
 } from './persistence/TheoreticalEndgameStore.ts';
 export type { ThemeAttemptRecord, RecordedAttemptDelta } from './persistence/TheoreticalEndgameStore.ts';
-export { runPostGameGrade, resumePendingGrades } from './analysis/postGameGrade.ts';
+export {
+  runPostGameGrade,
+  resumePendingGrades,
+  POST_GAME_BUDGET_STEPS_MS,
+  POST_GAME_LONG_BUDGET_STEPS_MS,
+  POST_GAME_ATTEMPT_BUDGET_MS,
+  adaptiveDeadlineMs,
+} from './analysis/postGameGrade.ts';
+export { gradeFamilyFor } from './domain/gradeFamily.ts';
+export { assessPawnWin, pickPawnWinUserSan, breakMoveAmong } from './domain/pawnWinProgress.ts';
+export { assessMateDrive } from './domain/mateDrive.ts';
+export { SCORED_SUCCESS_TARGET } from './analysis/coverageReport.ts';
+export {
+  playTowardObjective,
+  playCapFor,
+  pickDefenseUserSan,
+  replayRecordedLine,
+} from './analysis/playTowardObjective.ts';
 export { claimEngineForPlay, releaseEngineFromPlay } from './analysis/gradeGate.ts';
 export {
   listPool,

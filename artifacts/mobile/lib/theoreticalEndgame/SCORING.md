@@ -27,13 +27,27 @@ Deux origines de distance, jamais une conversion de centipions :
 
 Si une de ces décisions n’a pas de distance fiable, la réussite est **enregistrée tout de suite** : résultat, une seule tentative, FEN de départ, camp, coups, durée, variante. La note reste nulle et le statut d’analyse est distinct (`pending`, `running`, `failed`, `estimated`, `scored`). L’écran affiche « Finale gagnée ! » puis « Note en cours de calcul… ». Une note absente s’écrit —/5 et n’entre pas dans les moyennes. On n’affiche jamais 0/5 ni « 0 tentative comptabilisée » pour une victoire sans note. Un 0/5 reste réservé à l’échec.
 
-Les mesures pendant le jeu (1 s) ne publient une note que si **toutes** les distances sont exactes (table ou mat observé). Un mélange avec le moteur court n’est pas publié : une passe complémentaire reprend la trajectoire, avec un budget plus élevé et le même protocole pour chaque décision. Les résultats sont enregistrés décision par décision. Une analyse interrompue reprend le curseur, sans tout recommencer. Un nouveau jeu prend le moteur (`stop`) : les réponses tardives d’une autre session sont ignorées.
+Les mesures pendant le jeu (1 s) ne publient une note que si **toutes** les distances sont exactes (table ou mat observé). Un mélange avec le moteur court n’est pas publié : une passe complémentaire reprend la trajectoire.
 
-Les tables rétrogrades locales ont été mesurées puis **laissées hors service**. Voir `EXACT_EVAL.md`. Tous les thèmes, y compris les deux fous, reçoivent une note **estimée** quand le moteur annonce un mat sur tout le chemin. Exact et estimé ne sont pas mélangés dans la même moyenne.
+**Budget total par tentative.** Le plafond d’une analyse n’est pas que chaque `go`. Une tentative a un budget mur de **25 s** (`POST_GAME_ATTEMPT_BUDGET_MS`), enregistré (`gradeDeadlineMs`, `gradeConsumedMs`). Une reprise continue le temps déjà consommé : elle ne redonne pas 90 s. Une nouvelle partie revendique le moteur et invalide le jeton d’analyse ; la note incomplète reste `pending` et se reprend plus tard. Les notes de **défense** et de **gain de pions** ne prennent pas le moteur : elles se calculent tout de suite, même si une autre partie a le transport.
 
-Le traitement est borné (délai global, pas d’attente infinie). Si l’analyse échoue, la victoire reste, la note reste vide, et « Recalculer la note » relance le même protocole. Aucune note n’est inventée pour masquer l’échec.
+**Budget progressif (mats élémentaires seulement).** Les paliers par défaut sont 400, 900, puis 1600 ms ; un quatrième palier à 3000 ms s’ajoute au-delà de 10 décisions. Un trou (`score mate` absent) n’arrête pas les décisions suivantes. Le palier suivant ne relance que les trous, en partant de la fin (plus proche du mat). Le curseur, les décisions déjà mesurées et le palier courant sont enregistrés. Le délai d’une passe s’adapte au nombre de décisions, **plafonné à 25 s**. Si le dernier palier n’a toujours pas de mat, un **repli mate-drive** donne une note **estimée**. Ce n’est pas une DTM. Un mat en 1 déjà sur l’échiquier et non pris est un relâchement, même si la pièce se rapproche. Une fois le roi adverse encadré, le repli suit la marche d’opposition (un axe, colonne à distance 2), pas une course de Chebyshev : `Ke4` plus court n’est pas mieux que `Ke3`. Les centipions, même gagnants, ne deviennent pas une distance. Mesure : un palier unique à 400 ms ne note jamais un deux-fous catalogue DTM 33 par DTM ; le repli mate-drive le note sans monopoliser le moteur. Lite n’annonce pas le mat à chaque passe.
 
-On ne retombe pas sur la cible initiale. Une session reprise sans la trace des distances déjà jouées passe par cette analyse complémentaire. Les percées à 8 pièces n’ont pas de DTM de table : sans mat annoncé sur tout le chemin, elles restent sans note.
+**Objectif pédagogique.** Tous les thèmes ne passent pas par `score mate` :
+
+- **Mats élémentaires** (dame, tour, deux fous) : efficacité de réalisation. Distance de mat si elle est complète (table ou moteur). Sinon mate-drive, jamais des centipions.
+- **Gains de pions** (opposition, pion contre roi, cases clés, percée, Lucena, dame contre pion, etc.) : conserver le gain et progresser vers une promotion Q/R réellement gagnante. Le relâchement s’arrête à cette promotion (ou à l’arrêt du pion adverse). La chasse au mat qui suit n’est pas cet exercice. Pas de DTM exigée, pas de hausse de centipions.
+- **Défenses** : conserver la nulle et réaliser le mécanisme (barrière, coin, carré, échecs latéraux, prise). Une nulle réussie n’exige pas un mat.
+
+Les tables rétrogrades locales ont été mesurées puis **laissées hors service** à cause des défauts de **cette** construction. Voir `EXACT_EVAL.md`. Ce n’est pas une preuve qu’une DTM locale exacte est impossible. Les deux fous reçoivent une note **estimée** quand le moteur annonce un mat sur tout le chemin. Exact et estimé ne sont pas mélangés dans la même moyenne.
+
+Le traitement est borné. Si l’analyse échoue, la victoire reste, la note reste vide, et « Recalculer la note » relance le même protocole. Aucune note n’est inventée pour masquer l’échec.
+
+**Protocoles de mesure automatisée.** Un plafond de 20 coups utilisateur peut arrêter une réalisation correcte des deux fous (DTM 33). Le plafond de test suit la distance catalogue, avec un plancher de 36 coups pour ce thème. Les défenses choisissent un coup légal qui complète le mécanisme. Des trajectoires complètes enregistrées (`efficient` / `detour`) vérifient que la note baisse quand il y a des détours, **y compris sous les replis** (mate-drive, progression pion) : une couverture 100 % ne prouve pas que Qg2 vaut le mat en 1, ni qu’une tour en 7 coups vaut mieux que la marche d’opposition en 8. Le rapport sépare parties lancées, terminées (gagnées / perdues), interrompues par le plafond, et réussites effectivement notées.
+
+On ne retombe pas sur la cible initiale. Une session reprise sans la trace des distances déjà jouées passe par cette analyse complémentaire. Les percées à 8 pièces n’ont pas de DTM de table : elles sont notées par la percée et la promotion gagnante, pas par `score mate`.
+
+**Percée (vérification indépendante).** Une nulle automatisée ne tranche pas. Le FEN catalogue `7k/ppp5/8/PPP5/8/8/8/4K3 w` est la percée classique ; `b6` est légal. `Ke2` est 0,00 : ce n’est pas une FEN illégale. Lite à court délai peut manquer `b6`. Des lignes de référence indépendantes (les deux reprises après `b6`, `bxa5`, `exd5`) promeuvent et, pour trois d’entre elles, matent. Le joueur automatisé choisit `b6` / `bxa5` / `exd5` quand ces coups sont légaux.
 
 **Défense.** Le relâchement compte les coups qui quittent une idée reconnue (barrière, tour latérale, coin salvateur, distance d’échec, entrée dans le carré, prise). Une autre méthode reconnue est notée de la même façon, y compris à 5 si elle est tenue sans relâchement. Une nulle obtenue par une méthode que l’exercice ne sait pas mesurer n’est pas un 2 automatique : la réussite de l’objectif reste, la qualité est « Qualité non évaluée ».
 
@@ -71,7 +85,7 @@ Une décision sans distance, même avec une DTM initiale : « Qualité non éval
 
 Nulle dont le mécanisme est tenu sans relâchement : **5/5**. Nulle dont la méthode n’est pas mesurée : « Qualité non évaluée — Défense réussie », pas 2/5.
 
-Percée gagnée sans distance de mat : « Finale gagnée ! », note —/5, « Note en cours de calcul… » puis éventuellement « Recalculer la note ».
+Percée gagnée avec promotion Q/R tenue : note de progression (exacte), pas une DTM. Si la promotion n’est pas démontrée, la victoire reste, la qualité est « Qualité non évaluée ».
 
 ## Objectif
 

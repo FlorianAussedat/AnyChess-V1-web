@@ -162,6 +162,7 @@ export type GradeCause =
   | 'engine-unavailable'
   | 'interrupted-by-play'
   | 'draw-without-mechanism'
+  | 'progress-without-marker'
   | 'no-user-moves'
   | 'no-trajectory';
 
@@ -174,6 +175,11 @@ export type MeasuredDecision = {
   dtmAfter: number | null;
   beforeSource: DistanceSource | null;
   afterSource: DistanceSource | null;
+  /**
+   * WDL category after the user's move, from the user's side.
+   * Used only for recovered-result dips. Never converted into a mate distance.
+   */
+  resultAfterReply?: 'WIN' | 'DRAW' | 'LOSS' | null;
 };
 
 export type OfficialEndReason =
@@ -205,7 +211,8 @@ export type QualityGrade = {
     | 'interrupted'
     | 'unevaluated'
     | 'mate-distance'
-    | 'mechanism';
+    | 'mechanism'
+    | 'progress';
   /** Measured detours (wasted tempi on the positions faced, or mechanism slack). */
   extra: number | null;
   commentFr: string;

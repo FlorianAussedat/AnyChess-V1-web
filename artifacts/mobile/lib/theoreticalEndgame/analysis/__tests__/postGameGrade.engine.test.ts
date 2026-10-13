@@ -11,7 +11,7 @@ import { ChessEngineService } from '../../../engines/analysis/ChessEngineService
 import type { DefenseAnalysis, DefenseAnalyzer } from '../../../defendDraw/defenseTypes.ts';
 import { MemoryKeyValueStorage } from '../../../storage/KeyValueStorage.ts';
 import { THEME_IDS } from '../../domain/themes.ts';
-import { listByTheme } from '../../selection/selectors.ts';
+import { getPositionById, listByTheme } from '../../selection/selectors.ts';
 import type { TheoreticalAttemptResult, TheoreticalEndgamePosition } from '../../domain/types.ts';
 import {
   clearTheoreticalStoreCache,
@@ -22,8 +22,24 @@ import {
   recordAttempt,
 } from '../../persistence/TheoreticalEndgameStore.ts';
 import { createWasmStockfishTransport } from '../wasmStockfishTransport.ts';
-import { runPostGameGrade } from '../postGameGrade.ts';
+import {
+  POST_GAME_ATTEMPT_BUDGET_MS,
+  POST_GAME_BUDGET_STEPS_MS,
+  POST_GAME_LONG_BUDGET_STEPS_MS,
+  adaptiveDeadlineMs,
+  runPostGameGrade,
+} from '../postGameGrade.ts';
+import { gradeFamilyFor } from '../../domain/gradeFamily.ts';
+import { summarizeCoverage, SCORED_SUCCESS_TARGET, type CoverageRow } from '../coverageReport.ts';
 import { claimEngineForPlay, releaseEngineFromPlay, resetGradeGate } from '../gradeGate.ts';
+import { playCapFor, playTowardObjective, replayRecordedLine } from '../playTowardObjective.ts';
+import { QUALITY_TRAJECTORIES, RECORDED_START_FEN } from '../qualityTrajectories.ts';
+import {
+  BREAKTHROUGH_REFERENCE_LINES,
+  replayBreakthroughLine,
+  searchBreakthroughs,
+} from '../breakthroughVerify.ts';
+import { referenceGrade } from '../referenceGrade.ts';
 
 /** Legal mate in one: the queen does not already check. */
 const MATE = '7k/5K2/8/8/8/8/8/6Q1 w - - 0 1';
@@ -74,47 +90,24 @@ function win(overrides: Partial<TheoreticalAttemptResult> = {}): TheoreticalAtte
   };
 }
 
-async function playAuto(position: TheoreticalEndgamePosition, movetimeMs: number, maxUserMoves: number) {
-  const game = new Chess(position.initialFen);
-  const user = position.playerColor === 'white' ? 'w' : 'b';
-  const sans: string[] = [];
-  let userMoves = 0;
-  let cause: string | null = null;
-  while (!game.isGameOver() && userMoves < maxUserMoves) {
-    const result = await playAnalyzer.analyze(game.fen(), movetimeMs);
-    const best = result.bestMove;
-    if (!best) {
-      cause = 'engine-no-move';
-      break;
-    }
-    const side = game.turn();
-    let played: { san: string } | null = null;
-    try {
-      played = game.move({
-        from: best.from,
-        to: best.to,
-        ...(best.promotion ? { promotion: best.promotion as 'q' | 'r' | 'b' | 'n' } : {}),
-      });
-    } catch {
-      played = null;
-    }
-    if (!played) {
-      cause = 'engine-illegal-move';
-      break;
-    }
-    sans.push(played.san);
-    if (side === user) userMoves += 1;
+function recordedCatalogPosition(
+  trajectory: (typeof QUALITY_TRAJECTORIES)[number],
+): TheoreticalEndgamePosition {
+  const fen = RECORDED_START_FEN[trajectory.positionId];
+  if (fen) {
+    const base = listByTheme(trajectory.themeId)[0]!;
+    return {
+      ...base,
+      id: trajectory.positionId,
+      initialFen: fen,
+      playerColor: 'white',
+      objective: 'WIN',
+      objectiveKind: 'mate',
+    };
   }
-  let outcome: 'success' | 'theoretical-loss' | 'unfinished' = 'unfinished';
-  if (game.isCheckmate()) {
-    const winner = game.turn() === 'w' ? 'b' : 'w';
-    outcome = winner === user ? 'success' : 'theoretical-loss';
-  } else if (game.isDraw()) {
-    outcome = position.objective === 'DRAW' ? 'success' : 'theoretical-loss';
-  } else if (!cause) {
-    cause = 'game-not-finished';
-  }
-  return { outcome, sans, userMoves, endFen: game.fen(), cause };
+  const catalog = getPositionById(trajectory.positionId);
+  if (!catalog) throw new Error(trajectory.positionId);
+  return catalog;
 }
 
 async function playFragment(
@@ -333,93 +326,345 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
     assert.notEqual(first?.finishedAt, other?.finishedAt);
   });
 
-    it('reports scored attempts across the 18 themes, including the two bishops', { timeout: 240_000 }, async () => {
-    const rows: Array<Record<string, string | number | null>> = [];
-    let finished = 0;
-    let scored = 0;
-    for (const themeId of THEME_IDS) {
-      const position = listByTheme(themeId)[0];
-      assert.ok(position, themeId);
-      const played = await playAuto(position!, themeId === 'two-bishops-mate' ? 400 : 250, themeId === 'two-bishops-mate' ? 20 : 12);
-      let analysisStatus: string = 'not-finished';
-      let gradeCause = played.cause;
+  it('reports several scored successes per theme, including two bishops and draws', { timeout: 480_000 }, async () => {
+    const rows: CoverageRow[] = [];
+    let stamp = 0;
+    const nextStamp = () => {
+      stamp += 1;
+      return new Date(Date.UTC(2026, 9, 13, 8, 0, stamp)).toISOString();
+    };
+
+    const gradePlayed = async (
+      position: TheoreticalEndgamePosition,
+      played: {
+        outcome: 'success' | 'theoretical-loss' | 'interrupted';
+        sans: string[];
+        userMoves: number;
+        endFen: string;
+        cause: string;
+      },
+      kind: CoverageRow['kind'],
+      quality: CoverageRow['quality'],
+      playMs: number,
+    ): Promise<void> => {
+      const finishedAt = nextStamp();
+      const capInterrupted = played.outcome === 'interrupted' && played.cause === 'cap';
+      let analysisStatus: CoverageRow['analysisStatus'] = 'not-started';
+      let gradeCause: CoverageRow['gradeCause'] = played.cause;
       let attemptScore: number | null = null;
+      let gradeMs = 0;
       if (played.outcome === 'success' || played.outcome === 'theoretical-loss') {
-        finished += 1;
-        const finishedAt = `2026-10-12T19:${String(rows.length).padStart(2, '0')}:00.000Z`;
         await recordAttempt({
           outcome: played.outcome,
-          positionId: position!.id,
-          themeId,
-          objective: position!.objective,
-          objectiveKind: position!.objectiveKind,
-          playerColor: position!.playerColor,
+          positionId: position.id,
+          themeId: position.themeId,
+          objective: position.objective,
+          objectiveKind: position.objectiveKind,
+          playerColor: position.playerColor,
           userMoves: played.userMoves,
           scoreScale: 'quality-5',
           attemptScore: played.outcome === 'theoretical-loss' ? 0 : null,
           quality: null,
-          durationMs: 1,
+          durationMs: playMs,
           firstTheoreticalLoss: null,
-          startFen: position!.initialFen,
+          startFen: position.initialFen,
           endFen: played.endFen,
           moveSans: played.sans,
           finishedAt,
           offScore: false,
           analysisStatus: played.outcome === 'theoretical-loss' ? 'not-needed' : 'pending',
           gradeConfidence: played.outcome === 'theoretical-loss' ? 'exact' : null,
-          variantGroup: position!.variantGroup ?? position!.id,
+          variantGroup: position.variantGroup ?? position.id,
         });
         if (played.outcome === 'theoretical-loss') {
           analysisStatus = 'not-needed';
           attemptScore = 0;
           gradeCause = null;
-          scored += 1;
         } else {
+          const t0 = Date.now();
           const graded = await runPostGameGrade({
-            themeId,
-            positionId: position!.id,
+            themeId: position.themeId,
+            positionId: position.id,
             finishedAt,
             analyzer,
-            movetimeMs: themeId === 'two-bishops-mate' ? 800 : 600,
-            deadlineMs: themeId === 'two-bishops-mate' ? 16000 : 10000,
+            budgetStepsMs:
+              position.themeId === 'two-bishops-mate' && played.userMoves >= 12
+                ? [400]
+                : played.userMoves >= 10
+                  ? [...POST_GAME_LONG_BUDGET_STEPS_MS]
+                  : [...POST_GAME_BUDGET_STEPS_MS],
+            deadlineMs:
+              position.themeId === 'two-bishops-mate' && played.userMoves >= 12
+                ? 5_000
+                : Math.min(
+                    POST_GAME_ATTEMPT_BUDGET_MS,
+                    played.userMoves >= 10
+                      ? POST_GAME_ATTEMPT_BUDGET_MS
+                      : adaptiveDeadlineMs(Math.max(1, played.userMoves)),
+                  ),
           });
+          gradeMs = Date.now() - t0;
           analysisStatus = graded?.analysisStatus ?? 'failed';
           gradeCause = graded?.gradeCause ?? null;
           attemptScore = graded?.attemptScore ?? null;
-          if (typeof attemptScore === 'number') scored += 1;
         }
       }
       rows.push({
-        themeId,
-        positionId: position!.id,
-        outcome: played.outcome,
-        userMoves: played.userMoves,
-        analysisStatus,
+        themeId: position.themeId,
+        positionId: position.id,
+        kind,
+        quality,
+        launched: true,
+        objective: position.objective,
+        outcome: played.outcome === 'interrupted' ? 'interrupted' : played.outcome,
+        capInterrupted,
+        scoredSuccess: played.outcome === 'success' && typeof attemptScore === 'number',
         attemptScore,
-        cause: gradeCause,
+        analysisStatus,
+        gradeCause,
+        playMs,
+        gradeMs,
+        userMoves: played.userMoves,
       });
-    }
-    const bishops = rows.find((row) => row.themeId === 'two-bishops-mate');
-    assert.ok(bishops);
-    assert.equal(rows.length, 18);
-    const proportion = finished === 0 ? 0 : scored / finished;
-    const report = {
-      themes: rows.length,
-      finished,
-      scored,
-      proportion,
-      unscoredCauses: rows
-        .filter((row) => row.outcome !== 'unfinished' && typeof row.attemptScore !== 'number')
-        .map((row) => ({ themeId: row.themeId, cause: row.cause, status: row.analysisStatus })),
-      unfinished: rows.filter((row) => row.outcome === 'unfinished').map((row) => ({
-        themeId: row.themeId,
-        cause: row.cause,
-        userMoves: row.userMoves,
-      })),
-      twoBishops: bishops,
     };
-    console.log(`SCORE_COVERAGE ${JSON.stringify(report)}`);
-    assert.equal(report.themes, 18);
-    assert.ok(report.twoBishops);
+
+    for (const trajectory of QUALITY_TRAJECTORIES) {
+      const position = recordedCatalogPosition(trajectory);
+      const t0 = Date.now();
+      const played = replayRecordedLine(position, [...trajectory.sans]);
+      await gradePlayed(position, played, 'recorded', trajectory.quality, Date.now() - t0);
+    }
+
+    const catalogBishops = listByTheme('two-bishops-mate').find(
+      (row) => row.id === 'TE-CANON-TWO-BISHOPS-MATE-2',
+    );
+    assert.ok(catalogBishops);
+    assert.ok(playCapFor(catalogBishops!) >= 36);
+    {
+      const t0 = Date.now();
+      const played = await playTowardObjective(catalogBishops!, playAnalyzer, {
+        movetimeMs: 300,
+        maxUserMoves: playCapFor(catalogBishops!),
+      });
+      await gradePlayed(catalogBishops!, played, 'autoplay', 'efficient', Date.now() - t0);
+    }
+
+    const catalogLine = QUALITY_TRAJECTORIES.find((row) => row.id === 'two-bishops-catalog-1');
+    assert.ok(catalogLine);
+    const catalogPosition = recordedCatalogPosition(catalogLine!);
+    const abortPlayed = replayRecordedLine(catalogPosition, [...catalogLine!.sans]);
+    const abortAt = nextStamp();
+    await recordAttempt({
+      outcome: 'success',
+      positionId: `${catalogPosition.id}-abort`,
+      themeId: catalogPosition.themeId,
+      objective: catalogPosition.objective,
+      objectiveKind: catalogPosition.objectiveKind,
+      playerColor: catalogPosition.playerColor,
+      userMoves: abortPlayed.userMoves,
+      scoreScale: 'quality-5',
+      attemptScore: null,
+      quality: null,
+      durationMs: 1,
+      firstTheoreticalLoss: null,
+      startFen: catalogPosition.initialFen,
+      endFen: abortPlayed.endFen,
+      moveSans: abortPlayed.sans,
+      finishedAt: abortAt,
+      offScore: false,
+      analysisStatus: 'pending',
+      gradeConfidence: null,
+      variantGroup: catalogPosition.id,
+    });
+    const abortStarted = Date.now();
+    const aborted = await runPostGameGrade({
+      themeId: catalogPosition.themeId,
+      positionId: `${catalogPosition.id}-abort`,
+      finishedAt: abortAt,
+      analyzer,
+      budgetStepsMs: [400],
+      deadlineMs: 90_000,
+      mateDriveFallback: false,
+    });
+    const abortMs = Date.now() - abortStarted;
+
+    const recordedThemes = new Set(QUALITY_TRAJECTORIES.map((row) => row.themeId));
+    for (const themeId of THEME_IDS) {
+      if (themeId === 'two-bishops-mate' || recordedThemes.has(themeId)) continue;
+      const position = listByTheme(themeId).find((row) => row.objective === 'WIN') ?? listByTheme(themeId)[0];
+      assert.ok(position, themeId);
+      const t0 = Date.now();
+      const played = await playTowardObjective(position!, playAnalyzer, {
+        movetimeMs: 250,
+        maxUserMoves: playCapFor(position!),
+      });
+      const playMs = Date.now() - t0;
+      if (played.outcome === 'success') {
+        await gradePlayed(position!, played, 'autoplay', 'efficient', playMs);
+      } else {
+        rows.push({
+          themeId: position!.themeId,
+          positionId: position!.id,
+          kind: 'autoplay',
+          quality: 'efficient',
+          launched: true,
+          objective: position!.objective,
+          outcome: played.outcome,
+          capInterrupted: played.outcome === 'interrupted' && played.cause === 'cap',
+          scoredSuccess: false,
+          attemptScore: played.outcome === 'theoretical-loss' ? 0 : null,
+          analysisStatus: played.outcome === 'theoretical-loss' ? 'not-needed' : played.outcome === 'success' ? 'pending' : 'not-started',
+          gradeCause: played.cause,
+          playMs,
+          gradeMs: 0,
+          userMoves: played.userMoves,
+        });
+      }
+    }
+
+    const breakthroughLines = BREAKTHROUGH_REFERENCE_LINES.map((line) =>
+      replayBreakthroughLine(line.positionId, line.sans),
+    );
+    const breakthroughSearches = await searchBreakthroughs(playAnalyzer, 200);
+
+    const report = summarizeCoverage(rows);
+    const bishops = report.byTheme.find((row) => row.themeId === 'two-bishops-mate');
+    const draws = ['philidor', 'vancura', 'bad-bishop', 'lateral-checks', 'pawn-square', 'rook-pawn'] as const;
+    const queenEfficient = rows.find((row) => row.positionId === 'TE-ENGINE-QUEEN' && row.quality === 'efficient');
+    const queenDetour = rows.find((row) => row.positionId === 'TE-ENGINE-QUEEN' && row.quality === 'detour');
+    const philidorEfficient = rows.find((row) => row.themeId === 'philidor' && row.quality === 'efficient' && row.scoredSuccess);
+    const philidorDetour = rows.find((row) => row.themeId === 'philidor' && row.quality === 'detour' && row.scoredSuccess);
+
+    console.log(
+      `SCORE_COVERAGE ${JSON.stringify({
+        launched: report.launched,
+        finishedWon: report.finishedWon,
+        finishedLost: report.finishedLost,
+        capInterrupted: report.capInterrupted,
+        scoredSuccesses: report.scoredSuccesses,
+        scoredWins: report.scoredWins,
+        scoredDefenses: report.scoredDefenses,
+        winSuccesses: report.winSuccesses,
+        defenseSuccesses: report.defenseSuccesses,
+        belowTarget: report.belowTarget,
+        target: SCORED_SUCCESS_TARGET,
+        playMs: report.playMs,
+        gradeMs: report.gradeMs,
+        byTheme: report.byTheme,
+        twoBishops: bishops,
+        queenEfficient: queenEfficient?.attemptScore ?? null,
+        queenDetour: queenDetour?.attemptScore ?? null,
+        breakthrough: {
+          lines: breakthroughLines.map((row) => ({
+            id: row.positionId,
+            outcome: row.outcome,
+            promoted: row.userPromoted,
+          })),
+          searches: breakthroughSearches,
+        },
+        budgetCompare: {
+          abortMs,
+          abortStatus: aborted?.analysisStatus ?? null,
+          abortCause: aborted?.gradeCause ?? null,
+          abortScore: aborted?.attemptScore ?? null,
+          attemptBudgetMs: POST_GAME_ATTEMPT_BUDGET_MS,
+          progressiveCatalog: rows
+            .filter((row) => row.positionId.startsWith('TE-CANON-TWO-BISHOPS-MATE') && row.kind === 'recorded')
+            .map((row) => ({
+              id: row.positionId,
+              score: row.attemptScore,
+              status: row.analysisStatus,
+              cause: row.gradeCause,
+              gradeMs: row.gradeMs,
+              userMoves: row.userMoves,
+            })),
+        },
+      })}`,
+    );
+
+    assert.equal(report.byTheme.length, THEME_IDS.length);
+    assert.ok(report.launched > 18);
+    assert.ok(report.finishedWon >= 12, `finishedWon=${report.finishedWon}`);
+    assert.ok(report.scoredDefenses >= 10, `scoredDefenses=${report.scoredDefenses} wins=${report.scoredWins}`);
+    assert.ok(report.scoredWins >= 10, `scoredWins=${report.scoredWins}`);
+    assert.notEqual(report.scoredDefenses, 0);
+    for (const theme of report.byTheme) {
+      if (theme.finishedWon <= 0) continue;
+      assert.ok(
+        theme.scoredRate >= SCORED_SUCCESS_TARGET,
+        `${theme.themeId} scored ${theme.scoredSuccesses}/${theme.finishedWon} family=${theme.family} ${JSON.stringify(theme.causes)}`,
+      );
+    }
+    assert.equal(report.belowTarget.length, 0, `belowTarget=${report.belowTarget.join(',')}`);
+    for (const trajectory of QUALITY_TRAJECTORIES) {
+      const position = recordedCatalogPosition(trajectory);
+      const family = gradeFamilyFor(position.themeId, position.objective);
+      if (family !== 'pawn-win' && family !== 'defense') continue;
+      const row = rows.find(
+        (entry) =>
+          entry.kind === 'recorded' &&
+          entry.positionId === position.id &&
+          entry.quality === trajectory.quality,
+      );
+      const independent = referenceGrade(position, [...trajectory.sans]);
+      assert.equal(independent.played.outcome, 'success', trajectory.id);
+      assert.equal(typeof independent.score, 'number', trajectory.id);
+      assert.equal(row?.scoredSuccess, true, `${trajectory.id} ${JSON.stringify(row)}`);
+      assert.equal(row?.attemptScore, independent.score, `${trajectory.id} engine=${row?.attemptScore} ref=${independent.score}`);
+    }
+    assert.ok(breakthroughLines.every((row) => row.outcome === 'checkmate' || row.outcome === 'promotion'));
+    assert.ok(breakthroughLines.some((row) => row.outcome === 'checkmate'));
+    assert.equal(breakthroughSearches.length, 3);
+    assert.ok((bishops?.finishedWon ?? 0) >= 2, `two bishops wins=${bishops?.finishedWon}`);
+    assert.ok((bishops?.scoredSuccesses ?? 0) >= 2, `two bishops scored=${JSON.stringify(bishops)}`);
+    const bishopsEfficient = rows.find(
+      (row) => row.positionId === 'TE-ENGINE-BISHOPS' && row.quality === 'efficient',
+    );
+    const bishopsDetour = rows.find(
+      (row) => row.positionId === 'TE-ENGINE-BISHOPS' && row.quality === 'detour',
+    );
+    assert.equal(bishopsEfficient?.attemptScore, 5);
+    assert.equal(bishopsDetour?.outcome, 'success');
+    if (bishopsDetour?.scoredSuccess) {
+      assert.ok((bishopsDetour.attemptScore ?? 5) < 5, `two bishops detour=${bishopsDetour.attemptScore}`);
+    }
+    for (const themeId of draws) {
+      const theme = report.byTheme.find((row) => row.themeId === themeId);
+      assert.ok((theme?.scoredSuccesses ?? 0) >= 2, `${themeId} scored=${theme?.scoredSuccesses}`);
+    }
+    assert.equal(queenEfficient?.scoredSuccess, true);
+    assert.equal(queenEfficient?.attemptScore, 5);
+    assert.ok((queenDetour?.attemptScore ?? 5) < 5, `queen detour=${queenDetour?.attemptScore}`);
+    assert.ok(
+      (philidorEfficient?.attemptScore ?? 0) > (philidorDetour?.attemptScore ?? 0),
+      `philidor efficient=${philidorEfficient?.attemptScore} detour=${philidorDetour?.attemptScore}`,
+    );
+    assert.equal(aborted?.attemptScore ?? null, null, 'a 400 ms pass cannot grade a DTM-33 two-bishops line');
+    const progressiveCatalog = rows.filter(
+      (row) => row.positionId.startsWith('TE-CANON-TWO-BISHOPS-MATE') && row.kind === 'recorded',
+    );
+    assert.ok(progressiveCatalog.length >= 2);
+    assert.equal(abortPlayed.outcome, 'success');
+    const catalogThree = progressiveCatalog.find((row) => row.positionId === 'TE-CANON-TWO-BISHOPS-MATE-3');
+    assert.ok(catalogThree, 'catalog DTM-27 line must be launched');
+    assert.equal(catalogThree?.outcome, 'success');
+    const lucena = report.byTheme.find((row) => row.themeId === 'lucena');
+    const queenVsPawn = report.byTheme.find((row) => row.themeId === 'queen-vs-pawn');
+    const rookCatalog = rows.find(
+      (row) => row.positionId === 'TE-CANON-ROOK-MATE-2' && row.quality === 'efficient',
+    );
+    const rookCatalogDetour = rows.find(
+      (row) => row.positionId === 'TE-CANON-ROOK-MATE-2' && row.quality === 'detour',
+    );
+    assert.ok((lucena?.scoredSuccesses ?? 0) >= 1, `lucena scored=${JSON.stringify(lucena)}`);
+    assert.ok((queenVsPawn?.finishedWon ?? 0) >= 2, `queen-vs-pawn=${JSON.stringify(queenVsPawn)}`);
+    assert.ok(catalogThree?.scoredSuccess, `catalog DTM-27=${JSON.stringify(catalogThree)}`);
+    assert.ok(rookCatalog?.scoredSuccess, `rook catalog=${JSON.stringify(rookCatalog)}`);
+    if (rookCatalog?.scoredSuccess && rookCatalogDetour?.scoredSuccess) {
+      assert.ok(
+        (rookCatalog.attemptScore ?? 0) > (rookCatalogDetour.attemptScore ?? 5),
+        `rook catalog efficient=${rookCatalog.attemptScore} detour=${rookCatalogDetour.attemptScore}`,
+      );
+    }
   });
 });
