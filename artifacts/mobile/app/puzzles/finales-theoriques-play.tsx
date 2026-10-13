@@ -281,6 +281,22 @@ export default function TheoreticalEndgamePlayScreen() {
     try {
       const service = runtime.getService();
       if (!service) {
+        const fromLine = await runPostGameGrade({
+          themeId: result.themeId,
+          positionId: result.positionId,
+          finishedAt: result.finishedAt,
+          analyzer: {
+            async analyze() {
+              return { scoreCp: 0, mateIn: null, depth: 0, wdl: null, bestMove: null };
+            },
+          },
+          trajectoryOnly: true,
+        });
+        if (fromLine && typeof fromLine.attemptScore === 'number') {
+          const summary = await getThemeComprehension(result.themeId);
+          applyRecord(fromLine, summary);
+          return;
+        }
         const failed = await updateAttemptGrade(result.themeId, result.positionId, result.finishedAt, {
           analysisStatus: 'failed',
           gradeCause: 'engine-unavailable',

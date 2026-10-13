@@ -24,9 +24,13 @@ describe('theoretical catalog UI', () => {
   });
 
   it('counts attempts and wins even when the average is empty', () => {
-    assert.match(catalog, /theoreticalAttemptWins/);
-    assert.match(catalog, /attemptCount/);
-    assert.match(catalog, /theoreticalEstimatedScore/);
+    const scoreLine = read('lib/theoreticalEndgame/ui/TheoreticalThemeScoreLine.tsx');
+    assert.match(catalog, /TheoreticalThemeScoreLine/);
+    assert.match(catalog, /backfillUngradedWins/);
+    assert.match(scoreLine, /theoreticalAttemptWins/);
+    assert.match(scoreLine, /quiz.theoreticalScorePending/);
+    assert.match(scoreLine, /theoretical-theme-recalculate-/);
+    assert.match(scoreLine, /theoreticalEstimatedScore/);
   });
 
   it('shows diagram, score, and explanation without launching from explain link', () => {

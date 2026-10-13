@@ -22,6 +22,7 @@ export {
   summarizeAttempts,
   formatAverageOrDash,
 } from './domain/comprehensionScore.ts';
+export type { ThemeScoreSummary } from './domain/comprehensionScore.ts';
 export { TheoreticalEndgameSession } from './session/TheoreticalEndgameSession.ts';
 export type { SessionSnapshot, SessionPhase } from './session/TheoreticalEndgameSession.ts';
 export {
@@ -45,6 +46,7 @@ export type { ThemeAttemptRecord, RecordedAttemptDelta } from './persistence/The
 export {
   runPostGameGrade,
   resumePendingGrades,
+  backfillUngradedWins,
   POST_GAME_BUDGET_STEPS_MS,
   POST_GAME_LONG_BUDGET_STEPS_MS,
   POST_GAME_ATTEMPT_BUDGET_MS,

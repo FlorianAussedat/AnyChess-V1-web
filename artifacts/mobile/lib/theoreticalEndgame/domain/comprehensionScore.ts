@@ -39,6 +39,7 @@
  * single tempo is smaller than "several detours" (3+).
  */
 import type {
+  AnalysisStatus,
   AttemptOutcome,
   GradeConfidence,
   QualityGrade,
@@ -88,6 +89,7 @@ export type ScoredAttempt = {
   scoreScale?: ScoreScaleId;
   attemptScore?: number | null;
   gradeConfidence?: GradeConfidence;
+  analysisStatus?: AnalysisStatus;
 };
 
 const EMPTY_GRADE = (
@@ -303,6 +305,10 @@ export type ThemeScoreSummary = {
   /** Finished exercises, including a win whose score is still missing. */
   attemptCount: number;
   winCount: number;
+  /** Successes saved, still waiting for a grade. Distinct from a published score. */
+  pendingCount: number;
+  /** Successes whose grade failed. The win stays; the score stays empty. */
+  failedCount: number;
 };
 
 function averageOf(values: number[]): { score: number; count: number } {
@@ -329,6 +335,8 @@ export function summarizeAttempts(attempts: ScoredAttempt[], window = 10): Theme
     .map((attempt) => attempt.attemptScore as number);
   const exactAvg = averageOf(exact);
   const estimatedAvg = averageOf(estimated);
+  const unscoredWin = (attempt: ScoredAttempt) =>
+    attempt.outcome === 'success' && typeof attempt.attemptScore !== 'number';
   return {
     score: exactAvg.score,
     count: exactAvg.count,
@@ -336,6 +344,12 @@ export function summarizeAttempts(attempts: ScoredAttempt[], window = 10): Theme
     estimatedCount: estimatedAvg.count,
     attemptCount: finished.length,
     winCount: finished.filter((attempt) => attempt.outcome === 'success').length,
+    pendingCount: finished.filter(
+      (attempt) => unscoredWin(attempt) && attempt.analysisStatus !== 'failed',
+    ).length,
+    failedCount: finished.filter(
+      (attempt) => unscoredWin(attempt) && attempt.analysisStatus === 'failed',
+    ).length,
   };
 }
 

@@ -55,6 +55,11 @@ export type PostGameRequest = {
   budgetStepsMs?: number[];
   /** Default true. Tests of a single abort step turn this off. */
   mateDriveFallback?: boolean;
+  /**
+   * Grade an elementary mate from the saved moves only.
+   * Used when the engine already failed, or is not available. Does not start a search.
+   */
+  trajectoryOnly?: boolean;
   now?: () => number;
   onProgress?: (record: ThemeAttemptRecord) => void | Promise<void>;
 };
@@ -290,6 +295,64 @@ async function settleMateDrive(
   });
 }
 
+const trajectoryAnalyzer: DefenseAnalyzer = {
+  async analyze() {
+    return { scoreCp: 0, mateIn: null, depth: 0, wdl: null, bestMove: null };
+  },
+};
+
+function hasSavedTrajectory(attempt: ThemeAttemptRecord): boolean {
+  return Boolean(attempt.startFen && attempt.playerColor && attempt.moveSans && attempt.moveSans.length > 0);
+}
+
+/**
+ * Recompute a stored win that has moves but no score.
+ * Updates that same attempt. Does not append another attempt or another win.
+ * An elementary mate that already failed, or any saved line when the engine is absent,
+ * uses the board trajectory (pawn progress or mate-drive). A line without moves stays unscored.
+ */
+export async function backfillUngradedWins(): Promise<{
+  rescored: number;
+  missingTrajectory: number;
+}> {
+  const store = await loadTheoreticalStore();
+  const jobs: ThemeAttemptRecord[] = [];
+  for (const attempts of Object.values(store.themeAttempts)) {
+    for (const attempt of attempts) {
+      if (attempt.outcome !== 'success' || attempt.scoreScale === 'legacy-10') continue;
+      if (typeof attempt.attemptScore === 'number') continue;
+      jobs.push(attempt);
+    }
+  }
+
+  let rescored = 0;
+  let missingTrajectory = 0;
+  for (const attempt of jobs) {
+    if (!hasSavedTrajectory(attempt)) {
+      missingTrajectory += 1;
+      if (attempt.analysisStatus !== 'failed' || attempt.gradeCause !== 'no-trajectory') {
+        await updateAttemptGrade(attempt.themeId, attempt.positionId, attempt.finishedAt, {
+          analysisStatus: 'failed',
+          gradeCause: 'no-trajectory',
+          attemptScore: null,
+          gradeConfidence: null,
+        });
+      }
+      continue;
+    }
+    const family = gradeFamilyFor(attempt.themeId, attempt.objective ?? 'WIN');
+    const updated = await runPostGameGrade({
+      themeId: attempt.themeId,
+      positionId: attempt.positionId,
+      finishedAt: attempt.finishedAt,
+      analyzer: trajectoryAnalyzer,
+      trajectoryOnly: family === 'elementary-mate',
+    });
+    if (typeof updated?.attemptScore === 'number') rescored += 1;
+  }
+  return { rescored, missingTrajectory };
+}
+
 /** Continue stored successes whose analysis was interrupted. Failures stay for an explicit retry. */
 export async function resumePendingGrades(
   analyzer: DefenseAnalyzer,
@@ -346,6 +409,25 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
   if (current.objective === 'DRAW') return settleDraw(current, request);
   const family = gradeFamilyFor(current.themeId, current.objective ?? 'WIN');
   if (family === 'pawn-win') return settlePawnWin(current, request);
+
+  if (request.trajectoryOnly) {
+    const driven = await fallbackMateDrive(current, request);
+    if (driven && typeof driven.attemptScore === 'number') return driven;
+    if (!current.startFen || !current.playerColor || !current.moveSans?.length) {
+      return save(request, {
+        analysisStatus: 'failed',
+        gradeCause: 'no-trajectory',
+        attemptScore: null,
+        gradeConfidence: null,
+      });
+    }
+    return save(request, {
+      analysisStatus: 'failed',
+      gradeCause: 'progress-without-marker',
+      attemptScore: null,
+      gradeConfidence: null,
+    });
+  }
 
   const now = request.now ?? Date.now;
   const started = now();

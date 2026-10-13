@@ -9,6 +9,11 @@ const FR: Record<string, string> = {
   'quiz.stockfishWebError': 'Stockfish n’a pas pu démarrer dans ce navigateur.',
   'quiz.stockfishRetry': 'Réessayer',
   'quiz.stockfishBack': 'Retour',
+  'quiz.theoreticalNoAttempts': '—/5',
+  'quiz.theoreticalScorePending': 'Note en cours…',
+  'quiz.theoreticalRecalculate': 'Recalculer la note',
+  'quiz.theoreticalEstimatedScore': 'Note estimée : {{score}}',
+  'quiz.theoreticalAttemptWins': '{{attempts}} tentative(s), {{wins}} victoire(s)',
 };
 
 export function useColors() {
@@ -23,7 +28,15 @@ export function useColors() {
 
 export function useTranslation() {
   return {
-    t: (key: string) => FR[key] ?? key,
+    t: (key: string, vars?: Record<string, string | number>) => {
+      let text = FR[key] ?? key;
+      if (vars) {
+        for (const [name, value] of Object.entries(vars)) {
+          text = text.replaceAll(`{{${name}}}`, String(value));
+        }
+      }
+      return text;
+    },
     language: 'fr' as const,
   };
 }
