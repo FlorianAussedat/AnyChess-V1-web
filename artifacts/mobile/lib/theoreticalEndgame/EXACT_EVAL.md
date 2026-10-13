@@ -94,9 +94,14 @@ Protocoles de mesure :
   la passe. Un `go depth` ne coupe pas l’annonce de mat. Repli mate-drive
   si Lite n’annonce pas le mat.
 - **Trajectoires de référence** — `efficient`, `detour`, `recovered`,
-  les deux couleurs. La note publiée des gains de pions et des défenses
-  est comparée à une mesure indépendante sur l’échiquier, pas seulement
-  à « 7 coups moins bien que 8 ».
+  les deux couleurs. La note publiée des gains de pions, des défenses
+  **et des replis mate-drive** est comparée à une mesure indépendante
+  sur l’échiquier, pas seulement à « 7 coups moins bien que 8 ». Un
+  mat en 1 raté (Qg2) note moins que Qg7#. La marche d’opposition KRK
+  (`Ke3`, 8 coups) note mieux que la ruée `Ke4` (7 coups), comme la
+  DTM, alors que le repli géométrique naïf inversait. Sortir d’échec
+  n’est pas un relâchement Lucena. La dame qui se rapproche du pion
+  adverse n’est pas un détour dame-contre-pion.
 
 Le rapport distingue : parties lancées ; terminées gagnées / perdues ;
 interrompues par le plafond ; réussites notées **gagnantes** vs
@@ -115,8 +120,12 @@ il est légal.
 Limites restantes : tables élémentaires locales toujours désactivées
 (faux mat en 1) ; Lite peut manquer un `score mate` sur un deux-fous
 DTM 33, d’où une note mate-drive estimée plutôt qu’une DTM ; l’autoplay
-moteur seul ne suffit pas pour KPK/opposition (lignes enregistrées).
-Toute réussite reste comptabilisée même si l’analyse échoue.
+moteur seul ne suffit pas pour KPK/opposition (lignes enregistrées) ;
+le mate-drive n’est pas une DTM (deux fous courts : un repositionnement
+calme de fou reste un relâchement, 4,5 pas 5 ; pion passé éloigné :
+le roi leurre vers l’autre pion n’est pas toujours lu ; opposition
+catalogue : un tempo de roi avant la promotion). Toute réussite reste
+comptabilisée même si l’analyse échoue.
 
 Mesure Stockfish 18 Lite WASM, 13 octobre 2026 (PR #98) :
 
@@ -129,10 +138,11 @@ Mesure Stockfish 18 Lite WASM, 13 octobre 2026 (PR #98) :
 | Délai jeu + analyse | ~0,4 s + 32–54 s |
 | Gains de pions / défenses | instantanés (sans moteur) |
 | Deux fous catalogue DTM 33, palier 400 ms seul | 11,8 s, aucune note |
-| Deux fous catalogue, 5 s puis mate-drive | ~5,2 s, note estimée 3,5 et 2 |
-| Dame | 5 vs 4,5 (DTM) |
-| Tour catalogue | 4 vs 2,5 (DTM : 8 coups mieux que 7) |
-| Lucena | 4,5 vs 3,5 (progression, pas DTM) |
+| Deux fous catalogue, 5 s puis mate-drive | ~5,2 s, note estimée 3,5 et 2,5 |
+| Dame | 5 vs 4,5 (DTM moteur ; mate-drive : même ordre, Qg2 n’est plus un 5) |
+| Tour catalogue | 4 vs 2,5 (DTM) ; mate-drive 5 vs 4,5 (Ke3 au-dessus de Ke4, 8 coups mieux que 7) |
+| Lucena | 5 vs 4 (progression : sortir d’échec n’est plus un relâchement) |
+| Dame contre pion | 5 vs 4,5 (la dame qui se rapproche du pion n’est plus un détour) |
 | Percée Lite 200 ms | `Kd2`/`Ke2` (0,00), pas `b6` ; lignes de référence : 3 mats + 1 promotion |
 
 Le mate-drive des deux fous longs est une note estimée d’efficacité de réalisation, pas une DTM. Lite à 200 ms manque `b6` : ce n’est pas une FEN fausse.

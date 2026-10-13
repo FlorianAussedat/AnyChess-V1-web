@@ -28,7 +28,7 @@ function recordedPosition(trajectory: (typeof QUALITY_TRAJECTORIES)[number]): Th
 }
 
 describe('reference grades of recorded trajectories', () => {
-  it('scores every recorded success and keeps efficient pawn and draw lines above detours', () => {
+  it('scores every recorded success and ranks efficient lines above detours in every family', () => {
     const rows: CoverageRow[] = [];
     const byTheme = new Map<string, { efficient?: number; detour?: number; recovered?: number; family: string }>();
     for (const trajectory of QUALITY_TRAJECTORIES) {
@@ -91,6 +91,18 @@ describe('reference grades of recorded trajectories', () => {
     assert.ok((byTheme.get('queen-vs-pawn')?.efficient ?? 0) > (byTheme.get('queen-vs-pawn')?.detour ?? 0));
     assert.ok((byTheme.get('pawn-breakthrough')?.efficient ?? 0) > (byTheme.get('pawn-breakthrough')?.detour ?? 0));
     assert.ok((byTheme.get('pawn-square')?.efficient ?? 0) > (byTheme.get('pawn-square')?.detour ?? 0));
+    assert.ok(
+      (byTheme.get('queen-mate')?.efficient ?? 0) > (byTheme.get('queen-mate')?.detour ?? 0),
+      `queen-mate efficient=${byTheme.get('queen-mate')?.efficient} detour=${byTheme.get('queen-mate')?.detour}`,
+    );
+    assert.ok(
+      (byTheme.get('rook-mate')?.efficient ?? 0) > (byTheme.get('rook-mate')?.detour ?? 0),
+      `rook-mate efficient=${byTheme.get('rook-mate')?.efficient} detour=${byTheme.get('rook-mate')?.detour}`,
+    );
+    assert.ok(
+      (byTheme.get('two-bishops-mate')?.efficient ?? 0) > (byTheme.get('two-bishops-mate')?.detour ?? 0),
+      `two-bishops efficient=${byTheme.get('two-bishops-mate')?.efficient} detour=${byTheme.get('two-bishops-mate')?.detour}`,
+    );
     const philidorRecovered = byTheme.get('philidor')?.recovered;
     assert.ok(typeof philidorRecovered === 'number');
     assert.ok((philidorRecovered ?? 5) <= (byTheme.get('philidor')?.efficient ?? 0));

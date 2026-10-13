@@ -3,9 +3,11 @@
  * promotion that actually wins. No mate score and no centipawn rise.
  *
  * Slack is counted only until the pawn goal (winning Q/R promotion, or
- * stopping the pawn in queen vs pawn). The mate hunt that follows is not
- * this exercise. A promotion is winning when the new queen or rook is not
- * taken on the opponent's next move, or the promotion is checkmate.
+ * stopping the pawn in queen vs pawn). Getting out of check is not slack.
+ * In queen vs pawn, the queen approaching the enemy pawn is progress.
+ * The mate hunt that follows is not this exercise. A promotion is winning
+ * when the new queen or rook is not taken on the opponent's next move, or
+ * the promotion is checkmate.
  */
 import { Chess } from 'chess.js';
 import type { PlayerColor, TheoreticalThemeId } from './types.ts';
@@ -250,6 +252,16 @@ export function assessPawnWin(input: {
       move.piece === 'k' &&
       !!kingAfter &&
       (user === 'w' ? kingAfter.rank >= 6 : kingAfter.rank <= 3);
+    const escapingCheck = new Chess(fenBefore).inCheck();
+    const enemyFar = farthestPawn(enemyBefore, user === 'w' ? 'b' : 'w');
+    const queenBefore = piecesOf(fenBefore).find((p) => p.type === 'q' && p.color === user);
+    const queenAfter = piecesOf(fenAfter).find((p) => p.type === 'q' && p.color === user);
+    const queenCloserToPawn =
+      input.themeId === 'queen-vs-pawn' &&
+      !!queenBefore &&
+      !!queenAfter &&
+      !!enemyFar &&
+      chebyshev(queenAfter, enemyFar) < chebyshev(queenBefore, enemyFar);
 
     const progress =
       promotedMajor ||
@@ -269,6 +281,8 @@ export function assessPawnWin(input: {
       triangulationKing ||
       breakPawn ||
       keySquareKing ||
+      escapingCheck ||
+      queenCloserToPawn ||
       (gaveCheck && (input.themeId === 'queen-vs-pawn' || winningPromotion));
 
     const alreadyDone = goalMet;

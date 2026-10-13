@@ -6,8 +6,13 @@
  * Prefer an engine or table distance when every decision has one.
  *
  * Slack is a user move that neither tightens the box (edge, corner, mobility)
- * nor approaches with a mating piece, check, or mate. Holding an already
- * tight box while preparing the mate pattern is progress.
+ * nor prepares the mate pattern. A missed mate-in-1 is always slack: getting
+ * a piece closer is not progress when mate was already on the board.
+ *
+ * Once the king is boxed (edge, few escapes), Chebyshev "closer" is not the
+ * method. The king walks the opposition file (two files from the edge) one
+ * axis at a time; a diagonal rush that skips that alignment is slack. Holding
+ * an already tight box while lining up the mate is progress.
  */
 import { Chess, type Square } from 'chess.js';
 import type { PlayerColor } from './types.ts';
@@ -21,11 +26,13 @@ export type MateDriveAssessment = {
 
 const FILES = 'abcdefgh';
 
+type Coord = { file: number; rank: number };
+
 function sideOf(color: PlayerColor): 'w' | 'b' {
   return color === 'white' ? 'w' : 'b';
 }
 
-function kingSquare(fen: string, color: 'w' | 'b'): { file: number; rank: number } | null {
+function kingSquare(fen: string, color: 'w' | 'b'): Coord | null {
   const game = new Chess(fen);
   const board = game.board();
   for (let r = 0; r < 8; r++) {
@@ -37,7 +44,7 @@ function kingSquare(fen: string, color: 'w' | 'b'): { file: number; rank: number
   return null;
 }
 
-function cornerDist(king: { file: number; rank: number }): number {
+function cornerDist(king: Coord): number {
   const corners = [
     { file: 0, rank: 1 },
     { file: 0, rank: 8 },
@@ -49,11 +56,11 @@ function cornerDist(king: { file: number; rank: number }): number {
   );
 }
 
-function edgeDist(king: { file: number; rank: number }): number {
+function edgeDist(king: Coord): number {
   return Math.min(king.file, 7 - king.file, king.rank - 1, 8 - king.rank);
 }
 
-function onEdge(king: { file: number; rank: number }): boolean {
+function onEdge(king: Coord): boolean {
   return king.file === 0 || king.file === 7 || king.rank === 1 || king.rank === 8;
 }
 
@@ -95,9 +102,72 @@ function matingPieces(fen: string, color: 'w' | 'b'): { file: number; rank: numb
   return out;
 }
 
-function closestMating(pieces: { file: number; rank: number }[], king: { file: number; rank: number }): number {
+function closestMating(pieces: Coord[], king: Coord): number {
   if (pieces.length === 0) return 99;
   return Math.min(...pieces.map((p) => Math.max(Math.abs(p.file - king.file), Math.abs(p.rank - king.rank))));
+}
+
+function fileDist(a: Coord, b: Coord): number {
+  return Math.abs(a.file - b.file);
+}
+
+function rankDist(a: Coord, b: Coord): number {
+  return Math.abs(a.rank - b.rank);
+}
+
+function hasDirectOpposition(a: Coord, b: Coord): boolean {
+  const df = fileDist(a, b);
+  const dr = rankDist(a, b);
+  return (df === 0 && dr === 2) || (dr === 0 && df === 2);
+}
+
+function isBoxed(king: Coord | null, mobility: number): boolean {
+  return !!king && onEdge(king) && mobility <= 2;
+}
+
+/** Mate already on the board. chess.js SAN marks these with #. */
+function hasMateInOne(fen: string): boolean {
+  return new Chess(fen).moves().some((san) => san.includes('#'));
+}
+
+/**
+ * KRK/KQK method once the king is boxed: walk the opposition file/rank
+ * (distance 2 from the edge king) without a diagonal rush that skips the
+ * alignment. Reaching that file or rank, or taking opposition, is progress.
+ */
+function boxedKingMethod(before: Coord, after: Coord, enemy: Coord): boolean {
+  const fd0 = fileDist(before, enemy);
+  const fd1 = fileDist(after, enemy);
+  const rd0 = rankDist(before, enemy);
+  const rd1 = rankDist(after, enemy);
+  const sameRank = before.rank === after.rank;
+  const sameFile = before.file === after.file;
+  const fileAlign = fd1 < fd0 && fd1 >= 2 && (sameRank || fd1 === 2);
+  const rankAlign = rd1 < rd0 && rd1 >= 2 && (sameFile || rd1 === 2);
+  const alongFile = fd1 === 2 && rd1 < rd0;
+  const alongRank = rd1 === 2 && fd1 < fd0;
+  return fileAlign || rankAlign || alongFile || alongRank || hasDirectOpposition(after, enemy);
+}
+
+function maintainsCut(
+  beforePieces: { file: number; rank: number; type: string }[],
+  afterPieces: { file: number; rank: number; type: string }[],
+  enemy: Coord,
+): boolean {
+  if (beforePieces.length !== 1 || afterPieces.length !== 1) return false;
+  const before = beforePieces[0]!;
+  const after = afterPieces[0]!;
+  if (before.type !== after.type) return false;
+  if (before.type !== 'r' && before.type !== 'q') return false;
+  const staysOnFile = before.file === after.file;
+  const staysOnRank = before.rank === after.rank;
+  if (enemy.file === 0 || enemy.file === 7) {
+    if (staysOnFile && Math.abs(after.file - enemy.file) === 1) return true;
+  }
+  if (enemy.rank === 1 || enemy.rank === 8) {
+    if (staysOnRank && Math.abs(after.rank - enemy.rank) === 1) return true;
+  }
+  return false;
 }
 
 export function assessMateDrive(input: {
@@ -133,7 +203,7 @@ export function assessMateDrive(input: {
   for (const san of input.sans) {
     const side = game.turn();
     const fenBefore = game.fen();
-    let move: { san: string } | null = null;
+    let move: { san: string; piece: string } | null = null;
     try {
       move = game.move(san);
     } catch {
@@ -158,10 +228,11 @@ export function assessMateDrive(input: {
     const mated = game.isCheckmate();
     const mobilityBefore = kingEscapes(fenBefore, enemy);
     const mobilityAfter = kingEscapes(fenAfter, enemy);
+    const piecesBefore = matingPieces(fenBefore, user);
+    const piecesAfter = matingPieces(fenAfter, user);
     const closerPiece =
       !!kingAfter &&
-      closestMating(matingPieces(fenAfter, user), kingAfter) <
-        closestMating(matingPieces(fenBefore, user), kingBefore ?? kingAfter);
+      closestMating(piecesAfter, kingAfter) < closestMating(piecesBefore, kingBefore ?? kingAfter);
     const userKingBefore = kingSquare(fenBefore, user);
     const userKingAfter = kingSquare(fenAfter, user);
     const kingCloser =
@@ -175,7 +246,36 @@ export function assessMateDrive(input: {
         );
     const reduced = cornerAfter < prevCorner || edgeAfter < prevEdge;
     const tighter = mobilityAfter < mobilityBefore;
-    const progress = reduced || tighter || gaveCheck || mated || closerPiece || kingCloser;
+    const missedMateInOne = hasMateInOne(fenBefore) && !move.san.includes('#');
+    const boxed = isBoxed(kingBefore, mobilityBefore);
+    const kingMoved = move.piece === 'k';
+    const methodKing =
+      boxed &&
+      kingMoved &&
+      !!userKingBefore &&
+      !!userKingAfter &&
+      !!kingBefore &&
+      boxedKingMethod(userKingBefore, userKingAfter, kingBefore);
+    const farKing =
+      boxed &&
+      kingCloser &&
+      !!userKingBefore &&
+      !!kingBefore &&
+      Math.max(fileDist(userKingBefore, kingBefore), rankDist(userKingBefore, kingBefore)) >= 5;
+    const cutHold = boxed && !kingMoved && !!kingBefore && maintainsCut(piecesBefore, piecesAfter, kingBefore);
+    const edgeAlready = !!kingBefore && onEdge(kingBefore);
+    const closerWhileFree = closerPiece && !edgeAlready;
+    const progress =
+      !missedMateInOne &&
+      (reduced ||
+        tighter ||
+        gaveCheck ||
+        mated ||
+        methodKing ||
+        farKing ||
+        cutHold ||
+        closerWhileFree ||
+        (!boxed && kingCloser));
     if (!progress) slack += 1;
     prevCorner = cornerAfter;
     prevEdge = edgeAfter;

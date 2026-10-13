@@ -49,6 +49,114 @@ describe('pawn-win progress', () => {
     assert.ok((progress.slackMoves ?? 99) <= 1);
   });
 
+  it('does not count getting out of check as Lucena slack', () => {
+    const position = getPositionById('TE-CANON-LUCENA-2');
+    assert.ok(position);
+    const sans = [
+      'Kf7',
+      'Rf2+',
+      'Ke6',
+      'Kg7',
+      'e8=Q',
+      'Rf6+',
+      'Kd5',
+      'Rf5+',
+      'Ke4',
+      'Rg5',
+      'Qd7+',
+      'Kg8',
+      'Qd8+',
+      'Kf7',
+      'Qxg5',
+      'Ke6',
+      'Kd4+',
+      'Kd7',
+      'Re7+',
+      'Kd8',
+      'Qf6',
+      'Kc8',
+      'Qh8#',
+    ];
+    const progress = assessPawnWin({
+      themeId: 'lucena',
+      initialFen: position!.initialFen,
+      sans,
+      playerColor: 'white',
+      objective: 'WIN',
+    });
+    assert.equal(progress.demonstrated, true);
+    assert.equal(progress.slackMoves, 0);
+  });
+
+  it('treats the queen approaching the enemy pawn as progress, not a detour', () => {
+    const position = getPositionById('TE-CANON-QUEEN-PAWN-1');
+    assert.ok(position);
+    const efficient = assessPawnWin({
+      themeId: 'queen-vs-pawn',
+      initialFen: position!.initialFen,
+      sans: [
+        'Qa8',
+        'Kb5',
+        'Qb7+',
+        'Ka4',
+        'Qxc7',
+        'Ka3',
+        'Qc3+',
+        'Ka2',
+        'Kg3',
+        'Kb1',
+        'Qd2',
+        'Ka1',
+        'Kf4',
+        'Kb1',
+        'Ke4',
+        'Ka1',
+        'Kd3',
+        'Kb1',
+        'Kc3',
+        'Ka1',
+        'Qb2#',
+      ],
+      playerColor: 'black',
+      objective: 'WIN',
+    });
+    const detour = assessPawnWin({
+      themeId: 'queen-vs-pawn',
+      initialFen: position!.initialFen,
+      sans: [
+        'Qa8',
+        'Kb5',
+        'Qh1',
+        'Ka6',
+        'Qa8',
+        'Kb5',
+        'Qb7+',
+        'Ka4',
+        'Qxc7',
+        'Ka3',
+        'Qc3+',
+        'Ka2',
+        'Kg3',
+        'Kb1',
+        'Qd2',
+        'Ka1',
+        'Kf4',
+        'Kb1',
+        'Ke4',
+        'Ka1',
+        'Kd3',
+        'Kb1',
+        'Kc3',
+        'Ka1',
+        'Qb2#',
+      ],
+      playerColor: 'black',
+      objective: 'WIN',
+    });
+    assert.equal(efficient.demonstrated, true);
+    assert.ok(efficient.slackMoves < detour.slackMoves);
+  });
+
   it('does not treat a simple centipawn-like king wander after promotion as extra slack', () => {
     const position = getPositionById('TE-CANON-ROOK-PAWN-WIN');
     assert.ok(position);
