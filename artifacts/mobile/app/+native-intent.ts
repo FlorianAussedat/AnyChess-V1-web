@@ -1,9 +1,9 @@
 /**
  * Expo Router native intent — DEV deep-link rewrite only.
- * Does not change product routes or the Stockfish transport.
+ * Does not change product routes, auth links, or the Stockfish transport.
  *
- * A plain development-client connection stays on the current screen after
- * launch. It is not forwarded as an http:// Metro URL.
+ * A Metro / dev-client connection is not forwarded and does not reset an
+ * open session. Confirmation and password-recovery links pass through.
  */
 import { rewriteDevSystemPath } from '@/lib/app/devDeepLink';
 
