@@ -237,35 +237,46 @@ function assessBadBishop(fens: string[], userAt: Set<number>, user: 'w' | 'b'): 
   return { applicable: true, demonstrated: reached, slackMoves: slack, complete: reached };
 }
 
+function philidorCuts(fen: string, user: 'w' | 'b'): { cuts: boolean; high: boolean; rear: boolean } | null {
+  const pawn = solePawn(fen);
+  if (!pawn) return null;
+  const whitePawn = pawn.color === 'w';
+  const high = whitePawn ? pawn.rank >= 6 : pawn.rank <= 3;
+  const critical = whitePawn ? pawn.rank + 1 : pawn.rank - 1;
+  const rook = piecesOf(fen).find((p) => p.type === 'r' && p.color === user);
+  const enemyKing = piecesOf(fen).find((p) => p.type === 'k' && p.color !== user);
+  const onBarrier = !!rook && rook.rank === critical;
+  const cuts =
+    onBarrier &&
+    !!enemyKing &&
+    (whitePawn ? enemyKing.rank <= pawn.rank : enemyKing.rank >= pawn.rank);
+  let rear = false;
+  if (high && rook && enemyKing && rook.file === enemyKing.file) {
+    rear = whitePawn ? rook.rank < enemyKing.rank : rook.rank > enemyKing.rank;
+  }
+  return { cuts, high, rear };
+}
+
 function assessPhilidor(fens: string[], userAt: Set<number>, user: 'w' | 'b'): DefenseAssessment {
   let barrier = false;
   let rear = false;
   let captured = false;
   let slack = 0;
   let pawnWasHigh = false;
+  let hadCuts = philidorCuts(fens[0]!, user)?.cuts === true;
   for (let i = 0; i < fens.length; i++) {
     const pawn = solePawn(fens[i]!);
     if (!pawn) {
       if (userAt.has(i)) captured = true;
       continue;
     }
-    const whitePawn = pawn.color === 'w';
-    const high = whitePawn ? pawn.rank >= 6 : pawn.rank <= 3;
-    if (high) pawnWasHigh = true;
-    const critical = whitePawn ? pawn.rank + 1 : pawn.rank - 1;
-    const rook = piecesOf(fens[i]!).find((p) => p.type === 'r' && p.color === user);
-    const enemyKing = piecesOf(fens[i]!).find((p) => p.type === 'k' && p.color !== user);
-    const onBarrier = !!rook && rook.rank === critical;
-    const cuts =
-      onBarrier &&
-      !!enemyKing &&
-      (whitePawn ? enemyKing.rank <= pawn.rank : enemyKing.rank >= pawn.rank);
-    if (userAt.has(i) && cuts) barrier = true;
-    if (userAt.has(i) && !high && !onBarrier && barrier) slack += 1;
-    if (userAt.has(i) && high && rook && enemyKing && rook.file === enemyKing.file) {
-      const behind = whitePawn ? rook.rank < enemyKing.rank : rook.rank > enemyKing.rank;
-      if (behind) rear = true;
-    }
+    const state = philidorCuts(fens[i]!, user);
+    if (!state) continue;
+    if (state.high) pawnWasHigh = true;
+    if (userAt.has(i) && state.cuts) barrier = true;
+    if (userAt.has(i) && hadCuts && !state.cuts && !state.high) slack += 1;
+    if (userAt.has(i) && state.cuts) hadCuts = true;
+    if (userAt.has(i) && state.rear) rear = true;
   }
   const complete = (captured || (barrier && (!pawnWasHigh || rear))) && userAt.size > 0;
   return {

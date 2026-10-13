@@ -176,6 +176,25 @@ describe('comprehension score', () => {
     assert.match(blind.commentFr, /Qualité non évaluée/);
   });
 
+  it('grades a demonstrated pawn-win path without a mate distance', () => {
+    const progress = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 8,
+      progress: { demonstrated: true, slackMoves: 0 },
+    });
+    assert.equal(progress.reason, 'progress');
+    assert.equal(progress.score, 5);
+    const slack = scoreAttempt({
+      outcome: 'success',
+      objective: 'WIN',
+      userMoves: 8,
+      progress: { demonstrated: true, slackMoves: 2 },
+    });
+    assert.equal(slack.score, 4);
+    assert.ok((slack.score ?? 0) < (progress.score ?? 0));
+  });
+
   it('grades a demonstrated draw and does not punish an unmeasured method', () => {
     const held = scoreAttempt({
       outcome: 'success',

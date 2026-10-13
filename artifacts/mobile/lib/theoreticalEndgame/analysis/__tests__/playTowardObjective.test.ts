@@ -12,6 +12,8 @@ import {
 } from '../qualityTrajectories.ts';
 import { gradeQuality } from '../../domain/comprehensionScore.ts';
 import { assessDefense } from '../../domain/defenseFinish.ts';
+import { pickPawnWinUserSan } from '../../domain/pawnWinProgress.ts';
+import { referenceGrade } from '../referenceGrade.ts';
 import type { TheoreticalEndgamePosition } from '../../domain/types.ts';
 
 function recordedPosition(trajectory: (typeof QUALITY_TRAJECTORIES)[number]): TheoreticalEndgamePosition {
@@ -81,32 +83,38 @@ describe('play toward the exercise objective', () => {
     const byTheme = new Map<string, { efficient?: number; detour?: number }>();
     for (const trajectory of QUALITY_TRAJECTORIES) {
       const position = recordedPosition(trajectory);
-      const played = replayRecordedLine(position, [...trajectory.sans]);
-      assert.equal(played.outcome, 'success', `${trajectory.id} ${played.cause} ${played.sans.join(' ')}`);
-      if (position.objective !== 'DRAW') continue;
-      const defense = assessDefense({
-        themeId: position.themeId,
-        initialFen: position.initialFen,
-        sans: played.sans,
-        playerColor: position.playerColor,
-        objective: 'DRAW',
-      });
-      assert.equal(defense.demonstrated, true, trajectory.id);
-      const grade = gradeQuality({
-        outcome: 'success',
-        objective: 'DRAW',
-        userMoves: played.userMoves,
-        mechanism: { demonstrated: true, slackMoves: defense.slackMoves },
-      });
-      assert.equal(typeof grade.score, 'number', trajectory.id);
+      const graded = referenceGrade(position, [...trajectory.sans]);
+      assert.equal(
+        graded.played.outcome,
+        'success',
+        `${trajectory.id} ${graded.played.cause} ${graded.played.sans.join(' ')}`,
+      );
+      if (graded.family !== 'defense' && graded.family !== 'pawn-win') continue;
+      assert.equal(typeof graded.score, 'number', trajectory.id);
       const slot = byTheme.get(trajectory.themeId) ?? {};
-      if (trajectory.quality === 'efficient') slot.efficient = grade.score ?? undefined;
-      else slot.detour = grade.score ?? undefined;
+      if (trajectory.quality === 'efficient') {
+        slot.efficient = Math.max(slot.efficient ?? 0, graded.score ?? 0);
+      } else if (trajectory.quality === 'detour') slot.detour = graded.score ?? undefined;
       byTheme.set(trajectory.themeId, slot);
     }
     assert.ok((byTheme.get('philidor')?.efficient ?? 0) > (byTheme.get('philidor')?.detour ?? 0));
     assert.ok((byTheme.get('vancura')?.efficient ?? 0) > (byTheme.get('vancura')?.detour ?? 0));
     assert.equal(byTheme.get('philidor')?.efficient, 5);
+    assert.ok((byTheme.get('kp-vs-k')?.efficient ?? 0) > (byTheme.get('kp-vs-k')?.detour ?? 0));
+    assert.ok((byTheme.get('lucena')?.efficient ?? 0) > (byTheme.get('lucena')?.detour ?? 0));
+  });
+
+  it('picks b6 on the catalog breakthrough', () => {
+    const position = getPositionById('TE-CANON-PAWN-BREAKTHROUGH');
+    assert.ok(position);
+    const san = pickPawnWinUserSan({
+      themeId: position!.themeId,
+      initialFen: position!.initialFen,
+      sans: [],
+      playerColor: position!.playerColor,
+      objective: 'WIN',
+    });
+    assert.equal(san, 'b6');
   });
 
   it('distinguishes a mate-in-one from the same mate with a detour', () => {

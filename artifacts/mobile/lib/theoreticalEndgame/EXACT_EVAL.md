@@ -65,7 +65,8 @@ une analyse moteur **progressive et bornée** (trous reprenés à un budget
 plus élevé, curseur et budget enregistrés) produit une **note estimée**
 quand un mat est annoncé sur tout le chemin. Les moyennes exactes et
 estimées restent séparées. Un score en centipions n’est jamais converti.
-Les défenses sont notées par le mécanisme démontré, pas par `score mate`.
+Trois protocoles : mats élémentaires (DTM puis mate-drive) ; gains de pions
+(promotion Q/R, sans DTM ni centipions) ; défenses (mécanisme démontré).
 
 Voir `SCORING.md` pour l’enregistrement immédiat, le budget progressif et
 les trajectoires enregistrées.
@@ -85,49 +86,53 @@ Protocoles de mesure :
 - **Trajectoires enregistrées** — réalisations complètes, niveaux
   `efficient` et `detour`. Une note plus nombreuse n’est pas un succès si
   elle ne sépare pas le détour.
-- **Budget progressif** — paliers 400 / 900 / 1600 ms, plus 3000 ms au-delà
-  de 10 décisions. Un trou n’arrête pas la passe ; le palier suivant ne
-  relance que les trous, depuis la fin (plus proche du mat). Un `go depth`
-  ne coupe pas l’annonce de mat.
+- **Budget total par tentative** — 25 s, persisté. Une reprise n’obtient
+  pas un nouveau plafond. Le jeu revendique le moteur ; une analyse
+  incomplète reste reprenable.
+- **Budget progressif (mats)** — paliers 400 / 900 / 1600 ms, plus 3000 ms
+  au-delà de 10 décisions, dans le plafond de 25 s. Un trou n’arrête pas
+  la passe. Un `go depth` ne coupe pas l’annonce de mat. Repli mate-drive
+  si Lite n’annonce pas le mat.
+- **Trajectoires de référence** — `efficient`, `detour`, `recovered`,
+  les deux couleurs. La note publiée des gains de pions et des défenses
+  est comparée à une mesure indépendante sur l’échiquier, pas seulement
+  à « 7 coups moins bien que 8 ».
 
 Le rapport distingue : parties lancées ; terminées gagnées / perdues ;
-interrompues par le plafond ; réussites effectivement notées ; temps de
-jeu et d’analyse ; causes d’échec. Une perte 0/5 n’est pas une réussite
-notée.
+interrompues par le plafond ; réussites notées **gagnantes** vs
+**défenses** ; taux noté par thème (cible 95 % des réussites, pas des
+parties lancées) ; temps de jeu et d’analyse ; causes d’échec. Une perte
+0/5 n’est pas une réussite notée. 36 victoires ne prouvent pas la notation
+des exercices de nulle.
 
-Mesure Stockfish 18 Lite WASM, 13 octobre 2026 (suite de #97) :
+**Percée.** Une nulle automatisée unique ne tranche pas. Vérification
+indépendante : FEN classique légale, `b6`/`bxa5`/`exd5` légaux, lignes de
+référence qui promeuvent et matent. Cause observée d’une nulle Lite : le
+joueur automatisé à court délai peut jouer `Ke2` (0,00) au lieu de `b6`.
+Ce n’est pas une FEN incorrecte. Le sélecteur de percée force `b6` quand
+il est légal.
+
+Limites restantes : tables élémentaires locales toujours désactivées
+(faux mat en 1) ; Lite peut manquer un `score mate` sur un deux-fous
+DTM 33, d’où une note mate-drive estimée plutôt qu’une DTM ; l’autoplay
+moteur seul ne suffit pas pour KPK/opposition (lignes enregistrées).
+Toute réussite reste comptabilisée même si l’analyse échoue.
+
+Mesure Stockfish 18 Lite WASM, 13 octobre 2026 (PR #98) :
 
 | | |
 | --- | --- |
-| Parties lancées | 37 |
-| Terminées gagnées | 36 |
-| Terminées perdues | 1 |
-| Interrompues par le plafond | 0 |
-| Réussites effectivement notées | 26 |
-| Deux fous (lancées / gagnées / notées) | 5 / 5 / 2 |
-| Notes deux fous | 5 (court efficace) et 3,5 (détours) |
-| Dame | 5 vs 4,5 |
-| Tour catalogue | 4 vs 2,5 |
-| Lucena catalogue | 2,5 |
-| Philidor, Vancura | 4 notées chacune, 5 vs 4,5 |
-| Mauvais fou, échecs latéraux, carré, pion de tour | ≥ 2 notées |
+| Parties lancées | 50 |
+| Terminées gagnées | 50 (30 gains, 20 défenses) |
+| Réussites notées | 50 / 50 (30 gains, 20 défenses) |
+| Taux noté par thème | 100 % (cible 95 %) |
+| Délai jeu + analyse | ~0,4 s + 32–54 s |
+| Gains de pions / défenses | instantanés (sans moteur) |
+| Deux fous catalogue DTM 33, palier 400 ms seul | 11,8 s, aucune note |
+| Deux fous catalogue, 5 s puis mate-drive | ~5,2 s, note estimée 3,5 et 2 |
+| Dame | 5 vs 4,5 (DTM) |
+| Tour catalogue | 4 vs 2,5 (DTM : 8 coups mieux que 7) |
+| Lucena | 4,5 vs 3,5 (progression, pas DTM) |
+| Percée Lite 200 ms | `Kd2`/`Ke2` (0,00), pas `b6` ; lignes de référence : 3 mats + 1 promotion |
 
-Budget progressif, trajectoires catalogue :
-
-| Protocole | Délai réel | Note |
-| --- | ---: | --- |
-| DTM 33, un seul palier 400 ms (abandon au premier trou) | 11,8 s | aucune (`engine-no-mate`) |
-| DTM 33, paliers 400 / 900 / 1600 / 3000 ms, trous depuis la fin | 80,8 s | aucune (ouverture trop longue pour Lite) |
-| DTM 27 (`TE-CANON-TWO-BISHOPS-MATE-3`), mêmes paliers | 17–27 s | **2/5** (parfois `engine-no-mate` / délai) |
-| Lucena DTM 15 (`TE-CANON-LUCENA-2`) | 6,3 s | **2,5/5** |
-| Dame contre pion DTM 23 | ~19 s | parfois 4,5, parfois `engine-no-mate` |
-
-Le plafond 36 termine les FEN catalogue des deux fous. Le budget
-progressif **peut** noter la variante à 27 plies alors qu’un palier
-unique à 400 ms ne note jamais le DTM 33. Ce n’est pas garanti à chaque
-passe : Lite n’annonce pas toujours le mat sur tout le chemin. Le nombre
-de coups ne fait pas la note : la tour catalogue en 7 coups utilisateur
-vaut 2,5, la même finale en 8 coups vaut 4. Opposition, pion contre roi,
-cases clés, course, pion extérieur et triangulation vont au mat
-automatisé sans note (DTM trop longue pour Lite). Percée : nulle, donc
-échec. Aucune note n’est inventée.
+Le mate-drive des deux fous longs est une note estimée d’efficacité de réalisation, pas une DTM. Lite à 200 ms manque `b6` : ce n’est pas une FEN fausse.

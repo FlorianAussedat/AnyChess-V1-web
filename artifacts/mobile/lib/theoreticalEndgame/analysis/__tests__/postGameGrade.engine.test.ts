@@ -23,15 +23,23 @@ import {
 } from '../../persistence/TheoreticalEndgameStore.ts';
 import { createWasmStockfishTransport } from '../wasmStockfishTransport.ts';
 import {
+  POST_GAME_ATTEMPT_BUDGET_MS,
   POST_GAME_BUDGET_STEPS_MS,
   POST_GAME_LONG_BUDGET_STEPS_MS,
   adaptiveDeadlineMs,
   runPostGameGrade,
 } from '../postGameGrade.ts';
+import { gradeFamilyFor } from '../../domain/gradeFamily.ts';
+import { summarizeCoverage, SCORED_SUCCESS_TARGET, type CoverageRow } from '../coverageReport.ts';
 import { claimEngineForPlay, releaseEngineFromPlay, resetGradeGate } from '../gradeGate.ts';
 import { playCapFor, playTowardObjective, replayRecordedLine } from '../playTowardObjective.ts';
 import { QUALITY_TRAJECTORIES, RECORDED_START_FEN } from '../qualityTrajectories.ts';
-import { summarizeCoverage, type CoverageRow } from '../coverageReport.ts';
+import {
+  BREAKTHROUGH_REFERENCE_LINES,
+  replayBreakthroughLine,
+  searchBreakthroughs,
+} from '../breakthroughVerify.ts';
+import { referenceGrade } from '../referenceGrade.ts';
 
 /** Legal mate in one: the queen does not already check. */
 const MATE = '7k/5K2/8/8/8/8/8/6Q1 w - - 0 1';
@@ -380,13 +388,20 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
             finishedAt,
             analyzer,
             budgetStepsMs:
-              played.userMoves >= 10
-                ? [...POST_GAME_LONG_BUDGET_STEPS_MS]
-                : [...POST_GAME_BUDGET_STEPS_MS],
+              position.themeId === 'two-bishops-mate' && played.userMoves >= 12
+                ? [400]
+                : played.userMoves >= 10
+                  ? [...POST_GAME_LONG_BUDGET_STEPS_MS]
+                  : [...POST_GAME_BUDGET_STEPS_MS],
             deadlineMs:
-              played.userMoves >= 10
-                ? 90_000
-                : adaptiveDeadlineMs(Math.max(1, played.userMoves)),
+              position.themeId === 'two-bishops-mate' && played.userMoves >= 12
+                ? 5_000
+                : Math.min(
+                    POST_GAME_ATTEMPT_BUDGET_MS,
+                    played.userMoves >= 10
+                      ? POST_GAME_ATTEMPT_BUDGET_MS
+                      : adaptiveDeadlineMs(Math.max(1, played.userMoves)),
+                  ),
           });
           gradeMs = Date.now() - t0;
           analysisStatus = graded?.analysisStatus ?? 'failed';
@@ -400,6 +415,7 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
         kind,
         quality,
         launched: true,
+        objective: position.objective,
         outcome: played.outcome === 'interrupted' ? 'interrupted' : played.outcome,
         capInterrupted,
         scoredSuccess: played.outcome === 'success' && typeof attemptScore === 'number',
@@ -416,27 +432,6 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
       const position = recordedCatalogPosition(trajectory);
       const t0 = Date.now();
       const played = replayRecordedLine(position, [...trajectory.sans]);
-      // DTM 33: a full progressive pass still misses the opening (~80 s).
-      // The abort protocol below measures that hole; catalog-3 is the scored line.
-      if (trajectory.id === 'two-bishops-catalog-1') {
-        rows.push({
-          themeId: position.themeId,
-          positionId: position.id,
-          kind: 'recorded',
-          quality: trajectory.quality,
-          launched: true,
-          outcome: played.outcome,
-          capInterrupted: false,
-          scoredSuccess: false,
-          attemptScore: null,
-          analysisStatus: played.outcome === 'success' ? 'pending' : 'not-started',
-          gradeCause: played.cause,
-          playMs: Date.now() - t0,
-          gradeMs: 0,
-          userMoves: played.userMoves,
-        });
-        continue;
-      }
       await gradePlayed(position, played, 'recorded', trajectory.quality, Date.now() - t0);
     }
 
@@ -451,22 +446,7 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
         movetimeMs: 300,
         maxUserMoves: playCapFor(catalogBishops!),
       });
-      rows.push({
-        themeId: catalogBishops!.themeId,
-        positionId: catalogBishops!.id,
-        kind: 'autoplay',
-        quality: 'efficient',
-        launched: true,
-        outcome: played.outcome,
-        capInterrupted: played.outcome === 'interrupted' && played.cause === 'cap',
-        scoredSuccess: false,
-        attemptScore: null,
-        analysisStatus: played.outcome === 'success' ? 'pending' : 'not-started',
-        gradeCause: played.cause,
-        playMs: Date.now() - t0,
-        gradeMs: 0,
-        userMoves: played.userMoves,
-      });
+      await gradePlayed(catalogBishops!, played, 'autoplay', 'efficient', Date.now() - t0);
     }
 
     const catalogLine = QUALITY_TRAJECTORIES.find((row) => row.id === 'two-bishops-catalog-1');
@@ -504,6 +484,7 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
       analyzer,
       budgetStepsMs: [400],
       deadlineMs: 90_000,
+      mateDriveFallback: false,
     });
     const abortMs = Date.now() - abortStarted;
 
@@ -518,7 +499,7 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
         maxUserMoves: playCapFor(position!),
       });
       const playMs = Date.now() - t0;
-      if (played.outcome === 'success' && played.userMoves <= 8) {
+      if (played.outcome === 'success') {
         await gradePlayed(position!, played, 'autoplay', 'efficient', playMs);
       } else {
         rows.push({
@@ -527,6 +508,7 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
           kind: 'autoplay',
           quality: 'efficient',
           launched: true,
+          objective: position!.objective,
           outcome: played.outcome,
           capInterrupted: played.outcome === 'interrupted' && played.cause === 'cap',
           scoredSuccess: false,
@@ -539,6 +521,11 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
         });
       }
     }
+
+    const breakthroughLines = BREAKTHROUGH_REFERENCE_LINES.map((line) =>
+      replayBreakthroughLine(line.positionId, line.sans),
+    );
+    const breakthroughSearches = await searchBreakthroughs(playAnalyzer, 200);
 
     const report = summarizeCoverage(rows);
     const bishops = report.byTheme.find((row) => row.themeId === 'two-bishops-mate');
@@ -555,17 +542,32 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
         finishedLost: report.finishedLost,
         capInterrupted: report.capInterrupted,
         scoredSuccesses: report.scoredSuccesses,
+        scoredWins: report.scoredWins,
+        scoredDefenses: report.scoredDefenses,
+        winSuccesses: report.winSuccesses,
+        defenseSuccesses: report.defenseSuccesses,
+        belowTarget: report.belowTarget,
+        target: SCORED_SUCCESS_TARGET,
         playMs: report.playMs,
         gradeMs: report.gradeMs,
         byTheme: report.byTheme,
         twoBishops: bishops,
         queenEfficient: queenEfficient?.attemptScore ?? null,
         queenDetour: queenDetour?.attemptScore ?? null,
+        breakthrough: {
+          lines: breakthroughLines.map((row) => ({
+            id: row.positionId,
+            outcome: row.outcome,
+            promoted: row.userPromoted,
+          })),
+          searches: breakthroughSearches,
+        },
         budgetCompare: {
           abortMs,
           abortStatus: aborted?.analysisStatus ?? null,
           abortCause: aborted?.gradeCause ?? null,
           abortScore: aborted?.attemptScore ?? null,
+          attemptBudgetMs: POST_GAME_ATTEMPT_BUDGET_MS,
           progressiveCatalog: rows
             .filter((row) => row.positionId.startsWith('TE-CANON-TWO-BISHOPS-MATE') && row.kind === 'recorded')
             .map((row) => ({
@@ -583,6 +585,36 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
     assert.equal(report.byTheme.length, THEME_IDS.length);
     assert.ok(report.launched > 18);
     assert.ok(report.finishedWon >= 12, `finishedWon=${report.finishedWon}`);
+    assert.ok(report.scoredDefenses >= 10, `scoredDefenses=${report.scoredDefenses} wins=${report.scoredWins}`);
+    assert.ok(report.scoredWins >= 10, `scoredWins=${report.scoredWins}`);
+    assert.notEqual(report.scoredDefenses, 0);
+    for (const theme of report.byTheme) {
+      if (theme.finishedWon <= 0) continue;
+      assert.ok(
+        theme.scoredRate >= SCORED_SUCCESS_TARGET,
+        `${theme.themeId} scored ${theme.scoredSuccesses}/${theme.finishedWon} family=${theme.family} ${JSON.stringify(theme.causes)}`,
+      );
+    }
+    assert.equal(report.belowTarget.length, 0, `belowTarget=${report.belowTarget.join(',')}`);
+    for (const trajectory of QUALITY_TRAJECTORIES) {
+      const position = recordedCatalogPosition(trajectory);
+      const family = gradeFamilyFor(position.themeId, position.objective);
+      if (family !== 'pawn-win' && family !== 'defense') continue;
+      const row = rows.find(
+        (entry) =>
+          entry.kind === 'recorded' &&
+          entry.positionId === position.id &&
+          entry.quality === trajectory.quality,
+      );
+      const independent = referenceGrade(position, [...trajectory.sans]);
+      assert.equal(independent.played.outcome, 'success', trajectory.id);
+      assert.equal(typeof independent.score, 'number', trajectory.id);
+      assert.equal(row?.scoredSuccess, true, `${trajectory.id} ${JSON.stringify(row)}`);
+      assert.equal(row?.attemptScore, independent.score, `${trajectory.id} engine=${row?.attemptScore} ref=${independent.score}`);
+    }
+    assert.ok(breakthroughLines.every((row) => row.outcome === 'checkmate' || row.outcome === 'promotion'));
+    assert.ok(breakthroughLines.some((row) => row.outcome === 'checkmate'));
+    assert.equal(breakthroughSearches.length, 3);
     assert.ok((bishops?.finishedWon ?? 0) >= 2, `two bishops wins=${bishops?.finishedWon}`);
     assert.ok((bishops?.scoredSuccesses ?? 0) >= 2, `two bishops scored=${JSON.stringify(bishops)}`);
     const bishopsEfficient = rows.find(
@@ -625,7 +657,8 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
       (row) => row.positionId === 'TE-CANON-ROOK-MATE-2' && row.quality === 'detour',
     );
     assert.ok((lucena?.scoredSuccesses ?? 0) >= 1, `lucena scored=${JSON.stringify(lucena)}`);
-    assert.equal(queenVsPawn?.finishedWon, 1, `queen-vs-pawn=${JSON.stringify(queenVsPawn)}`);
+    assert.ok((queenVsPawn?.finishedWon ?? 0) >= 2, `queen-vs-pawn=${JSON.stringify(queenVsPawn)}`);
+    assert.ok(catalogThree?.scoredSuccess, `catalog DTM-27=${JSON.stringify(catalogThree)}`);
     assert.ok(rookCatalog?.scoredSuccess, `rook catalog=${JSON.stringify(rookCatalog)}`);
     if (rookCatalog?.scoredSuccess && rookCatalogDetour?.scoredSuccess) {
       assert.ok(

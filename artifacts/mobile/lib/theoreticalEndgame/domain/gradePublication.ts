@@ -39,6 +39,9 @@ export function publicationFor(input: {
   quality: QualityGrade;
   decisions?: GradeDecision[];
   mechanismDemonstrated?: boolean;
+  progressDemonstrated?: boolean;
+  /** Board-observed pawn/promotion progress is exact. A mate-drive fallback is estimated. */
+  progressExact?: boolean;
 }): GradePublication {
   if (
     input.outcome === 'abandoned' ||
@@ -59,6 +62,18 @@ export function publicationFor(input: {
       };
     }
     return { attemptScore: null, analysisStatus: 'failed', gradeConfidence: null };
+  }
+  if (
+    input.progressDemonstrated &&
+    input.quality.reason === 'progress' &&
+    typeof input.quality.score === 'number'
+  ) {
+    const exact = input.progressExact === true;
+    return {
+      attemptScore: input.quality.score,
+      analysisStatus: exact ? 'scored' : 'estimated',
+      gradeConfidence: exact ? 'exact' : 'estimated',
+    };
   }
   if (traceIsUniformlyExact(input.decisions) && typeof input.quality.score === 'number') {
     return {

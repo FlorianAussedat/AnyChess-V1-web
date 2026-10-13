@@ -15,7 +15,7 @@ import {
   getThemeComprehension,
 } from '../../persistence/TheoreticalEndgameStore.ts';
 import { replayUserDecisions } from '../decisionPath.ts';
-import { runPostGameGrade } from '../postGameGrade.ts';
+import { POST_GAME_ATTEMPT_BUDGET_MS, runPostGameGrade } from '../postGameGrade.ts';
 import { claimEngineForPlay, releaseEngineFromPlay, resetGradeGate } from '../gradeGate.ts';
 import type { DefenseAnalysis } from '../../../defendDraw/defenseTypes.ts';
 import type { TheoreticalAttemptResult } from '../../domain/types.ts';
@@ -103,7 +103,7 @@ describe('post-game grade flow', { concurrency: 1 }, () => {
     assert.equal((await getThemeAttempts('queen-mate')).length, 1);
   });
 
-  it('keeps the win and no invented score when the deadline is already spent', async () => {
+  it('keeps the win and no invented DTM when the deadline is spent and fallback is off', async () => {
     await recordAttempt(win({ finishedAt: '2026-10-12T12:01:00.000Z' }));
     const graded = await runPostGameGrade({
       themeId: 'queen-mate',
@@ -111,6 +111,7 @@ describe('post-game grade flow', { concurrency: 1 }, () => {
       finishedAt: '2026-10-12T12:01:00.000Z',
       analyzer: { analyze: async () => analysis(1) },
       deadlineMs: 0,
+      mateDriveFallback: false,
       now: () => 10_000,
     });
     assert.equal(graded?.attemptScore, null);
@@ -119,6 +120,43 @@ describe('post-game grade flow', { concurrency: 1 }, () => {
     const stored = await getAttempt('queen-mate', 'TE-CANON-QUEEN-MATE', '2026-10-12T12:01:00.000Z');
     assert.equal(stored?.outcome, 'success');
     assert.equal(stored?.attemptScore, null);
+  });
+
+  it('persists the attempt budget so a resume does not start a fresh 90 s search', async () => {
+    const finishedAt = '2026-10-12T12:01:30.000Z';
+    await recordAttempt(win({ finishedAt }));
+    let clock = 0;
+    const paused = await runPostGameGrade({
+      themeId: 'queen-mate',
+      positionId: 'TE-CANON-QUEEN-MATE',
+      finishedAt,
+      analyzer: {
+        analyze: async () => {
+          clock += 20_000;
+          claimEngineForPlay();
+          return analysis(null);
+        },
+      },
+      deadlineMs: POST_GAME_ATTEMPT_BUDGET_MS,
+      mateDriveFallback: false,
+      now: () => clock,
+    });
+    assert.equal(paused?.attemptScore, null);
+    assert.ok((paused?.gradeDeadlineMs ?? 0) <= POST_GAME_ATTEMPT_BUDGET_MS);
+    assert.ok((paused?.gradeConsumedMs ?? 0) > 0);
+    releaseEngineFromPlay(1);
+    clock += 1;
+    const resumed = await runPostGameGrade({
+      themeId: 'queen-mate',
+      positionId: 'TE-CANON-QUEEN-MATE',
+      finishedAt,
+      analyzer: { analyze: async () => analysis(1) },
+      deadlineMs: 90_000,
+      mateDriveFallback: false,
+      now: () => clock,
+    });
+    assert.ok((resumed?.gradeDeadlineMs ?? 90_000) <= POST_GAME_ATTEMPT_BUDGET_MS);
+    assert.equal(resumed?.outcome ?? 'success', 'success');
   });
 
   it('resumes after a close without measuring the finished decision again', async () => {
@@ -272,11 +310,82 @@ describe('post-game grade flow', { concurrency: 1 }, () => {
       },
       budgetStepsMs: [50, 80],
       deadlineMs: 2000,
+      mateDriveFallback: false,
     });
     assert.equal(graded?.attemptScore, null);
     assert.equal(graded?.analysisStatus, 'failed');
     assert.equal(graded?.gradeCause, 'engine-no-mate');
     assert.equal((await getAttempt('queen-mate', 'TE-CANON-QUEEN-MATE', finishedAt))?.outcome, 'success');
+  });
+
+  it('falls back to a mate-drive grade when the engine only returns centipawns', async () => {
+    const finishedAt = '2026-10-12T12:07:30.000Z';
+    await recordAttempt(win({ finishedAt, moveSans: ['Qh7'], startFen: MATE, userMoves: 1 }));
+    let calls = 0;
+    const graded = await runPostGameGrade({
+      themeId: 'queen-mate',
+      positionId: 'TE-CANON-QUEEN-MATE',
+      finishedAt,
+      analyzer: {
+        analyze: async () => {
+          calls += 1;
+          return {
+            scoreCp: 32000,
+            mateIn: null,
+            depth: 20,
+            wdl: { win: 1000, draw: 0, loss: 0 },
+            bestMove: { from: 'g7', to: 'h7' },
+          };
+        },
+      },
+      budgetStepsMs: [50, 80],
+      deadlineMs: 2000,
+    });
+    assert.equal(typeof graded?.attemptScore, 'number');
+    assert.equal(graded?.analysisStatus, 'estimated');
+    assert.notEqual(graded?.gradeCause, 'engine-no-mate');
+    assert.ok(calls > 0);
+  });
+
+  it('grades a pawn win without calling the engine', async () => {
+    const finishedAt = '2026-10-12T12:09:00.000Z';
+    const kpk = '8/8/8/4k3/8/3K4/4P3/8 w - - 0 1';
+    const sans = [
+      'Ke3', 'Kd5', 'Kf4', 'Ke6', 'Ke4', 'Kd6', 'Kf5', 'Ke7', 'Ke5', 'Kd7', 'Kf6', 'Kd6',
+      'e4', 'Kd7', 'e5', 'Ke8', 'Ke6', 'Kd8', 'Kf7', 'Kc7', 'e6', 'Kd6', 'e7', 'Kc7',
+      'e8=Q', 'Kb6', 'Qe5', 'Kb7', 'Qc5', 'Ka6', 'Kf6', 'Kb7', 'Ke6', 'Ka6', 'Kd5', 'Kb7',
+      'Qc6+', 'Kb8', 'Qd7', 'Ka8', 'Kc6', 'Kb8', 'Qb7#',
+    ];
+    await recordAttempt(
+      win({
+        themeId: 'kp-vs-k',
+        positionId: 'TE-CANON-KPK',
+        objective: 'WIN',
+        objectiveKind: 'win',
+        startFen: kpk,
+        moveSans: sans,
+        userMoves: 22,
+        finishedAt,
+      }),
+    );
+    let calls = 0;
+    claimEngineForPlay();
+    const graded = await runPostGameGrade({
+      themeId: 'kp-vs-k',
+      positionId: 'TE-CANON-KPK',
+      finishedAt,
+      analyzer: {
+        analyze: async () => {
+          calls += 1;
+          return analysis(null);
+        },
+      },
+    });
+    releaseEngineFromPlay(1);
+    assert.equal(calls, 0);
+    assert.equal(typeof graded?.attemptScore, 'number');
+    assert.equal(graded?.analysisStatus, 'scored');
+    assert.equal(graded?.gradeConfidence, 'exact');
   });
 
   it('grades a draw by the demonstrated mechanism, not by a mate score', async () => {

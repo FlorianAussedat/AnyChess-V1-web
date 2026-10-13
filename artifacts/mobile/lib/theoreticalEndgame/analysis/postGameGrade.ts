@@ -11,6 +11,9 @@
 import { Chess } from 'chess.js';
 import type { DefenseAnalysis, DefenseAnalyzer } from '../../defendDraw/defenseTypes.ts';
 import { assessDefense } from '../domain/defenseFinish.ts';
+import { assessPawnWin } from '../domain/pawnWinProgress.ts';
+import { assessMateDrive } from '../domain/mateDrive.ts';
+import { gradeFamilyFor } from '../domain/gradeFamily.ts';
 import { exactUserDtm } from '../domain/exactElementary.ts';
 import { gradeQuality } from '../domain/comprehensionScore.ts';
 import { dtmAfterUserMove, dtmOnUserTurn } from '../domain/mateDistance.ts';
@@ -39,6 +42,8 @@ export const POST_GAME_BUDGET_STEPS_MS = [400, 900, 1600] as const;
 export const POST_GAME_LONG_BUDGET_STEPS_MS = [400, 900, 1600, 3000] as const;
 /** Fallback when the caller does not pass a deadline. Long lines use adaptiveDeadlineMs. */
 export const POST_GAME_DEADLINE_MS = 12_000;
+/** Wall-clock cap for one attempt, kept across resumes. Individual searches stay shorter. */
+export const POST_GAME_ATTEMPT_BUDGET_MS = 25_000;
 
 export type PostGameRequest = {
   themeId: ThemeAttemptRecord['themeId'];
@@ -48,13 +53,18 @@ export type PostGameRequest = {
   movetimeMs?: number;
   deadlineMs?: number;
   budgetStepsMs?: number[];
+  /** Default true. Tests of a single abort step turn this off. */
+  mateDriveFallback?: boolean;
   now?: () => number;
   onProgress?: (record: ThemeAttemptRecord) => void | Promise<void>;
 };
 
 export function adaptiveDeadlineMs(decisionCount: number): number {
   // Two analyses per decision, then hole retries at later steps.
-  return Math.min(90_000, Math.max(POST_GAME_DEADLINE_MS, decisionCount * 3500 + 8000));
+  return Math.min(
+    POST_GAME_ATTEMPT_BUDGET_MS,
+    Math.max(POST_GAME_DEADLINE_MS, decisionCount * 3500 + 8000),
+  );
 }
 
 function attackerOf(color: PlayerColor): 'w' | 'b' {
@@ -197,6 +207,89 @@ async function settleDraw(
   });
 }
 
+async function settlePawnWin(
+  current: ThemeAttemptRecord,
+  request: PostGameRequest,
+): Promise<ThemeAttemptRecord | null> {
+  if (!current.startFen || !current.playerColor || !current.moveSans) {
+    return save(request, {
+      analysisStatus: 'failed',
+      gradeCause: 'no-trajectory',
+      attemptScore: null,
+      gradeConfidence: null,
+    });
+  }
+  const progress = assessPawnWin({
+    themeId: current.themeId,
+    initialFen: current.startFen,
+    sans: current.moveSans,
+    playerColor: current.playerColor,
+    objective: 'WIN',
+  });
+  if (!progress.demonstrated) {
+    return save(request, {
+      analysisStatus: 'failed',
+      gradeCause: 'progress-without-marker',
+      attemptScore: null,
+      gradeConfidence: null,
+      gradeProtocol: null,
+    });
+  }
+  const quality = gradeQuality({
+    outcome: 'success',
+    objective: 'WIN',
+    userMoves: current.userMoves,
+    progress: { demonstrated: true, slackMoves: progress.slackMoves },
+  });
+  return save(request, {
+    attemptScore: quality.score,
+    analysisStatus: 'scored',
+    gradeConfidence: 'exact',
+    gradeCause: null,
+    gradeProtocol: 'exact',
+  });
+}
+
+async function settleMateDrive(
+  current: ThemeAttemptRecord,
+  request: PostGameRequest,
+): Promise<ThemeAttemptRecord | null> {
+  if (!current.startFen || !current.playerColor || !current.moveSans) {
+    return save(request, {
+      analysisStatus: 'failed',
+      gradeCause: 'no-trajectory',
+      attemptScore: null,
+      gradeConfidence: null,
+    });
+  }
+  const drive = assessMateDrive({
+    initialFen: current.startFen,
+    sans: current.moveSans,
+    playerColor: current.playerColor,
+  });
+  if (!drive.demonstrated) {
+    return save(request, {
+      analysisStatus: 'failed',
+      gradeCause: 'progress-without-marker',
+      attemptScore: null,
+      gradeConfidence: null,
+    });
+  }
+  const quality = gradeQuality({
+    outcome: 'success',
+    objective: 'WIN',
+    userMoves: current.userMoves,
+    progress: { demonstrated: true, slackMoves: drive.slackMoves },
+  });
+  return save(request, {
+    attemptScore: quality.score,
+    analysisStatus: 'estimated',
+    gradeConfidence: 'estimated',
+    gradeCause: null,
+    gradeProtocol: 'engine',
+  });
+}
+
 /** Continue stored successes whose analysis was interrupted. Failures stay for an explicit retry. */
 export async function resumePendingGrades(
   analyzer: DefenseAnalyzer,
@@ -228,23 +321,36 @@ function budgetStepsFor(request: PostGameRequest, decisionCount: number): number
   return [...POST_GAME_BUDGET_STEPS_MS];
 }
 
+async function fallbackMateDrive(
+  current: ThemeAttemptRecord,
+  request: PostGameRequest,
+): Promise<ThemeAttemptRecord | null> {
+  if (request.mateDriveFallback === false) return null;
+  if (!current.startFen || !current.playerColor || !current.moveSans) return null;
+  const drive = assessMateDrive({
+    initialFen: current.startFen,
+    sans: current.moveSans,
+    playerColor: current.playerColor,
+  });
+  if (!drive.demonstrated) return null;
+  return settleMateDrive(current, request);
+}
+
 export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeAttemptRecord | null> {
-  const token = takeGradeToken();
   const current = await getAttempt(request.themeId, request.positionId, request.finishedAt);
   if (!current) return null;
-  if (token == null) {
-    if (current.analysisStatus === 'running') {
-      return save(request, { analysisStatus: 'pending', gradeCause: 'interrupted-by-play' });
-    }
-    return current;
-  }
   if (current.outcome === 'theoretical-loss') return current;
   if (current.analysisStatus === 'scored' || current.analysisStatus === 'estimated') return current;
   if (current.outcome !== 'success') return current;
+  // Draw and pawn-win grades do not use the engine: play may keep it.
   if (current.objective === 'DRAW') return settleDraw(current, request);
+  const family = gradeFamilyFor(current.themeId, current.objective ?? 'WIN');
+  if (family === 'pawn-win') return settlePawnWin(current, request);
 
   const now = request.now ?? Date.now;
   const started = now();
+  const alreadyConsumed = current.gradeConsumedMs ?? 0;
+  const attemptBudget = deadlineFor(request, current);
 
   if (!current.startFen || !current.playerColor || !current.moveSans) {
     return save(request, {
@@ -257,7 +363,7 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
 
   const points = replayUserDecisions(current.startFen, current.playerColor, current.moveSans);
   const steps = budgetStepsFor(request, points.length);
-  const expired = () => now() - started >= deadlineFor(request, current, points.length);
+  const expired = () => alreadyConsumed + (now() - started) >= attemptBudget;
   if (points.length === 0) {
     return save(request, {
       analysisStatus: 'failed',
@@ -269,7 +375,7 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
 
   if (current.gradeProtocol !== 'engine') {
     const exact = exactTrace(points, attackerOf(current.playerColor));
-    if (exact && !expired() && gradeTokenCurrent(token)) {
+    if (exact && !expired()) {
       const published = publishFrom(exact, current.userMoves, 'exact', 'scored');
       if (published) {
         return save(request, {
@@ -281,6 +387,33 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
         });
       }
     }
+  }
+
+  const token = takeGradeToken();
+  if (token == null) {
+    if (current.analysisStatus === 'running') {
+      return save(request, {
+        analysisStatus: 'pending',
+        gradeCause: 'interrupted-by-play',
+        gradeDeadlineMs: attemptBudget,
+        gradeConsumedMs: alreadyConsumed + (now() - started),
+      });
+    }
+    const driven = await fallbackMateDrive(current, request);
+    if (driven?.attemptScore != null) return driven;
+    return current;
+  }
+  if (expired()) {
+    const driven = await fallbackMateDrive(current, request);
+    if (driven?.attemptScore != null) return driven;
+    return save(request, {
+      analysisStatus: 'failed',
+      gradeCause: 'deadline',
+      gradeDeadlineMs: attemptBudget,
+      gradeConsumedMs: alreadyConsumed + (now() - started),
+      attemptScore: null,
+      gradeConfidence: null,
+    });
   }
 
   let measured: MeasuredDecision[] =
@@ -304,6 +437,8 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
       gradeProtocol: 'engine',
       gradeBudgetMs: steps[stepIndex] ?? steps[0],
       gradeStepIndex: stepIndex,
+      gradeDeadlineMs: attemptBudget,
+      gradeConsumedMs: alreadyConsumed + (now() - started),
       attemptScore: null,
       gradeConfidence: null,
     });
@@ -315,6 +450,8 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
     gradeCursor: cursor,
     gradeBudgetMs: steps[stepIndex] ?? steps[0],
     gradeStepIndex: stepIndex,
+    gradeDeadlineMs: attemptBudget,
+    gradeConsumedMs: alreadyConsumed,
     attemptScore: null,
     gradeConfidence: null,
     gradeCause: null,
@@ -370,11 +507,19 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
 
   for (let index = cursor; index < points.length; index += 1) {
     if (!gradeTokenCurrent(token)) return interrupt(index, 'interrupted-by-play', 'pending');
-    if (expired()) return interrupt(index, 'deadline', 'failed');
+    if (expired()) {
+      const driven = await fallbackMateDrive(current, request);
+      if (driven?.attemptScore != null) return driven;
+      return interrupt(index, 'deadline', 'failed');
+    }
     const point = points[index]!;
     const status = await measurePoint(point, measured[index], steps[stepIndex]!, index);
     if (status === 'interrupt') {
       const live = gradeTokenCurrent(token);
+      if (live && expired()) {
+        const driven = await fallbackMateDrive(current, request);
+        if (driven?.attemptScore != null) return driven;
+      }
       return interrupt(index, live ? (expired() ? 'deadline' : 'engine-error') : 'interrupted-by-play', live ? 'failed' : 'pending');
     }
     await save(request, {
@@ -392,8 +537,14 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
 
   while (measured.some((decision) => !decisionComplete(decision))) {
     if (!gradeTokenCurrent(token)) return interrupt(points.length, 'interrupted-by-play', 'pending');
-    if (expired()) return interrupt(points.length, 'deadline', 'failed');
+    if (expired()) {
+      const driven = await fallbackMateDrive(current, request);
+      if (driven?.attemptScore != null) return driven;
+      return interrupt(points.length, 'deadline', 'failed');
+    }
     if (stepIndex + 1 >= steps.length) {
+      const driven = await fallbackMateDrive(current, request);
+      if (driven?.attemptScore != null) return driven;
       return interrupt(points.length, 'engine-no-mate', 'failed');
     }
     stepIndex += 1;
@@ -412,7 +563,11 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
     for (let index = points.length - 1; index >= 0; index -= 1) {
       if (decisionComplete(measured[index])) continue;
       if (!gradeTokenCurrent(token)) return interrupt(points.length, 'interrupted-by-play', 'pending');
-      if (expired()) return interrupt(points.length, 'deadline', 'failed');
+      if (expired()) {
+        const driven = await fallbackMateDrive(current, request);
+        if (driven?.attemptScore != null) return driven;
+        return interrupt(points.length, 'deadline', 'failed');
+      }
       const status = await measurePoint(points[index]!, measured[index], movetime, index);
       if (status === 'interrupt') {
         const live = gradeTokenCurrent(token);
@@ -439,6 +594,8 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
   if (!gradeTokenCurrent(token)) return interrupt(points.length, 'interrupted-by-play', 'pending');
   const published = publishFrom(measured, current.userMoves, 'estimated', 'estimated');
   if (!published) {
+    const driven = await fallbackMateDrive(current, request);
+    if (driven?.attemptScore != null) return driven;
     return interrupt(measured.length, 'engine-no-mate', 'failed');
   }
   return save(request, {
@@ -452,12 +609,12 @@ export async function runPostGameGrade(request: PostGameRequest): Promise<ThemeA
   });
 }
 
-function deadlineFor(
-  request: PostGameRequest,
-  current: ThemeAttemptRecord,
-  decisionCount?: number,
-): number {
-  if (request.deadlineMs != null) return request.deadlineMs;
-  const count = decisionCount ?? Math.max(1, Math.ceil((current.moveSans?.length ?? current.userMoves ?? 1) / 2));
+function deadlineFor(request: PostGameRequest, current: ThemeAttemptRecord): number {
+  const stored = current.gradeDeadlineMs;
+  if (typeof stored === 'number' && stored > 0) {
+    return Math.min(stored, POST_GAME_ATTEMPT_BUDGET_MS);
+  }
+  if (request.deadlineMs != null) return Math.min(request.deadlineMs, POST_GAME_ATTEMPT_BUDGET_MS);
+  const count = Math.max(1, Math.ceil((current.moveSans?.length ?? current.userMoves ?? 1) / 2));
   return adaptiveDeadlineMs(count);
 }

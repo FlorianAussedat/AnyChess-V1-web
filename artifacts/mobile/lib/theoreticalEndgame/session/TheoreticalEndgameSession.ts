@@ -11,6 +11,9 @@ import { exactUserDtm } from '../domain/exactElementary.ts';
 import { dtmAfterUserMove, dtmOnUserTurn } from '../domain/mateDistance.ts';
 import type { DistanceSource } from '../domain/types.ts';
 import { assessDefense, defensePlayEnd, type DefenseAssessment } from '../domain/defenseFinish.ts';
+import { assessPawnWin } from '../domain/pawnWinProgress.ts';
+import { assessMateDrive } from '../domain/mateDrive.ts';
+import { gradeFamilyFor } from '../domain/gradeFamily.ts';
 import { getPositionById } from '../selection/selectors.ts';
 import { evaluateRegulatoryEnd } from '../domain/regulatoryEnd.ts';
 import {
@@ -720,18 +723,42 @@ export class TheoreticalEndgameSession {
   private buildResult(outcome: TheoreticalAttemptResult['outcome']): TheoreticalAttemptResult {
     const pos = this.position!;
     if (!this.defense) this.refreshDefense();
+    const family = gradeFamilyFor(pos.themeId, pos.objective);
     const mechanism =
       this.defense?.applicable
         ? { demonstrated: this.defense.demonstrated, slackMoves: this.defense.slackMoves }
         : null;
+    const pawn = family === 'pawn-win'
+      ? assessPawnWin({
+          themeId: pos.themeId,
+          initialFen: this.startFen ?? pos.initialFen,
+          sans: this.moveSans,
+          playerColor: pos.playerColor,
+          objective: pos.objective,
+        })
+      : null;
+    const drive =
+      family === 'elementary-mate'
+        ? assessMateDrive({
+            initialFen: this.startFen ?? pos.initialFen,
+            sans: this.moveSans,
+            playerColor: pos.playerColor,
+          })
+        : null;
     const decisions = this.mateTraceIncomplete
       ? [{ dtmBefore: null, dtmAfter: null }]
       : this.mateDecisions;
+    const progress = pawn?.demonstrated
+      ? { demonstrated: true, slackMoves: pawn.slackMoves }
+      : drive?.demonstrated
+        ? { demonstrated: true, slackMoves: drive.slackMoves }
+        : null;
     const quality = gradeQuality({
       outcome,
       objective: pos.objective,
       userMoves: this.userMoves,
       mechanism,
+      progress,
       decisions,
     });
     const published = publicationFor({
@@ -740,6 +767,8 @@ export class TheoreticalEndgameSession {
       quality,
       decisions,
       mechanismDemonstrated: mechanism?.demonstrated === true,
+      progressDemonstrated: progress?.demonstrated === true,
+      progressExact: pawn?.demonstrated === true,
     });
 
     const officialResultMessage = theoreticalOfficialResultMessage({

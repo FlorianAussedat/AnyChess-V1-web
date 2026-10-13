@@ -56,6 +56,10 @@ export type ThemeAttemptRecord = {
   gradeBudgetMs?: number;
   /** Index into the progressive budget steps. */
   gradeStepIndex?: number;
+  /** Total analysis budget for this attempt, kept across resumes. */
+  gradeDeadlineMs?: number;
+  /** Wall time already spent grading this attempt. */
+  gradeConsumedMs?: number;
 };
 
 const ANALYSIS_STATUSES: readonly AnalysisStatus[] = [
@@ -193,6 +197,8 @@ function normalizeAttempt(raw: Record<string, unknown>): ThemeAttemptRecord | nu
     gradeCursor: typeof raw.gradeCursor === 'number' ? raw.gradeCursor : undefined,
     gradeBudgetMs: typeof raw.gradeBudgetMs === 'number' ? raw.gradeBudgetMs : undefined,
     gradeStepIndex: typeof raw.gradeStepIndex === 'number' ? raw.gradeStepIndex : undefined,
+    gradeDeadlineMs: typeof raw.gradeDeadlineMs === 'number' ? raw.gradeDeadlineMs : undefined,
+    gradeConsumedMs: typeof raw.gradeConsumedMs === 'number' ? raw.gradeConsumedMs : undefined,
   };
 }
 
@@ -490,6 +496,8 @@ export async function updateAttemptGrade(
       | 'gradeCursor'
       | 'gradeBudgetMs'
       | 'gradeStepIndex'
+      | 'gradeDeadlineMs'
+      | 'gradeConsumedMs'
     >
   >,
 ): Promise<ThemeAttemptRecord | null> {

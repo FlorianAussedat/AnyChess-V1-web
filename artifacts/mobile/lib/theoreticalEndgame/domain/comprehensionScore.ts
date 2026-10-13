@@ -77,6 +77,8 @@ export type GradeInput = {
    */
   initialMatePlies?: number | null;
   mechanism?: { demonstrated: boolean; slackMoves: number } | null;
+  /** Pawn-win promotion path, or elementary-mate drive when DTM is missing. */
+  progress?: { demonstrated: boolean; slackMoves: number } | null;
   decisions?: GradeDecision[];
 };
 
@@ -117,7 +119,7 @@ export function gradeFromExtra(extra: number): number {
   return 1;
 }
 
-function commentForExtra(extra: number, kind: 'mate' | 'mechanism'): { fr: string; en: string } {
+function commentForExtra(extra: number, kind: 'mate' | 'mechanism' | 'progress'): { fr: string; en: string } {
   const n = Math.max(0, Math.floor(extra));
   if (n <= 0) {
     return kind === 'mate'
@@ -125,10 +127,15 @@ function commentForExtra(extra: number, kind: 'mate' | 'mechanism'): { fr: strin
           fr: 'Réalisation maîtrisée et efficace : la distance de mat exacte est respectée.',
           en: 'Mastered and efficient: the exact mate distance is met.',
         }
-      : {
-          fr: 'Réalisation maîtrisée et efficace : le mécanisme est tenu sans imprécision.',
-          en: 'Mastered and efficient: the mechanism is kept without slack.',
-        };
+      : kind === 'progress'
+        ? {
+            fr: 'Réalisation maîtrisée : le gain est tenu et la promotion gagnante est préparée sans détour.',
+            en: 'Mastered: the win is kept and the winning promotion is prepared without slack.',
+          }
+        : {
+            fr: 'Réalisation maîtrisée et efficace : le mécanisme est tenu sans imprécision.',
+            en: 'Mastered and efficient: the mechanism is kept without slack.',
+          };
   }
   const frUnit = kind === 'mate' ? 'temps' : n > 1 ? 'coups' : 'coup';
   const enUnit = kind === 'mate' ? (n > 1 ? 'tempos' : 'tempo') : n > 1 ? 'moves' : 'move';
@@ -228,24 +235,37 @@ export function gradeQuality(input: GradeInput): QualityGrade {
 
   if (input.objective === 'WIN') {
     const path = matePathExtra(input.decisions);
-    if ('missing' in path) {
-      return EMPTY_GRADE(
-        'unevaluated',
-        'Qualité non évaluée.',
-        'Quality not evaluated.',
-      );
+    if (!('missing' in path)) {
+      const extra = path.extra + dipPenalty;
+      const text = commentForExtra(extra, 'mate');
+      return {
+        scale: 'quality-5',
+        version: QUALITY_SCORE_VERSION,
+        score: gradeFromExtra(extra),
+        reason: 'mate-distance',
+        extra,
+        commentFr: text.fr,
+        commentEn: text.en,
+      };
     }
-    const extra = path.extra + dipPenalty;
-    const text = commentForExtra(extra, 'mate');
-    return {
-      scale: 'quality-5',
-      version: QUALITY_SCORE_VERSION,
-      score: gradeFromExtra(extra),
-      reason: 'mate-distance',
-      extra,
-      commentFr: text.fr,
-      commentEn: text.en,
-    };
+    if (input.progress?.demonstrated) {
+      const extra = Math.max(0, input.progress.slackMoves) + dipPenalty;
+      const text = commentForExtra(extra, 'progress');
+      return {
+        scale: 'quality-5',
+        version: QUALITY_SCORE_VERSION,
+        score: gradeFromExtra(extra),
+        reason: 'progress',
+        extra,
+        commentFr: text.fr,
+        commentEn: text.en,
+      };
+    }
+    return EMPTY_GRADE(
+      'unevaluated',
+      'Qualité non évaluée.',
+      'Quality not evaluated.',
+    );
   }
 
   if (input.mechanism?.demonstrated) {

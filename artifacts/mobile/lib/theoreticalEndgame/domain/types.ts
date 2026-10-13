@@ -162,6 +162,7 @@ export type GradeCause =
   | 'engine-unavailable'
   | 'interrupted-by-play'
   | 'draw-without-mechanism'
+  | 'progress-without-marker'
   | 'no-user-moves'
   | 'no-trajectory';
 
@@ -210,7 +211,8 @@ export type QualityGrade = {
     | 'interrupted'
     | 'unevaluated'
     | 'mate-distance'
-    | 'mechanism';
+    | 'mechanism'
+    | 'progress';
   /** Measured detours (wasted tempi on the positions faced, or mechanism slack). */
   extra: number | null;
   commentFr: string;

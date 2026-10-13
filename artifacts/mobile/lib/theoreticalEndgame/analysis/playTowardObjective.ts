@@ -10,6 +10,8 @@
 import { Chess } from 'chess.js';
 import type { DefenseAnalyzer } from '../../defendDraw/defenseTypes.ts';
 import { assessDefense } from '../domain/defenseFinish.ts';
+import { pickPawnWinUserSan } from '../domain/pawnWinProgress.ts';
+import { gradeFamilyFor } from '../domain/gradeFamily.ts';
 import type { TheoreticalEndgamePosition } from '../domain/types.ts';
 
 export type PlayFinishCause =
@@ -143,6 +145,26 @@ export async function playTowardObjective(
         }
       }
     }
+    if (
+      !played &&
+      side === user &&
+      gradeFamilyFor(position.themeId, position.objective) === 'pawn-win'
+    ) {
+      const progressSan = pickPawnWinUserSan({
+        themeId: position.themeId,
+        initialFen: position.initialFen,
+        sans,
+        playerColor: position.playerColor,
+        objective: position.objective,
+      });
+      if (progressSan) {
+        try {
+          played = game.move(progressSan);
+        } catch {
+          played = null;
+        }
+      }
+    }
     if (!played) {
       const result = await analyzer.analyze(game.fen(), movetime);
       const best = result.bestMove;
@@ -151,7 +173,18 @@ export async function playTowardObjective(
         return snapshot();
       }
       try {
-        played = game.move(engineMoveArgs(best));
+        if (
+          gradeFamilyFor(position.themeId, position.objective) === 'pawn-win' &&
+          best.promotion &&
+          best.promotion !== 'q'
+        ) {
+          try {
+            played = game.move(engineMoveArgs({ ...best, promotion: 'q' }));
+          } catch {
+            played = null;
+          }
+        }
+        if (!played) played = game.move(engineMoveArgs(best));
       } catch {
         played = null;
       }
