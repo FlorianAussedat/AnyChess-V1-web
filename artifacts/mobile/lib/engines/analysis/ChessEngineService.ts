@@ -329,13 +329,8 @@ export class ChessEngineService {
   }): Promise<void> {
     const pending = this.pending;
     if (!pending) {
-      if (this.transport && this.status !== 'unavailable') {
-        try {
-          this.transport.send('stop');
-        } catch {
-          /* ignore */
-        }
-      }
+      // Do not send `stop` while idle: WASM Stockfish answers `bestmove (none)`,
+      // which would settle the next search before its `go` has started.
       return;
     }
 
@@ -605,6 +600,15 @@ export class ChessEngineService {
         if (line.startsWith('bestmove')) {
           if (!this.pending) {
             // Orphan bestmove from a search we already force-settled — ignore.
+            return;
+          }
+          // An idle `stop` also emits `bestmove (none)` with no info. Ignore it
+          // so it cannot close a search that has not reported yet.
+          if (
+            !this.pending.cancelled &&
+            this.pending.latest == null &&
+            parseBestMove(line) == null
+          ) {
             return;
           }
           this.settlePendingWithBestmove(line);

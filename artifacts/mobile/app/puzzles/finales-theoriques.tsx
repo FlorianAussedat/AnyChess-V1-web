@@ -57,7 +57,19 @@ export default function TheoreticalEndgameCatalogScreen() {
   const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewMode, setViewMode] = useState<CatalogViewMode>('cards');
-  const [scores, setScores] = useState<Record<string, { score: number; count: number }>>({});
+  const [scores, setScores] = useState<
+    Record<
+      string,
+      {
+        score: number;
+        count: number;
+        estimatedScore?: number;
+        estimatedCount?: number;
+        attemptCount?: number;
+        winCount?: number;
+      }
+    >
+  >({});
   const [legacyScores, setLegacyScores] = useState<Record<string, { score: number; count: number }>>({});
   const [allMasteredMsg, setAllMasteredMsg] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -199,6 +211,24 @@ export default function TheoreticalEndgameCatalogScreen() {
             {scoreLabel}
             {mastered ? ` · ${t('quiz.theoreticalCompleted')}` : ''}
           </Text>
+          {(sc.estimatedCount ?? 0) > 0 && (
+            <Text style={{ color: colors.mutedForeground, fontSize: 12, textAlign: 'center' }}>
+              {t('quiz.theoreticalEstimatedScore', {
+                score: formatComprehensionScore(sc.estimatedScore ?? 0),
+              })}
+            </Text>
+          )}
+          {(sc.attemptCount ?? 0) > 0 && (
+            <Text
+              style={{ color: colors.mutedForeground, fontSize: 12, textAlign: 'center' }}
+              testID={`theoretical-theme-attempts-${item.theme.id}`}
+            >
+              {t('quiz.theoreticalAttemptWins', {
+                attempts: sc.attemptCount ?? 0,
+                wins: sc.winCount ?? 0,
+              })}
+            </Text>
+          )}
           {(legacyScores[item.theme.id]?.count ?? 0) > 0 && (
             <Text
               style={{ color: colors.mutedForeground, fontSize: 12, textAlign: 'center' }}
@@ -250,6 +280,21 @@ export default function TheoreticalEndgameCatalogScreen() {
               {title}
             </Text>
             <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>{scoreLabel}</Text>
+            {(sc.estimatedCount ?? 0) > 0 && (
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                {t('quiz.theoreticalEstimatedScore', {
+                  score: formatComprehensionScore(sc.estimatedScore ?? 0),
+                })}
+              </Text>
+            )}
+            {(sc.attemptCount ?? 0) > 0 && (
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                {t('quiz.theoreticalAttemptWins', {
+                  attempts: sc.attemptCount ?? 0,
+                  wins: sc.winCount ?? 0,
+                })}
+              </Text>
+            )}
             {(legacyScores[item.theme.id]?.count ?? 0) > 0 && (
               <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
                 {t('quiz.theoreticalLegacyBadge', {

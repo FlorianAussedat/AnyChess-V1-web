@@ -138,6 +138,44 @@ export type AttemptOutcome =
 
 export type ScoreScaleId = 'legacy-10' | 'quality-5';
 
+/**
+ * Distinct from the score. A missing score stays null; this says why.
+ * `running` is only in memory: a reload resumes it as `pending`.
+ */
+export type AnalysisStatus =
+  | 'not-needed'
+  | 'pending'
+  | 'running'
+  | 'scored'
+  | 'estimated'
+  | 'failed';
+
+/** Exact distances and engine estimates are never averaged together. */
+export type GradeConfidence = 'exact' | 'estimated' | null;
+
+export type DistanceSource = 'exact' | 'engine' | 'observed';
+
+export type GradeCause =
+  | 'engine-no-mate'
+  | 'deadline'
+  | 'engine-error'
+  | 'engine-unavailable'
+  | 'interrupted-by-play'
+  | 'draw-without-mechanism'
+  | 'no-user-moves'
+  | 'no-trajectory';
+
+/** One user decision kept so a grade can resume without replaying finished work. */
+export type MeasuredDecision = {
+  fenBefore: string;
+  san: string;
+  fenAfter: string;
+  dtmBefore: number | null;
+  dtmAfter: number | null;
+  beforeSource: DistanceSource | null;
+  afterSource: DistanceSource | null;
+};
+
 export type OfficialEndReason =
   | 'checkmate'
   | 'stalemate'
@@ -197,6 +235,10 @@ export type TheoreticalAttemptResult = {
   officialResultMessage?: string | null;
   finishedAt: string;
   offScore: boolean;
+  /** Variant id when the position belongs to a group. Defaults to the position id. */
+  variantGroup?: string;
+  analysisStatus?: AnalysisStatus;
+  gradeConfidence?: GradeConfidence;
 };
 
 export type CatalogViewMode = 'cards' | 'list';

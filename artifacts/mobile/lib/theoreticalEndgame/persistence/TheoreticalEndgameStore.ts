@@ -7,17 +7,24 @@ import { StorageKeys } from '../../storage/StorageKeys.ts';
 import type { KeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { defaultKeyValueStorage } from '../../storage/AsyncKeyValueStorage.ts';
 import type {
+  AnalysisStatus,
   AttemptOutcome,
   CatalogViewMode,
+  GradeCause,
+  GradeConfidence,
+  MeasuredDecision,
+  PlayerColor,
   ScoreScaleId,
   TheoreticalAttemptResult,
+  TheoreticalObjective,
   TheoreticalThemeId,
 } from '../domain/types.ts';
 import { THEORETICAL_ENDGAME_CONFIG } from '../domain/types.ts';
 import {
   scoreAttempt,
-  averageComprehensionScore,
   averageLegacyScore,
+  summarizeAttempts,
+  type ThemeScoreSummary,
 } from '../domain/comprehensionScore.ts';
 import { LEGACY_THEORETICAL_IDS } from '../domain/fenLegality.ts';
 import { getPositionById } from '../selection/selectors.ts';
@@ -32,7 +39,29 @@ export type ThemeAttemptRecord = {
   attemptScore: number | null;
   finishedAt: string;
   durationMs?: number;
+  startFen?: string;
+  playerColor?: PlayerColor;
+  moveSans?: string[];
+  /** Position id, or the catalog variant group when the position has one. */
+  variantGroup?: string;
+  objective?: TheoreticalObjective;
+  analysisStatus?: AnalysisStatus;
+  gradeConfidence?: GradeConfidence;
+  gradeCause?: GradeCause | null;
+  gradeProtocol?: 'exact' | 'engine' | null;
+  measuredDecisions?: MeasuredDecision[];
+  /** Next decision index. Earlier decisions are already measured. */
+  gradeCursor?: number;
 };
+
+const ANALYSIS_STATUSES: readonly AnalysisStatus[] = [
+  'not-needed',
+  'pending',
+  'running',
+  'scored',
+  'estimated',
+  'failed',
+];
 
 export type TheoreticalEndgameStoreV2 = {
   version: 2;
@@ -84,21 +113,74 @@ function isLegacyPositionId(id: string): boolean {
   return LEGACY_ID_SET.has(id) || (!id.startsWith('TE-CANON-') && /^TE-\d{3}$/.test(id));
 }
 
+function asStatus(value: unknown, outcome: AttemptOutcome, score: number | null, confidence: GradeConfidence): AnalysisStatus {
+  if (value === 'running') return 'pending';
+  if (typeof value === 'string' && ANALYSIS_STATUSES.includes(value as AnalysisStatus)) {
+    return value as AnalysisStatus;
+  }
+  if (outcome === 'theoretical-loss') return 'not-needed';
+  if (outcome === 'success' && typeof score === 'number') {
+    return confidence === 'estimated' ? 'estimated' : 'scored';
+  }
+  if (outcome === 'success') return 'pending';
+  return 'not-needed';
+}
+
+function asDecisions(value: unknown): MeasuredDecision[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: MeasuredDecision[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    if (typeof row.fenBefore !== 'string' || typeof row.fenAfter !== 'string') continue;
+    out.push({
+      fenBefore: row.fenBefore,
+      san: typeof row.san === 'string' ? row.san : '',
+      fenAfter: row.fenAfter,
+      dtmBefore: typeof row.dtmBefore === 'number' ? row.dtmBefore : null,
+      dtmAfter: typeof row.dtmAfter === 'number' ? row.dtmAfter : null,
+      beforeSource:
+        row.beforeSource === 'exact' || row.beforeSource === 'engine' || row.beforeSource === 'observed'
+          ? row.beforeSource
+          : null,
+      afterSource:
+        row.afterSource === 'exact' || row.afterSource === 'engine' || row.afterSource === 'observed'
+          ? row.afterSource
+          : null,
+    });
+  }
+  return out;
+}
+
 function normalizeAttempt(raw: Record<string, unknown>): ThemeAttemptRecord | null {
   const positionId = typeof raw.positionId === 'string' ? raw.positionId : '';
   const themeId = raw.themeId as TheoreticalThemeId;
   if (!positionId || !themeId || isLegacyPositionId(positionId)) return null;
   const scale: ScoreScaleId = raw.scoreScale === 'quality-5' ? 'quality-5' : 'legacy-10';
   const outcome = (raw.outcome as AttemptOutcome) ?? 'success';
+  const attemptScore = typeof raw.attemptScore === 'number' ? raw.attemptScore : null;
+  const gradeConfidence: GradeConfidence =
+    raw.gradeConfidence === 'exact' || raw.gradeConfidence === 'estimated' ? raw.gradeConfidence : null;
   return {
     positionId,
     themeId,
     outcome,
     userMoves: typeof raw.userMoves === 'number' ? raw.userMoves : 0,
     scoreScale: scale,
-    attemptScore: typeof raw.attemptScore === 'number' ? raw.attemptScore : null,
+    attemptScore,
     finishedAt: typeof raw.finishedAt === 'string' ? raw.finishedAt : '',
     durationMs: typeof raw.durationMs === 'number' ? raw.durationMs : undefined,
+    startFen: typeof raw.startFen === 'string' ? raw.startFen : undefined,
+    playerColor: raw.playerColor === 'white' || raw.playerColor === 'black' ? raw.playerColor : undefined,
+    moveSans: Array.isArray(raw.moveSans) ? raw.moveSans.filter((san): san is string => typeof san === 'string') : undefined,
+    variantGroup: typeof raw.variantGroup === 'string' ? raw.variantGroup : undefined,
+    objective: raw.objective === 'WIN' || raw.objective === 'DRAW' ? raw.objective : undefined,
+    analysisStatus: asStatus(raw.analysisStatus, outcome, attemptScore, gradeConfidence),
+    gradeConfidence,
+    gradeCause: typeof raw.gradeCause === 'string' ? (raw.gradeCause as GradeCause) : null,
+    gradeProtocol: raw.gradeProtocol === 'exact' || raw.gradeProtocol === 'engine' ? raw.gradeProtocol : null,
+    measuredDecisions: asDecisions(raw.measuredDecisions),
+    gradeCursor: typeof raw.gradeCursor === 'number' ? raw.gradeCursor : undefined,
   };
 }
 
@@ -244,12 +326,9 @@ export async function getThemeAttempts(
   return s.themeAttempts[themeId] ?? [];
 }
 
-export async function getThemeComprehension(themeId: TheoreticalThemeId): Promise<{
-  score: number;
-  count: number;
-}> {
+export async function getThemeComprehension(themeId: TheoreticalThemeId): Promise<ThemeScoreSummary> {
   const attempts = await getThemeAttempts(themeId);
-  return averageComprehensionScore(attempts);
+  return summarizeAttempts(attempts);
 }
 
 export async function getLastPositionId(themeId: TheoreticalThemeId): Promise<string | null> {
@@ -257,26 +336,81 @@ export async function getLastPositionId(themeId: TheoreticalThemeId): Promise<st
   return s.lastPositionByTheme[themeId] ?? null;
 }
 
-export async function recordAttempt(
-  result: TheoreticalAttemptResult,
-): Promise<{ oldScore: number; newScore: number; count: number }> {
+export type RecordedAttemptDelta = ThemeScoreSummary & {
+  oldScore: number;
+  newScore: number;
+  attemptScore: number | null;
+  analysisStatus: AnalysisStatus;
+  gradeConfidence: GradeConfidence;
+};
+
+function emptyDelta(summary: ThemeScoreSummary): RecordedAttemptDelta {
+  return {
+    ...summary,
+    oldScore: summary.score,
+    newScore: summary.score,
+    attemptScore: null,
+    analysisStatus: 'not-needed',
+    gradeConfidence: null,
+  };
+}
+
+function rememberBest(store: TheoreticalEndgameStoreV2, record: ThemeAttemptRecord): void {
+  const graded =
+    record.scoreScale === 'quality-5' &&
+    record.outcome === 'success' &&
+    record.gradeConfidence !== 'estimated' &&
+    typeof record.attemptScore === 'number';
+  if (!graded) return;
+  const best = store.bestByPosition[record.positionId];
+  if (
+    !best ||
+    record.attemptScore! > best.attemptScore ||
+    (record.attemptScore === best.attemptScore && record.userMoves < best.userMoves)
+  ) {
+    store.bestByPosition[record.positionId] = {
+      userMoves: record.userMoves,
+      attemptScore: record.attemptScore!,
+      scoreScale: 'quality-5',
+    };
+  }
+}
+
+export async function recordAttempt(result: TheoreticalAttemptResult): Promise<RecordedAttemptDelta> {
   const s0 = await loadTheoreticalStore();
-  const current = averageComprehensionScore(s0.themeAttempts[result.themeId] ?? []);
+  const current = summarizeAttempts(s0.themeAttempts[result.themeId] ?? []);
   if (
     result.outcome === 'abandoned' ||
     result.outcome === 'interrupted' ||
     result.outcome === 'in-progress'
   ) {
-    return { oldScore: current.score, newScore: current.score, count: current.count };
+    return emptyDelta(current);
   }
 
   const s = s0;
   const prev = s.themeAttempts[result.themeId] ?? [];
   if (prev.some((a) => a.finishedAt === result.finishedAt && a.positionId === result.positionId)) {
-    return { oldScore: current.score, newScore: current.score, count: current.count };
+    const existing = prev.find((a) => a.finishedAt === result.finishedAt && a.positionId === result.positionId)!;
+    return {
+      ...current,
+      oldScore: current.score,
+      newScore: current.score,
+      attemptScore: existing.attemptScore,
+      analysisStatus: existing.analysisStatus ?? 'pending',
+      gradeConfidence: existing.gradeConfidence ?? null,
+    };
   }
-  const { score: oldScore } = current;
 
+  const confidence = result.gradeConfidence ?? (typeof result.attemptScore === 'number' ? 'exact' : null);
+  const status =
+    result.analysisStatus ??
+    (result.outcome === 'theoretical-loss'
+      ? 'not-needed'
+      : typeof result.attemptScore === 'number'
+        ? confidence === 'estimated'
+          ? 'estimated'
+          : 'scored'
+        : 'pending');
   const record: ThemeAttemptRecord = {
     positionId: result.positionId,
     themeId: result.themeId,
@@ -286,41 +420,128 @@ export async function recordAttempt(
     attemptScore: result.attemptScore,
     finishedAt: result.finishedAt,
     durationMs: result.durationMs,
+    startFen: result.startFen,
+    playerColor: result.playerColor,
+    moveSans: result.moveSans,
+    variantGroup: result.variantGroup ?? result.positionId,
+    objective: result.objective,
+    analysisStatus: status,
+    gradeConfidence: confidence,
+    gradeCause: null,
+    gradeProtocol: null,
+    measuredDecisions: [],
+    gradeCursor: 0,
   };
 
   s.themeAttempts[result.themeId] = [record, ...prev].slice(0, MAX_ATTEMPTS_PER_THEME);
   s.lastPositionByTheme[result.themeId] = result.positionId;
-
-  const graded =
-    result.scoreScale === 'quality-5' &&
-    result.outcome === 'success' &&
-    typeof result.attemptScore === 'number';
-  const best = s.bestByPosition[result.positionId];
-  if (
-    graded &&
-    (!best ||
-      result.attemptScore! > best.attemptScore ||
-      (result.attemptScore === best.attemptScore && result.userMoves < best.userMoves))
-  ) {
-    s.bestByPosition[result.positionId] = {
-      userMoves: result.userMoves,
-      attemptScore: result.attemptScore!,
-      scoreScale: 'quality-5',
-    };
-  }
+  rememberBest(s, record);
 
   await persist(s);
-  const { score: newScore, count } = averageComprehensionScore(s.themeAttempts[result.themeId]!);
-  return { oldScore, newScore, count };
+  const summary = summarizeAttempts(s.themeAttempts[result.themeId]!);
+  return {
+    ...summary,
+    oldScore: current.score,
+    newScore: summary.score,
+    attemptScore: record.attemptScore,
+    analysisStatus: status,
+    gradeConfidence: confidence,
+  };
 }
 
-export async function getAllThemeScores(): Promise<
-  Record<string, { score: number; count: number }>
-> {
+export async function getAttempt(
+  themeId: TheoreticalThemeId,
+  positionId: string,
+  finishedAt: string,
+): Promise<ThemeAttemptRecord | null> {
   const s = await loadTheoreticalStore();
-  const out: Record<string, { score: number; count: number }> = {};
+  return (
+    (s.themeAttempts[themeId] ?? []).find(
+      (attempt) => attempt.positionId === positionId && attempt.finishedAt === finishedAt,
+    ) ?? null
+  );
+}
+
+export async function updateAttemptGrade(
+  themeId: TheoreticalThemeId,
+  positionId: string,
+  finishedAt: string,
+  patch: Partial<
+    Pick<
+      ThemeAttemptRecord,
+      | 'attemptScore'
+      | 'analysisStatus'
+      | 'gradeConfidence'
+      | 'gradeCause'
+      | 'gradeProtocol'
+      | 'measuredDecisions'
+      | 'gradeCursor'
+    >
+  >,
+): Promise<ThemeAttemptRecord | null> {
+  const s = await loadTheoreticalStore();
+  const list = s.themeAttempts[themeId];
+  if (!list) return null;
+  const index = list.findIndex(
+    (attempt) => attempt.positionId === positionId && attempt.finishedAt === finishedAt,
+  );
+  if (index < 0) return null;
+  const next: ThemeAttemptRecord = { ...list[index]!, ...patch };
+  list[index] = next;
+  rememberBest(s, next);
+  await persist(s);
+  return next;
+}
+
+function preferAttempt(left: ThemeAttemptRecord, right: ThemeAttemptRecord): ThemeAttemptRecord {
+  const scored = (record: ThemeAttemptRecord) => typeof record.attemptScore === 'number';
+  if (scored(left) !== scored(right)) return scored(left) ? left : right;
+  const cursor = (record: ThemeAttemptRecord) =>
+    record.gradeCursor ?? record.measuredDecisions?.length ?? 0;
+  if (cursor(left) !== cursor(right)) return cursor(left) > cursor(right) ? left : right;
+  return left;
+}
+
+/** Union by position and finish time so a sync does not drop a win or a partial grade. */
+export function mergeTheoreticalDocuments(local: unknown, remote: unknown): TheoreticalEndgameStoreV2 {
+  const left = migrateTheoreticalStore(local);
+  const right = migrateTheoreticalStore(remote);
+  const themeIds = new Set([
+    ...Object.keys(left.themeAttempts),
+    ...Object.keys(right.themeAttempts),
+  ]);
+  const themeAttempts: Record<string, ThemeAttemptRecord[]> = {};
+  for (const themeId of themeIds) {
+    const byKey = new Map<string, ThemeAttemptRecord>();
+    for (const record of [...(right.themeAttempts[themeId] ?? []), ...(left.themeAttempts[themeId] ?? [])]) {
+      const key = `${record.positionId}|${record.finishedAt}`;
+      const previous = byKey.get(key);
+      byKey.set(key, previous ? preferAttempt(previous, record) : record);
+    }
+    const merged = [...byKey.values()]
+      .sort((a, b) => (a.finishedAt < b.finishedAt ? 1 : -1))
+      .slice(0, MAX_ATTEMPTS_PER_THEME);
+    if (merged.length > 0) themeAttempts[themeId] = merged;
+  }
+  const bestByPosition = { ...right.bestByPosition };
+  for (const [positionId, value] of Object.entries(left.bestByPosition)) {
+    const previous = bestByPosition[positionId];
+    if (!previous || value.attemptScore > previous.attemptScore) bestByPosition[positionId] = value;
+  }
+  return {
+    ...left,
+    catalogView: left.catalogView,
+    themeAttempts,
+    lastPositionByTheme: { ...right.lastPositionByTheme, ...left.lastPositionByTheme },
+    bestByPosition,
+  };
+}
+
+export async function getAllThemeScores(): Promise<Record<string, ThemeScoreSummary>> {
+  const s = await loadTheoreticalStore();
+  const out: Record<string, ThemeScoreSummary> = {};
   for (const themeId of Object.keys(s.themeAttempts)) {
-    out[themeId] = averageComprehensionScore(s.themeAttempts[themeId] ?? []);
+    out[themeId] = summarizeAttempts(s.themeAttempts[themeId] ?? []);
   }
   return out;
 }

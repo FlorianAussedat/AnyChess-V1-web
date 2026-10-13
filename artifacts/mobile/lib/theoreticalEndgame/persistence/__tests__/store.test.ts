@@ -14,6 +14,9 @@ import {
   getAllThemeScores,
   migrateTheoreticalStore,
   loadTheoreticalStore,
+  getThemeAttempts,
+  updateAttemptGrade,
+  mergeTheoreticalDocuments,
 } from '../TheoreticalEndgameStore.ts';
 import { averageLegacyScore } from '../../domain/comprehensionScore.ts';
 import type { TheoreticalAttemptResult } from '../../domain/types.ts';
@@ -119,6 +122,103 @@ describe('TheoreticalEndgameStore', () => {
     assert.equal(attempts[0]!.attemptScore, 8);
     assert.equal(averageLegacyScore(attempts).score, 8);
     assert.equal(migrated.bestByPosition['TE-CANON-QUEEN-MATE'], undefined);
+  });
+
+  it('counts a win with no score once, and leaves it out of the average', async () => {
+    const delta = await recordAttempt(
+      sampleResult({
+        attemptScore: null,
+        analysisStatus: 'pending',
+        gradeConfidence: null,
+        finishedAt: '2026-10-12T12:00:00.000Z',
+        moveSans: ['Qh7'],
+      }),
+    );
+    assert.equal(delta.count, 0);
+    assert.equal(delta.attemptCount, 1);
+    assert.equal(delta.winCount, 1);
+    assert.equal(delta.attemptScore, null);
+    await recordAttempt(
+      sampleResult({
+        attemptScore: null,
+        analysisStatus: 'pending',
+        finishedAt: '2026-10-12T12:00:00.000Z',
+      }),
+    );
+    const summary = await getThemeComprehension('queen-mate');
+    assert.equal(summary.count, 0);
+    assert.equal(summary.attemptCount, 1);
+    assert.equal(summary.winCount, 1);
+    const stored = await getThemeAttempts('queen-mate');
+    assert.equal(stored.length, 1);
+    assert.deepEqual(stored[0]!.moveSans, ['Qh7']);
+    const graded = await updateAttemptGrade('queen-mate', 'TE-CANON-QUEEN-MATE', '2026-10-12T12:00:00.000Z', {
+      attemptScore: 4,
+      analysisStatus: 'estimated',
+      gradeConfidence: 'estimated',
+      gradeCursor: 1,
+    });
+    assert.equal(graded?.attemptScore, 4);
+    const after = await getThemeComprehension('queen-mate');
+    assert.equal(after.count, 0);
+    assert.equal(after.estimatedCount, 1);
+    assert.equal(after.estimatedScore, 4);
+    assert.equal(after.attemptCount, 1);
+    assert.equal((await getThemeAttempts('queen-mate')).length, 1);
+  });
+
+  it('merges a stored win with a partial grade instead of dropping either', () => {
+    const local = {
+      version: 2,
+      datasetVersion: '2.0.0',
+      catalogView: 'cards',
+      themeAttempts: {
+        'queen-mate': [
+          {
+            positionId: 'TE-CANON-QUEEN-MATE',
+            themeId: 'queen-mate',
+            outcome: 'success',
+            userMoves: 1,
+            scoreScale: 'quality-5',
+            attemptScore: null,
+            finishedAt: '2026-10-12T12:00:00.000Z',
+            analysisStatus: 'pending',
+            gradeCursor: 1,
+            moveSans: ['Qh7'],
+          },
+        ],
+      },
+      lastPositionByTheme: {},
+      bestByPosition: {},
+    };
+    const remote = {
+      ...local,
+      themeAttempts: {
+        'queen-mate': [
+          {
+            ...local.themeAttempts['queen-mate'][0],
+            gradeCursor: 0,
+            moveSans: ['Qh7'],
+          },
+          {
+            positionId: 'TE-CANON-QUEEN-MATE',
+            themeId: 'queen-mate',
+            outcome: 'theoretical-loss',
+            userMoves: 2,
+            scoreScale: 'quality-5',
+            attemptScore: 0,
+            finishedAt: '2026-10-12T13:00:00.000Z',
+            analysisStatus: 'not-needed',
+          },
+        ],
+      },
+    };
+    const merged = mergeTheoreticalDocuments(local, remote);
+    const attempts = merged.themeAttempts['queen-mate']!;
+    assert.equal(attempts.length, 2);
+    const pending = attempts.find((attempt) => attempt.finishedAt.endsWith('12:00:00.000Z'));
+    assert.equal(pending?.gradeCursor, 1);
+    assert.equal(pending?.attemptScore, null);
   });
 
   it('records a result only once', async () => {

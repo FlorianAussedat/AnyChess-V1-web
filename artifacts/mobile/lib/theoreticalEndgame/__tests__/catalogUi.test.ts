@@ -23,6 +23,12 @@ describe('theoretical catalog UI', () => {
     assert.match(catalog, /theoretical-theme-carousel/);
   });
 
+  it('counts attempts and wins even when the average is empty', () => {
+    assert.match(catalog, /theoreticalAttemptWins/);
+    assert.match(catalog, /attemptCount/);
+    assert.match(catalog, /theoreticalEstimatedScore/);
+  });
+
   it('shows diagram, score, and explanation without launching from explain link', () => {
     assert.match(catalog, /TheoreticalMiniDiagram/);
     assert.match(catalog, /theoretical-theme-explain-/);

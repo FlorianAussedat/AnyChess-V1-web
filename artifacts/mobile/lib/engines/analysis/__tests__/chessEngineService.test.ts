@@ -172,6 +172,31 @@ describe('ChessEngineService with scripted UCI', () => {
     engine.destroy();
   });
 
+  it('does not let an idle stop bestmove close the next search', async () => {
+    const mateFen = '7k/8/6KQ/8/8/8/8/8 w - - 0 1';
+    const transport = createScriptedTransport({
+      onCommand(cmd, send) {
+        if (cmd === 'stop') {
+          send('bestmove (none)');
+          return;
+        }
+        if (cmd.startsWith('go ')) {
+          send('info depth 8 score mate 1 pv h6h7');
+          send('bestmove h6h7');
+        }
+      },
+    });
+    const engine = new ChessEngineService({
+      createTransport: () => transport,
+      moveTimeMs: 50,
+    });
+    const analysis = await engine.analyze(mateFen, 50);
+    assert.equal(analysis.cancelled, false);
+    assert.equal(analysis.mateIn, 1);
+    assert.equal(analysis.bestMove?.uci, 'h6h7');
+    engine.destroy();
+  });
+
   it('recoverAfterBackground reboots a previously ready engine', async () => {
     let boots = 0;
     const engine = new ChessEngineService({

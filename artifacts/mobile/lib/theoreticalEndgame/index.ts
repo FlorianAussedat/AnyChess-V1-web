@@ -4,6 +4,8 @@ export type {
   TheoreticalThemeId,
   TheoreticalObjective,
   CatalogViewMode,
+  AnalysisStatus,
+  GradeConfidence,
 } from './domain/types.ts';
 export { THEORETICAL_ENDGAME_CONFIG } from './domain/types.ts';
 export { THEORETICAL_THEMES, THEME_IDS, getTheme, isThemeId } from './domain/themes.ts';
@@ -17,6 +19,8 @@ export {
   headlineFor,
   gradeQuality,
   averageLegacyScore,
+  summarizeAttempts,
+  formatAverageOrDash,
 } from './domain/comprehensionScore.ts';
 export { TheoreticalEndgameSession } from './session/TheoreticalEndgameSession.ts';
 export type { SessionSnapshot, SessionPhase } from './session/TheoreticalEndgameSession.ts';
@@ -28,13 +32,18 @@ export {
   getThemeComprehension,
   getLastPositionId,
   recordAttempt,
+  updateAttemptGrade,
+  getAttempt,
+  mergeTheoreticalDocuments,
   getAllThemeScores,
   getAllLegacyScores,
   clearTheoreticalStoreCache,
   configureTheoreticalStoreStorage,
   migrateTheoreticalStore,
 } from './persistence/TheoreticalEndgameStore.ts';
-export type { ThemeAttemptRecord } from './persistence/TheoreticalEndgameStore.ts';
+export type { ThemeAttemptRecord, RecordedAttemptDelta } from './persistence/TheoreticalEndgameStore.ts';
+export { runPostGameGrade, resumePendingGrades } from './analysis/postGameGrade.ts';
+export { claimEngineForPlay, releaseEngineFromPlay } from './analysis/gradeGate.ts';
 export {
   listPool,
   getPositionById,
