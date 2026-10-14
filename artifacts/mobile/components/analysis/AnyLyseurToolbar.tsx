@@ -113,20 +113,18 @@ export function AnyLyseurToolbar({
         onPress={onFlip}
         testID="anyliseur-flip"
       />
-      {showEngineControls ? (
-        <ToolBtn
-          icon="arrow-forward"
-          label={
-            arrowsEnabled
-              ? t('parties.anyliseurArrowsOn')
-              : t('parties.anyliseurArrowsOff')
-          }
-          hint={t('parties.anyliseurA11yArrowsHint')}
-          onPress={onToggleArrows}
-          active={arrowsEnabled}
-          testID="anyliseur-arrows-toggle"
-        />
-      ) : null}
+      <ToolBtn
+        icon="arrow-forward"
+        label={
+          arrowsEnabled
+            ? t('parties.anyliseurArrowsOn')
+            : t('parties.anyliseurArrowsOff')
+        }
+        hint={t('parties.anyliseurA11yArrowsHint')}
+        onPress={onToggleArrows}
+        active={arrowsEnabled}
+        testID="anyliseur-arrows-toggle"
+      />
       {showEngineControls ? (
         <ToolBtn
           icon="options"

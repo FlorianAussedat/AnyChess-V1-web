@@ -5,6 +5,8 @@ export type MainLineNodeRef = {
   fen: string;
   fenBefore: string;
   san: string;
+  moveNumber: number;
+  color: 'white' | 'black';
 };
 
 /** Walk the main continuation (childIds[0]) from the main root move. */
@@ -21,6 +23,8 @@ export function collectMainLineNodes(game: ReaderGame): MainLineNodeRef[] {
       fen: node.fenAfter,
       fenBefore: node.fenBefore,
       san: node.san,
+      moveNumber: node.moveNumber,
+      color: node.color,
     });
     id = node.childIds[0] ?? null;
   }
@@ -41,6 +45,8 @@ export function collectActiveLineNodes(
       fen: node.fenAfter,
       fenBefore: node.fenBefore,
       san: node.san,
+      moveNumber: node.moveNumber,
+      color: node.color,
     });
   }
   return out;

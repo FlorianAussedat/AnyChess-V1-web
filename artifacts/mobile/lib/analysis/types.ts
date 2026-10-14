@@ -33,6 +33,12 @@ export type EngineLine = {
   bestMove?: string;
 };
 
+/**
+ * Scores written by this app are White-centric.
+ * Entries without this stamp are ignored and recomputed; the game itself stays.
+ */
+export type EvalPerspective = 'white';
+
 export type PositionAnalysis = {
   fen: string;
   depth: number;
@@ -43,6 +49,7 @@ export type PositionAnalysis = {
   mate: number | null;
   bestMove?: string;
   terminalOutcome?: 'white' | 'black' | 'draw';
+  evalPerspective?: EvalPerspective;
 };
 
 export type GameNodeAnalysis = {
@@ -55,6 +62,7 @@ export type GameNodeAnalysis = {
   analyzedAt: number;
   profileId: AnalysisProfileId;
   terminalOutcome?: 'white' | 'black' | 'draw';
+  evalPerspective?: EvalPerspective;
 };
 
 /** Reserved for a future classification layer — not shown in V1. */

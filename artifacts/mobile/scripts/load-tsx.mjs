@@ -2,7 +2,7 @@
  * Loads .tsx for the Node test runner. Type-only .ts files stay on
  * --experimental-strip-types. `@/` matches the mobile tsconfig paths.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { transformSync } from 'esbuild';
@@ -10,6 +10,7 @@ import { transformSync } from 'esbuild';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shims = new Map([
   ['react-native', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/reactNative.ts')],
+  ['react-native-svg', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/svg.ts')],
   ['@/hooks/useColors', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/hooks.ts')],
   ['@/hooks/useTranslation', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/hooks.ts')],
   ['@/constants/BrandAssets', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/assets.ts')],
@@ -30,8 +31,39 @@ function useUiShims(parentURL) {
 function rewriteBare(specifier) {
   if (!specifier.startsWith('@/')) return null;
   const base = join(root, specifier.slice(2));
-  const candidates = [base, `${base}.ts`, `${base}.tsx`, `${base}.js`, join(base, 'index.ts'), join(base, 'index.tsx')];
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+  const candidates = [
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.js`,
+    `${base}.mjs`,
+    join(base, 'index.ts'),
+    join(base, 'index.tsx'),
+    base,
+  ];
+  return (
+    candidates.find(
+      (candidate) => existsSync(candidate) && statSync(candidate).isFile(),
+    ) ?? null
+  );
+}
+
+function rewriteRelative(specifier, parentURL) {
+  if (!specifier.startsWith('.') || !parentURL?.startsWith('file:')) return null;
+  const base = join(dirname(fileURLToPath(parentURL)), specifier);
+  const candidates = [
+    `${base}.ts`,
+    `${base}.tsx`,
+    `${base}.js`,
+    `${base}.mjs`,
+    join(base, 'index.ts'),
+    join(base, 'index.tsx'),
+    base,
+  ];
+  return (
+    candidates.find(
+      (candidate) => existsSync(candidate) && statSync(candidate).isFile(),
+    ) ?? null
+  );
 }
 
 export async function resolve(specifier, context, nextResolve) {
@@ -41,7 +73,7 @@ export async function resolve(specifier, context, nextResolve) {
       shortCircuit: true,
     };
   }
-  const found = rewriteBare(specifier);
+  const found = rewriteBare(specifier) ?? rewriteRelative(specifier, context.parentURL);
   if (found) {
     return {
       url: pathToFileURL(found).href,

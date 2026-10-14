@@ -20,6 +20,7 @@ import {
   EngineLinesPanel,
   EvalBalanceBar,
   EvalCurve,
+  SelectedMovePanel,
   type EvalCurvePoint,
 } from '@/components/analysis';
 import { ChessScreenScaffold } from '@/components/game/ChessScreenScaffold';
@@ -32,12 +33,16 @@ import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
+  buildLiveFocus,
+  buildSelectedMoveReview,
+  collectActiveLineNodes,
   collectMainLineNodes,
   exportEnrichedPgn,
-  formatAnyLyseurEval,
-  uciToSan,
+  resolveBoardPresentation,
+  sameChessPosition,
   useAnyLyseurAnalysis,
   type AnalysisProfileId,
+  type PositionAnalysis,
 } from '@/lib/analysis';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { copyToClipboard } from '@/lib/clipboard';
@@ -290,7 +295,7 @@ export default function GameWorkspaceScreen() {
     reanalyze,
     setArrowsEnabled,
     retryEngine,
-    classificationInputs,
+    lookupPosition,
   } = useAnyLyseurAnalysis({
     game: reader?.game ?? game,
     currentFen: reader?.currentFen ?? null,
@@ -322,63 +327,116 @@ export default function GameWorkspaceScreen() {
   }, [windowWidth, windowHeight, contentTop, contentBottom]);
 
   const showEngineUi = tab === 'analysis';
+  const replayMode = tab === 'game';
 
-  const displayPosition =
-    showEngineUi &&
-    analysis?.position &&
-    reader?.currentFen &&
-    analysis.position.fen === reader.currentFen &&
-    analysis.position.profileId === analysis.profileId
-      ? analysis.position
+  const currentNode =
+    reader?.currentNodeId && game
+      ? game.nodesById[reader.currentNodeId]
       : null;
 
-  const evalValue = displayPosition
-    ? {
-        cp: displayPosition.evaluation,
-        mate: displayPosition.mate,
-        terminalOutcome: displayPosition.terminalOutcome,
+  const positionFor = useCallback(
+    (fen: string | null | undefined): PositionAnalysis | null => {
+      if (!fen || !analysis) return null;
+      const live = analysis.position;
+      if (
+        live &&
+        live.evalPerspective === 'white' &&
+        live.profileId === analysis.profileId &&
+        sameChessPosition(live.fen, fen)
+      ) {
+        return live;
       }
+      const cached = lookupPosition(fen);
+      if (!cached || cached.profileId !== analysis.profileId) return null;
+      if (!sameChessPosition(cached.fen, fen)) return null;
+      return cached;
+    },
+    [analysis, lookupPosition],
+  );
+
+  const displayPosition =
+    showEngineUi && reader?.currentFen
+      ? positionFor(reader.currentFen)
+      : null;
+
+  const beforeAnalysis = currentNode ? positionFor(currentNode.fenBefore) : null;
+  const afterAnalysis = currentNode ? positionFor(currentNode.fenAfter) : null;
+
+  const review = currentNode
+    ? buildSelectedMoveReview({
+        fenBefore: currentNode.fenBefore,
+        fenAfter: currentNode.fenAfter,
+        playedSan: currentNode.san,
+        playedUci:
+          currentNode.from && currentNode.to
+            ? `${currentNode.from}${currentNode.to}${currentNode.promotion ?? ''}`
+            : null,
+        before: beforeAnalysis,
+        after: afterAnalysis,
+      })
     : null;
 
+  const liveFocus =
+    showEngineUi && reader?.currentFen
+      ? buildLiveFocus(reader.currentFen, displayPosition)
+      : null;
+
+  const evalValue = liveFocus?.evaluation ?? null;
+
   const curvePoints = useMemo((): EvalCurvePoint[] => {
-    if (!game || !analysis) return [];
-    return collectMainLineNodes(game)
-      .map((n) => {
-        const nodeAnalysis = analysis.gameNodes[n.nodeId];
-        if (!nodeAnalysis) return null;
-        return { nodeId: n.nodeId, analysis: nodeAnalysis };
-      })
-      .filter((p): p is EvalCurvePoint => p != null);
-  }, [game, analysis]);
+    if (!game || !reader) return [];
+    const active = collectActiveLineNodes(game, reader.activeLineNodeIds);
+    const line = active.length > 0 ? active : collectMainLineNodes(game);
+    return line.map((node) => {
+      const stored = analysis?.gameNodes[node.nodeId];
+      const trusted =
+        stored &&
+        stored.evalPerspective === 'white' &&
+        sameChessPosition(stored.fen, node.fen)
+          ? stored
+          : null;
+      return {
+        nodeId: node.nodeId,
+        fen: node.fen,
+        moveNumber: node.moveNumber,
+        plyColor: node.color === 'white' ? 'w' : 'b',
+        analysis: trusted,
+      };
+    });
+  }, [game, reader, analysis]);
+
+  const boardPresentation = resolveBoardPresentation({
+    mode: replayMode ? 'replay' : 'live',
+    arrowsEnabled: analysis?.arrowsEnabled ?? true,
+    liveFen: reader?.currentFen ?? game?.initialFen ?? '',
+    selected: currentNode
+      ? {
+          fenBefore: currentNode.fenBefore,
+          fenAfter: currentNode.fenAfter,
+          san: currentNode.san,
+        }
+      : null,
+  });
 
   const arrows = useMemo(() => {
-    if (!showEngineUi) return [];
-    if (!analysis?.arrowsEnabled || !displayPosition) return [];
-    if (displayPosition.terminalOutcome) return [];
-    const best =
-      displayPosition.bestMove ?? displayPosition.lines[0]?.bestMove;
-    if (!best || best.length < 4) return [];
-    try {
-      const chess = new Chess(displayPosition.fen);
-      const from = best.slice(0, 2);
-      const to = best.slice(2, 4);
-      const promo = best.length > 4 ? best[4] : undefined;
-      const ok = chess
-        .moves({ verbose: true })
-        .some(
-          (m) =>
-            m.from === from &&
-            m.to === to &&
-            (!promo || m.promotion === promo),
-        );
-      if (!ok) return [];
-      return [{ from, to, color: colors.primary }];
-    } catch {
-      return [];
+    if (!(analysis?.arrowsEnabled ?? true)) return [];
+    if (replayMode) {
+      if (!boardPresentation.preview || !beforeAnalysis || !currentNode) return [];
+      const arrow = review?.arrow;
+      if (!arrow) return [];
+      return [{ from: arrow.from, to: arrow.to, color: colors.primary }];
     }
+    const arrow = liveFocus?.arrow;
+    if (!arrow || !displayPosition) return [];
+    return [{ from: arrow.from, to: arrow.to, color: colors.primary }];
   }, [
-    showEngineUi,
     analysis?.arrowsEnabled,
+    replayMode,
+    boardPresentation.preview,
+    beforeAnalysis,
+    currentNode,
+    review?.arrow,
+    liveFocus?.arrow,
     displayPosition,
     colors.primary,
   ]);
@@ -598,95 +656,119 @@ export default function GameWorkspaceScreen() {
     />
   ) : null;
 
-  const currentNode =
-    reader?.currentNodeId && game
-      ? game.nodesById[reader.currentNodeId]
-      : null;
-  const playedSan = classificationInputs?.playedMoveSan
-    ? formatSanForDisplay(classificationInputs.playedMoveSan, chessNotation)
-    : null;
-  const bestSan =
-    classificationInputs?.bestMoveUci && currentNode
-      ? (() => {
-          const san = uciToSan(
-            currentNode.fenBefore,
-            classificationInputs.bestMoveUci,
-          );
-          return san ? formatSanForDisplay(san, chessNotation) : null;
-        })()
-      : null;
-
   const engineUnavailable =
     analysis?.engineStatus === 'unavailable' ||
     analysis?.engineStatus === 'error';
 
+  const reviewStatus: 'pending' | 'ready' | 'unavailable' | 'terminal' | 'incomplete' =
+    beforeAnalysis?.terminalOutcome
+      ? 'terminal'
+      : beforeAnalysis &&
+          !review?.bestSan &&
+          (beforeAnalysis.lines.length === 0 ||
+            (beforeAnalysis.mate != null || beforeAnalysis.evaluation != null))
+        ? 'incomplete'
+        : beforeAnalysis
+          ? 'ready'
+          : engineUnavailable
+            ? 'unavailable'
+            : 'pending';
+
+  const liveStatus: 'pending' | 'ready' | 'unavailable' | 'terminal' | 'incomplete' =
+    liveFocus?.terminal
+      ? 'terminal'
+      : displayPosition && liveFocus && liveFocus.possibilities.length === 0
+        ? 'incomplete'
+        : displayPosition
+          ? 'ready'
+          : engineUnavailable
+            ? 'unavailable'
+            : 'pending';
+
+  const statusLine = (
+    <Text style={[styles.status, { color: colors.mutedForeground }]}>
+      {engineUnavailable
+        ? t('parties.anyliseurUnavailable')
+        : analysis?.engineStatus === 'analyzing'
+          ? t('parties.anyliseurAnalyzing')
+          : analysis?.engineStatus === 'initializing'
+            ? t('parties.anyliseurInitializing')
+            : t('parties.anyliseurReady')}
+      {analysisProgressLabel ? ` · ${analysisProgressLabel}` : ''}
+    </Text>
+  );
+
+  const retryButton = engineUnavailable ? (
+    <Pressable
+      testID="anyliseur-retry-engine"
+      onPress={() => void retryEngine()}
+      style={[
+        styles.chip,
+        { borderColor: colors.border, backgroundColor: colors.card },
+      ]}
+    >
+      <Text style={[styles.chipLabel, { color: colors.primary }]}>
+        {t('parties.anyliseurRetry')}
+      </Text>
+    </Pressable>
+  ) : null;
+
+  const curve = (
+    <EvalCurve
+      points={curvePoints}
+      activeNodeId={reader?.currentNodeId ?? null}
+      onSelectNode={(nodeId) => reader?.goToNode(nodeId)}
+    />
+  );
+
+  const reviewPanel = (
+    <View style={styles.analysisPanel} testID="anyliseur-review-panel">
+      {statusLine}
+      {retryButton}
+      {review && currentNode ? (
+        <SelectedMovePanel
+          review={review}
+          notation={chessNotation}
+          linesFen={currentNode.fenBefore}
+          lines={beforeAnalysis?.lines ?? []}
+          status={reviewStatus}
+        />
+      ) : (
+        <Text
+          style={{ color: colors.mutedForeground, fontSize: 13 }}
+          testID="anyliseur-select-move"
+        >
+          {t('parties.anyliseurSelectMove')}
+        </Text>
+      )}
+      {curve}
+      {exportStatus ? (
+        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+          {exportStatus}
+        </Text>
+      ) : null}
+    </View>
+  );
+
   const analysisPanel = (
     <View style={styles.analysisPanel} testID="anyliseur-analysis-panel">
-      <Text style={[styles.status, { color: colors.mutedForeground }]}>
-        {engineUnavailable
-          ? t('parties.anyliseurUnavailable')
-          : analysis?.engineStatus === 'analyzing'
-            ? t('parties.anyliseurAnalyzing')
-            : analysis?.engineStatus === 'initializing'
-              ? t('parties.anyliseurInitializing')
-              : t('parties.anyliseurReady')}
-        {analysisProgressLabel ? ` · ${analysisProgressLabel}` : ''}
-      </Text>
-
-      {engineUnavailable ? (
-        <Pressable
-          testID="anyliseur-retry-engine"
-          onPress={() => void retryEngine()}
-          style={[
-            styles.chip,
-            { borderColor: colors.border, backgroundColor: colors.card },
-          ]}
-        >
-          <Text style={[styles.chipLabel, { color: colors.primary }]}>
-            {t('parties.anyliseurRetry')}
-          </Text>
-        </Pressable>
-      ) : null}
-
-      {classificationInputs && (playedSan || bestSan) ? (
-        <View
-          style={[
-            styles.compareBox,
-            { borderColor: colors.border, backgroundColor: colors.card },
-          ]}
-          testID="anyliseur-played-vs-best"
-        >
-          <Text style={{ color: colors.foreground }}>
-            {t('parties.anyliseurPlayed')}: {playedSan ?? '—'}
-          </Text>
-          <Text style={{ color: colors.primary }}>
-            {t('parties.anyliseurBest')}: {bestSan ?? '—'}
-          </Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-            {t('parties.anyliseurBefore')}:{' '}
-            {formatAnyLyseurEval({
-              cp: classificationInputs.evalBefore,
-              mate: classificationInputs.mateBefore,
-            })}
-            {' · '}
-            {t('parties.anyliseurAfter')}:{' '}
-            {formatAnyLyseurEval({
-              cp: classificationInputs.evalAfter,
-              mate: classificationInputs.mateAfter,
-            })}
-          </Text>
-        </View>
-      ) : null}
-
+      {statusLine}
+      {retryButton}
       <EngineLinesPanel
         fen={reader?.currentFen ?? game?.initialFen ?? ''}
         lines={displayPosition?.lines ?? []}
         notation={chessNotation}
-      />
-      <EvalCurve
-        points={curvePoints}
-        activeNodeId={reader?.currentNodeId ?? null}
-        onSelectNode={(nodeId) => reader?.goToNode(nodeId)}
+        title={t('parties.anyliseurLiveMoves')}
+        emptyLabel={
+          liveStatus === 'pending'
+            ? t('parties.anyliseurAnalyzing')
+            : liveStatus === 'terminal'
+              ? t('parties.anyliseurTerminal')
+              : liveStatus === 'incomplete'
+                ? t('parties.anyliseurEvalIncomplete')
+                : t('parties.anyliseurEvalMissing')
+        }
+        testID="anyliseur-live-lines"
       />
       {exportStatus ? (
         <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
@@ -885,9 +967,20 @@ export default function GameWorkspaceScreen() {
             showToolbar={false}
             toolbarSlot={toolbar}
             arrows={arrows}
-            onSquarePress={onSquarePress}
-            selectedSquare={touchSelected}
-            legalDots={legalDests}
+            boardFen={boardPresentation.preview ? boardPresentation.fen : null}
+            previewLabel={
+              boardPresentation.preview && boardPresentation.previewSan
+                ? t('parties.anyliseurBestPreview', {
+                    move: formatSanForDisplay(
+                      boardPresentation.previewSan,
+                      chessNotation,
+                    ),
+                  })
+                : null
+            }
+            onSquarePress={boardPresentation.preview ? undefined : onSquarePress}
+            selectedSquare={boardPresentation.preview ? null : touchSelected}
+            legalDots={boardPresentation.preview ? [] : legalDests}
             topSlot={
               showEngineUi ? (
                 <EvalBalanceBar
@@ -966,6 +1059,7 @@ export default function GameWorkspaceScreen() {
               </Pressable>
             </View>
           )}
+          {replayMode ? reviewPanel : null}
           {showEngineUi ? analysisPanel : null}
         </View>
       ) : null}

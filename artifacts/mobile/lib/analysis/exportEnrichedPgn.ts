@@ -10,15 +10,16 @@ function escapeHeader(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-function evalComment(node: GameNodeAnalysis): string {
-  // Standard-ish [%eval …] — mates as #N / #-N
+function evalComment(node: GameNodeAnalysis): string | null {
+  // Standard-ish [%eval …] — mates as #N / #-N. A missing score is omitted.
   if (node.mate != null && node.mate !== 0) {
     return `[%eval #${node.mate}]`;
   }
   if (node.terminalOutcome === 'white') return '[%eval #1]';
   if (node.terminalOutcome === 'black') return '[%eval #-1]';
   if (node.terminalOutcome === 'draw') return '[%eval 0.00]';
-  const pawns = ((node.evaluation ?? 0) / 100).toFixed(2);
+  if (node.evaluation == null || !Number.isFinite(node.evaluation)) return null;
+  const pawns = (node.evaluation / 100).toFixed(2);
   return `[%eval ${pawns}]`;
 }
 
@@ -42,7 +43,8 @@ function commentForNode(
   const parts: string[] = [];
   if (original) parts.push(original);
   if (includeEvals && analysisAfter) {
-    parts.push(evalComment(analysisAfter));
+    const evalText = evalComment(analysisAfter);
+    if (evalText) parts.push(evalText);
   }
   if (includeBest && analysisBefore?.bestMove) {
     // Best is from the position BEFORE this move (parent / start analysis).

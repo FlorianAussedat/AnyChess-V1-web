@@ -4,7 +4,9 @@ export const BrandAssets = {
 
 export const DesignTokens = {
   headerIconButton: 34,
-  typography: { weightSemiBold: '600' },
+  spacing: { xs: 4, sm: 8, md: 12 },
+  radius: { sm: 4, md: 8 },
+  typography: { body: 14, micro: 11, weightSemiBold: '600', weightBold: '700' },
 };
 
 export function computeBoardSize() {

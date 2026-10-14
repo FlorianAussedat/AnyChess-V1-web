@@ -1,3 +1,5 @@
+import { translate, type MessageKey, type MessageParams } from '@/lib/i18n/messages.ts';
+
 const FR: Record<string, string> = {
   'a11y.boardHide': 'Masquer l’échiquier',
   'a11y.boardShow': 'Afficher l’échiquier',
@@ -23,7 +25,8 @@ export function useColors() {
 
 export function useTranslation() {
   return {
-    t: (key: string) => FR[key] ?? key,
+    t: (key: string, params?: MessageParams) =>
+      FR[key] ?? translate('fr', key as MessageKey, params),
     language: 'fr' as const,
   };
 }

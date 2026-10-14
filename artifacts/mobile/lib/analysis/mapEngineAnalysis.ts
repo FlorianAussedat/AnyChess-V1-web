@@ -1,9 +1,57 @@
-import type { EngineAnalysis } from '@/lib/engines/analysis';
+import type {
+  EngineAnalysis,
+  EngineAnalysisLine,
+} from '@/lib/engines/analysis/types.ts';
 import type { AnalysisProfileId, EngineLine, PositionAnalysis } from './types.ts';
 import {
   terminalWhiteScoreFromFen,
   toWhiteScore,
 } from './scoreWhite.ts';
+import { uciToSan } from './uciToSan.ts';
+
+function legalUci(fen: string, uci: string | undefined): string | null {
+  if (!uci || !uciToSan(fen, uci)) return null;
+  const from = uci.slice(0, 2);
+  const to = uci.slice(2, 4);
+  const promotion = uci.length > 4 ? uci[4]!.toLowerCase() : '';
+  return `${from}${to}${promotion}`;
+}
+
+function mapLine(
+  fen: string,
+  line: EngineAnalysisLine,
+  index: number,
+): EngineLine | null {
+  const rawUci = line.bestMove?.uci ?? line.pv[0];
+  const best = legalUci(fen, rawUci);
+  if (!best) return null;
+  const white = toWhiteScore(
+    { scoreCp: line.scoreCp, mateIn: line.mateIn },
+    fen,
+  );
+  if (white.mate == null && white.evaluation == null) return null;
+  return {
+    rank: line.multipv ?? index + 1,
+    depth: line.depth,
+    scoreCp: white.evaluation,
+    mate: white.mate,
+    pv: [best],
+    bestMove: best,
+  };
+}
+
+function headlineFromRaw(
+  fen: string,
+  raw: EngineAnalysis,
+): { evaluation: number | null; mate: number | null } | null {
+  if (raw.mateIn != null) {
+    return toWhiteScore({ scoreCp: raw.scoreCp, mateIn: raw.mateIn }, fen);
+  }
+  if (raw.score != null) {
+    return toWhiteScore({ scoreCp: raw.scoreCp, mateIn: null }, fen);
+  }
+  return null;
+}
 
 export function mapEngineAnalysisToPosition(
   fen: string,
@@ -24,50 +72,42 @@ export function mapEngineAnalysisToPosition(
       mate: terminal.mate,
       bestMove: undefined,
       terminalOutcome: terminal.terminalOutcome,
+      evalPerspective: 'white',
     };
   }
 
   const linesSrc =
     raw.lines && raw.lines.length > 0
       ? raw.lines
-      : [
-          {
-            multipv: 1,
-            scoreCp: raw.scoreCp,
-            mateIn: raw.mateIn,
-            wdl: raw.wdl,
-            depth: raw.depth,
-            bestMove: raw.bestMove,
-            pv: raw.bestMove?.uci ? [raw.bestMove.uci] : [],
-          },
-        ];
+      : raw.bestMove?.uci || raw.score != null || raw.mateIn != null
+        ? [
+            {
+              multipv: 1,
+              scoreCp: raw.scoreCp,
+              mateIn: raw.mateIn,
+              wdl: raw.wdl,
+              depth: raw.depth,
+              bestMove: raw.bestMove,
+              pv: raw.bestMove?.uci ? [raw.bestMove.uci] : [],
+            },
+          ]
+        : [];
 
-  const lines: EngineLine[] = linesSrc.map((line, index) => {
-    const white = toWhiteScore(
-      { scoreCp: line.scoreCp, mateIn: line.mateIn },
-      fen,
-    );
-    const pv =
-      line.pv && line.pv.length > 0
-        ? line.pv
-        : line.bestMove?.uci
-          ? [line.bestMove.uci]
-          : [];
-    return {
-      rank: line.multipv ?? index + 1,
-      depth: line.depth,
-      scoreCp: white.evaluation,
-      mate: white.mate,
-      pv,
-      bestMove: line.bestMove?.uci ?? pv[0],
-    };
-  });
-
+  const lines: EngineLine[] = linesSrc
+    .map((line, index) => mapLine(fen, line, index))
+    .filter((line): line is EngineLine => line != null);
   lines.sort((a, b) => a.rank - b.rank);
-  const headline = toWhiteScore(
-    { scoreCp: raw.scoreCp, mateIn: raw.mateIn },
-    fen,
-  );
+
+  const headline = headlineFromRaw(fen, raw);
+  const evaluation = headline?.evaluation ?? lines[0]?.scoreCp ?? null;
+  const mate = headline?.mate ?? lines[0]?.mate ?? null;
+  const hasScore = mate != null || evaluation != null;
+  const searched = raw.depth > 0 || lines.some((line) => line.depth > 0);
+  // A depth-0 "cp 0" with no legal move is an empty search, not equality.
+  if (!searched || (!hasScore && lines.length === 0)) return null;
+
+  const bestFromEngine = legalUci(fen, raw.bestMove?.uci);
+  const bestMove = bestFromEngine ?? lines[0]?.bestMove;
 
   return {
     fen,
@@ -75,9 +115,9 @@ export function mapEngineAnalysisToPosition(
     lines,
     analyzedAt: Date.now(),
     profileId,
-    evaluation: headline.evaluation,
-    mate: headline.mate,
-    bestMove: lines[0]?.bestMove ?? raw.bestMove?.uci,
-    terminalOutcome: headline.terminalOutcome,
+    evaluation,
+    mate,
+    bestMove,
+    evalPerspective: 'white',
   };
 }

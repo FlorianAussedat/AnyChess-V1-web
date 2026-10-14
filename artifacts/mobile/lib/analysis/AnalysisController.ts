@@ -173,6 +173,12 @@ export class AnalysisController {
     );
   }
 
+  /** Put a node back only while this batch is still the active game. */
+  private requeue(gen: number, node: AnalyzeNodeSpec): void {
+    if (this.disposed || gen !== this.gameGen) return;
+    this.pendingGameNodes.unshift(node);
+  }
+
   private putCachedPosition(fen: string, mapped: PositionAnalysis): void {
     const profile = getAnalysisProfile(this.profileId);
     sessionAnalysisStore.setPosition(
@@ -248,6 +254,7 @@ export class AnalysisController {
         evaluation: terminal.evaluation,
         mate: terminal.mate,
         terminalOutcome: terminal.terminalOutcome,
+        evalPerspective: 'white',
       };
       if (gen !== this.positionGen || this.disposed) return null;
       this.putCachedPosition(fen, mapped);
@@ -343,8 +350,10 @@ export class AnalysisController {
     const sessionId = options?.sessionId ?? this.sessionId ?? 'default';
     const fingerprint = options?.fingerprint ?? this.fingerprint ?? sessionId;
     const asMainLine = options?.asMainLine !== false;
+    const sessionChanged =
+      sessionId !== this.sessionId || fingerprint !== this.fingerprint;
 
-    if (sessionId !== this.sessionId || fingerprint !== this.fingerprint) {
+    if (sessionChanged) {
       this.sessionId = sessionId;
       this.fingerprint = fingerprint;
       const stored = sessionAnalysisStore.getGame(
@@ -353,7 +362,11 @@ export class AnalysisController {
         this.profileId,
       );
       if (stored) {
-        this.gameNodes = { ...stored.gameNodes };
+        const trusted: Record<string, GameNodeAnalysis> = {};
+        for (const [id, node] of Object.entries(stored.gameNodes)) {
+          if (node.evalPerspective === 'white') trusted[id] = node;
+        }
+        this.gameNodes = trusted;
         this.mainLineNodeIds = [...stored.mainLineNodeIds];
         this.variantNodeIds = [...stored.variantNodeIds];
         this.mainLineComplete = stored.mainLineComplete;
@@ -395,12 +408,8 @@ export class AnalysisController {
     }
 
     // Same game already pumping — don't bump generation (would cancel work).
-    if (
-      this.gameRunning &&
-      this.sessionId === sessionId &&
-      this.fingerprint === fingerprint &&
-      asMainLine
-    ) {
+    // A session change must not take this path: the id is already updated above.
+    if (this.gameRunning && !sessionChanged && asMainLine) {
       this.emit();
       return;
     }
@@ -415,7 +424,8 @@ export class AnalysisController {
       if (
         existing &&
         existing.fen === n.fen &&
-        existing.profileId === this.profileId
+        existing.profileId === this.profileId &&
+        existing.evalPerspective === 'white'
       ) {
         continue;
       }
@@ -437,6 +447,7 @@ export class AnalysisController {
           analyzedAt: cached.analyzedAt,
           profileId: cached.profileId,
           terminalOutcome: cached.terminalOutcome,
+          evalPerspective: 'white',
         };
         continue;
       }
@@ -536,6 +547,7 @@ export class AnalysisController {
               evaluation: terminal.evaluation,
               mate: terminal.mate,
               terminalOutcome: terminal.terminalOutcome,
+              evalPerspective: 'white',
             };
             this.putCachedPosition(next.fen, mapped);
           }
@@ -546,7 +558,7 @@ export class AnalysisController {
             this.engineStatus === 'unavailable' ||
             this.engineStatus === 'error'
           ) {
-            this.pendingGameNodes.unshift(next);
+            this.requeue(gen, next);
             this.gameRunning = false;
             this.emit();
             return;
@@ -559,15 +571,15 @@ export class AnalysisController {
               profile,
             });
             if (this.disposed || gen !== this.gameGen) {
-              this.pendingGameNodes.unshift(next);
+              this.requeue(gen, next);
               return;
             }
             if (raw.cancelled) {
-              this.pendingGameNodes.unshift(next);
+              this.requeue(gen, next);
               return;
             }
             if (this.analyzingFen) {
-              this.pendingGameNodes.unshift(next);
+              this.requeue(gen, next);
               return;
             }
             const result = mapEngineAnalysisToPosition(
@@ -576,17 +588,17 @@ export class AnalysisController {
               profile.id,
             );
             if (!result) {
-              this.pendingGameNodes.unshift(next);
+              this.requeue(gen, next);
               return;
             }
             mapped = result;
             this.putCachedPosition(next.fen, mapped);
           } catch (err) {
             if (this.disposed || gen !== this.gameGen) {
-              this.pendingGameNodes.unshift(next);
+              this.requeue(gen, next);
               return;
             }
-            this.pendingGameNodes.unshift(next);
+            this.requeue(gen, next);
             this.setEngineStatus(
               'error',
               err instanceof Error ? err.message : String(err),
@@ -599,7 +611,7 @@ export class AnalysisController {
         }
 
         if (this.disposed || gen !== this.gameGen) {
-          this.pendingGameNodes.unshift(next);
+          this.requeue(gen, next);
           return;
         }
 
@@ -613,6 +625,7 @@ export class AnalysisController {
           analyzedAt: mapped.analyzedAt,
           profileId: mapped.profileId,
           terminalOutcome: mapped.terminalOutcome,
+          evalPerspective: 'white',
         };
         if (this.sessionId && this.fingerprint) {
           sessionAnalysisStore.setGameNode(
@@ -658,8 +671,7 @@ export class AnalysisController {
         !this.disposed &&
         this.gameRunning &&
         this.pendingGameNodes.length > 0 &&
-        !this.analyzingFen &&
-        this.gameGen === gen
+        !this.analyzingFen
       ) {
         void this.pumpGameAnalysis();
       }

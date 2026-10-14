@@ -44,6 +44,10 @@ type Props = {
   /** Replaces voice toolbar when provided (AnyLyseur). */
   toolbarSlot?: React.ReactNode;
   arrows?: { from: string; to: string; color?: string }[];
+  /** Override the displayed position without moving the selected node. */
+  boardFen?: string | null;
+  /** Caption shown while previewing the position before the selected move. */
+  previewLabel?: string | null;
   /** Optional board exploration (AnyLyseur). */
   onSquarePress?: (square: string) => void;
   selectedSquare?: string | null;
@@ -76,6 +80,8 @@ export function SharedGameReaderView({
   toolbar,
   toolbarSlot,
   arrows,
+  boardFen = null,
+  previewLabel = null,
   onSquarePress,
   selectedSquare = null,
   legalDots = [],
@@ -96,8 +102,9 @@ export function SharedGameReaderView({
     onEnd: reader.goToEnd,
   });
 
-  const board = useMemo(() => boardFromFen(reader.currentFen), [reader.currentFen]);
-  const lastMove: LastMove | null = reader.lastMoveSquares;
+  const shownFen = boardFen || reader.currentFen;
+  const board = useMemo(() => boardFromFen(shownFen), [shownFen]);
+  const lastMove: LastMove | null = boardFen ? null : reader.lastMoveSquares;
 
   const comment =
     reader.currentPly > 0 ? stripClkTags(reader.currentMove?.comment) : undefined;
@@ -134,6 +141,14 @@ export function SharedGameReaderView({
             />
           )
           : null}
+      {previewLabel ? (
+        <Text
+          style={[styles.preview, { color: colors.primary }]}
+          testID="anyliseur-best-preview"
+        >
+          {previewLabel}
+        </Text>
+      ) : null}
       {showBoard ? (
         <ChessBoardSection boardSize={boardSize}>
           <ChessBoard
@@ -250,6 +265,11 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     minWidth: 240,
     paddingTop: 4,
+  },
+  preview: {
+    fontSize: 12,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    textAlign: 'center',
   },
   progress: {
     fontSize: 13,
