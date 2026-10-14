@@ -210,8 +210,8 @@ describe('theoretical score with Stockfish', { concurrency: 1 }, () => {
     const summary = await getThemeComprehension('queen-mate');
     assert.equal(summary.attemptCount, 1);
     assert.equal(summary.winCount, 1);
-    assert.equal(summary.count, 0);
-    assert.equal(summary.estimatedCount, 1);
+    assert.equal(summary.count, 1);
+    assert.equal(summary.score, graded?.attemptScore);
   });
 
   it('keeps a partial engine grade and finishes it after a close', async () => {

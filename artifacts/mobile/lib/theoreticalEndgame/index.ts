@@ -36,6 +36,8 @@ export {
   updateAttemptGrade,
   getAttempt,
   mergeTheoreticalDocuments,
+  resetTheoreticalTheme,
+  resetAllTheoreticalScores,
   getAllThemeScores,
   getAllLegacyScores,
   clearTheoreticalStoreCache,

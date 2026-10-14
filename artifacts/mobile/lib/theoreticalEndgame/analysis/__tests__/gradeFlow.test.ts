@@ -97,8 +97,8 @@ describe('post-game grade flow', { concurrency: 1 }, () => {
     assert.equal(graded?.analysisStatus, 'estimated');
     assert.equal(graded?.gradeConfidence, 'estimated');
     const summary = await getThemeComprehension('queen-mate');
-    assert.equal(summary.count, 0);
-    assert.equal(summary.estimatedCount, 1);
+    assert.equal(summary.count, 1);
+    assert.equal(summary.score, graded?.attemptScore);
     assert.equal(summary.attemptCount, 1);
     assert.equal((await getThemeAttempts('queen-mate')).length, 1);
   });

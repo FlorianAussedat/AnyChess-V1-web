@@ -30,7 +30,11 @@ describe('theoretical catalog UI', () => {
     assert.match(scoreLine, /theoreticalAttemptWins/);
     assert.match(scoreLine, /quiz.theoreticalScorePending/);
     assert.match(scoreLine, /theoretical-theme-recalculate-/);
-    assert.match(scoreLine, /theoreticalEstimatedScore/);
+    assert.match(scoreLine, /quiz.theoreticalAverage/);
+    assert.doesNotMatch(scoreLine, /theoreticalEstimatedScore/);
+    assert.doesNotMatch(catalog, /theoreticalLegacyBadge/);
+    assert.match(catalog, /TheoreticalScoreReset/);
+    assert.match(catalog, /confirmAction|TheoreticalScoreReset/);
   });
 
   it('shows diagram, score, and explanation without launching from explain link', () => {

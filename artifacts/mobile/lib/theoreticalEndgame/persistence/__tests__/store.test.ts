@@ -17,6 +17,8 @@ import {
   getThemeAttempts,
   updateAttemptGrade,
   mergeTheoreticalDocuments,
+  resetTheoreticalTheme,
+  resetAllTheoreticalScores,
 } from '../TheoreticalEndgameStore.ts';
 import { averageLegacyScore } from '../../domain/comprehensionScore.ts';
 import type { TheoreticalAttemptResult } from '../../domain/types.ts';
@@ -160,9 +162,10 @@ describe('TheoreticalEndgameStore', () => {
     });
     assert.equal(graded?.attemptScore, 4);
     const after = await getThemeComprehension('queen-mate');
-    assert.equal(after.count, 0);
-    assert.equal(after.estimatedCount, 1);
-    assert.equal(after.estimatedScore, 4);
+    assert.equal(after.count, 1);
+    assert.equal(after.score, 4);
+    assert.equal(after.estimatedCount, 0);
+    assert.equal(after.estimatedScore, 0);
     assert.equal(after.attemptCount, 1);
     assert.equal((await getThemeAttempts('queen-mate')).length, 1);
   });
@@ -303,5 +306,192 @@ describe('TheoreticalEndgameStore', () => {
     const v2 = await storage.getItem('anychess.theoreticalEndgame.v2');
     assert.ok(v2);
     assert.equal(await getCatalogView(), 'list');
+  });
+
+  it('reloads one average of mixed grades and keeps a legacy /10 out of it', async () => {
+    const notes = [5, 4, 3, 2, 0];
+    for (let index = 0; index < notes.length; index += 1) {
+      const score = notes[index]!;
+      await recordAttempt(
+        sampleResult({
+          attemptScore: score,
+          outcome: score === 0 ? 'theoretical-loss' : 'success',
+          gradeConfidence: index % 2 === 0 ? 'exact' : 'estimated',
+          analysisStatus: index % 2 === 0 ? 'scored' : 'estimated',
+          finishedAt: `2026-10-14T10:0${index}:00.000Z`,
+          positionId: index === 0 ? 'TE-CANON-QUEEN-MATE' : 'TE-CANON-ROOK-MATE',
+        }),
+      );
+    }
+    await recordAttempt(
+      sampleResult({
+        themeId: 'queen-mate',
+        scoreScale: 'legacy-10',
+        attemptScore: 8,
+        finishedAt: '2026-01-01T00:00:00.000Z',
+        positionId: 'TE-CANON-QUEEN-MATE',
+      }),
+    );
+    clearTheoreticalStoreCache();
+    const summary = await getThemeComprehension('queen-mate');
+    assert.equal(summary.count, 5);
+    assert.equal(summary.score, 2.8);
+    assert.equal(summary.attemptCount, 5);
+    assert.equal(summary.winCount, 4);
+    const legacy = averageLegacyScore(await getThemeAttempts('queen-mate'));
+    assert.equal(legacy.count, 1);
+    assert.equal(legacy.score, 8);
+  });
+
+  it('keeps one attempt when a cloud copy still has the fallback grade', () => {
+    const base = {
+      positionId: 'TE-CANON-QUEEN-MATE',
+      themeId: 'queen-mate',
+      outcome: 'success',
+      userMoves: 4,
+      scoreScale: 'quality-5',
+      finishedAt: '2026-10-14T11:00:00.000Z',
+    };
+    const merged = mergeTheoreticalDocuments(
+      {
+        version: 2,
+        datasetVersion: '2.0.0',
+        catalogView: 'cards',
+        themeAttempts: {
+          'queen-mate': [{ ...base, attemptScore: 5, gradeConfidence: 'exact', analysisStatus: 'scored' }],
+        },
+        lastPositionByTheme: {},
+        bestByPosition: {},
+      },
+      {
+        version: 2,
+        datasetVersion: '2.0.0',
+        catalogView: 'cards',
+        themeAttempts: {
+          'queen-mate': [{ ...base, attemptScore: 3, gradeConfidence: 'estimated', analysisStatus: 'estimated' }],
+        },
+        lastPositionByTheme: {},
+        bestByPosition: {},
+      },
+    );
+    assert.equal(merged.themeAttempts['queen-mate']?.length, 1);
+    assert.equal(merged.themeAttempts['queen-mate']?.[0]?.attemptScore, 5);
+    assert.equal(merged.themeAttempts['queen-mate']?.[0]?.gradeConfidence, 'exact');
+  });
+
+  it('replaces a fallback grade in place and ignores a stale weaker write', async () => {
+    await recordAttempt(
+      sampleResult({
+        attemptScore: 4,
+        gradeConfidence: 'estimated',
+        analysisStatus: 'estimated',
+        finishedAt: '2026-10-14T11:00:00.000Z',
+      }),
+    );
+    const replaced = await updateAttemptGrade('queen-mate', 'TE-CANON-QUEEN-MATE', '2026-10-14T11:00:00.000Z', {
+      attemptScore: 5,
+      gradeConfidence: 'exact',
+      analysisStatus: 'scored',
+    });
+    assert.equal(replaced?.attemptScore, 5);
+    const stale = await updateAttemptGrade('queen-mate', 'TE-CANON-QUEEN-MATE', '2026-10-14T11:00:00.000Z', {
+      attemptScore: 2,
+      gradeConfidence: 'estimated',
+      analysisStatus: 'estimated',
+    });
+    assert.equal(stale?.attemptScore, 5);
+    const summary = await getThemeComprehension('queen-mate');
+    assert.equal(summary.count, 1);
+    assert.equal(summary.score, 5);
+    assert.equal(summary.attemptCount, 1);
+    assert.equal((await getThemeAttempts('queen-mate')).length, 1);
+  });
+
+  it('does not invent a reset while reading an existing document', () => {
+    const migrated = migrateTheoreticalStore({
+      version: 2,
+      datasetVersion: '2.0.0',
+      catalogView: 'cards',
+      themeAttempts: {
+        'queen-mate': [
+          {
+            positionId: 'TE-CANON-QUEEN-MATE',
+            themeId: 'queen-mate',
+            outcome: 'success',
+            userMoves: 4,
+            scoreScale: 'quality-5',
+            attemptScore: 4,
+            gradeConfidence: 'estimated',
+            finishedAt: '2026-10-01T00:00:00.000Z',
+          },
+        ],
+      },
+      lastPositionByTheme: {},
+      bestByPosition: {},
+    });
+    assert.equal(migrated.themeAttempts['queen-mate']?.length, 1);
+    assert.equal(migrated.scoreResetGeneration ?? 0, 0);
+  });
+
+  it('resets one theme, keeps the other, and drops an older cloud copy', async () => {
+    const storage = new MemoryKeyValueStorage();
+    configureTheoreticalStoreStorage(storage);
+    clearTheoreticalStoreCache();
+    await storage.setItem('anychess.profile.photo', 'kept');
+    await setCatalogView('list');
+    await recordAttempt(sampleResult({ attemptScore: 5, finishedAt: '2026-10-14T08:00:00.000Z' }));
+    await recordAttempt(
+      sampleResult({
+        themeId: 'opposition',
+        positionId: 'TE-CANON-OPPOSITION',
+        attemptScore: 4,
+        finishedAt: '2026-10-14T08:05:00.000Z',
+      }),
+    );
+    const before = JSON.parse(JSON.stringify(await loadTheoreticalStore())) as unknown;
+    await resetTheoreticalTheme('queen-mate', '2026-10-14T09:00:00.000Z');
+    assert.equal((await getThemeAttempts('queen-mate')).length, 0);
+    assert.equal((await getThemeComprehension('queen-mate')).attemptCount, 0);
+    assert.equal((await getThemeComprehension('opposition')).score, 4);
+    assert.equal((await loadTheoreticalStore()).bestByPosition['TE-CANON-QUEEN-MATE'], undefined);
+    await recordAttempt(sampleResult({ attemptScore: 1, finishedAt: '2026-10-14T08:30:00.000Z' }));
+    assert.equal((await getThemeAttempts('queen-mate')).length, 0);
+    await recordAttempt(sampleResult({ attemptScore: 3, finishedAt: '2026-10-14T10:00:00.000Z' }));
+    const merged = mergeTheoreticalDocuments(await loadTheoreticalStore(), before);
+    assert.equal(merged.themeAttempts['queen-mate']?.length, 1);
+    assert.equal(merged.themeAttempts['queen-mate']?.[0]?.attemptScore, 3);
+    assert.equal(merged.themeAttempts.opposition?.[0]?.attemptScore, 4);
+    assert.equal(merged.catalogView, 'list');
+    const again = mergeTheoreticalDocuments(merged, before);
+    assert.equal(again.themeAttempts['queen-mate']?.length, 1);
+    assert.equal(again.themeAttempts['queen-mate']?.[0]?.attemptScore, 3);
+    assert.equal(await storage.getItem('anychess.profile.photo'), 'kept');
+    assert.equal(await getCatalogView(), 'list');
+  });
+
+  it('a global reset keeps a later attempt and rejects the previous cloud document', async () => {
+    await setCatalogView('list');
+    await recordAttempt(sampleResult({ attemptScore: 5, finishedAt: '2026-10-14T08:00:00.000Z' }));
+    await recordAttempt(
+      sampleResult({
+        themeId: 'opposition',
+        positionId: 'TE-CANON-OPPOSITION',
+        attemptScore: 2,
+        finishedAt: '2026-10-14T08:05:00.000Z',
+      }),
+    );
+    const before = JSON.parse(JSON.stringify(await loadTheoreticalStore())) as unknown;
+    await resetAllTheoreticalScores('2026-10-14T09:00:00.000Z');
+    assert.deepEqual(await getAllThemeScores(), {});
+    await recordAttempt(sampleResult({ attemptScore: 4, finishedAt: '2026-10-14T10:00:00.000Z' }));
+    const merged = mergeTheoreticalDocuments(before, await loadTheoreticalStore());
+    assert.equal(merged.themeAttempts['queen-mate']?.length, 1);
+    assert.equal(merged.themeAttempts['queen-mate']?.[0]?.attemptScore, 4);
+    assert.equal(merged.themeAttempts.opposition, undefined);
+    assert.equal(merged.catalogView, 'list');
+    clearTheoreticalStoreCache();
+    const reread = await getThemeComprehension('queen-mate');
+    assert.equal(reread.score, 4);
+    assert.equal(reread.count, 1);
   });
 });

@@ -58,8 +58,6 @@ import {
   resumePendingGrades,
   claimEngineForPlay,
   releaseEngineFromPlay,
-  formatComprehensionScore,
-  formatAverageOrDash,
   formatDuration,
   headlineFor,
   pickPositionInTheme,
@@ -72,6 +70,7 @@ import {
 } from '@/lib/theoreticalEndgame';
 import { movesToAnnounce } from '@/lib/theoreticalEndgame/voice/announceMoves';
 import { TheoreticalResultCard } from '@/lib/theoreticalEndgame/ui/TheoreticalResultCard';
+import { TheoreticalAttemptNote } from '@/lib/theoreticalEndgame/ui/TheoreticalAttemptNote';
 import { sanToVerbal } from '@/lib/chessParser';
 import { speechService } from '@/services/SpeechService';
 import { canOfferTheoreticalFinishGame } from '@/lib/theoreticalEndgame/domain/officialResultMessages';
@@ -736,42 +735,24 @@ export default function TheoreticalEndgamePlayScreen() {
               </Text>
             )}
 
-            {(scoreDelta?.analysisStatus === 'pending' || scoreDelta?.analysisStatus === 'running' ||
-              (!scoreDelta && snap.result.analysisStatus === 'pending')) &&
-              (scoreDelta ? scoreDelta.attemptScore : snap.result.attemptScore) == null && (
-              <Text style={{ color: colors.foreground }} testID="theoretical-score-pending">
-                {t('quiz.theoreticalScorePending')}
-              </Text>
-            )}
+            <TheoreticalAttemptNote
+              score={scoreDelta ? scoreDelta.attemptScore : snap.result.attemptScore}
+              pending={
+                (scoreDelta?.analysisStatus === 'pending' ||
+                  scoreDelta?.analysisStatus === 'running' ||
+                  (!scoreDelta && snap.result.analysisStatus === 'pending')) &&
+                (scoreDelta ? scoreDelta.attemptScore : snap.result.attemptScore) == null
+              }
+            />
 
-            {scoreDelta?.gradeConfidence === 'estimated' && scoreDelta.attemptScore != null && (
-              <Text style={{ color: colors.foreground }} testID="theoretical-estimated-score">
-                {t('quiz.theoreticalEstimatedScore', {
-                  score: formatComprehensionScore(scoreDelta.attemptScore),
-                })}
-              </Text>
-            )}
-
-            {scoreDelta && (
+            {scoreDelta && scoreDelta.attemptCount > 0 && (
               <View style={styles.statsBox}>
-                <Text style={{ color: colors.mutedForeground }}>
-                  {t('quiz.theoreticalScoreOld', {
-                    score: formatAverageOrDash(scoreDelta.count, scoreDelta.oldScore),
+                <Text style={{ color: colors.mutedForeground, fontSize: 12 }} testID="theoretical-attempt-count">
+                  {t('quiz.theoreticalAttemptWins', {
+                    attempts: scoreDelta.attemptCount,
+                    wins: scoreDelta.winCount,
                   })}
                 </Text>
-                <Text style={{ color: colors.foreground }}>
-                  {t('quiz.theoreticalScoreNew', {
-                    score: formatAverageOrDash(scoreDelta.count, scoreDelta.newScore),
-                  })}
-                </Text>
-                {scoreDelta.attemptCount > 0 && scoreDelta.attemptCount < 10 && (
-                  <Text style={{ color: colors.mutedForeground, fontSize: 12 }} testID="theoretical-attempt-count">
-                    {t('quiz.theoreticalAttemptWins', {
-                      attempts: scoreDelta.attemptCount,
-                      wins: scoreDelta.winCount,
-                    })}
-                  </Text>
-                )}
               </View>
             )}
 

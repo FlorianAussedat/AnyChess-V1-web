@@ -801,6 +801,15 @@ export type MessageKey =
   | 'quiz.theoreticalRecalculate'
   | 'quiz.theoreticalEstimatedScore'
   | 'quiz.theoreticalAttemptWins'
+  | 'quiz.theoreticalAttemptNote'
+  | 'quiz.theoreticalAverage'
+  | 'quiz.theoreticalResetTheme'
+  | 'quiz.theoreticalResetAll'
+  | 'quiz.theoreticalResetThemeTitle'
+  | 'quiz.theoreticalResetThemeBody'
+  | 'quiz.theoreticalResetAllTitle'
+  | 'quiz.theoreticalResetAllBody'
+  | 'quiz.theoreticalResetConfirm'
   | 'quiz.theoreticalThemeQueenMate'
   | 'quiz.theoreticalThemeRookMate'
   | 'quiz.theoreticalThemeTwoBishopsMate'
@@ -2122,6 +2131,17 @@ const fr: Dict = {
   'quiz.theoreticalRecalculate': 'Recalculer la note',
   'quiz.theoreticalEstimatedScore': 'Note estimée : {{score}}',
   'quiz.theoreticalAttemptWins': '{{attempts}} tentative(s), {{wins}} victoire(s)',
+  'quiz.theoreticalAttemptNote': 'Note : {{score}}',
+  'quiz.theoreticalAverage': 'Moyenne : {{score}}',
+  'quiz.theoreticalResetTheme': 'Réinitialiser ce thème',
+  'quiz.theoreticalResetAll': 'Réinitialiser toutes les finales théoriques',
+  'quiz.theoreticalResetThemeTitle': 'Réinitialiser ce thème ?',
+  'quiz.theoreticalResetThemeBody':
+    'Les notes, la moyenne, les records et les compteurs de tentatives et de réussites de « {{theme}} » seront remis à zéro. Le catalogue, les variantes et les explications restent. Les parties sauvegardées restent.',
+  'quiz.theoreticalResetAllTitle': 'Réinitialiser toutes les finales théoriques ?',
+  'quiz.theoreticalResetAllBody':
+    'Les notes, les moyennes, les records et les compteurs de tentatives et de réussites de toutes les finales théoriques seront remis à zéro. Le catalogue, les variantes et les explications restent. Les parties sauvegardées, les autres modes, les ouvertures, les favoris et le profil restent.',
+  'quiz.theoreticalResetConfirm': 'Réinitialiser',
   'quiz.theoreticalThemeQueenMate': 'Dame et roi contre roi',
   'quiz.theoreticalThemeRookMate': 'Tour et roi contre roi',
   'quiz.theoreticalThemeTwoBishopsMate': 'Deux fous contre roi',
@@ -3504,6 +3524,17 @@ const en: Dict = {
   'quiz.theoreticalRecalculate': 'Recalculate the score',
   'quiz.theoreticalEstimatedScore': 'Estimated score: {{score}}',
   'quiz.theoreticalAttemptWins': '{{attempts}} attempt(s), {{wins}} win(s)',
+  'quiz.theoreticalAttemptNote': 'Score: {{score}}',
+  'quiz.theoreticalAverage': 'Average: {{score}}',
+  'quiz.theoreticalResetTheme': 'Reset this theme',
+  'quiz.theoreticalResetAll': 'Reset all theoretical endgames',
+  'quiz.theoreticalResetThemeTitle': 'Reset this theme?',
+  'quiz.theoreticalResetThemeBody':
+    'Grades, the average, records, and the attempt and success counters for “{{theme}}” will be cleared. The catalogue, variants, and explanations stay. Saved games stay.',
+  'quiz.theoreticalResetAllTitle': 'Reset all theoretical endgames?',
+  'quiz.theoreticalResetAllBody':
+    'Grades, averages, records, and the attempt and success counters for every theoretical endgame will be cleared. The catalogue, variants, and explanations stay. Saved games, other modes, openings, favourites, and the profile stay.',
+  'quiz.theoreticalResetConfirm': 'Reset',
   'quiz.theoreticalThemeQueenMate': 'Queen and king vs king',
   'quiz.theoreticalThemeRookMate': 'Rook and king vs king',
   'quiz.theoreticalThemeTwoBishopsMate': 'Two bishops vs king',

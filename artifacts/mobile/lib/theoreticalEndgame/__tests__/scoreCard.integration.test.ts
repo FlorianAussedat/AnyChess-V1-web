@@ -192,7 +192,7 @@ describe('theoretical score cards', { concurrency: 1 }, () => {
     assert.equal(shows(bishops!.attemptScore!), true);
     assert.equal(shows(opposition!.attemptScore!), true);
     const oppositionScore = textsOf(findByTestId(first.json(), 'theoretical-theme-score-opposition'));
-    assert.deepEqual(oppositionScore, [formatComprehensionScore(opposition!.attemptScore!)]);
+    assert.deepEqual(oppositionScore, [`Moyenne : ${formatComprehensionScore(opposition!.attemptScore!)}`]);
     first.renderer.unmount();
 
     const remounted = await mountCards();
@@ -281,7 +281,8 @@ describe('theoretical score cards', { concurrency: 1 }, () => {
     assert.ok(text.includes('Note en cours…'));
     assert.equal(text.filter((item) => item === '—/5').includes('—/5'), true);
     const opposition = textsOf(findByTestId(view.json(), 'theoretical-theme-score-opposition'));
-    assert.deepEqual(opposition, ['Note en cours…']);
+    assert.deepEqual(opposition, ['—/5']);
+    assert.ok(text.includes('Note en cours…'));
     view.renderer.unmount();
   });
 });

@@ -33,6 +33,10 @@ export function useColors() {
     foreground: '#DCE8F5',
     mutedForeground: '#5B7FA0',
     primary: '#F5A623',
+    primaryForeground: '#102040',
+    secondary: '#1C3558',
+    destructiveForeground: '#FFFFFF',
+    muted: '#0B1A30',
     input: '#070F1E',
     destructive: '#BE3030',
   };

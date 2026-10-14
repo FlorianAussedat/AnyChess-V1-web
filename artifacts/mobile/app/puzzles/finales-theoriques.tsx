@@ -25,9 +25,7 @@ import {
   getCatalogView,
   setCatalogView,
   getAllThemeScores,
-  getAllLegacyScores,
   backfillUngradedWins,
-  formatLegacyScore,
   pickRandomFromActiveThemes,
   getLastPositionId,
   pickPositionInTheme,
@@ -44,6 +42,7 @@ import {
   EMPTY_THEME_SCORE,
   TheoreticalThemeScoreLine,
 } from '@/lib/theoreticalEndgame/ui/TheoreticalThemeScoreLine';
+import { TheoreticalScoreReset } from '@/lib/theoreticalEndgame/ui/TheoreticalScoreReset';
 
 function themeTitleKey(id: string): MessageKey {
   const theme = THEORETICAL_THEMES.find((t) => t.id === id);
@@ -62,7 +61,6 @@ export default function TheoreticalEndgameCatalogScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewMode, setViewMode] = useState<CatalogViewMode>('cards');
   const [scores, setScores] = useState<Record<string, typeof EMPTY_THEME_SCORE>>({});
-  const [legacyScores, setLegacyScores] = useState<Record<string, { score: number; count: number }>>({});
   const [allMasteredMsg, setAllMasteredMsg] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [explanationThemeId, setExplanationThemeId] = useState<TheoreticalThemeId | null>(null);
@@ -87,7 +85,6 @@ export default function TheoreticalEndgameCatalogScreen() {
     await backfillUngradedWins();
     setViewMode(await getCatalogView());
     setScores(await getAllThemeScores());
-    setLegacyScores(await getAllLegacyScores());
   }, []);
 
   useEffect(() => {
@@ -202,16 +199,6 @@ export default function TheoreticalEndgameCatalogScreen() {
           masteredLabel={mastered ? t('quiz.theoreticalCompleted') : undefined}
           onRecalculate={() => void refresh()}
         />
-        {(legacyScores[item.theme.id]?.count ?? 0) > 0 && (
-            <Text
-              style={{ color: colors.mutedForeground, fontSize: 12, textAlign: 'center' }}
-              testID={`theoretical-theme-legacy-${item.theme.id}`}
-            >
-              {t('quiz.theoreticalLegacyBadge', {
-                score: formatLegacyScore(legacyScores[item.theme.id]!.score),
-              })}
-            </Text>
-          )}
         <Pressable
           onPress={() => setExplanationThemeId(item.theme.id)}
           hitSlop={8}
@@ -249,13 +236,6 @@ export default function TheoreticalEndgameCatalogScreen() {
             <Text style={[styles.listTitle, { color: colors.foreground }]} numberOfLines={2}>
               {title}
             </Text>
-            {(legacyScores[item.theme.id]?.count ?? 0) > 0 && (
-              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-                {t('quiz.theoreticalLegacyBadge', {
-                  score: formatLegacyScore(legacyScores[item.theme.id]!.score),
-                })}
-              </Text>
-            )}
           </View>
         </Pressable>
         <TheoreticalThemeScoreLine
@@ -274,9 +254,17 @@ export default function TheoreticalEndgameCatalogScreen() {
             {t('quiz.theoreticalExplainLink')}
           </Text>
         </Pressable>
+        <TheoreticalScoreReset
+          themeId={item.theme.id}
+          themeTitle={title}
+          showTheme
+          onChanged={() => void refresh()}
+        />
       </View>
     );
   };
+
+  const focused = cards[Math.max(0, Math.min(cards.length - 1, carouselIndex))] ?? null;
 
   return (
     <>
@@ -305,6 +293,15 @@ export default function TheoreticalEndgameCatalogScreen() {
             </Text>
           </Pressable>
         </View>
+        {focused && (
+          <TheoreticalScoreReset
+            themeId={focused.theme.id}
+            themeTitle={t(themeTitleKey(focused.theme.id))}
+            showTheme={viewMode === 'cards'}
+            showAll
+            onChanged={() => void refresh()}
+          />
+        )}
 
         {allMasteredMsg && (
           <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>

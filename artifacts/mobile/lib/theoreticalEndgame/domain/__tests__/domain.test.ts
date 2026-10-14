@@ -263,18 +263,81 @@ describe('comprehension score', () => {
     assert.equal(formatAverageOrDash(1, 0), '0/5');
   });
 
-  it('keeps an unscored win in the attempt count and out of both averages', () => {
+  it('keeps an unscored win in the attempt count and out of the average', () => {
     const summary = summarizeAttempts([
-      { outcome: 'success', scoreScale: 'quality-5', attemptScore: null },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: null, analysisStatus: 'pending' },
       { outcome: 'success', scoreScale: 'quality-5', attemptScore: 4, gradeConfidence: 'estimated' },
       { outcome: 'theoretical-loss', scoreScale: 'quality-5', attemptScore: 0, gradeConfidence: 'exact' },
+      { outcome: 'abandoned', scoreScale: 'quality-5', attemptScore: null },
+      { outcome: 'interrupted', scoreScale: 'quality-5', attemptScore: null },
+      { outcome: 'success', scoreScale: 'legacy-10', attemptScore: 10 },
     ]);
     assert.equal(summary.attemptCount, 3);
     assert.equal(summary.winCount, 2);
-    assert.equal(summary.count, 1);
-    assert.equal(summary.score, 0);
-    assert.equal(summary.estimatedCount, 1);
-    assert.equal(summary.estimatedScore, 4);
+    assert.equal(summary.pendingCount, 1);
+    assert.equal(summary.count, 2);
+    assert.equal(summary.score, 2);
+    assert.equal(summary.estimatedCount, 0);
+    assert.equal(summary.estimatedScore, 0);
+  });
+
+  it('averages 5, 4, 3, 2 and 0 as 2.8 on one scale', () => {
+    const summary = summarizeAttempts([
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 5, gradeConfidence: 'exact' },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 4, gradeConfidence: 'estimated' },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 3, gradeConfidence: 'exact' },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 2, gradeConfidence: 'estimated' },
+      { outcome: 'theoretical-loss', scoreScale: 'quality-5', attemptScore: 0, gradeConfidence: 'exact' },
+    ]);
+    assert.equal(summary.count, 5);
+    assert.equal(summary.score, 2.8);
+    assert.equal(summary.winCount, 4);
+    assert.equal(formatComprehensionScore(summary.score), '2,8/5');
+  });
+
+  it('does not snap a mean to the nearest half-point', () => {
+    const summary = summarizeAttempts([
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 5 },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 5 },
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: 4 },
+    ]);
+    assert.equal(summary.score, 4.7);
+  });
+
+  it('counts a defensive success and every stored grade, including a real zero', () => {
+    const grades = [
+      ...Array.from({ length: 10 }, () => ({
+        outcome: 'success' as const,
+        scoreScale: 'quality-5' as const,
+        attemptScore: 5,
+      })),
+      { outcome: 'success' as const, scoreScale: 'quality-5' as const, attemptScore: 0, objective: 'DRAW' },
+    ];
+    const summary = summarizeAttempts(grades);
+    assert.equal(summary.count, 11);
+    assert.equal(summary.winCount, 11);
+    assert.equal(summary.score, 4.5);
+    const missing = summarizeAttempts([
+      { outcome: 'success', scoreScale: 'quality-5', attemptScore: null, analysisStatus: 'pending' },
+    ]);
+    assert.equal(missing.count, 0);
+    assert.equal(missing.score, 0);
+    assert.equal(formatAverageOrDash(missing.count, missing.score), '—/5');
+  });
+
+  it('keeps the result title free of the grade', () => {
+    assert.equal(
+      headlineFor({ score: 4.5, outcome: 'success', objective: 'WIN', lang: 'fr' }),
+      'Finale gagnée !',
+    );
+    assert.equal(
+      headlineFor({ score: 0, outcome: 'theoretical-loss', objective: 'WIN', lang: 'fr' }),
+      'Objectif échoué',
+    );
+    assert.equal(
+      headlineFor({ score: 5, outcome: 'success', objective: 'DRAW', lang: 'fr' }),
+      'Défense réussie !',
+    );
   });
 
   it('converts UCI mate moves into plies', () => {

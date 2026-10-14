@@ -90,6 +90,8 @@ export type ScoredAttempt = {
   attemptScore?: number | null;
   gradeConfidence?: GradeConfidence;
   analysisStatus?: AnalysisStatus;
+  positionId?: string;
+  finishedAt?: string;
 };
 
 const EMPTY_GRADE = (
@@ -297,10 +299,15 @@ export function scoreAttempt(input: GradeInput): QualityGrade {
 }
 
 export type ThemeScoreSummary = {
-  /** Average of exact and legacy quality-5 grades. Estimated grades are excluded. */
+  /**
+   * Mean of every valid quality-5 grade, DTM and fallback alike.
+   * Rounded to one decimal after the division. A missing grade is not a 0.
+   */
   score: number;
   count: number;
+  /** @deprecated No second average is published. Kept at 0 for stored callers. */
   estimatedScore: number;
+  /** @deprecated No second average is published. Kept at 0 for stored callers. */
   estimatedCount: number;
   /** Finished exercises, including a win whose score is still missing. */
   attemptCount: number;
@@ -317,31 +324,49 @@ function averageOf(values: number[]): { score: number; count: number } {
   return { score: Math.round(avg * 10) / 10, count: values.length };
 }
 
-/** Exact grades and engine estimates stay in separate averages. */
-export function summarizeAttempts(attempts: ScoredAttempt[], window = 10): ThemeScoreSummary {
-  const finished = attempts.filter(
-    (attempt) =>
-      attempt.scoreScale === 'quality-5' &&
-      (attempt.outcome === 'success' || attempt.outcome === 'theoretical-loss'),
+/** One row per attempt. A later copy of the same finish does not count twice. */
+function uniqueAttempts(attempts: ScoredAttempt[]): ScoredAttempt[] {
+  const seen = new Set<string>();
+  const out: ScoredAttempt[] = [];
+  for (const attempt of attempts) {
+    if (attempt.positionId && attempt.finishedAt) {
+      const key = `${attempt.positionId}|${attempt.finishedAt}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    out.push(attempt);
+  }
+  return out;
+}
+
+function countsOnCurrentScale(attempt: ScoredAttempt): boolean {
+  return (
+    attempt.scoreScale === 'quality-5' &&
+    (attempt.outcome === 'success' || attempt.outcome === 'theoretical-loss')
   );
-  const numeric = (attempt: ScoredAttempt) => typeof attempt.attemptScore === 'number';
-  const exact = finished
-    .filter((attempt) => numeric(attempt) && attempt.gradeConfidence !== 'estimated')
+}
+
+/**
+ * One average of every valid /5 grade.
+ * A real 0 counts. A missing grade, a pending analysis, an abandon, an
+ * interruption, and a legacy /10 grade do not. `window` limits how many
+ * graded attempts are kept when a caller still asks for a cap; the theme
+ * card uses every stored grade.
+ */
+export function summarizeAttempts(attempts: ScoredAttempt[], window = Number.POSITIVE_INFINITY): ThemeScoreSummary {
+  const finished = uniqueAttempts(attempts).filter(countsOnCurrentScale);
+  const graded = finished
+    .filter((attempt) => typeof attempt.attemptScore === 'number')
     .slice(0, window)
     .map((attempt) => attempt.attemptScore as number);
-  const estimated = finished
-    .filter((attempt) => numeric(attempt) && attempt.gradeConfidence === 'estimated')
-    .slice(0, window)
-    .map((attempt) => attempt.attemptScore as number);
-  const exactAvg = averageOf(exact);
-  const estimatedAvg = averageOf(estimated);
+  const avg = averageOf(graded);
   const unscoredWin = (attempt: ScoredAttempt) =>
     attempt.outcome === 'success' && typeof attempt.attemptScore !== 'number';
   return {
-    score: exactAvg.score,
-    count: exactAvg.count,
-    estimatedScore: estimatedAvg.score,
-    estimatedCount: estimatedAvg.count,
+    score: avg.score,
+    count: avg.count,
+    estimatedScore: 0,
+    estimatedCount: 0,
     attemptCount: finished.length,
     winCount: finished.filter((attempt) => attempt.outcome === 'success').length,
     pendingCount: finished.filter(
@@ -355,20 +380,10 @@ export function summarizeAttempts(attempts: ScoredAttempt[], window = 10): Theme
 
 export function averageComprehensionScore(
   attempts: ScoredAttempt[],
-  window = 10,
+  window = Number.POSITIVE_INFINITY,
 ): { score: number; count: number } {
-  const scored = attempts
-    .filter(
-      (a) =>
-        a.scoreScale === 'quality-5' &&
-        (a.outcome === 'success' || a.outcome === 'theoretical-loss') &&
-        typeof a.attemptScore === 'number',
-    )
-    .slice(0, window)
-    .map((a) => a.attemptScore as number);
-  if (scored.length === 0) return { score: 0, count: 0 };
-  const avg = scored.reduce((s, v) => s + v, 0) / scored.length;
-  return { score: Math.round(avg * 10) / 10, count: scored.length };
+  const summary = summarizeAttempts(attempts, window);
+  return { score: summary.score, count: summary.count };
 }
 
 export function averageLegacyScore(
@@ -448,17 +463,13 @@ export function headlineFor(input: {
         ? 'Defence held'
         : 'Objective failed';
   const title = input.lang === 'en' ? enTitle : frTitle;
+  if (input.outcome === 'success') {
+    return input.lang === 'en' ? `${enTitle}!` : `${frTitle} !`;
+  }
+  if (input.outcome === 'theoretical-loss') return title;
   if (input.score == null) {
-    if (input.outcome === 'success') {
-      const bang = input.lang === 'en' ? `${enTitle}!` : `${frTitle} !`;
-      return bang;
-    }
     const q = input.lang === 'en' ? 'Quality not evaluated' : 'Qualité non évaluée';
     return `${q} — ${title}`;
   }
-  const scoreText =
-    input.lang === 'en'
-      ? `${input.score}/5`
-      : formatComprehensionScore(input.score);
-  return `${scoreText} — ${title}`;
+  return title;
 }

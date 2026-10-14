@@ -44,11 +44,9 @@ export function TheoreticalThemeScoreLine({
   const textAlign = align === 'center' ? 'center' : 'left';
   const headline =
     summary.count > 0
-      ? formatComprehensionScore(summary.score)
-      : summary.pendingCount > 0 && summary.estimatedCount === 0
-        ? pendingLabel
-        : dash;
-  const showPendingAside = summary.pendingCount > 0 && headline !== pendingLabel;
+      ? t('quiz.theoreticalAverage', { score: formatComprehensionScore(summary.score) })
+      : dash;
+  const showPendingAside = summary.pendingCount > 0;
   const showRecalculate = summary.failedCount > 0 && onRecalculate != null;
 
   return (
@@ -57,19 +55,8 @@ export function TheoreticalThemeScoreLine({
         style={{ color: colors.mutedForeground, fontSize: align === 'center' ? 16 : 13, textAlign }}
         testID={`theoretical-theme-score-${themeId}`}
       >
-        {headline}
-        {summary.count > 0 && masteredLabel ? ` · ${masteredLabel}` : ''}
+        {summary.count > 0 && masteredLabel ? `${headline} · ${masteredLabel}` : headline}
       </Text>
-      {summary.estimatedCount > 0 && (
-        <Text
-          style={{ color: colors.mutedForeground, fontSize: 12, textAlign }}
-          testID={`theoretical-theme-estimated-${themeId}`}
-        >
-          {t('quiz.theoreticalEstimatedScore', {
-            score: formatComprehensionScore(summary.estimatedScore),
-          })}
-        </Text>
-      )}
       {showPendingAside && (
         <Text
           style={{ color: colors.foreground, fontSize: 12, textAlign }}

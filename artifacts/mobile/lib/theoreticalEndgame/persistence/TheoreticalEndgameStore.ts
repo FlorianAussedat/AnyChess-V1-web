@@ -27,7 +27,7 @@ import {
   type ThemeScoreSummary,
 } from '../domain/comprehensionScore.ts';
 import { LEGACY_THEORETICAL_IDS } from '../domain/fenLegality.ts';
-import { getPositionById } from '../selection/selectors.ts';
+import { getPositionById, listByTheme } from '../selection/selectors.ts';
 
 export type ThemeAttemptRecord = {
   positionId: string;
@@ -79,6 +79,16 @@ export type TheoreticalEndgameStoreV2 = {
   themeAttempts: Record<string, ThemeAttemptRecord[]>;
   lastPositionByTheme: Record<string, string>;
   bestByPosition: Record<string, { userMoves: number; attemptScore: number; scoreScale: 'quality-5' }>;
+  /**
+   * Global score reset. Attempts with finishedAt <= this time stay out of
+   * the stats and are not graded again. A cloud merge keeps the later time.
+   */
+  scoreResetAt?: string | null;
+  /** How many global resets have been confirmed. Merged by maximum. */
+  scoreResetGeneration?: number;
+  /** Per-theme reset time. Combined with the global time: the later one wins. */
+  themeScoreResetAt?: Record<string, string>;
+  themeScoreResetGeneration?: Record<string, number>;
   /** @deprecated kept only during migration sniffing */
   migratedFromV1?: boolean;
 };
@@ -114,7 +124,65 @@ function emptyStore(): TheoreticalEndgameStoreV2 {
     themeAttempts: {},
     lastPositionByTheme: {},
     bestByPosition: {},
+    scoreResetAt: null,
+    scoreResetGeneration: 0,
+    themeScoreResetAt: {},
+    themeScoreResetGeneration: {},
   };
+}
+
+function laterIso(a?: string | null, b?: string | null): string | null {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return a >= b ? a : b;
+}
+
+function asIso(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function asGeneration(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+function asIsoMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof item === 'string' && item) out[key] = item;
+  }
+  return out;
+}
+
+function asGenerationMap(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object') return {};
+  const out: Record<string, number> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    const generation = asGeneration(item);
+    if (generation > 0) out[key] = generation;
+  }
+  return out;
+}
+
+export function gradeReliability(record: {
+  attemptScore?: number | null;
+  gradeConfidence?: GradeConfidence | null;
+  analysisStatus?: AnalysisStatus | null;
+}): number {
+  if (typeof record.attemptScore !== 'number') return 0;
+  if (record.gradeConfidence === 'estimated' || record.analysisStatus === 'estimated') return 1;
+  return 2;
+}
+
+export function scoreCutoff(store: Pick<TheoreticalEndgameStoreV2, 'scoreResetAt' | 'themeScoreResetAt'>, themeId: string): string {
+  const global = store.scoreResetAt ?? '';
+  const theme = store.themeScoreResetAt?.[themeId] ?? '';
+  return global > theme ? global : theme;
+}
+
+function attemptSurvives(record: ThemeAttemptRecord, cutoff: string): boolean {
+  if (!cutoff) return true;
+  return record.finishedAt > cutoff;
 }
 
 function isLegacyPositionId(id: string): boolean {
@@ -246,9 +314,62 @@ function scrubBest(
   return out;
 }
 
+function themeOfPosition(
+  positionId: string,
+  attempts: Record<string, ThemeAttemptRecord[]>,
+): string | null {
+  const position = getPositionById(positionId);
+  if (position) return position.themeId;
+  for (const [themeId, list] of Object.entries(attempts)) {
+    if (list.some((attempt) => attempt.positionId === positionId)) return themeId;
+  }
+  return null;
+}
+
+function rebuildBestsFrom(attempts: ThemeAttemptRecord[]): TheoreticalEndgameStoreV2['bestByPosition'] {
+  const holder = emptyStore();
+  for (const record of attempts) rememberBest(holder, record);
+  return holder.bestByPosition;
+}
+
+/**
+ * Drop attempts and records that a confirmed reset already voided.
+ * Does nothing when no reset mark is stored, so loading this fix never
+ * clears scores by itself.
+ */
+export function applyScoreResets(store: TheoreticalEndgameStoreV2): TheoreticalEndgameStoreV2 {
+  const global = store.scoreResetAt ?? '';
+  const themeMarks = store.themeScoreResetAt ?? {};
+  if (!global && Object.keys(themeMarks).length === 0) return store;
+  const themeAttempts: Record<string, ThemeAttemptRecord[]> = {};
+  for (const [themeId, attempts] of Object.entries(store.themeAttempts)) {
+    const cutoff = scoreCutoff(store, themeId);
+    const kept = attempts.filter((attempt) => attemptSurvives(attempt, cutoff));
+    if (kept.length > 0) themeAttempts[themeId] = kept;
+  }
+  let bestByPosition = store.bestByPosition;
+  if (global) {
+    bestByPosition = rebuildBestsFrom(Object.values(themeAttempts).flat());
+  } else {
+    const resetThemes = new Set(Object.keys(themeMarks));
+    const next = { ...bestByPosition };
+    for (const positionId of Object.keys(next)) {
+      const themeId = themeOfPosition(positionId, store.themeAttempts);
+      if (themeId && resetThemes.has(themeId)) delete next[positionId];
+    }
+    const rebuilt = rebuildBestsFrom(
+      Object.entries(themeAttempts)
+        .filter(([themeId]) => resetThemes.has(themeId))
+        .flatMap(([, attempts]) => attempts),
+    );
+    bestByPosition = { ...next, ...rebuilt };
+  }
+  return { ...store, themeAttempts, bestByPosition };
+}
+
 /**
  * Migrate v1 → v2: keep catalogView, drop attempts/scores tied to legacy IDs.
- * Idempotent.
+ * Idempotent. A v2 document keeps its scores unless a reset mark is already there.
  */
 export function migrateTheoreticalStore(raw: unknown): TheoreticalEndgameStoreV2 {
   const base = emptyStore();
@@ -268,14 +389,18 @@ export function migrateTheoreticalStore(raw: unknown): TheoreticalEndgameStoreV2
       | undefined) ?? {};
 
   if (version === 2 && datasetVersion === THEORETICAL_ENDGAME_CONFIG.datasetVersion) {
-    return {
+    return applyScoreResets({
       ...base,
       catalogView,
       themeAttempts: scrubLegacyAttempts(themeAttempts),
       lastPositionByTheme: scrubLastPositions(lastPositionByTheme),
       bestByPosition: scrubBest(bestByPosition),
+      scoreResetAt: asIso(parsed.scoreResetAt),
+      scoreResetGeneration: asGeneration(parsed.scoreResetGeneration),
+      themeScoreResetAt: asIsoMap(parsed.themeScoreResetAt),
+      themeScoreResetGeneration: asGenerationMap(parsed.themeScoreResetGeneration),
       migratedFromV1: parsed.migratedFromV1 === true,
-    };
+    });
   }
 
   // v1 or unknown → reset theoretical progress, keep catalog preference
@@ -396,6 +521,7 @@ function rememberBest(store: TheoreticalEndgameStoreV2, record: ThemeAttemptReco
 
 export async function recordAttempt(result: TheoreticalAttemptResult): Promise<RecordedAttemptDelta> {
   const s0 = await loadTheoreticalStore();
+  const cutoff = scoreCutoff(s0, result.themeId);
   const current = summarizeAttempts(s0.themeAttempts[result.themeId] ?? []);
   if (
     result.outcome === 'abandoned' ||
@@ -404,6 +530,7 @@ export async function recordAttempt(result: TheoreticalAttemptResult): Promise<R
   ) {
     return emptyDelta(current);
   }
+  if (cutoff && result.finishedAt <= cutoff) return emptyDelta(current);
 
   const s = s0;
   const prev = s.themeAttempts[result.themeId] ?? [];
@@ -508,7 +635,17 @@ export async function updateAttemptGrade(
     (attempt) => attempt.positionId === positionId && attempt.finishedAt === finishedAt,
   );
   if (index < 0) return null;
-  const next: ThemeAttemptRecord = { ...list[index]!, ...patch };
+  const current = list[index]!;
+  if (scoreCutoff(s, themeId) && current.finishedAt <= scoreCutoff(s, themeId)) return null;
+  if (typeof patch.attemptScore === 'number') {
+    const incoming = gradeReliability({
+      attemptScore: patch.attemptScore,
+      gradeConfidence: patch.gradeConfidence ?? current.gradeConfidence,
+      analysisStatus: patch.analysisStatus ?? current.analysisStatus,
+    });
+    if (incoming < gradeReliability(current)) return current;
+  }
+  const next: ThemeAttemptRecord = { ...current, ...patch };
   list[index] = next;
   rememberBest(s, next);
   await persist(s);
@@ -516,12 +653,43 @@ export async function updateAttemptGrade(
 }
 
 function preferAttempt(left: ThemeAttemptRecord, right: ThemeAttemptRecord): ThemeAttemptRecord {
-  const scored = (record: ThemeAttemptRecord) => typeof record.attemptScore === 'number';
-  if (scored(left) !== scored(right)) return scored(left) ? left : right;
+  const leftRank = gradeReliability(left);
+  const rightRank = gradeReliability(right);
+  if (leftRank !== rightRank) return leftRank > rightRank ? left : right;
   const cursor = (record: ThemeAttemptRecord) =>
     record.gradeCursor ?? record.measuredDecisions?.length ?? 0;
   if (cursor(left) !== cursor(right)) return cursor(left) > cursor(right) ? left : right;
   return left;
+}
+
+function mergeResetMarks(
+  left: TheoreticalEndgameStoreV2,
+  right: TheoreticalEndgameStoreV2,
+): Pick<
+  TheoreticalEndgameStoreV2,
+  'scoreResetAt' | 'scoreResetGeneration' | 'themeScoreResetAt' | 'themeScoreResetGeneration'
+> {
+  const themeIds = new Set([
+    ...Object.keys(left.themeScoreResetAt ?? {}),
+    ...Object.keys(right.themeScoreResetAt ?? {}),
+  ]);
+  const themeScoreResetAt: Record<string, string> = {};
+  const themeScoreResetGeneration: Record<string, number> = {};
+  for (const themeId of themeIds) {
+    const at = laterIso(left.themeScoreResetAt?.[themeId], right.themeScoreResetAt?.[themeId]);
+    if (at) themeScoreResetAt[themeId] = at;
+    const generation = Math.max(
+      left.themeScoreResetGeneration?.[themeId] ?? 0,
+      right.themeScoreResetGeneration?.[themeId] ?? 0,
+    );
+    if (generation > 0) themeScoreResetGeneration[themeId] = generation;
+  }
+  return {
+    scoreResetAt: laterIso(left.scoreResetAt, right.scoreResetAt),
+    scoreResetGeneration: Math.max(left.scoreResetGeneration ?? 0, right.scoreResetGeneration ?? 0),
+    themeScoreResetAt,
+    themeScoreResetGeneration,
+  };
 }
 
 /** Union by position and finish time so a sync does not drop a win or a partial grade. */
@@ -550,13 +718,57 @@ export function mergeTheoreticalDocuments(local: unknown, remote: unknown): Theo
     const previous = bestByPosition[positionId];
     if (!previous || value.attemptScore > previous.attemptScore) bestByPosition[positionId] = value;
   }
-  return {
+  const marks = mergeResetMarks(left, right);
+  return applyScoreResets({
     ...left,
+    ...marks,
     catalogView: left.catalogView,
     themeAttempts,
     lastPositionByTheme: { ...right.lastPositionByTheme, ...left.lastPositionByTheme },
     bestByPosition,
-  };
+  });
+}
+
+function positionsOfTheme(themeId: string, attempts: ThemeAttemptRecord[]): Set<string> {
+  const ids = new Set<string>();
+  for (const attempt of attempts) ids.add(attempt.positionId);
+  for (const position of listByTheme(themeId as TheoreticalThemeId)) ids.add(position.id);
+  return ids;
+}
+
+export async function resetTheoreticalTheme(
+  themeId: TheoreticalThemeId,
+  at = new Date().toISOString(),
+): Promise<void> {
+  const store = await loadTheoreticalStore();
+  const removed = store.themeAttempts[themeId] ?? [];
+  const generation = (store.themeScoreResetGeneration?.[themeId] ?? 0) + 1;
+  const mark = laterIso(store.themeScoreResetAt?.[themeId], at) ?? at;
+  store.themeScoreResetAt = { ...(store.themeScoreResetAt ?? {}), [themeId]: mark };
+  store.themeScoreResetGeneration = { ...(store.themeScoreResetGeneration ?? {}), [themeId]: generation };
+  const cutoff = scoreCutoff(store, themeId);
+  const kept = removed.filter((attempt) => attemptSurvives(attempt, cutoff));
+  if (kept.length > 0) store.themeAttempts[themeId] = kept;
+  else delete store.themeAttempts[themeId];
+  for (const positionId of positionsOfTheme(themeId, removed)) {
+    delete store.bestByPosition[positionId];
+  }
+  for (const record of kept) rememberBest(store, record);
+  await persist(store);
+}
+
+export async function resetAllTheoreticalScores(at = new Date().toISOString()): Promise<void> {
+  const store = await loadTheoreticalStore();
+  store.scoreResetAt = laterIso(store.scoreResetAt, at) ?? at;
+  store.scoreResetGeneration = (store.scoreResetGeneration ?? 0) + 1;
+  const next: Record<string, ThemeAttemptRecord[]> = {};
+  for (const [themeId, attempts] of Object.entries(store.themeAttempts)) {
+    const kept = attempts.filter((attempt) => attemptSurvives(attempt, scoreCutoff(store, themeId)));
+    if (kept.length > 0) next[themeId] = kept;
+  }
+  store.themeAttempts = next;
+  store.bestByPosition = rebuildBestsFrom(Object.values(next).flat());
+  await persist(store);
 }
 
 export async function getAllThemeScores(): Promise<Record<string, ThemeScoreSummary>> {
