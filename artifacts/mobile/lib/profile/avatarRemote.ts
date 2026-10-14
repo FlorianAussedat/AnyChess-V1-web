@@ -5,6 +5,7 @@ import {
   clearAvatarCache,
   clearPendingAvatar,
   normalizeAvatarEmail,
+  readAvatarCache,
   readPendingAvatar,
   savePendingAvatar,
   writeAvatarCache,
@@ -174,7 +175,14 @@ export async function removeLocalAndRemoteAvatar(input: {
   return deleteAvatarObject(input.userId, input.accessToken, input.fetchImpl);
 }
 
-export type AvatarCommitResult = 'uploaded' | 'removed' | 'waiting_wifi' | 'stored' | 'failed';
+export type AvatarCommitResult =
+  | 'uploaded'
+  | 'removed'
+  | 'waiting_wifi'
+  | 'stored'
+  | 'sync_failed'
+  | 'cancelled'
+  | 'failed';
 
 async function markAvatarFlag(storage: KeyValueStorage, hasAvatar: boolean): Promise<void> {
   if (profileStore.usesStorage(storage)) {
@@ -182,9 +190,19 @@ async function markAvatarFlag(storage: KeyValueStorage, hasAvatar: boolean): Pro
   }
 }
 
+async function restoreAvatarCache(
+  storage: KeyValueStorage,
+  userId: string,
+  previous: string | null,
+): Promise<void> {
+  if (previous) await writeAvatarCache(storage, userId, previous);
+  else await clearAvatarCache(storage, userId);
+}
+
 /**
  * Upload or remove the profile photo.
- * A failed transfer keeps the previous cached image.
+ * The previous photo is replaced only after the new one is stored on the device.
+ * A failed upload keeps that local photo and retries later.
  * Cellular + Wi-Fi-only stores the change locally and waits for Wi-Fi.
  */
 export async function commitAvatarChange(input: {
@@ -194,6 +212,8 @@ export async function commitAvatarChange(input: {
   accessToken: string | null;
   dataUrl: string | null;
   fetchImpl?: typeof fetch;
+  /** When this becomes true, a late result must not keep the new photo. */
+  cancelled?: () => boolean;
 }): Promise<AvatarCommitResult> {
   const decision = await decideCloudTransfer(false);
   if (!input.dataUrl) {
@@ -214,8 +234,19 @@ export async function commitAvatarChange(input: {
     await markAvatarFlag(input.storage, false);
     return 'removed';
   }
-  if (decision.defer || decision.offline || !input.accessToken) {
+  if (input.cancelled?.()) return 'cancelled';
+  const previous = await readAvatarCache(input.storage, input.userId);
+  try {
     await writeAvatarCache(input.storage, input.userId, input.dataUrl);
+  } catch {
+    return 'failed';
+  }
+  if (input.cancelled?.()) {
+    await restoreAvatarCache(input.storage, input.userId, previous);
+    return 'cancelled';
+  }
+  await markAvatarFlag(input.storage, true);
+  if (decision.defer || decision.offline || !input.accessToken) {
     await savePendingAvatar(input.storage, input.email, input.dataUrl, 'upload');
     return decision.defer ? 'waiting_wifi' : 'stored';
   }
@@ -225,9 +256,18 @@ export async function commitAvatarChange(input: {
     input.dataUrl,
     input.fetchImpl,
   );
-  if (!uploaded) return 'failed';
-  await writeAvatarCache(input.storage, input.userId, input.dataUrl);
+  if (input.cancelled?.()) {
+    await restoreAvatarCache(input.storage, input.userId, previous);
+    await markAvatarFlag(input.storage, previous != null);
+    if (uploaded) {
+      await deleteAvatarObject(input.userId, input.accessToken, input.fetchImpl);
+    }
+    return 'cancelled';
+  }
+  if (!uploaded) {
+    await savePendingAvatar(input.storage, input.email, input.dataUrl, 'upload');
+    return 'sync_failed';
+  }
   await clearPendingAvatar(input.storage);
-  await markAvatarFlag(input.storage, true);
   return 'uploaded';
 }

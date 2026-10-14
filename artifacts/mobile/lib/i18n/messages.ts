@@ -256,6 +256,10 @@ export type MessageKey =
   | 'account.avatarUseFull'
   | 'account.avatarZoom'
   | 'account.avatarUnsupported'
+  | 'account.avatarCropFailed'
+  | 'account.avatarCropUnavailable'
+  | 'account.avatarSaving'
+  | 'account.avatarSyncFailed'
   | 'account.usernameRequired'
   | 'account.delete'
   | 'account.deleteTitle'
@@ -1529,6 +1533,13 @@ const fr: Dict = {
   'account.avatarZoom': 'Recadrage',
   'account.avatarUnsupported':
     'Ce format ne peut pas être recadré sur cette version. L’ancienne photo est conservée.',
+  'account.avatarCropFailed':
+    'Le recadrage n’a pas abouti. Tu peux réessayer ou annuler. L’ancienne photo est conservée.',
+  'account.avatarCropUnavailable':
+    'Ce format ne peut pas être recadré sur cette version de l’application. L’ancienne photo est conservée.',
+  'account.avatarSaving': 'Enregistrement…',
+  'account.avatarSyncFailed':
+    'La photo est enregistrée sur cet appareil. L’envoi vers le compte n’a pas abouti.',
   'account.usernameRequired': 'Indique un pseudo.',
   'account.delete': 'Supprimer mon compte',
   'account.deleteTitle': 'Supprimer le compte ?',
@@ -2908,6 +2919,13 @@ const en: Dict = {
   'account.avatarZoom': 'Crop',
   'account.avatarUnsupported':
     'This format cannot be cropped in this version. The previous photo is kept.',
+  'account.avatarCropFailed':
+    'Cropping did not finish. You can try again or cancel. The previous photo is kept.',
+  'account.avatarCropUnavailable':
+    'This format cannot be cropped in this version of the app. The previous photo is kept.',
+  'account.avatarSaving': 'Saving…',
+  'account.avatarSyncFailed':
+    'The photo is saved on this device. Sending it to the account did not succeed.',
   'account.usernameRequired': 'Enter a username.',
   'account.delete': 'Delete my account',
   'account.deleteTitle': 'Delete the account?',

@@ -38,6 +38,12 @@ function asBytes(value: Uint8Array | ArrayBuffer): Uint8Array {
   return value instanceof Uint8Array ? value : new Uint8Array(value);
 }
 
+function cloneBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(copy).set(bytes);
+  return copy;
+}
+
 export function decodeAvatarBytes(bytes: Uint8Array): RgbaImage | null {
   if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
     const decoded = jpeg.decode(bytes, { useTArray: true });
@@ -51,8 +57,7 @@ export function decodeAvatarBytes(bytes: Uint8Array): RgbaImage | null {
     bytes[2] === 0x4e &&
     bytes[3] === 0x47
   ) {
-    const copy = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    const decoded = UPNG.decode(copy);
+    const decoded = UPNG.decode(cloneBuffer(bytes));
     const rgba = UPNG.toRGBA8(decoded)[0];
     if (!rgba || !decoded.width || !decoded.height) return null;
     return { data: new Uint8Array(rgba), width: decoded.width, height: decoded.height };
@@ -61,11 +66,7 @@ export function decodeAvatarBytes(bytes: Uint8Array): RgbaImage | null {
 }
 
 export function encodeAvatarPng(image: RgbaImage): Uint8Array {
-  const copy = image.data.buffer.slice(
-    image.data.byteOffset,
-    image.data.byteOffset + image.data.byteLength,
-  );
-  return new Uint8Array(UPNG.encode([copy], image.width, image.height, 0));
+  return new Uint8Array(UPNG.encode([cloneBuffer(image.data)], image.width, image.height, 0));
 }
 
 export function prepareAvatarBytes(

@@ -58,6 +58,7 @@ export default function UtilisateurScreen() {
 
   const [editor, setEditor] = useState<EditorKind>(null);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarSyncError, setAvatarSyncError] = useState(false);
   const [draftUsername, setDraftUsername] = useState('');
   const [repertoireCount, setRepertoireCount] = useState(0);
   const [activeRecords, setActiveRecords] = useState(0);
@@ -112,9 +113,12 @@ export default function UtilisateurScreen() {
     };
   }, [cloud.user, profile.hasAvatar]);
 
-  const onAvatarChange = async (dataUrl: string | null) => {
+  const onAvatarChange = async (
+    dataUrl: string | null,
+    context?: { cancelled: () => boolean },
+  ) => {
     const user = cloud.user;
-    if (!user) return;
+    if (!user) return 'failed' as const;
     const previous = avatarUri;
     const result = await commitAvatarChange({
       storage: defaultKeyValueStorage,
@@ -122,13 +126,24 @@ export default function UtilisateurScreen() {
       email: user.email,
       accessToken: cloudSyncEngine.getAccessToken(),
       dataUrl,
+      cancelled: context?.cancelled,
     });
-    if (result === 'failed') {
+    if (result === 'cancelled') {
       setAvatarUri(previous);
       return;
     }
-    if (result === 'waiting_wifi') cloudSyncEngine.markWaitingForWifi();
+    if (result === 'failed') {
+      setAvatarUri(previous);
+      setAvatarSyncError(false);
+      return 'failed' as const;
+    }
     setAvatarUri(dataUrl);
+    if (result === 'sync_failed') {
+      setAvatarSyncError(true);
+      return 'sync_failed' as const;
+    }
+    setAvatarSyncError(false);
+    if (result === 'waiting_wifi') cloudSyncEngine.markWaitingForWifi();
   };
 
   const summaryLine = useMemo(() => {
@@ -233,6 +248,11 @@ export default function UtilisateurScreen() {
         >
           <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>
         </AvatarField>
+        {avatarSyncError ? (
+          <Text testID="profil-avatar-sync-error" style={{ color: colors.destructive }}>
+            {t('account.avatarSyncFailed')}
+          </Text>
+        ) : null}
       </View>
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>

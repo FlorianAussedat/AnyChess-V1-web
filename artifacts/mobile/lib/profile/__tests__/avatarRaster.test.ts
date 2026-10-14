@@ -11,7 +11,12 @@ import {
   decodeAvatarBytes,
   prepareAvatarBytes,
 } from '../avatarRaster.ts';
-import { bytesToDataUrl } from '../avatarImage.ts';
+import {
+  avatarCropRoute,
+  avatarPreviewLayout,
+  bytesToDataUrl,
+  zoomFromTrack,
+} from '../avatarImage.ts';
 import { commitAvatarChange } from '../avatarRemote.ts';
 import { readAvatarCache, readPendingAvatar, writeAvatarCache } from '../avatarLocal.ts';
 
@@ -78,7 +83,7 @@ describe('avatar crop without the native manipulator', () => {
     assert.equal(fitted.height, 1);
   });
 
-  it('keeps the previous avatar when the upload fails and defers on cellular', async () => {
+  it('keeps the new local photo when the upload fails and defers on cellular', async () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon-test';
     const storage = new MemoryKeyValueStorage();
@@ -101,10 +106,11 @@ describe('avatar crop without the native manipulator', () => {
         return { ok: false, status: 500 } as Response;
       }) as typeof fetch,
     });
-    assert.equal(failed, 'failed');
+    assert.equal(failed, 'sync_failed');
     assert.equal(calls, 1);
-    assert.equal(await readAvatarCache(storage, 'user-1'), previous);
-    assert.equal(await readPendingAvatar(storage), null);
+    assert.equal(await readAvatarCache(storage, 'user-1'), next);
+    assert.equal((await readPendingAvatar(storage))?.intent, 'upload');
+    assert.equal((await readPendingAvatar(storage))?.dataUrl, next);
 
     setCloudTransferReadersForTests({
       transport: async () => 'cellular',
@@ -123,6 +129,123 @@ describe('avatar crop without the native manipulator', () => {
     assert.equal(waiting, 'waiting_wifi');
     assert.equal(await readAvatarCache(storage, 'user-1'), next);
     assert.equal((await readPendingAvatar(storage))?.intent, 'upload');
+  });
+
+  it('matches the preview to the saved crop for portrait, landscape, and square', () => {
+    const cases = [
+      { width: 300, height: 600, zoom: 2 },
+      { width: 640, height: 360, zoom: 1.5 },
+      { width: 400, height: 400, zoom: 1 },
+      { width: 400, height: 400, zoom: 3 },
+    ];
+    for (const sample of cases) {
+      const layout = avatarPreviewLayout({
+        imageWidth: sample.width,
+        imageHeight: sample.height,
+        maxWidth: 280,
+        maxHeight: 220,
+        zoom: sample.zoom,
+      });
+      assert.equal(layout.scale, sample.zoom);
+      assert.ok(Math.abs(layout.frameWidth / layout.frameHeight - sample.width / sample.height) < 0.02);
+      assert.ok(layout.frameWidth <= 280);
+      assert.ok(layout.frameHeight <= 220);
+      assert.equal(layout.crop.width, sample.width / sample.zoom);
+      assert.equal(layout.crop.height, sample.height / sample.zoom);
+      assert.equal(layout.crop.x, (sample.width - layout.crop.width) / 2);
+      assert.equal(layout.crop.y, (sample.height - layout.crop.height) / 2);
+      const painted = cropAndFitRgba(
+        {
+          data: rgba(sample.width, sample.height, (x, y) => {
+            const center =
+              x >= layout.crop.x &&
+              x < layout.crop.x + layout.crop.width &&
+              y >= layout.crop.y &&
+              y < layout.crop.y + layout.crop.height;
+            return center ? [0, 0, 255, 255] : [255, 0, 0, 255];
+          }),
+          width: sample.width,
+          height: sample.height,
+        },
+        sample.zoom,
+        32,
+      );
+      assert.equal(painted.data[2], 255);
+      assert.equal(painted.data[0], 0);
+    }
+    assert.equal(zoomFromTrack(0, 200), 1);
+    assert.equal(zoomFromTrack(200, 200), 3);
+    assert.equal(zoomFromTrack(100, 200), 2);
+  });
+
+  it('keeps JPEG and PNG without the native module and refuses other formats', () => {
+    assert.equal(avatarCropRoute({ manipulatorReady: false, format: 'jpeg' }), 'javascript');
+    assert.equal(avatarCropRoute({ manipulatorReady: false, format: 'png' }), 'javascript');
+    assert.equal(avatarCropRoute({ manipulatorReady: false, format: 'other' }), 'unavailable');
+    assert.equal(avatarCropRoute({ manipulatorReady: true, format: 'other' }), 'native');
+  });
+
+  it('restores the previous photo when cropping is cancelled during the save', async () => {
+    process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon-test';
+    const storage = new MemoryKeyValueStorage();
+    const previous = bytesToDataUrl(new Uint8Array([1, 2, 3]), 'image/png');
+    const next = bytesToDataUrl(jpegBytes(4, 4), 'image/jpeg');
+    await writeAvatarCache(storage, 'user-1', previous);
+    setCloudTransferReadersForTests({
+      transport: async () => 'wifi',
+      wifiOnly: async () => true,
+    });
+    let releaseUpload: (value: Response) => void = () => {};
+    const pendingUpload = new Promise<Response>((resolve) => {
+      releaseUpload = resolve;
+    });
+    let cancelled = false;
+    const saving = commitAvatarChange({
+      storage,
+      userId: 'user-1',
+      email: 'ada@example.com',
+      accessToken: 'token',
+      dataUrl: next,
+      cancelled: () => cancelled,
+      fetchImpl: (() => pendingUpload) as typeof fetch,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    cancelled = true;
+    releaseUpload({ ok: true, status: 200 } as Response);
+    assert.equal(await saving, 'cancelled');
+    assert.equal(await readAvatarCache(storage, 'user-1'), previous);
+  });
+
+  it('keeps the previous photo when the local save throws', async () => {
+    process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'anon-test';
+    const storage = new MemoryKeyValueStorage();
+    const previous = bytesToDataUrl(new Uint8Array([1, 2, 3]), 'image/png');
+    const next = bytesToDataUrl(jpegBytes(4, 4), 'image/jpeg');
+    await writeAvatarCache(storage, 'user-1', previous);
+    const original = storage.setItem.bind(storage);
+    storage.setItem = async (key, value) => {
+      if (key.startsWith('anychess.avatar.cache.')) throw new Error('disk');
+      return original(key, value);
+    };
+    setCloudTransferReadersForTests({
+      transport: async () => 'wifi',
+      wifiOnly: async () => false,
+    });
+    const result = await commitAvatarChange({
+      storage,
+      userId: 'user-1',
+      email: 'ada@example.com',
+      accessToken: 'token',
+      dataUrl: next,
+      fetchImpl: (async () => {
+        throw new Error('must not upload');
+      }) as typeof fetch,
+    });
+    assert.equal(result, 'failed');
+    storage.setItem = original;
+    assert.equal(await readAvatarCache(storage, 'user-1'), previous);
   });
 
   it('does not import the native manipulator unless the module is installed', () => {

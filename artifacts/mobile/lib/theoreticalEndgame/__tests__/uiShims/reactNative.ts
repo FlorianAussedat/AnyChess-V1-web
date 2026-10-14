@@ -17,6 +17,18 @@ export const StyleSheet = { create: (styles: unknown) => styles };
 export const Platform = {
   select: (spec: { default?: unknown }) => spec.default,
 };
+const backListeners = new Set<() => boolean | null | undefined>();
+export const BackHandler = {
+  addEventListener(_name: string, listener: () => boolean | null | undefined) {
+    backListeners.add(listener);
+    return {
+      remove() {
+        backListeners.delete(listener);
+      },
+    };
+  },
+  listeners: backListeners,
+};
 export function useWindowDimensions() {
   return { width: 390, height: 844, scale: 2, fontScale: 1 };
 }

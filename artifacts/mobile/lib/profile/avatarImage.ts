@@ -25,6 +25,82 @@ export function centerCropRect(
   };
 }
 
+export type AvatarPreviewLayout = {
+  crop: { x: number; y: number; width: number; height: number };
+  frameWidth: number;
+  frameHeight: number;
+  /** Uniform scale of the full image inside the clipped frame. */
+  scale: number;
+};
+
+/**
+ * The clipped frame has the photo's aspect ratio. Scaling it by `zoom`
+ * from the center shows exactly `centerCropRect` — the pixels that are saved.
+ * Zoom 1 shows the whole photo without stretching.
+ */
+export function avatarPreviewLayout(input: {
+  imageWidth: number;
+  imageHeight: number;
+  maxWidth: number;
+  maxHeight: number;
+  zoom: number;
+}): AvatarPreviewLayout {
+  const imageWidth = Math.max(1, input.imageWidth);
+  const imageHeight = Math.max(1, input.imageHeight);
+  const maxWidth = Math.max(1, input.maxWidth);
+  const maxHeight = Math.max(1, input.maxHeight);
+  const zoom = clampAvatarZoom(input.zoom);
+  const fit = Math.min(maxWidth / imageWidth, maxHeight / imageHeight);
+  return {
+    crop: centerCropRect(imageWidth, imageHeight, zoom),
+    frameWidth: Math.max(1, Math.round(imageWidth * fit)),
+    frameHeight: Math.max(1, Math.round(imageHeight * fit)),
+    scale: zoom,
+  };
+}
+
+/** Map a touch on the crop track to the same zoom the preview uses. */
+export function zoomFromTrack(
+  locationX: number,
+  width: number,
+  min = 1,
+  max = 3,
+): number {
+  const span = Math.max(1, width);
+  const ratio = Math.min(1, Math.max(0, locationX / span));
+  return clampAvatarZoom(min + ratio * (max - min));
+}
+
+export type AvatarImageFormat = 'jpeg' | 'png' | 'other';
+
+export function sniffAvatarFormat(bytes: Uint8Array): AvatarImageFormat {
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) return 'jpeg';
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return 'png';
+  }
+  return 'other';
+}
+
+/**
+ * Native crop when the installed client has the module.
+ * JPEG and PNG can be cropped in JavaScript. Other formats stay unavailable
+ * rather than being saved uncropped.
+ */
+export function avatarCropRoute(input: {
+  manipulatorReady: boolean;
+  format: AvatarImageFormat;
+}): 'native' | 'javascript' | 'unavailable' {
+  if (input.manipulatorReady) return 'native';
+  if (input.format === 'jpeg' || input.format === 'png') return 'javascript';
+  return 'unavailable';
+}
+
 export function fittedEdge(
   width: number,
   height: number,
@@ -89,10 +165,12 @@ function loadHtmlImage(src: string): Promise<DrawableImage> {
  * side to 512px. Output is PNG so a logo's transparency survives.
  * Web uses canvas. Native uses expo-image-manipulator (dev-client rebuild).
  */
+export type AvatarPrepareError = 'unsupported' | 'failed' | 'unavailable';
+
 export async function prepareAvatarImage(input: {
   uri: string;
   zoom?: number;
-}): Promise<{ dataUrl: string } | { error: 'unsupported' }> {
+}): Promise<{ dataUrl: string } | { error: AvatarPrepareError }> {
   const zoom = clampAvatarZoom(input.zoom ?? 1);
   if (typeof document !== 'undefined' && typeof Image !== 'undefined') {
     try {
@@ -137,10 +215,39 @@ function nativeManipulatorReady(): boolean {
   }
 }
 
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function readUriBytes(uri: string): Promise<Uint8Array | null> {
+  if (uri.startsWith('data:')) return dataUrlToBytes(uri)?.bytes ?? null;
+  try {
+    const response = await withTimeout(fetch(uri), 8000);
+    if (!response.ok) return null;
+    return new Uint8Array(await response.arrayBuffer());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[AnyChess] avatar read failed: ${message}`);
+    return null;
+  }
+}
+
 async function prepareAvatarWithInstalledManipulator(
   uri: string,
   zoom: number,
-): Promise<{ dataUrl: string } | { error: 'unsupported' }> {
+): Promise<{ dataUrl: string }> {
   const { Image } = await import('react-native');
   const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
     Image.getSize(uri, (width, height) => resolve({ width, height }), reject);
@@ -169,41 +276,51 @@ async function prepareAvatarWithInstalledManipulator(
 }
 
 async function prepareAvatarWithJavascript(
-  uri: string,
+  bytes: Uint8Array,
   zoom: number,
-): Promise<{ dataUrl: string } | { error: 'unsupported' }> {
-  const response = await fetch(uri);
-  if (!response.ok) {
-    console.warn(`[AnyChess] avatar read failed: ${response.status}`);
-    return { error: 'unsupported' };
-  }
-  const bytes = new Uint8Array(await response.arrayBuffer());
+): Promise<{ dataUrl: string } | null> {
   const { prepareAvatarBytes } = await import('./avatarRaster.ts');
   const prepared = prepareAvatarBytes(bytes, zoom);
-  if (!prepared) {
-    console.warn(
-      '[AnyChess] avatar format unsupported without ExpoImageManipulator. The previous photo is kept.',
-    );
-    return { error: 'unsupported' };
-  }
+  if (!prepared) return null;
   return { dataUrl: bytesToDataUrl(prepared.bytes, prepared.mime) };
 }
 
 async function prepareAvatarImageNative(
   uri: string,
   zoom: number,
-): Promise<{ dataUrl: string } | { error: 'unsupported' }> {
+): Promise<{ dataUrl: string } | { error: AvatarPrepareError }> {
+  const manipulatorReady = nativeManipulatorReady();
   try {
-    if (nativeManipulatorReady()) {
-      return await prepareAvatarWithInstalledManipulator(uri, zoom);
+    if (manipulatorReady) {
+      try {
+        return await prepareAvatarWithInstalledManipulator(uri, zoom);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[AnyChess] ExpoImageManipulator crop failed: ${message}`);
+      }
+    } else {
+      console.warn(
+        '[AnyChess] ExpoImageManipulator is not in this client. JPEG and PNG are cropped in JavaScript.',
+      );
     }
-    console.warn(
-      '[AnyChess] ExpoImageManipulator is not in this client. JPEG and PNG are cropped in JavaScript. WebP still needs a rebuilt dev client.',
-    );
-    return await prepareAvatarWithJavascript(uri, zoom);
+    const bytes = await readUriBytes(uri);
+    if (!bytes) return { error: 'failed' };
+    const route = avatarCropRoute({
+      manipulatorReady: false,
+      format: sniffAvatarFormat(bytes),
+    });
+    if (route === 'unavailable') {
+      console.warn(
+        '[AnyChess] avatar format unsupported without ExpoImageManipulator. The previous photo is kept.',
+      );
+      return { error: 'unavailable' };
+    }
+    const prepared = await prepareAvatarWithJavascript(bytes, zoom);
+    if (!prepared) return { error: 'failed' };
+    return prepared;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`[AnyChess] avatar crop failed: ${message}`);
-    return { error: 'unsupported' };
+    return { error: 'failed' };
   }
 }
