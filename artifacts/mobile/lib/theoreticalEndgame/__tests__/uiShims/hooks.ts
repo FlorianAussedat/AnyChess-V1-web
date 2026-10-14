@@ -1,3 +1,5 @@
+import { translate, type MessageKey, type MessageParams } from '@/lib/i18n/messages.ts';
+
 const FR: Record<string, string> = {
   'a11y.boardHide': 'Masquer l’échiquier',
   'a11y.boardShow': 'Afficher l’échiquier',
@@ -38,12 +40,13 @@ export function useColors() {
 
 export function useTranslation() {
   return {
-    t: (key: string, vars?: Record<string, string | number>) => {
-      let text = FR[key] ?? key;
-      if (vars) {
-        for (const [name, value] of Object.entries(vars)) {
-          text = text.replaceAll(`{{${name}}}`, String(value));
-        }
+    t: (key: string, params?: MessageParams) => {
+      const known = FR[key];
+      if (known == null) return translate('fr', key as MessageKey, params);
+      if (!params) return known;
+      let text = known;
+      for (const [name, value] of Object.entries(params)) {
+        text = text.replaceAll(`{{${name}}}`, String(value));
       }
       return text;
     },

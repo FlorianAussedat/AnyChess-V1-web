@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { DesignTokens } from '@/constants/designTokens';
 import { useColors } from '@/hooks/useColors';
-import { useTranslation } from '@/hooks/useTranslation';
-import {
-  formatAnyLyseurEval,
-  uciPvToSan,
-  type EngineLine,
-} from '@/lib/analysis';
+import { formatAnyLyseurEval } from '@/lib/analysis/formatEval.ts';
+import { legalSuggestions } from '@/lib/analysis/reviewFocus.ts';
+import type { EngineLine } from '@/lib/analysis/types.ts';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import type { ChessNotation } from '@/lib/preferences/types';
 
@@ -15,7 +12,10 @@ type Props = {
   fen: string;
   lines: EngineLine[];
   notation: ChessNotation;
-  detailedCount?: number;
+  title: string;
+  emptyLabel: string;
+  /** UCI already shown as the best move — omitted so it is not repeated. */
+  excludeUci?: string | null;
   testID?: string;
 };
 
@@ -23,13 +23,13 @@ export function EngineLinesPanel({
   fen,
   lines,
   notation,
-  detailedCount = 2,
+  title,
+  emptyLabel,
+  excludeUci = null,
   testID = 'anyliseur-engine-lines',
 }: Props) {
   const colors = useColors();
-  const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(false);
-  const visible = lines.slice(0, 3);
+  const suggestions = legalSuggestions(fen, lines, { excludeUci, limit: 3 });
 
   return (
     <View
@@ -39,67 +39,35 @@ export function EngineLinesPanel({
       ]}
       testID={testID}
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>
-        {t('parties.anyliseurBestMoves')}
-      </Text>
-      {visible.length === 0 ? (
-        <Text style={{ color: colors.mutedForeground }}>
-          {t('parties.anyliseurWaiting')}
+      <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+      {suggestions.length === 0 ? (
+        <Text style={{ color: colors.mutedForeground }} testID={`${testID}-empty`}>
+          {emptyLabel}
         </Text>
       ) : (
-        visible.map((line, index) => {
-          const showPv = expanded || index < detailedCount;
-          const sans = uciPvToSan(fen, line.pv, showPv ? 8 : 1).map((san) =>
-            formatSanForDisplay(san, notation),
-          );
+        suggestions.map((line, index) => {
           const evalLabel = formatAnyLyseurEval({
-            cp: line.scoreCp,
+            cp: line.evaluation,
             mate: line.mate,
           });
+          if (!evalLabel) return null;
           return (
             <View
-              key={line.rank}
+              key={line.uci}
               style={styles.row}
-              testID={`${testID}-${line.rank}`}
+              testID={`${testID}-${index + 1}`}
             >
               <Text style={[styles.rank, { color: colors.primary }]}>
-                {line.rank}.
+                {index + 1}.
               </Text>
-              <View style={styles.body}>
-                <Text style={[styles.move, { color: colors.foreground }]}>
-                  {sans[0] ?? '—'}{' '}
-                  <Text style={{ color: colors.primary }}>{evalLabel}</Text>
-                </Text>
-                {showPv && sans.length > 1 ? (
-                  <Text
-                    style={[styles.pv, { color: colors.mutedForeground }]}
-                    numberOfLines={2}
-                  >
-                    {sans.join(' ')}
-                  </Text>
-                ) : null}
-              </View>
+              <Text style={[styles.move, { color: colors.foreground }]}>
+                {formatSanForDisplay(line.san, notation)}{' '}
+                <Text style={{ color: colors.primary }}>{evalLabel}</Text>
+              </Text>
             </View>
           );
         })
       )}
-      {visible.length > detailedCount ? (
-        <Pressable
-          onPress={() => setExpanded((v) => !v)}
-          testID={`${testID}-toggle`}
-        >
-          <Text
-            style={{
-              color: colors.primary,
-              fontFamily: DesignTokens.typography.weightSemiBold,
-            }}
-          >
-            {expanded
-              ? t('parties.anyliseurLess')
-              : t('parties.anyliseurMore')}
-          </Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -122,10 +90,9 @@ const styles = StyleSheet.create({
     fontFamily: DesignTokens.typography.weightBold,
     fontSize: 13,
   },
-  body: { flex: 1, gap: 2 },
   move: {
+    flex: 1,
     fontSize: 14,
     fontFamily: DesignTokens.typography.weightSemiBold,
   },
-  pv: { fontSize: 12, lineHeight: 16 },
 });

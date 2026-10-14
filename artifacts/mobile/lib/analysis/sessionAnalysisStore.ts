@@ -64,9 +64,12 @@ class SessionAnalysisStoreImpl {
     depth: number,
     multiPv: number,
   ): PositionAnalysis | undefined {
-    return this.positions.get(
+    const hit = this.positions.get(
       makeAnalysisCacheKey(fen, profileId, depth, multiPv),
     );
+    // Unknown perspective is not displayed. The next analysis overwrites it.
+    if (!hit || hit.evalPerspective !== 'white') return undefined;
+    return hit;
   }
 
   logCacheLookup(fen: string, hit: boolean): void {

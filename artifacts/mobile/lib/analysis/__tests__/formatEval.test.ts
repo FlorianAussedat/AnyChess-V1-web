@@ -19,6 +19,7 @@ describe('formatAnyLyseurEval', () => {
     assert.equal(formatAnyLyseurEval({ cp: -142, mate: null }), '-1.42');
     assert.equal(formatAnyLyseurEval({ cp: null, mate: 3 }), 'M3');
     assert.equal(formatAnyLyseurEval({ cp: null, mate: -2 }), '-M2');
+    assert.equal(formatAnyLyseurEval({ cp: null, mate: null }), null);
   });
 
   it('clamps curve mates without converting to 999', () => {

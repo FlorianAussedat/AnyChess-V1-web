@@ -406,6 +406,16 @@ export type MessageKey =
   | 'parties.anyliseurMore'
   | 'parties.anyliseurLess'
   | 'parties.anyliseurCurve'
+  | 'parties.anyliseurPossibilities'
+  | 'parties.anyliseurLiveMoves'
+  | 'parties.anyliseurPerspective'
+  | 'parties.anyliseurEvalMissing'
+  | 'parties.anyliseurEvalIncomplete'
+  | 'parties.anyliseurTerminal'
+  | 'parties.anyliseurBestPreview'
+  | 'parties.anyliseurScaleCapped'
+  | 'parties.anyliseurBestUnavailable'
+  | 'parties.anyliseurSelectMove'
   | 'parties.anyliseurAnalyzed'
   | 'parties.anyliseurReanalyze'
   | 'parties.anyliseurExportIncludeEvals'
@@ -1676,6 +1686,16 @@ const fr: Dict = {
   'parties.anyliseurMore': 'Plus de détails',
   'parties.anyliseurLess': 'Moins',
   'parties.anyliseurCurve': "Courbe d'évaluation",
+  'parties.anyliseurPossibilities': 'Possibilités à ce moment-là',
+  'parties.anyliseurLiveMoves': 'Coups dans cette position',
+  'parties.anyliseurPerspective': 'Du point de vue des Blancs',
+  'parties.anyliseurEvalMissing': 'Indisponible',
+  'parties.anyliseurEvalIncomplete': 'Analyse incomplète',
+  'parties.anyliseurTerminal': 'Position terminale',
+  'parties.anyliseurBestPreview': 'Aperçu : position avant {{move}}',
+  'parties.anyliseurScaleCapped': 'Échelle plafonnée',
+  'parties.anyliseurBestUnavailable': 'Meilleur coup indisponible',
+  'parties.anyliseurSelectMove': 'Sélectionne un coup pour voir son diagnostic.',
   'parties.anyliseurAnalyzed': 'Analysée',
   'parties.anyliseurReanalyze': 'Ré-analyser',
   'parties.anyliseurExportIncludeEvals': 'Inclure les évaluations',
@@ -3044,6 +3064,16 @@ const en: Dict = {
   'parties.anyliseurMore': 'More details',
   'parties.anyliseurLess': 'Less',
   'parties.anyliseurCurve': 'Evaluation curve',
+  'parties.anyliseurPossibilities': 'Options at that moment',
+  'parties.anyliseurLiveMoves': 'Moves in this position',
+  'parties.anyliseurPerspective': "From White's point of view",
+  'parties.anyliseurEvalMissing': 'Unavailable',
+  'parties.anyliseurEvalIncomplete': 'Incomplete analysis',
+  'parties.anyliseurTerminal': 'Terminal position',
+  'parties.anyliseurBestPreview': 'Preview: position before {{move}}',
+  'parties.anyliseurScaleCapped': 'Scale capped',
+  'parties.anyliseurBestUnavailable': 'Best move unavailable',
+  'parties.anyliseurSelectMove': 'Select a move to see its diagnosis.',
   'parties.anyliseurAnalyzed': 'Analyzed',
   'parties.anyliseurReanalyze': 'Re-analyze',
   'parties.anyliseurExportIncludeEvals': 'Include evaluations',

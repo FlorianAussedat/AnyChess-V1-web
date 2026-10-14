@@ -168,6 +168,13 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     controllerRef.current?.setArrowsEnabled(enabled);
   }, []);
 
+  const lookupPosition = useCallback((fen: string | null | undefined) => {
+    if (!fen || !controllerRef.current) return null;
+    const hit = controllerRef.current.getCachedPosition(fen);
+    if (!hit || hit.evalPerspective !== 'white') return null;
+    return hit;
+  }, [state?.position, state?.gameNodes, state?.profileId]);
+
   const retryEngine = useCallback(async () => {
     retryGenRef.current += 1;
     const gen = retryGenRef.current;
@@ -232,6 +239,7 @@ export function useAnyLyseurAnalysis(options: UseAnyLyseurAnalysisOptions) {
     setArrowsEnabled,
     retryEngine,
     classificationInputs,
+    lookupPosition,
     isMainLineFullyAnalyzed: state?.mainLineComplete ?? false,
     isGameFullyAnalyzed: state?.gameComplete ?? false,
   };

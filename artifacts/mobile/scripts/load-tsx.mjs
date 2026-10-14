@@ -11,6 +11,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shims = new Map([
   ['react-native', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/reactNative.ts')],
   ['expo-router', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/expoRouter.ts')],
+  ['react-native-svg', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/svg.ts')],
   ['@/hooks/useColors', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/hooks.ts')],
   ['@/hooks/useTranslation', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/hooks.ts')],
   ['@/constants/BrandAssets', join(root, 'lib/theoreticalEndgame/__tests__/uiShims/assets.ts')],

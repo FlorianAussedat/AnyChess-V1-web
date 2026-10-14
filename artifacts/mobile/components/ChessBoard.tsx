@@ -11,6 +11,7 @@ import type { BoardPiece, LastMove } from '@/contexts/GameContext';
 import { BoardTheme } from '@/constants/boardTheme';
 import { computeBoardSize, type BoardSizeMode } from '@/lib/game/boardSize';
 import { boardDisplayOrder, squareFromBoardIndices } from '@/lib/game/boardSquares';
+import { arrowSegment } from '@/lib/analysis/boardArrowGeometry';
 import { PieceSvg } from './PieceSvg';
 import type { PType, PColor } from './PieceSvg';
 
@@ -215,19 +216,13 @@ export function ChessBoard({
                 <Path d="M0,0 L6,3 L0,6 Z" fill={arrows[0]?.color ?? '#F5A623'} />
               </Marker>
             </Defs>
-            {arrows.map((arrow, idx) => {
-              const fromFile = arrow.from.charCodeAt(0) - 97;
-              const fromRank = parseInt(arrow.from[1]!, 10);
-              const toFile = arrow.to.charCodeAt(0) - 97;
-              const toRank = parseInt(arrow.to[1]!, 10);
-              const fromCol = isFlipped ? 7 - fromFile : fromFile;
-              const fromRow = isFlipped ? fromRank - 1 : 8 - fromRank;
-              const toCol = isFlipped ? 7 - toFile : toFile;
-              const toRow = isFlipped ? toRank - 1 : 8 - toRank;
-              const x1 = (fromCol + 0.5) * cellSize;
-              const y1 = (fromRow + 0.5) * cellSize;
-              const x2 = (toCol + 0.5) * cellSize;
-              const y2 = (toRow + 0.5) * cellSize;
+            {arrows.slice(0, 1).map((arrow, idx) => {
+              const segment = arrowSegment(arrow.from, arrow.to, {
+                flipped: isFlipped,
+                cellSize,
+              });
+              if (!segment) return null;
+              const { x1, y1, x2, y2 } = segment;
               return (
                 <Line
                   key={`${arrow.from}${arrow.to}-${idx}`}

@@ -6,7 +6,7 @@ import {
   formatAnyLyseurEval,
   whiteAdvantageRatio,
   type WhiteEval,
-} from '@/lib/analysis';
+} from '@/lib/analysis/formatEval.ts';
 
 type Props = {
   value: WhiteEval | null;
@@ -22,9 +22,14 @@ export function EvalBalanceBar({
   testID = 'anyliseur-eval-bar',
 }: Props) {
   const colors = useColors();
-  const label = value ? formatAnyLyseurEval(value) : loading ? '…' : '—';
-  const adv = useMemo(() => (value ? whiteAdvantageRatio(value) : 0.5), [value]);
-  const whitePct = Math.round(Math.max(0, Math.min(1, adv)) * 100);
+  const formatted = value ? formatAnyLyseurEval(value) : null;
+  const label = formatted ?? (loading ? '…' : '—');
+  const adv = useMemo(
+    () => (value && formatted ? whiteAdvantageRatio(value) : null),
+    [value, formatted],
+  );
+  const whitePct =
+    adv == null ? 0 : Math.round(Math.max(0, Math.min(1, adv)) * 100);
 
   return (
     <View style={styles.wrap} testID={testID}>
@@ -34,13 +39,15 @@ export function EvalBalanceBar({
           { backgroundColor: colors.secondary, borderColor: colors.border },
         ]}
       >
-        <View
-          style={{
-            height: '100%',
-            width: `${whitePct}%`,
-            backgroundColor: colors.foreground,
-          }}
-        />
+        {adv != null ? (
+          <View
+            style={{
+              height: '100%',
+              width: `${whitePct}%`,
+              backgroundColor: colors.foreground,
+            }}
+          />
+        ) : null}
       </View>
       <View style={styles.meta}>
         <Text

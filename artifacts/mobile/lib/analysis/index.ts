@@ -1,4 +1,5 @@
 export type {
+  EvalPerspective,
   AnalysisEngineStatus,
   AnalysisProfileId,
   AnalysisProfile,
@@ -21,6 +22,7 @@ export {
 
 export {
   formatAnyLyseurEval,
+  isEvalPresent,
   clampEvalForCurve,
   whiteAdvantageRatio,
   type WhiteEval,
@@ -69,6 +71,33 @@ export {
   collectActiveLineNodes,
   type MainLineNodeRef,
 } from './mainLineNodes.ts';
+
+export {
+  legalUci,
+  legalSuggestions,
+  singleBestArrow,
+  buildSelectedMoveReview,
+  buildLiveFocus,
+  resolveBoardPresentation,
+  sameChessPosition,
+  type MoveReview,
+  type LiveFocus,
+  type Suggestion,
+  type BoardPresentation,
+  type BoardArrow,
+} from './reviewFocus.ts';
+
+export {
+  layoutEvalCurve,
+  hitTestCurve,
+  segmentFrame,
+  layoutInsidePlot,
+  EVAL_CURVE_PAWN_CAP,
+  type CurveSample,
+  type EvalCurveLayout,
+} from './evalCurveLayout.ts';
+
+export { arrowSegment } from './boardArrowGeometry.ts';
 
 export {
   useAnyLyseurAnalysis,
