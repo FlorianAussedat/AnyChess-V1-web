@@ -14,6 +14,8 @@ const {
   resolveAndroidVariant,
 } = require('../androidVariants.cjs');
 const { injectReleaseSigning } = require('../../../plugins/releaseSigning.cjs');
+const { patchSettingsGradle, applyDevClientExclude } = require('../../../plugins/standaloneAutolinking.cjs');
+const { stripDevClientSchemes } = require('../../../plugins/standaloneSchemes.cjs');
 
 function pluginNames(config) {
   return config.expo.plugins.map((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin));
@@ -90,6 +92,9 @@ describe('Android install variants', () => {
       assert.ok(releasePlugins.includes(native));
     }
     assert.ok(releasePlugins.includes('./plugins/withReleaseSigning.js'));
+    assert.ok(releasePlugins.includes('./plugins/withStandaloneAutolinking.js'));
+    assert.ok(releasePlugins.includes('./plugins/withStandaloneSchemes.js'));
+    assert.equal(devPlugins.includes('./plugins/withStandaloneSchemes.js'), false);
   });
 
   it('attaches a release keystore without replacing the debug key', () => {
@@ -126,6 +131,65 @@ describe('Android install variants', () => {
       signed.indexOf('signingConfig signingConfigs.release', releaseAt) >
         signed.indexOf('release {', releaseAt),
       true,
+    );
+  });
+
+  it('excludes the development client from the standalone Gradle settings', () => {
+    const settings = `
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  ex.autolinkLibrariesFromCommand(expoAutolinking.rnConfigCommand)
+}
+expoAutolinking.useExpoModules()
+`;
+    const patched = patchSettingsGradle(settings);
+    assert.ok(patched.indexOf('expoAutolinking.exclude') < patched.indexOf('rnConfigCommand'));
+    for (const name of DEV_CLIENT_MODULES) {
+      assert.match(patched, new RegExp(name));
+    }
+    const pkg = applyDevClientExclude({ name: 'app', dependencies: { 'expo-speech': '1' } });
+    for (const name of DEV_CLIENT_MODULES) {
+      assert.ok(pkg.expo.autolinking.exclude.includes(name));
+    }
+    assert.equal(pkg.dependencies['expo-speech'], '1');
+  });
+
+  it('drops the development client schemes from the standalone manifest', () => {
+    const manifest = {
+      application: [
+        {
+          activity: [
+            {
+              'intent-filter': [
+                {
+                  data: [
+                    { $: { 'android:scheme': 'anychess' } },
+                    { $: { 'android:scheme': 'exp+mobile' } },
+                    { $: { 'android:scheme': 'expo-dev-launcher' } },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      queries: [
+        {
+          intent: [
+            {
+              data: [{ $: { 'android:scheme': 'https' } }],
+            },
+          ],
+        },
+      ],
+    };
+    stripDevClientSchemes(manifest);
+    const schemes = manifest.application[0].activity[0]['intent-filter'][0].data.map(
+      (entry) => entry.$['android:scheme'],
+    );
+    assert.deepEqual(schemes, ['anychess']);
+    assert.equal(
+      manifest.queries[0].intent[0].data[0].$['android:scheme'],
+      'https',
     );
   });
 });

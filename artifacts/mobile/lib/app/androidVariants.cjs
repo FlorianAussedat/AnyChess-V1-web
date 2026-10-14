@@ -57,7 +57,12 @@ function resolveAndroidVariant(variant) {
       },
       plugins: development
         ? plugins
-        : [...plugins, './plugins/withReleaseSigning.js'],
+        : [
+            ...plugins,
+            './plugins/withReleaseSigning.js',
+            './plugins/withStandaloneAutolinking.js',
+            './plugins/withStandaloneSchemes.js',
+          ],
       autolinking: development
         ? undefined
         : { exclude: [...DEV_CLIENT_MODULES] },
