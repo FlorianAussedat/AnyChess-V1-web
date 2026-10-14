@@ -458,6 +458,40 @@ describe('draw offer WDL orientation', () => {
     const result = await evaluateDrawOffer(analyzer, '8/8/4k3/8/8/4K3/8/8 b - - 0 1', 'w');
     assert.equal(result.accepted, true);
   });
+
+  it('does not treat a lone +0.00 as a draw when WDL is missing', async () => {
+    const analyzer = createMockDefenseAnalyzer(() =>
+      baseAnalysis({
+        scoreCp: 0,
+        wdl: null,
+        mateIn: null,
+      }),
+    );
+    const { evaluateDrawOffer } = await import('../drawOffer.ts');
+    const result = await evaluateDrawOffer(analyzer, '8/8/4k3/8/8/4K3/8/8 b - - 0 1', 'w');
+    assert.equal(result.accepted, false);
+  });
+
+  it('does not end the exercise when the only signal is +0.00', async () => {
+    const analyzer = createMockDefenseAnalyzer(() =>
+      baseAnalysis({
+        scoreCp: 0,
+        wdl: null,
+        mateIn: null,
+        bestMove: null,
+      }),
+    );
+    const session = new DefendDrawSession({ analyzer });
+    const snap = await session.start('debutant', [], () => 0);
+    assert.equal(snap.objective, 'DRAW');
+    assert.equal(snap.phase, 'playing');
+    (session as unknown as { playerMovesMade: number }).playerMovesMade =
+      DRAW_OFFER_CONFIG.minMovesBeforeOffer;
+    const after = await session.offerDraw();
+    assert.equal(after.phase, 'playing');
+    assert.notEqual(after.phase, 'success');
+    assert.match(after.lastFeedback ?? '', /refuse/);
+  });
 });
 
 describe('endgame session objectives', () => {

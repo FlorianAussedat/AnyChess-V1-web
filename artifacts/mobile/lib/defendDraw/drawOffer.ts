@@ -16,8 +16,6 @@ export const DRAW_OFFER_CONFIG = {
   maxStockfishWinPermille: 200,
   /** Stockfish accepts only if draw probability >= this (permille). */
   minDrawPermille: 350,
-  /** CP window — Stockfish accepts if |cp| <= this (fallback without WDL). */
-  acceptCpWindow: 50,
   /** Analysis time for draw decision (ms). */
   drawDecisionTimeMs: 2000,
 } as const;
@@ -96,10 +94,6 @@ export async function evaluateDrawOffer(
     return { accepted: false, message: 'Stockfish refuse la nulle.' };
   }
 
-  // Fallback to CP when WDL unavailable
-  if (Math.abs(analysis.scoreCp) <= DRAW_OFFER_CONFIG.acceptCpWindow) {
-    return { accepted: true };
-  }
-
+  // A centipawn score alone, including +0.00, is not proof of a draw.
   return { accepted: false, message: 'Stockfish refuse la nulle.' };
 }
