@@ -108,10 +108,25 @@ function serveStaticFile(urlPath, res) {
 const landingPageTemplate = fs.readFileSync(TEMPLATE_PATH, 'utf-8');
 const appName = getAppName();
 const CONFIRM_PAGE = path.resolve(__dirname, '../../../supabase/functions/auth-confirm/page.ts');
+const BRAND_LOGO = path.resolve(__dirname, 'brand', 'anychess-logo.png');
 
 function readPublicEnv(name) {
   const value = process.env[name];
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function serveBrandLogo(res) {
+  if (!fs.existsSync(BRAND_LOGO)) {
+    res.writeHead(404, { 'cache-control': 'no-store' });
+    res.end('Not Found');
+    return;
+  }
+  res.writeHead(200, {
+    'content-type': 'image/png',
+    'cache-control': 'public, max-age=86400',
+    'x-content-type-options': 'nosniff',
+  });
+  res.end(fs.readFileSync(BRAND_LOGO));
 }
 
 function serveAuthConfirm(res) {
@@ -158,6 +173,11 @@ const server = http.createServer((req, res) => {
 
   if (pathname === '/auth/confirm' || pathname === '/auth/confirm/') {
     serveAuthConfirm(res);
+    return;
+  }
+
+  if (pathname === '/brand/anychess-logo.png') {
+    serveBrandLogo(res);
     return;
   }
 

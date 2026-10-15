@@ -5,6 +5,7 @@ import {
 } from './authErrors.ts';
 import {
   authConfirmRedirectUrl,
+  authMailLanguage,
   isSupabaseConfigured,
   resolveSupabaseAnonKey,
   resolveSupabaseUrl,
@@ -17,6 +18,21 @@ import type {
   CloudSession,
   CloudUser,
 } from './types.ts';
+
+/**
+ * Language stored on the new account (`raw_user_meta_data.language`).
+ * Later auth emails read `{{ .Data.language }}`. French if preferences
+ * are not loaded yet. This does not read or send a confirmation token.
+ */
+async function readAuthEmailLanguage(): Promise<'fr' | 'en'> {
+  try {
+    const mod = await import('../preferences/PreferencesStore.ts');
+    await mod.preferencesStore.ensureLoaded();
+    return authMailLanguage(mod.preferencesStore.getPreferences().language);
+  } catch {
+    return 'fr';
+  }
+}
 
 function headers(accessToken?: string): Record<string, string> {
   const anon = resolveSupabaseAnonKey() ?? '';
@@ -67,7 +83,13 @@ export class SupabaseCloudAuth implements CloudAuth {
   }
 
   async signUp(email: string, password: string): Promise<CloudAuthResult> {
-    return this.postAuth('/auth/v1/signup', { email, password }, authConfirmRedirectUrl());
+    const language = await readAuthEmailLanguage();
+    return this.postAuth(
+      '/auth/v1/signup',
+      { email, password },
+      authConfirmRedirectUrl(language),
+      { language },
+    );
   }
 
   async signIn(email: string, password: string): Promise<CloudAuthResult> {
@@ -95,7 +117,8 @@ export class SupabaseCloudAuth implements CloudAuth {
   async resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
-    const redirect = authConfirmRedirectUrl();
+    const language = await readAuthEmailLanguage();
+    const redirect = authConfirmRedirectUrl(language);
     const target = `${url}/auth/v1/resend${
       redirect ? `?redirect_to=${encodeURIComponent(redirect)}` : ''
     }`;
@@ -116,7 +139,8 @@ export class SupabaseCloudAuth implements CloudAuth {
   async recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
-    const redirect = authConfirmRedirectUrl();
+    const language = await readAuthEmailLanguage();
+    const redirect = authConfirmRedirectUrl(language);
     const target = `${url}/auth/v1/recover${
       redirect ? `?redirect_to=${encodeURIComponent(redirect)}` : ''
     }`;
@@ -168,6 +192,7 @@ export class SupabaseCloudAuth implements CloudAuth {
     path: string,
     body: { email: string; password: string },
     redirectTo?: string | null,
+    data?: { language: 'fr' | 'en' },
   ): Promise<CloudAuthResult> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
@@ -175,11 +200,12 @@ export class SupabaseCloudAuth implements CloudAuth {
     const target = `${url}${path}${
       redirectTo ? `${join}redirect_to=${encodeURIComponent(redirectTo)}` : ''
     }`;
+    const payload = data ? { ...body, data } : body;
     try {
       const response = await fetch(target, {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       const json = await response.json().catch(() => ({}));
       if (isPendingEmailConfirmation(response.status, json)) {

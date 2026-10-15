@@ -8,3 +8,28 @@ verify_jwt = true
 # Public page opened from the confirmation email. No user JWT is available yet.
 [functions.auth-confirm]
 verify_jwt = false
+
+# Auth emails. Applied to the hosted project only when template editing is allowed.
+[auth.email.template.confirmation]
+subject = "{{ if eq .Data.language \"en\" }}Confirm your email address — AnyChess{{ else }}Confirme ton adresse e-mail — AnyChess{{ end }}"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "{{ if eq .Data.language \"en\" }}Reset your password — AnyChess{{ else }}Réinitialise ton mot de passe — AnyChess{{ end }}"
+content_path = "./templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "{{ if eq .Data.language \"en\" }}Confirm your new email address — AnyChess{{ else }}Confirme ta nouvelle adresse e-mail — AnyChess{{ end }}"
+content_path = "./templates/email_change.html"
+
+[auth.email.template.magic_link]
+subject = "{{ if eq .Data.language \"en\" }}Your sign-in link — AnyChess{{ else }}Ton lien de connexion — AnyChess{{ end }}"
+content_path = "./templates/magic_link.html"
+
+[auth.email.template.invite]
+subject = "{{ if eq .Data.language \"en\" }}AnyChess invitation{{ else }}Invitation AnyChess{{ end }}"
+content_path = "./templates/invite.html"
+
+[auth.email.template.reauthentication]
+subject = "{{ if eq .Data.language \"en\" }}Confirm it’s you — AnyChess{{ else }}Confirme que c’est bien toi — AnyChess{{ end }}"
+content_path = "./templates/reauthentication.html"

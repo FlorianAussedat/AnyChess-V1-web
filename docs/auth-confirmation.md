@@ -44,6 +44,16 @@ Sources : [Edge Function limits](https://supabase.com/docs/guides/functions/limi
 
 Une page lisible ne demande donc pas d’abonnement si un hébergement web ordinaire la sert en `Content-Type: text/html`. Un abonnement Supabase ne servirait que pour afficher ce HTML **depuis le domaine du projet**. On ne le prend pas.
 
+## Vérifié le 15 octobre 2026
+
+La fonction en ligne `GET https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm` répond **200** en `text/plain`. Le corps est le texte « Cette page n’a pas confirmé ton adresse… » (ou, après redéploiement de cette branche, le texte « Nous ne pouvons pas confirmer le résultat… »). Le navigateur du téléphone, en mode sombre, affiche ce texte brut en petit sur fond noir. Ce n’est pas une carte HTML : le domaine `*.supabase.co` réécrit `text/html` en `text/plain`, et le fragment `#access_token=…` n’est **pas** envoyé à la fonction. Elle ne peut donc pas distinguer une adresse confirmée, un lien expiré et une ouverture directe. Elle ne dit jamais « Adresse e-mail confirmée ».
+
+Le parcours réel du lien d’e-mail reste celui de Supabase : `GET /auth/v1/verify?token=…&type=signup&redirect_to=…` vérifie le jeton, puis redirige vers la Site URL avec le jeton dans le **fragment**. Tant que cette Site URL est la fonction texte, la page d’arrivée ne peut pas afficher le résultat. L’adresse peut néanmoins être confirmée côté Supabase : il faut alors se connecter dans AnyChess. Confirm email reste activé.
+
+`SUPABASE_ACCESS_TOKEN` fourni à cet agent a été refusé par l’API de management (`HTTP 401`, jeton invalide). N’ont donc **pas** été modifiés en ligne : Site URL, Redirect URLs, modèles d’e-mail, nom d’expéditeur, fonction `auth-confirm`. Les anciens liens continuent d’ouvrir la fonction texte tant que la Site URL n’a pas été remplacée par la page HTTPS, après déploiement de cette branche sur l’hébergement web déjà décrit (`GET /auth/confirm`).
+
+Hôtes essayés et **non** utilisés : `anychess-v1-web.replit.app` (« This app isn’t live yet »), `anychess.app` (un autre site, « describe any chess bot »). Aucun domaine n’a été inventé, aucun forfait n’a été souscrit.
+
 ## Page lisible sur l’hébergement web déjà là
 
 Le processus web de l’app (`artifacts/mobile/server/serve.js`) sert déjà la page d’accueil en `text/html`. Il sert maintenant :
@@ -54,13 +64,17 @@ Même générateur que `renderConfirmationPage` (`supabase/functions/auth-confir
 
 GitHub Pages n’est pas activé sur le dépôt. L’API (`paths = ["/api"]`) reste du JSON. On ne publie pas un nouvel hôte.
 
-Ce que la page affiche :
+Ce que la page affiche, en français ou en anglais (`?lang=fr|en`, sinon la langue du navigateur, français par défaut) :
 
-- « Adresse confirmée ! Tu peux maintenant te connecter à AnyChess. » seulement si l’URL contient un jeton `type=signup` (ou `type=email`) **et** que `GET /auth/v1/user` renvoie `email_confirmed_at`.
-- « Ce lien a expiré ou n’est plus valable… » pour `error_code=otp_expired` (fragment `#error=…`) ou un jeton refusé.
-- « Cette page n’a pas confirmé ton adresse… » si on ouvre l’adresse sans ce jeton.
-- Pour `type=recovery` avec `access_token` : formulaire « Nouveau mot de passe » / confirmation, puis `PUT /auth/v1/user` avec le jeton du lien. Succès : « Mot de passe mis à jour. Tu peux maintenant te connecter à AnyChess. » Ce n’est pas la phrase de confirmation d’adresse. Un magic link, une invitation ou un changement d’e-mail ne passent pas par ce formulaire.
-- Pas de bouton vers l’application : `app.json` déclare le scheme `mobile`, sans App Link https. Le lien n’ouvre pas AnyChess. Ce parcours n’a pas été rejoué sur un téléphone.
+- « Adresse e-mail confirmée ! » seulement si l’URL contient un jeton `type=signup` (ou `type=email`) **et** que `GET /auth/v1/user` renvoie `email_confirmed_at`. `success=true`, l’ouverture de la page, ou un code PKCE sans jeton ne suffisent pas.
+- « Ce lien n’est plus valable » pour `error_code=otp_expired` ou un jeton refusé.
+- « Cette page n’a pas confirmé ton adresse » si on ouvre l’adresse sans preuve.
+- « Vérifie ta connexion dans AnyChess » si le réseau ou le serveur empêche la vérification (`error=server_error`, HTTP 5xx, échec du `fetch`). Le fragment est conservé pour qu’un rafraîchissement puisse réessayer. Il est retiré de la barre d’adresse après un succès ou un lien mort. `Referrer-Policy: no-referrer`. Le jeton n’est pas recopié dans le bouton ni dans un journal.
+- Bouton « Ouvrir AnyChess », sans redirection automatique. Le href est une constante : `client=dev` (posé par l’app, pas par une URL arbitraire) ouvre le scheme `exp+mobile` du client de développement (slug `mobile`, paquet `com.anychess.app`). Toute autre valeur, y compris un scheme ou un domaine dans la query, ouvre AnyChess autonome (`mobile`, même paquet). Aucun jeton n’est ajouté. Si Android n’ouvre pas l’application, le texte « Tu peux aussi fermer cette page et ouvrir l’application. » reste visible.
+- Pour `type=recovery` avec `access_token` : formulaire de nouveau mot de passe, puis `PUT /auth/v1/user`. Succès : « Mot de passe mis à jour », pas la phrase de confirmation d’adresse.
+- Logo servi par le même hôte : `GET /brand/anychess-logo.png` (fichier du dépôt, pas Metro).
+
+Le scheme `mobile` est celui de `app.json`. Il n’y a pas d’App Link https. Ce parcours n’a pas été rejoué sur un téléphone.
 
 ### Brancher l’URL sans casser « Mot de passe oublié »
 
@@ -83,10 +97,27 @@ Ce dépôt **ne modifie pas** la Site URL live : l’origine publique du serveur
 
 ## E-mail
 
-- Sujet : `supabase/templates/confirmation.subject.txt`
-- Corps : `supabase/templates/confirmation.html`
+Langue au moment de l’envoi : l’inscription envoie `data.language` (`fr` ou `en`), la langue de l’application, stockée dans `raw_user_meta_data`. Les modèles utilisent `{{ if eq .Data.language "en" }}`. Sans cette valeur, le français (défaut du produit) est utilisé. Les e-mails suivants (mot de passe, changement d’adresse) relisent cette métadonnée : la changer dans l’app après l’inscription ne réécrit pas un compte déjà créé. La page de retour, elle, suit `lang` au moment de la demande.
 
-Le modèle de récupération par défaut utilise aussi `{{ .ConfirmationURL }}`. On ne le réécrit pas tant que l’édition est bloquée.
+Modèles dans `supabase/templates/` (sujet + HTML), aussi déclarés dans `supabase/config.toml` :
+
+- confirmation d’inscription — bouton `{{ .ConfirmationURL }}`
+- réinitialisation du mot de passe — même variable
+- changement d’adresse — même variable
+- lien magique et invitation — prêts, l’application ne les déclenche pas
+- réauthentification — `{{ .Token }}`, pas un lien de succès
+
+Le logo des e-mails est `https://raw.githubusercontent.com/FlorianAussedat/AnyChess-V1-web/main/artifacts/mobile/server/brand/anychess-logo.png` (HTTPS public, sans authentification). Il répond **404** tant que ce fichier n’est pas sur `main`. Le mot « AnyChess » est aussi en texte, et l’image a `alt="AnyChess"`. Couleurs `#0B1728`, `#102040`, `#F5A623`, tableau `bgcolor` pour Gmail, y compris une règle de mode sombre.
+
+### Expéditeur
+
+Avec le SMTP par défaut de Supabase, l’adresse d’envoi reste celle du service (`noreply@mail.app.supabase.io` dans la documentation actuelle). Le nom affiché « AnyChess » se règle dans Authentication → SMTP Settings → Sender name lorsque l’écran le permet, **sans** changer d’adresse. Une adresse `@anychess…` exige un SMTP personnel et un domaine vérifié (Resend, Postmark, etc.). Ce n’est pas un forfait Supabase. Rien n’a été souscrit : le jeton de management est invalide, donc le nom d’expéditeur en ligne n’a pas été lu ni modifié. Ne pas inventer d’adresse.
+
+Ces modèles concernent les **prochains** e-mails, une fois collés dans le projet (ou poussés par la CLI quand l’édition est autorisée). Ils ne changent pas les messages déjà reçus. L’édition reste bloquée sur un projet gratuit qui utilise le SMTP Supabase, comme décrit plus haut. Étapes si l’API refuse encore :
+
+1. Authentication → Emails → Templates : coller chaque sujet (`*.subject.txt`) et chaque HTML.
+2. Ou configurer un SMTP personnel, puis `supabase config push` avec un jeton de management valide.
+3. Ne pas désactiver Confirm email. Ne pas remplacer `{{ .ConfirmationURL }}`.
 
 ## Réglages déjà appliqués sur `zqfxnzwtptepulmgpxhb`
 
@@ -96,17 +127,17 @@ Le modèle de récupération par défaut utilise aussi `{{ .ConfirmationURL }}`.
 - `DEEPL_API_KEY` non modifié.
 - Bucket Storage `auth-confirm` créé pour essai puis **supprimé** : même bac à sable HTML.
 
-La phrase ajoutée au texte brut (« mot de passe oublié ») est dans le dépôt. La fonction déjà déployée garde l’ancien texte tant qu’elle n’est pas redéployée. Ce redéploiement n’est pas nécessaire pour la page HTML.
+Le texte brut du dépôt dit maintenant qu’on ne peut pas confirmer le résultat depuis cette réponse, et demande de se connecter dans l’application. La fonction déjà déployée garde l’ancien texte tant qu’elle n’est pas redéployée. Ce redéploiement n’affiche toujours pas de HTML sur `*.supabase.co`.
 
 ## Recette Android
 
-Build avec `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, et — dès que la page est en HTTPS — `EXPO_PUBLIC_AUTH_CONFIRM_URL`. Le scheme reste `mobile` : le lien ne ramène pas dans l’app. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Le modèle reçu est encore l’anglais par défaut.
+Build avec `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, et — dès que la page est en HTTPS — `EXPO_PUBLIC_AUTH_CONFIRM_URL`. Le bouton « Ouvrir AnyChess » utilise le scheme `mobile` (autonome) ou `exp+mobile` (Dev). Il ne transmet pas le jeton. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Tant que les modèles ne sont pas collés dans le projet, l’e-mail reçu reste le modèle anglais par défaut.
 
 1. Installer AnyChess et ouvrir **Créer un compte** (pseudo, e-mail, mot de passe).
 2. L’app dit qu’un e-mail de confirmation a été envoyé. Le compte n’est pas connecté, rien n’est synchronisé.
 3. Ouvrir l’e-mail sur le téléphone et toucher le lien.
-4. La page HTTPS dit « Adresse confirmée », ou que le lien a expiré : dans ce cas, **Renvoyer l’e-mail** dans l’app.
-5. Revenir dans AnyChess à la main.
+4. La page HTTPS dit « Adresse e-mail confirmée ! » seulement après vérification du compte, ou que le lien n’est plus valable : dans ce cas, **Renvoyer l’e-mail** dans l’app. Elle ne le dit pas seulement parce que la page s’est ouverte.
+5. Le bouton « Ouvrir AnyChess » est utilisable. Si Android n’ouvre pas l’app, le texte pour la rouvrir à la main reste affiché.
 6. **Se connecter** avec le même e-mail et le même mot de passe.
 7. **Compte** : connecté. **Sauvegarde** : « Données synchronisées » seulement après une synchro réelle.
 
@@ -118,18 +149,11 @@ Mot de passe oublié, une fois `EXPO_PUBLIC_AUTH_CONFIRM_URL` et la Redirect URL
 
 Cette recette n’a pas été exécutée sur un appareil dans cette branche.
 
-## Dépendance et ordre de fusion
+## Ce qui reste pour que les e-mails ouvrent la page HTML
 
-Ne rien fusionner.
+1. Déployer cette branche sur l’hébergement web qui exécute déjà `artifacts/mobile/server/serve.js` (publication Replit, pas un tunnel Metro). Vérifier `GET /auth/confirm` en `text/html` et `GET /brand/anychess-logo.png` en `image/png`.
+2. Ajouter `https://<cette-origine>/auth/confirm` et `https://<cette-origine>/auth/confirm**` dans Redirect URLs, puis en faire la Site URL.
+3. Au bundle de l’app : `EXPO_PUBLIC_AUTH_CONFIRM_URL` à cette origine. `EXPO_PUBLIC_APP_CLIENT=dev` seulement pour AnyChess Dev ; un build autonome n’a pas cette variable (`__DEV__` sélectionne déjà `dev` dans un bundle de développement).
+4. Coller les modèles, ou obtenir un jeton de management valide. Le jeton actuel ne le permet pas.
 
-La PR **#87** (`cursor/auth-confirm-flow-3f7a`, confirmation d’e-mail) **dépend de la PR #86** (`cursor/cloud-account-sync-025c`, compte AnyChess et synchronisation cloud). #87 ne peut pas arriver sur `main` avant #86 : sans le compte cloud, il n’y a pas d’inscription à confirmer.
-
-Cette branche (`cursor/auth-confirm-page-3f7a`) part de #87 et doit y être intégrée **avant** que #87 ne remonte. Elle ne se pose pas seule sur `main`.
-
-Ordre :
-
-1. **#86** → `main`.
-2. **#87**, cette page comprise → la ligne de #86, puis `main`.
-3. **#88** (paramètres invité, `cursor/guest-settings-access-3f7a`) → après #87, dont elle dépend.
-4. **#90** (création / suppression de compte) et **#91** (diagnostic technique) : indépendantes l’une de l’autre, toutes deux après #88.
-5. **#89** (écrans Ouvertures) → `main`, à part de ce parcours.
+Sans les étapes 1 et 2, les liens déjà envoyés et les suivants ouvrent encore la fonction texte.

@@ -1,0 +1,1 @@
+{{ if eq .Data.language "en" }}Your sign-in link — AnyChess{{ else }}Ton lien de connexion — AnyChess{{ end }}

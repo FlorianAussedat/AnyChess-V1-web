@@ -12,14 +12,19 @@ import {
 } from '../authErrors.ts';
 import { CloudSyncEngine } from '../CloudSyncEngine.ts';
 import { resetConfirmationEmailCooldown } from '../confirmCooldown.ts';
-import { authConfirmRedirectUrl } from '../supabaseConfig.ts';
+import { authClientVariant, authConfirmRedirectUrl, authMailLanguage } from '../supabaseConfig.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import type { CloudAuth, CloudDocument } from '../types.ts';
 import { renderConfirmationPage } from '../../../../../supabase/functions/auth-confirm/page.ts';
 import {
   CONFIRM_COPY,
   PLAIN_FALLBACK,
+  appOpenHref,
   interpretConfirmationLocation,
+  languageFromAccept,
+  pageClient,
+  pageLanguage,
+  plainFallback,
   userEmailIsConfirmed,
 } from '../../../../../supabase/functions/auth-confirm/outcome.ts';
 
@@ -103,9 +108,11 @@ describe('supabase auth error codes', () => {
 });
 
 describe('confirmation page', () => {
-  it('does not treat a bare visit as a confirmed address', () => {
+  it('does not treat a bare visit or success=true as a confirmed address', () => {
     assert.equal(interpretConfirmationLocation('', ''), 'idle');
     assert.equal(interpretConfirmationLocation('?status=confirmed', ''), 'idle');
+    assert.equal(interpretConfirmationLocation('?success=true', ''), 'idle');
+    assert.equal(interpretConfirmationLocation('?success=true&type=signup', ''), 'idle');
     assert.equal(interpretConfirmationLocation('', '#access_token=abc'), 'idle');
     assert.equal(
       interpretConfirmationLocation(
@@ -114,6 +121,8 @@ describe('confirmation page', () => {
       ),
       'expired',
     );
+    assert.equal(interpretConfirmationLocation('', '#error=server_error&error_code=unexpected_failure'), 'unavailable');
+    assert.equal(interpretConfirmationLocation('?code=pkce-code', ''), 'unavailable');
     assert.equal(interpretConfirmationLocation('', '#access_token=abc&type=signup'), 'verify');
     assert.equal(interpretConfirmationLocation('', '#access_token=abc&type=recovery'), 'recover');
     assert.equal(interpretConfirmationLocation('', '#type=recovery'), 'other');
@@ -125,46 +134,103 @@ describe('confirmation page', () => {
     assert.equal(userEmailIsConfirmed({ user: { confirmed_at: '2026-10-01T00:00:00Z' } }), true);
   });
 
-  it('keeps the success sentence out of the initial page and offers no Android deep link', () => {
+  it('keeps the success sentence out of the initial page and only links the two AnyChess clients', () => {
     const html = renderConfirmationPage({
       supabaseUrl: 'https://example.supabase.co',
       anonKey: 'public-anon',
     });
     const visible = html.match(/<p id="message">([^<]*)<\/p>/)?.[1];
-    assert.equal(visible, CONFIRM_COPY.checking);
-    assert.notEqual(visible, CONFIRM_COPY.confirmed);
-    assert.match(html, /Adresse confirmée ! Tu peux maintenant te connecter à AnyChess\./);
+    assert.equal(visible, CONFIRM_COPY.fr.checking);
+    assert.notEqual(visible, CONFIRM_COPY.fr.confirmed);
+    assert.match(html, /Adresse e-mail confirmée !/);
+    assert.match(html, /Tu peux retourner dans AnyChess et te connecter à ton compte\./);
+    assert.match(html, /Ce lien n’est plus valable/);
+    assert.match(html, /Vérifie ta connexion dans AnyChess/);
+    assert.match(html, /Email address confirmed!/);
     assert.match(html, /userEmailIsConfirmed/);
-    assert.doesNotMatch(html, /mobile:\/\//);
-    assert.doesNotMatch(html, /Ouvrir AnyChess/);
-    assert.doesNotMatch(html, /intent:\/\//);
     assert.doesNotMatch(html, /service_role/);
+    assert.doesNotMatch(html, /location\.href\s*=/);
+    assert.doesNotMatch(html, /http-equiv="refresh"/);
+    assert.match(html, /name="viewport" content="width=device-width, initial-scale=1"/);
+    assert.match(html, /overflow-x:\s*hidden/);
+    assert.match(html, /font-size:\s*18px/);
+    assert.match(html, /min-height:\s*48px/);
+    assert.match(html, /alt="AnyChess"/);
+    assert.match(html, /src="\/brand\/anychess-logo\.png"/);
+    assert.match(html, /#0B1728/);
+    assert.match(html, /#102040/);
+    assert.match(html, /#F5A623/);
     assert.match(html, /<form id="recover" hidden>/);
     assert.match(html, /Enregistrer le mot de passe/);
     assert.match(html, /method: 'PUT'/);
-    assert.match(html, /Mot de passe mis à jour\. Tu peux maintenant te connecter à AnyChess\./);
-    assert.notEqual(CONFIRM_COPY.recoverSaved, CONFIRM_COPY.confirmed);
+    assert.match(html, /Mot de passe mis à jour/);
+    assert.notEqual(CONFIRM_COPY.fr.recoverSaved, CONFIRM_COPY.fr.confirmed);
     const recoverBranch = html.indexOf("outcome === 'recover'");
     const verifyBranch = html.indexOf("outcome !== 'verify'");
     assert.ok(recoverBranch > 0 && verifyBranch > recoverBranch);
-    assert.doesNotMatch(PLAIN_FALLBACK, /Adresse confirmée !/);
+    assert.equal(pageClient('?client=dev'), 'dev');
+    assert.equal(pageClient('?client=app'), 'app');
+    assert.equal(pageClient('?client=https://evil.example'), 'app');
+    assert.equal(pageClient('?scheme=exp%2Bmobile&url=https://evil.example'), 'app');
+    assert.equal(pageLanguage('?lang=en', 'fr-FR'), 'en');
+    assert.equal(pageLanguage('?lang=de', 'en-US'), 'en');
+    assert.equal(pageLanguage('', 'fr-FR'), 'fr');
+    assert.equal(pageLanguage('?lang=en#client=dev', ''), 'fr');
+    const app = readFileSync(join(here, '../../../app.json'), 'utf8');
+    assert.match(app, /"package": "com\.anychess\.app"/);
+    assert.match(app, /"scheme": "mobile"/);
+    assert.match(app, /"slug": "mobile"/);
+    const androidApp = appOpenHref('app', 'Mozilla/5.0 (Linux; Android 14)');
+    const androidDev = appOpenHref('dev', 'Mozilla/5.0 (Linux; Android 14)');
+    assert.equal(androidApp, 'intent://open#Intent;scheme=mobile;package=com.anychess.app;end');
+    assert.equal(androidDev, 'intent://open#Intent;scheme=exp+mobile;package=com.anychess.app;end');
+    assert.equal(appOpenHref('app', 'iPhone'), 'mobile://');
+    assert.equal(appOpenHref('dev', 'iPhone'), 'exp+mobile://');
+    assert.equal(appOpenHref('javascript:alert(1)', 'Android'), androidApp);
+    for (const href of [androidApp, androidDev, appOpenHref('app', ''), appOpenHref('dev', '')]) {
+      assert.doesNotMatch(href, /access_token|refresh_token|http:|https:/);
+    }
+    assert.match(html, /function appOpenHref/);
+    assert.doesNotMatch(PLAIN_FALLBACK, /Adresse e-mail confirmée/);
     assert.doesNotMatch(PLAIN_FALLBACK, /Mot de passe mis à jour/);
-    assert.match(PLAIN_FALLBACK, /n’a pas confirmé/);
-    assert.match(PLAIN_FALLBACK, /expiré ou n’est plus valable/);
-    assert.match(PLAIN_FALLBACK, /mot de passe oublié/);
+    assert.match(PLAIN_FALLBACK, /Nous ne pouvons pas confirmer le résultat/);
+    assert.match(plainFallback('en'), /We can’t confirm the result from this page/);
+    assert.equal(languageFromAccept('en-US,en;q=0.9'), 'en');
+    assert.equal(languageFromAccept('fr-FR,fr;q=0.9,en;q=0.8'), 'fr');
+    assert.equal(languageFromAccept(null), 'fr');
   });
 });
 
 describe('confirmation email template', () => {
-  it('keeps the Supabase confirmation URL and the AnyChess button', () => {
+  it('keeps the Supabase confirmation URL and the AnyChess button in both languages', () => {
     const html = readFileSync(join(repoRoot, 'supabase/templates/confirmation.html'), 'utf8');
     const subject = readFileSync(join(repoRoot, 'supabase/templates/confirmation.subject.txt'), 'utf8').trim();
-    assert.equal(subject, 'Confirme ton adresse e-mail AnyChess');
+    assert.match(subject, /Confirme ton adresse e-mail — AnyChess/);
+    assert.match(subject, /Confirm your email address — AnyChess/);
+    assert.match(subject, /\{\{ if eq \.Data\.language "en" \}\}/);
+    assert.match(html, /Bienvenue sur AnyChess !/);
+    assert.match(html, /Welcome to AnyChess!/);
     assert.match(html, /Confirmer mon adresse e-mail/);
+    assert.match(html, /Confirm my email address/);
+    assert.match(html, /Tu n’as pas créé de compte AnyChess \? Tu peux ignorer cet e-mail\./);
+    assert.match(html, /alt="AnyChess"/);
+    assert.match(html, />AnyChess</);
     assert.match(html, /\{\{ \.ConfirmationURL \}\}/);
+    assert.doesNotMatch(html, /success=true/);
+    assert.doesNotMatch(html, /\/auth\/confirm/);
     assert.match(html, /#0B1728/);
     assert.match(html, /#F5A623/);
     assert.match(html, /#102040/);
+    assert.match(html, /prefers-color-scheme: dark/);
+    const recovery = readFileSync(join(repoRoot, 'supabase/templates/recovery.html'), 'utf8');
+    const change = readFileSync(join(repoRoot, 'supabase/templates/email_change.html'), 'utf8');
+    const code = readFileSync(join(repoRoot, 'supabase/templates/reauthentication.html'), 'utf8');
+    assert.match(recovery, /\{\{ \.ConfirmationURL \}\}/);
+    assert.match(recovery, /Choisir un nouveau mot de passe/);
+    assert.match(change, /\{\{ \.ConfirmationURL \}\}/);
+    assert.match(change, /Confirmer la nouvelle adresse/);
+    assert.match(code, /\{\{ \.Token \}\}/);
+    assert.doesNotMatch(code, /\.ConfirmationURL/);
   });
 });
 
@@ -275,7 +341,7 @@ describe('auth screen copy wiring', () => {
     const recover = live.slice(live.indexOf('async recoverPassword'));
     assert.match(recover, /\/auth\/v1\/recover/);
     assert.match(recover, /redirect_to/);
-    assert.match(recover, /authConfirmRedirectUrl\(\)/);
+    assert.match(recover, /authConfirmRedirectUrl\(/);
     const previousUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
     const previousAnon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
     const previousPage = process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
@@ -291,8 +357,23 @@ describe('auth screen copy wiring', () => {
       authConfirmRedirectUrl(),
       'https://example.supabase.co/functions/v1/auth-confirm',
     );
-    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess.example/auth/confirm/';
-    assert.equal(authConfirmRedirectUrl(), 'https://anychess.example/auth/confirm');
+    const previousClient = process.env.EXPO_PUBLIC_APP_CLIENT;
+    delete process.env.EXPO_PUBLIC_APP_CLIENT;
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess.example/auth/confirm/?next=https://evil.example';
+    assert.equal(authConfirmRedirectUrl(), 'https://anychess.example/auth/confirm?client=app&lang=fr');
+    assert.equal(authConfirmRedirectUrl('en'), 'https://anychess.example/auth/confirm?client=app&lang=en');
+    process.env.EXPO_PUBLIC_APP_CLIENT = 'dev';
+    assert.equal(authClientVariant(), 'dev');
+    assert.equal(
+      authConfirmRedirectUrl('fr'),
+      'https://anychess.example/auth/confirm?client=dev&lang=fr',
+    );
+    process.env.EXPO_PUBLIC_APP_CLIENT = 'https://evil.example';
+    assert.equal(authClientVariant(), 'app');
+    assert.equal(authMailLanguage('en'), 'en');
+    assert.equal(authMailLanguage('de'), 'fr');
+    if (previousClient === undefined) delete process.env.EXPO_PUBLIC_APP_CLIENT;
+    else process.env.EXPO_PUBLIC_APP_CLIENT = previousClient;
     if (previousUrl === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_URL;
     else process.env.EXPO_PUBLIC_SUPABASE_URL = previousUrl;
     if (previousAnon === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -300,6 +381,8 @@ describe('auth screen copy wiring', () => {
     if (previousPage === undefined) delete process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
     else process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = previousPage;
     assert.match(live, /type: 'signup'/);
+    assert.match(live, /language/);
+    assert.match(live, /data/);
     assert.match(live, /isPendingEmailConfirmation/);
     assert.doesNotMatch(live, /DEEPL_API_KEY|api-free\.deepl/);
   });
@@ -357,6 +440,10 @@ describe('confirmation page on the existing web host', () => {
       assert.match(body, /Vérification du lien/);
       assert.match(body, /<form id="recover" hidden>/);
       assert.doesNotMatch(body, /service_role/);
+      const logo = await fetch(`http://127.0.0.1:${ready.port}/brand/anychess-logo.png`);
+      assert.equal(logo.status, 200);
+      assert.match(logo.headers.get('content-type') ?? '', /image\/png/);
+      assert.ok((await logo.arrayBuffer()).byteLength > 1000);
       const home = await fetch(`http://127.0.0.1:${ready.port}/`);
       assert.equal(home.status, 200);
       assert.match(home.headers.get('content-type') ?? '', /text\/html/);

@@ -1,1 +1,1 @@
-Confirme ton adresse e-mail AnyChess
+{{ if eq .Data.language "en" }}Confirm your email address — AnyChess{{ else }}Confirme ton adresse e-mail — AnyChess{{ end }}

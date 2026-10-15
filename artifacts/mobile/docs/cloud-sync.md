@@ -73,4 +73,4 @@ Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non co
 
 `lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton, le formulaire de nouveau mot de passe sur un lien `type=recovery`, et `GET /auth/confirm` en `text/html` sur le serveur web existant.
 
-À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le build actuel (`scheme` `mobile`, sans App Link https) n’ouvre pas l’app depuis le lien de confirmation.
+À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre le scheme `mobile` (AnyChess autonome) ou `exp+mobile` (AnyChess Dev) sans y copier le jeton. Il n’y a pas d’App Link https.
