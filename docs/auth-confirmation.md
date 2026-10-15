@@ -50,7 +50,7 @@ La fonction en ligne `GET https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/
 
 Le parcours réel du lien d’e-mail reste celui de Supabase : `GET /auth/v1/verify?token=…&type=signup&redirect_to=…` vérifie le jeton, puis redirige vers la Site URL avec le jeton dans le **fragment**. Tant que cette Site URL est la fonction texte, la page d’arrivée ne peut pas afficher le résultat. L’adresse peut néanmoins être confirmée côté Supabase : il faut alors se connecter dans AnyChess. Confirm email reste activé.
 
-`SUPABASE_ACCESS_TOKEN` fourni à cet agent a été refusé par l’API de management (`HTTP 401`, jeton invalide). N’ont donc **pas** été modifiés en ligne : Site URL, Redirect URLs, modèles d’e-mail, nom d’expéditeur, fonction `auth-confirm`. Les anciens liens continuent d’ouvrir la fonction texte tant que la Site URL n’a pas été remplacée par la page HTTPS, après déploiement de cette branche sur l’hébergement web déjà décrit (`GET /auth/confirm`).
+`SUPABASE_ACCESS_TOKEN` fourni à cet agent a été refusé par l’API de management (`HTTP 401`, jeton invalide). Cet agent n’a donc pas modifié en ligne : Site URL, Redirect URLs, modèles d’e-mail, nom d’expéditeur, fonction `auth-confirm`. Le modèle français a été collé ensuite dans le tableau de bord, et le SMTP Brevo aussi. Plus tard le même jour, quand le téléphone joignait le domaine du projet, le lien de confirmation a affiché la page Netlify « Adresse e-mail confirmée ! ». Cette page n’est pas la fonction texte. Le `redirect_to` d’AnyChess Dev suffit à l’expliquer si cette adresse est autorisée. La valeur actuelle de la Site URL n’a pas été relue.
 
 Hôtes essayés et **non** utilisés pour la page : `anychess-v1-web.replit.app` (« This app isn’t live yet »), `anychess.app` (un autre site), GitHub Pages (API 403, site non activé), jsDelivr (le HTML est renvoyé en `text/plain`, donc le navigateur n’exécute pas la page). Le contournement SVG est abandonné. L’hôte de la page est Netlify, dossier publié `dist/confirm-site` uniquement.
 
@@ -162,7 +162,7 @@ Mot de passe oublié, une fois `EXPO_PUBLIC_AUTH_CONFIRM_URL` et la Redirect URL
 2. Ouvrir le lien. La page demande un nouveau mot de passe (deux champs, 6 caractères minimum) et dit « Mot de passe mis à jour » — pas « Adresse confirmée ».
 3. Revenir dans AnyChess et se connecter avec le nouveau mot de passe.
 
-Cette recette n’a pas été exécutée sur un appareil dans cette branche.
+Sur le téléphone, en 5G avec le DNS privé Android réglé sur `dns.google`, le lien de confirmation a ouvert la page AnyChess « Adresse e-mail confirmée ! ». Le Wi-Fi aboutit aussi. Le retour vers l’écran Utilisateur et la connexion dans l’application après cette page ne sont pas encore vérifiés. Avec le DNS privé laissé sur Automatique, le domaine du projet reste inaccessible sur ce réseau mobile : voir le diagnostic ci-dessous.
 
 ## Netlify
 
@@ -179,17 +179,78 @@ Réglages à laisser ou à corriger dans Project configuration → Build & deplo
 
 Ne pas remettre le dossier publié sur la racine du dépôt : le premier déploiement (`01405d9`, sans `netlify.toml`) a publié toute l’application.
 
-Le site est encore en accès privé (réponse HTTP 401, écran « Make public »). Project configuration → Access & security → Visitor access : **Anyone with the link** / rendre le site public. Tant que l’accès équipe est exigé, le lien d’e-mail ouvre la connexion Netlify au lieu de la page.
+Le 15 octobre 2026, depuis la machine de l’agent, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` répond HTTP 200, `Content-Type: text/html; charset=UTF-8`, après la redirection vers `/auth/confirm/`. Le téléphone a aussi ouvert cette page. Un ancien essai avait reçu HTTP 401 tant que l’accès visiteur était limité à l’équipe.
+
+## Diagnostic 5G du 15 octobre 2026
+
+Les URL, le SMTP Brevo et le modèle français déjà reçu ne sont pas modifiés. Aucune adresse IP fixe ne remplace le domaine. TLS et la confirmation d’adresse restent actifs. Aucun proxy de jetons n’est ajouté.
+
+### Essais du téléphone
+
+Même téléphone, données mobiles 5G. Ces lignes décrivent ce qui a été observé sur l’appareil, pas une mesure faite depuis la machine de développement.
+
+| DNS privé Android | Constat |
+|---|---|
+| Automatique | La page Netlify s’ouvre. Le domaine `zqfxnzwtptepulmgpxhb.supabase.co` ne s’ouvre pas. `GET /auth/v1/health` échoue aussi. |
+| `dns.google` | `GET /auth/v1/health` répond « No API key found in request ». Cette phrase montre que la passerelle répond. Elle ne prouve pas, à elle seule, qu’Auth est entièrement en service. Le lien de confirmation ouvre ensuite « Adresse e-mail confirmée ! ». |
+| Retour à Automatique, réseau mobile reconnecté | L’accès au domaine Supabase échoue de nouveau. |
+| Nouveau retour à `dns.google` | Le parcours de confirmation aboutit encore. |
+| Wi-Fi, indépendamment de ce réglage 5G | La confirmation fonctionne. |
+
+`dns.google` est un contournement sur ce téléphone. Il n’est pas demandé aux autres utilisateurs.
+
+### Mesures depuis la machine de l’agent
+
+Le 15 octobre 2026, vers 15:22 UTC. Ce n’est pas le réseau mobile du téléphone.
+
+Trois résolveurs publics, en DNS sur TLS, répondent de la même façon pour `zqfxnzwtptepulmgpxhb.supabase.co` : `dns.google`, `one.one.one.one`, `dns.quad9.net`.
+
+| Type | Réponse commune |
+|---|---|
+| A | `104.18.38.10`, `172.64.149.246` |
+| AAAA | aucune adresse (NOERROR, zéro réponse) |
+| CNAME | aucune |
+| HTTPS | `1 . alpn="h3,h2" ipv4hint=104.18.38.10,172.64.149.246` |
+| SVCB | aucune |
+
+Depuis cette machine, `GET https://zqfxnzwtptepulmgpxhb.supabase.co/auth/v1/health` atteint les deux adresses IPv4 en HTTP/2. Les deux répondent HTTP 401, corps « No API key found in request », en-tête `sb-error-code: UNAUTHORIZED_MISSING_API_KEY`. Le `cf-ray` indique le site Cloudflare `IAD`. La page de statut publique Supabase indique « All Systems Operational » (dernière mise à jour de cette page : 13 octobre 2026). Les journaux Auth du projet ne sont pas lisibles ici : l’API de gestion répond 401 « Invalid access token ».
+
+Le nom Netlify, interrogé en DNS sur HTTPS chez Google et Cloudflare, a des adresses IPv4 et IPv6, et un enregistrement HTTPS `alpn=h2` seulement. Cela sert de contraste : le téléphone ouvre Netlify pendant que le domaine du projet échoue.
+
+### Ce que cela démontre
+
+La cause précise n’est pas établie. QUIC n’est pas l’explication principale. L’enregistrement HTTPS public annonce `h3` et `h2`, et le parcours qui réussit sur le téléphone est celui qui utilise `dns.google`, donc le résolveur qui publie cet enregistrement. Les trois résolveurs publics consultés donnent les mêmes adresses. Le projet n’a pas d’adresse IPv6. Le succès en Wi-Fi et en 5G avec `dns.google` écarte une panne générale du projet au moment de ces essais.
+
+L’échec suit le DNS privé Automatique sur ce réseau mobile, et il disparaît quand le téléphone interroge `dns.google`. Deux hypothèses restent ouvertes, et les mesures publiques ne les départagent pas :
+
+- le résolveur du réseau mobile ne rend pas ces adresses (échec, ou une autre réponse) ;
+- il rend les mêmes adresses, et un autre effet du mode Automatique empêche ensuite la connexion.
+
+Le suivi de clics Brevo n’explique pas cet échec. L’accès direct à `/auth/v1/health` échouait déjà avant Brevo. L’aide Brevo documente l’anonymisation des ouvertures et des clics, qui ne retire pas la redirection de suivi. La coupure du suivi transactionnel n’est pas un réglage décrit pour l’offre gratuite : les réponses publiques de Brevo la réservent à une demande, pour des comptes Enterprise. On ne suppose pas que cette coupure existe sur le compte actuel. Le SMTP enregistré dans Supabase n’est pas modifié pour l’essayer.
+
+### Une seule vérification suivante
+
+Avec le DNS privé remis sur Automatique, ouvrir dans le navigateur du téléphone uniquement :
+
+`https://zqfxnzwtptepulmgpxhb.supabase.co/auth/v1/health`
+
+Noter la ligne d’erreur exacte (`ERR_NAME_NOT_RESOLVED`, `ERR_CONNECTION_TIMED_OUT`, ou une autre). Ne pas ouvrir un lien d’e-mail et ne pas coller de jeton. Le nom de l’opérateur mobile servira ensuite à nommer le réseau dans le signalement, pas comme second essai.
+
+### Signalement préparé, non envoyé
+
+Texte prêt pour Supabase ou pour l’opérateur. Il n’a pas été transmis.
+
+> Projet `zqfxnzwtptepulmgpxhb`. Le 15 octobre 2026, sur un téléphone Android en 5G, DNS privé Automatique : `zqfxnzwtptepulmgpxhb.supabase.co` et `/auth/v1/health` sont inaccessibles, alors que l’hôte Netlify de la page de confirmation s’ouvre. DNS privé `dns.google` : `/auth/v1/health` répond « No API key found in request », puis le lien de confirmation affiche « Adresse e-mail confirmée ! ». Le retour à Automatique reproduit l’échec. Le Wi-Fi confirme aussi. Depuis une autre machine, `dns.google`, `one.one.one.one` et `dns.quad9.net` répondent A `104.18.38.10` et `172.64.149.246`, sans AAAA, sans CNAME, HTTPS `alpn=h3,h2`. Les deux adresses répondent HTTP/2 401 sans clé API. Le statut public Supabase est opérationnel. Les journaux du projet ne sont pas joints (jeton de gestion refusé). Merci d’indiquer si le résolveur de ce réseau mobile renvoie une autre réponse, ou s’il bloque ce nom.
 
 ## Ce qui reste côté Supabase
 
 Le SMTP et le modèle de confirmation français sont déjà en place dans le tableau de bord. Le jeton de gestion de cet agent ne sert pas à les modifier. Il ne bloque pas non plus l’édition des autres modèles : elle se fait dans Authentication → Emails. Restent à vérifier ou à coller :
 
-1. Vérifier que `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` répond `text/html`.
-2. Déployer la fonction `auth-confirm` de `main` (`verify_jwt = false`) pour le `POST` de vérification et la redirection `GET`.
-3. Site URL : `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`.
-4. Redirect URLs : cette page, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`.
+1. Page Netlify : vérifiée le 15 octobre 2026, HTTP 200 en `text/html`. Le téléphone l’a affichée, y compris « Adresse e-mail confirmée ! » quand le domaine Supabase était joignable.
+2. Déployer la fonction `auth-confirm` de `main` (`verify_jwt = false`) pour le `POST` de vérification et la redirection `GET`. Non vérifié : le jeton de gestion est refusé.
+3. Site URL : `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. Non lu dans le tableau de bord depuis ici. Le succès sur le téléphone peut venir du `redirect_to` déjà envoyé par AnyChess Dev.
+4. Redirect URLs : cette page, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`. Même limite de lecture.
 5. Laisser le SMTP Brevo et le modèle de confirmation français déjà reçus. Coller ensuite le sujet bilingue de confirmation, puis les modèles encore absents (mot de passe, changement d’adresse, lien magique, invitation, réauthentification), depuis `supabase/templates/`.
 6. Ne pas désactiver Confirm email.
 
-Sans l’étape 1, les liens n’ouvrent pas encore la page HTML. Les APK autonomes déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev envoie `client=dev` et la page Netlify dès que son bundle JavaScript est rechargé (Metro). Aucun APK autonome n’est produit pour cela.
+Les APK autonomes déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev envoie `client=dev` et la page Netlify dès que son bundle JavaScript est rechargé (Metro). Aucun APK autonome n’est produit pour cela.
