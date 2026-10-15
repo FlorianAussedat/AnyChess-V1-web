@@ -47,7 +47,7 @@ function resolveAndroidVariant(variant) {
       android: {
         ...base.android,
         package: development ? DEV_PACKAGE : STANDALONE_PACKAGE,
-        versionCode: development ? 2 : 1,
+        versionCode: 2,
         adaptiveIcon: {
           ...base.android.adaptiveIcon,
           foregroundImage: development

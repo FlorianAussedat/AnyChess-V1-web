@@ -36,7 +36,7 @@ describe('Android install variants', () => {
     assert.equal(dev.expo.name, 'AnyChess Dev');
     assert.equal(standalone.expo.name, 'AnyChess');
     assert.equal(dev.expo.android.versionCode, 2);
-    assert.equal(standalone.expo.android.versionCode, 1);
+    assert.equal(standalone.expo.android.versionCode, 2);
     assert.equal(dev.expo.version, '0.0.6');
     assert.equal(standalone.expo.version, '0.0.6');
   });

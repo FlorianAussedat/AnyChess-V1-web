@@ -1538,7 +1538,7 @@ const fr: Dict = {
   'account.avatarChange': 'Modifier la photo',
   'account.avatarRemove': 'Supprimer la photo',
   'account.avatarCrop': 'Recadrer',
-  'account.avatarUseFull': 'Image entière',
+  'account.avatarUseFull': 'Cadrage large',
   'account.avatarZoom': 'Recadrage',
   'account.avatarUnsupported':
     'Ce format ne peut pas être recadré sur cette version. L’ancienne photo est conservée.',
@@ -2935,7 +2935,7 @@ const en: Dict = {
   'account.avatarChange': 'Change photo',
   'account.avatarRemove': 'Remove photo',
   'account.avatarCrop': 'Crop',
-  'account.avatarUseFull': 'Full image',
+  'account.avatarUseFull': 'Widest crop',
   'account.avatarZoom': 'Crop',
   'account.avatarUnsupported':
     'This format cannot be cropped in this version. The previous photo is kept.',

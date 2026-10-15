@@ -122,26 +122,18 @@ describe('avatar crop dialog', () => {
       const preview = byId(root!, 'avatar-crop-preview').props.style;
       assert.equal(frame.width, expected.frameWidth);
       assert.equal(frame.height, expected.frameHeight);
-      assert.equal(preview.width, expected.frameWidth);
-      assert.equal(preview.height, expected.frameHeight);
-      assert.deepEqual(preview.transform, [{ scale: expected.scale }]);
-      assert.equal(expected.crop.width, source.width / 2);
-      assert.equal(expected.crop.height, source.height / 2);
+      assert.equal(frame.width, frame.height);
+      assert.ok(frame.borderRadius > 0);
+      assert.equal(preview.width, expected.imageWidth);
+      assert.equal(preview.height, expected.imageHeight);
+      assert.equal(preview.transform[0].scale.current, 2);
+      const side = Math.min(source.width, source.height) / 2;
+      assert.equal(expected.crop.width, side);
+      assert.equal(expected.crop.height, side);
       await act(async () => {
         byId(root!, 'avatar-use-full').props.onPress();
       });
-      const full = avatarPreviewLayout({
-        imageWidth: source.width,
-        imageHeight: source.height,
-        maxWidth: 280,
-        maxHeight: 220,
-        zoom: 1,
-      });
-      assert.deepEqual(byId(root!, 'avatar-crop-preview').props.style.transform, [
-        { scale: full.scale },
-      ]);
-      assert.equal(full.crop.width, source.width);
-      assert.equal(full.crop.height, source.height);
+      assert.equal(byId(root!, 'avatar-crop-preview').props.style.transform[0].scale.current, 1);
       await act(async () => {
         root!.unmount();
       });
