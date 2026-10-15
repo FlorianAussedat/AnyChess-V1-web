@@ -88,6 +88,9 @@ describe('sign-out session', () => {
       assert.equal(auth.token(), null);
       assert.equal(await auth.getUser(), null);
       assert.equal(await storage.getItem(CLOUD_SESSION_KEY), null);
+      assert.equal(auth.configured, true);
+      assert.equal(process.env.EXPO_PUBLIC_SUPABASE_URL, 'https://example.supabase.co');
+      assert.equal(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, 'public-anon');
       await new Promise((resolve) => setTimeout(resolve, 20));
       assert.equal(startedFetch, true);
     } finally {
