@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
+  Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -20,7 +22,9 @@ import {
   type AvatarPrepareError,
 } from '@/lib/profile/avatarImage';
 import type { PickedProfileImage } from '@/lib/profile/pickProfileImage';
+import { ANYCHESS_MASCOTS } from '@/lib/profile/mascotCatalog';
 import { ProfileAvatar } from './ProfileAvatar';
+import type { ImageSourcePropType } from 'react-native';
 
 async function defaultPickImage(): Promise<PickedProfileImage | null> {
   const { pickProfileImage } = await import('@/lib/profile/pickProfileImage');
@@ -36,12 +40,14 @@ type Props = {
   imageUri: string | null;
   onChange: (
     dataUrl: string | null,
-    context?: { cancelled: () => boolean },
+    context?: { cancelled: () => boolean; mascotId?: string },
   ) => SaveOutcome | Promise<SaveOutcome>;
   children?: ReactNode;
   testID?: string;
+  imageSource?: ImageSourcePropType | null;
   pickImage?: () => Promise<PickedProfileImage | null>;
   prepareImage?: typeof prepareAvatarImage;
+  mascotSource?: (id: string) => ImageSourcePropType | null;
 };
 
 export function AvatarField({
@@ -50,12 +56,17 @@ export function AvatarField({
   onChange,
   children,
   testID = 'avatar-field',
+  imageSource = null,
   pickImage = defaultPickImage,
   prepareImage = prepareAvatarImage,
+  mascotSource,
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
   const [pickedUri, setPickedUri] = useState<string | null>(null);
+  const [step, setStep] = useState<'closed' | 'choice' | 'gallery'>('closed');
+  const [selectedMascot, setSelectedMascot] = useState<string | null>(null);
+  const [sources, setSources] = useState<Record<string, ImageSourcePropType>>({});
   const [zoom, setZoom] = useState(1);
   const [busy, setBusy] = useState(false);
   const [cropError, setCropError] = useState<AvatarPrepareError | null>(null);
@@ -82,21 +93,55 @@ export function AvatarField({
     setZoom(1);
     setImageSize(null);
     setPickedUri(null);
+    setStep('closed');
+    setSelectedMascot(null);
   };
   dismissRef.current = dismiss;
 
+  const dialogOpen = step !== 'closed' || pickedUri != null;
+
   useEffect(() => {
-    if (!pickedUri || typeof BackHandler?.addEventListener !== 'function') return;
+    if (!dialogOpen || typeof BackHandler?.addEventListener !== 'function') return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       dismissRef.current();
       return true;
     });
     return () => subscription.remove();
-  }, [pickedUri]);
+  }, [dialogOpen]);
+
+  const openGallery = async () => {
+    if (mascotSource) {
+      const next: Record<string, ImageSourcePropType> = {};
+      for (const mascot of ANYCHESS_MASCOTS) {
+        const source = mascotSource(mascot.id);
+        if (source) next[mascot.id] = source;
+      }
+      setSources(next);
+    } else {
+      const mod = await import('./mascotImages');
+      const next: Record<string, ImageSourcePropType> = {};
+      for (const mascot of ANYCHESS_MASCOTS) {
+        const source = mod.mascotImage(mascot.id);
+        if (source) next[mascot.id] = source;
+      }
+      setSources(next);
+    }
+    setStep('gallery');
+  };
+
+  const confirmMascot = async () => {
+    if (!selectedMascot) return;
+    const id = selectedMascot;
+    const outcome = await onChange(null, { cancelled: () => false, mascotId: id });
+    if (outcome === 'failed') return;
+    setStep('closed');
+    setSelectedMascot(null);
+  };
 
   const openPicker = async () => {
     const picked = await pickImage();
     if (!picked) return;
+    setStep('closed');
     setCropError(null);
     applyZoom(1);
     setZoom(1);
@@ -168,20 +213,21 @@ export function AvatarField({
 
   return (
     <View style={styles.row}>
-      <ProfileAvatar username={username} imageUri={imageUri} testID={testID} />
+      <ProfileAvatar username={username} imageUri={imageUri} imageSource={imageSource} testID={testID} />
       <View style={styles.side}>
         {children}
         <View style={styles.actions}>
             <Pressable
             testID={`${testID}-add`}
-            onPress={() => openPicker()}
+            accessibilityLabel={t('account.avatarAdd')}
+            onPress={() => setStep('choice')}
             style={[styles.btn, { borderColor: colors.border }]}
           >
             <Text style={{ color: colors.primary }}>
               {imageUri ? t('account.avatarChange') : t('account.avatarAdd')}
             </Text>
           </Pressable>
-          {imageUri ? (
+          {imageUri || imageSource ? (
             <Pressable
               testID={`${testID}-remove`}
               onPress={() => onChange(null)}
@@ -193,7 +239,7 @@ export function AvatarField({
         </View>
       </View>
       <Modal
-        visible={pickedUri != null}
+        visible={dialogOpen}
         transparent
         animationType="fade"
         presentationStyle="overFullScreen"
@@ -201,6 +247,79 @@ export function AvatarField({
         onRequestClose={dismiss}
       >
         <View style={styles.backdrop} collapsable={false}>
+          {step === 'choice' && !pickedUri ? (
+            <View
+              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+              testID="avatar-choice-modal"
+            >
+              <Text style={[styles.title, { color: colors.foreground }]}>{t('account.avatarChoiceTitle')}</Text>
+              <AppButton
+                testID="avatar-choice-mascot"
+                label={t('account.chooseMascot')}
+                onPress={() => openGallery()}
+              />
+              <AppButton
+                testID="avatar-choice-import"
+                label={t('account.importImage')}
+                variant="secondary"
+                onPress={() => openPicker()}
+              />
+              <AppButton
+                testID="avatar-choice-cancel"
+                label={t('common.cancel')}
+                variant="secondary"
+                onPress={dismiss}
+              />
+            </View>
+          ) : null}
+          {step === 'gallery' && !pickedUri ? (
+            <View
+              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+              testID="avatar-mascot-modal"
+            >
+              <Text style={[styles.title, { color: colors.foreground }]}>{t('account.mascotTitle')}</Text>
+              <ScrollView contentContainerStyle={styles.gallery}>
+                {ANYCHESS_MASCOTS.map((mascot) => {
+                  const source = sources[mascot.id];
+                  const selected = selectedMascot === mascot.id;
+                  return (
+                    <Pressable
+                      key={mascot.id}
+                      testID={`avatar-mascot-${mascot.id}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={t(mascot.labelKey)}
+                      accessibilityState={{ selected }}
+                      onPress={() => setSelectedMascot(mascot.id)}
+                      style={[
+                        styles.mascotCell,
+                        {
+                          borderColor: selected ? colors.primary : colors.border,
+                          backgroundColor: colors.background,
+                        },
+                      ]}
+                    >
+                      {source ? (
+                        <Image source={source} style={styles.mascotImage} resizeMode="cover" />
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <AppButton
+                testID="avatar-mascot-confirm"
+                label={t('account.mascotConfirm')}
+                disabled={!selectedMascot}
+                onPress={() => confirmMascot()}
+              />
+              <AppButton
+                testID="avatar-mascot-cancel"
+                label={t('common.cancel')}
+                variant="secondary"
+                onPress={dismiss}
+              />
+            </View>
+          ) : null}
+          {pickedUri ? (
           <View
             style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
             collapsable={false}
@@ -312,6 +431,7 @@ export function AvatarField({
               onPress={dismiss}
             />
           </View>
+          ) : null}
         </View>
       </Modal>
     </View>
@@ -357,6 +477,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
+  },
+  gallery: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  mascotCell: {
+    width: 72,
+    height: 72,
+    borderWidth: 3,
+    borderRadius: DesignTokens.radius.md,
+    overflow: 'hidden',
+  },
+  mascotImage: {
+    width: 66,
+    height: 66,
   },
   trackHit: {
     height: DesignTokens.minTouchTarget,

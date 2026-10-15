@@ -7,6 +7,13 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
 import { loadStoredJson } from '../storage/safeParse.ts';
+import {
+  numberField,
+  readScoreDocument,
+  resetScoreDocument,
+  stampScalar,
+  updateScoreDocument,
+} from '../records/scoreDocument.ts';
 
 const KEY = StorageKeys.moveNamingSession60.key;
 
@@ -33,19 +40,34 @@ export class MoveNamingRecordsStore {
   }
 
   async loadBest(): Promise<number> {
-    const result = await loadStoredJson(this.storage, KEY, defaults(), validate);
-    return result.value.best;
+    const doc = await readScoreDocument(this.storage, KEY);
+    const checked = validate(doc);
+    return checked?.best ?? defaults().best;
   }
 
   /** Persist best score for the 60-second mode; returns the updated best. */
-  async saveScore(score: number): Promise<number> {
-    const best = Math.max(await this.loadBest(), Math.max(0, Math.floor(score)));
-    await this.storage.setItem(KEY, JSON.stringify({ best } satisfies MoveNamingSession60Record));
-    return best;
+  async saveScore(
+    score: number,
+    hooks?: { afterRead?: () => Promise<void> },
+  ): Promise<number> {
+    const candidate = Math.max(0, Math.floor(score));
+    const at = new Date().toISOString();
+    const doc = await updateScoreDocument(
+      this.storage,
+      KEY,
+      (current) => {
+        const best = Math.max(numberField(current, 'best'), candidate);
+        stampScalar(current, 'best', best, at);
+      },
+      hooks,
+    );
+    return numberField(doc, 'best');
   }
 
-  async reset(): Promise<void> {
-    await this.storage.removeItem(KEY);
+  async reset(at = new Date().toISOString()): Promise<void> {
+    await updateScoreDocument(this.storage, KEY, (current) => {
+      resetScoreDocument(current, at, ['best'], []);
+    });
   }
 
   // ── Legacy v1 API (read/reset only — no longer written by sessions) ──────

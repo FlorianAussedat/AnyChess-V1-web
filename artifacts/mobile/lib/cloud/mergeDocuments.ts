@@ -2,6 +2,7 @@ import { StorageKeys } from '../storage/StorageKeys.ts';
 import { mergeEndgameTrainingDocuments } from '../endgameTraining/persistence/defendDrawReview.ts';
 import { mergeTheoreticalDocuments } from '../theoreticalEndgame/persistence/TheoreticalEndgameStore.ts';
 import { getPositionById } from '../endgameTraining/selection/selectors.ts';
+import { mergeRecordDocument } from '../records/scoreDocument.ts';
 
 function newerIso(a?: string, b?: string): string {
   if (!a) return b ?? new Date().toISOString();
@@ -248,27 +249,14 @@ function lastWriteWins(local: unknown, remote: unknown): unknown {
   return aAt >= bAt ? { ...b, ...a, updatedAt: newerIso(aAt, bAt) } : { ...a, ...b, updatedAt: newerIso(aAt, bAt) };
 }
 
-function mergeBestScores(local: unknown, remote: unknown): unknown {
-  const a = asRecord(local);
-  const b = asRecord(remote);
-  if (!a) return b;
-  if (!b) return a;
-  const out: Record<string, unknown> = { ...a, ...b };
-  for (const key of Object.keys({ ...a, ...b })) {
-    const av = a[key];
-    const bv = b[key];
-    if (typeof av === 'number' && typeof bv === 'number') out[key] = Math.max(av, bv);
-  }
-  if (a.bestByDifficulty || b.bestByDifficulty) {
-    const left = (a.bestByDifficulty ?? {}) as Record<string, number>;
-    const right = (b.bestByDifficulty ?? {}) as Record<string, number>;
-    const merged: Record<string, number> = { ...left };
-    for (const [key, value] of Object.entries(right)) {
-      merged[key] = Math.max(merged[key] ?? 0, value);
-    }
-    out.bestByDifficulty = merged;
-  }
-  return out;
+function isRecordDocumentKey(docKey: string): boolean {
+  return (
+    docKey === StorageKeys.openingQuizRecords.key ||
+    docKey === StorageKeys.moveNamingSession60.key ||
+    docKey === StorageKeys.playMoveSession60.key ||
+    docKey === StorageKeys.blindMemoryRecords.key ||
+    docKey === StorageKeys.puzzleStreaks.key
+  );
 }
 
 function mergeHistoryList(local: unknown, remote: unknown): unknown {
@@ -303,13 +291,8 @@ export function mergeDocumentPayload(
     merged = mergeKeyedRecords(local, remote);
   } else if (docKey === StorageKeys.chessCultureHistory.key) {
     merged = mergeHistoryList(local, remote);
-  } else if (
-    docKey === StorageKeys.openingQuizRecords.key ||
-    docKey === StorageKeys.moveNamingSession60.key ||
-    docKey === StorageKeys.playMoveSession60.key ||
-    docKey === StorageKeys.blindMemoryRecords.key
-  ) {
-    merged = mergeBestScores(local, remote);
+  } else if (isRecordDocumentKey(docKey)) {
+    merged = mergeRecordDocument(local, remote);
   } else if (docKey === StorageKeys.userPreferences.key) {
     merged = mergeUserPreferences(local, remote);
   } else if (docKey === StorageKeys.endgameTrainingV2.key) {

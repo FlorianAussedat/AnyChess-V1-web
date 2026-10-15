@@ -4,6 +4,7 @@ import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 export type CreateAccountResult = {
   ok: boolean;
   error?: string;
+  retryAfterSeconds?: number;
 };
 
 /**
@@ -15,6 +16,7 @@ export async function submitCreateAccount(input: {
   email: string;
   password: string;
   avatarDataUrl: string | null;
+  mascotId?: string | null;
   storage: KeyValueStorage;
   updateUsername: (username: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<CreateAccountResult>;
@@ -24,7 +26,9 @@ export async function submitCreateAccount(input: {
   const email = input.email.trim();
   if (!email || !input.password) return { ok: false, error: 'invalid_credentials' };
   await input.updateUsername(username);
-  if (input.avatarDataUrl?.startsWith('data:image/')) {
+  if (input.mascotId) {
+    await savePendingAvatar(input.storage, email, '', 'mascot', input.mascotId);
+  } else if (input.avatarDataUrl?.startsWith('data:image/')) {
     await savePendingAvatar(input.storage, email, input.avatarDataUrl);
   }
   return input.signUp(email, input.password);

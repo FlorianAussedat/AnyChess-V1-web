@@ -31,7 +31,7 @@ Restent **locaux** (éphémères) : session lecteur/analyseur (`gameSession`) et
 - Au démarrage, la session enregistrée est relue avant d’afficher l’écran invité. Une panne réseau laisse le compte connecté et les réglages locaux en place.
 - Changement de compte : l’espace précédent est garé, l’autre compte est restauré ou parti d’un vide (pas de mélange).
 - Suppressions PGN / dossiers / traductions / révisions : tombstones `syncDeletedIds` pour ne pas les ressusciter depuis un autre appareil.
-- Hors ligne : l’app reste utilisable ; la sauvegarde affiche **Hors ligne** ou **Synchronisation en cours…**, puis **Données synchronisées** seulement après un succès. La connexion du compte reste affichée à part.
+- Hors ligne : l’app reste utilisable. Le statut affiché est **En attente**, **En attente — hors connexion**, **En attente — Wi-Fi uniquement**, **Synchronisation en cours**, **Synchronisé** ou **Erreur**. **Synchronisé** n’apparaît qu’après la confirmation du serveur. Une sauvegarde locale impossible affiche **La sauvegarde sur cet appareil a échoué.** La connexion du compte reste affichée à part.
 - Une inscription qui attend la confirmation d’e-mail n’ouvre pas de session et ne lance pas la synchronisation.
 - RLS : `auth.uid() = user_id`. La clé `anon` ne suffit pas à lire les documents d’un autre compte.
 - Compte : Connecté / Non connecté. Sauvegarde : Données synchronisées / Synchronisation en cours… / Erreur de synchronisation (plus Hors ligne, Cloud non configuré).
@@ -76,4 +76,56 @@ Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non co
 
 `lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton, le formulaire de nouveau mot de passe sur un lien `type=recovery`, et `GET /auth/confirm` en `text/html` sur le serveur web existant.
 
-À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre `exp+mobile` / `com.anychess.app` lorsque le lien porte `client=dev`, et `anychess` / `com.anychess.standalone` sinon, sans y copier le jeton. Il n’y a pas d’App Link https.
+À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre `exp+mobile` / `com.anychess.app` lorsque le lien porte `client=dev`, et `anychess` / `com.anychess.standalone` sinon, sans y copier le jeton. Il n’y a pas d’App Link https. L’autoremplissage du gestionnaire de mots de passe Android n’a pas été exercé sur un téléphone dans cet environnement : les champs portent `autoComplete`, `textContentType` et `importantForAutofill`, et le bouton œil ne remplace pas ces attributs.
+
+## Moment de la sauvegarde
+
+La sauvegarde locale est immédiate dès que la modification est validée. L’envoi réseau est regroupé (délai court de l’ordonnanceur existant, 800 ms) et survit à la fermeture parce que la file est le document déjà écrit. La déconnexion ne relance pas une sauvegarde générale : elle gare l’espace du compte, y compris les opérations pas encore envoyées. Ces opérations ne partent jamais vers le compte suivant.
+
+- Interrupteur ou choix simple : dès le changement.
+- Formulaire avec « Enregistrer » : à la validation, pas à chaque lettre.
+- Résultat, record ou exercice terminé : dès la validation.
+- Partie ou activité en cours : état de reprise lorsque le mode le prévoit, sans la déclarer terminée.
+- Suppression ou réinitialisation : dès la confirmation.
+
+`syncOnWifiOnly` et l’adresse « Mémoriser mon adresse e-mail » (`anychess.device.rememberedEmail.v1`) restent sur le téléphone. Le mot de passe n’est jamais écrit dans AsyncStorage, les préférences, les journaux ou Supabase.
+
+## Règle de conflit entre deux appareils
+
+- Collections (PGN, parties, traductions, révisions, culture) : union par identifiant. Un tombstone `syncDeletedIds` gagne sur la copie distante. Pour une même fiche, le `updatedAt` le plus récent gagne.
+- Historiques : union des listes.
+- Records (tactique, nommer le coup, jouer le coup, mémorisation, quiz d’ouverture) : le meilleur score de la génération de réinitialisation la plus récente. Un `resetAt` plus tard annule les scores plus anciens, y compris un nombre sans horodatage. La série en cours (`currentByBand`) suit l’horodatage le plus récent, pas le maximum.
+- Finales théoriques : la génération `scoreResetAt` déjà en place est conservée.
+- Profil, avatar (`mascotId` dans le profil) et préférences de compte : le document dont `updatedAt` est le plus récent est gardé en entier. Pas de mélange champ par champ silencieux.
+- Préférences du téléphone : jamais fusionnées avec le compte.
+
+## Bilan par catégorie
+
+| Catégorie | Sauvegarde locale | Déclencheur d’envoi | Correctif |
+|---|---|---|---|
+| PGN et dossiers | dès l’import, le déplacement ou la suppression | mutation locale → file → `sync()` | inchangé (tombstones) |
+| Parties enregistrées | dès l’ajout ou la suppression | idem | inchangé |
+| Traductions et file | dès la demande ou le résultat | idem | inchangé |
+| Progression des révisions | dès la validation d’une ligne | idem | inchangé |
+| Historiques (puzzles, culture) | dès l’entrée validée | idem | inchangé |
+| Records tactique, nommer, jouer, mémo, quiz | dès le score validé ou la réinitialisation confirmée | idem, avec relecture si une synchro est déjà en cours | la réinitialisation garde le document et `resetAt` ; elle n’efface plus la clé |
+| Finales | dès le résultat ou la réinitialisation | idem | génération déjà honorée |
+| Préférences de compte | dès le changement d’un interrupteur | idem | inchangé |
+| Profil et mascotte | dès « Enregistrer » ou le choix d’avatar | idem | `mascotId` stable, photo non remplacée toute seule |
+| Photo d’avatar | cache local dès la validation du recadrage | envoi du fichier selon les règles réseau | inchangé |
+| Session et mot de passe | jeton de session seulement | jamais le mot de passe | œil local, non journalisé |
+
+Les records concernés par la réinitialisation sont : tactique (`anychess.puzzles.streaks.v1`), nommer le coup (`anychess.move-naming.session60.v1`), jouer le coup (`anychess.play-move.session60.v1`), mémorisation (`anychess.blind.memoryRecords.v1`), quiz d’ouverture (`anychess.openingQuiz.records.v1`). L’ancienne clé move-naming v1 n’est pas synchronisée. Les PGN ne passent pas par cette fusion.
+
+## Suppression de compte
+
+Le parcours client demande une confirmation dans le dialogue AnyChess, puis le mot de passe. L’appel va vers `POST /functions/v1/delete-account` avec le jeton de l’utilisateur. Aucune clé `service_role` n’est dans l’application. Hors connexion, l’app explique qu’Internet est nécessaire et ne met pas la suppression en attente. Le succès n’est annoncé qu’après une réponse serveur qui autorise l’effacement. Alors seulement : session fermée, espace de ce compte, ses sauvegardes, son cache d’avatar et son avatar en attente retirés, espace invité remis dans le slot actif. Les autres comptes et l’invité restent. Un échec, une fonction absente ou une session expirée ne retire rien en local.
+
+Le code de la fonction est dans `supabase/functions/delete-account/index.ts`. `supabase/config.toml` demande `[functions.delete-account] verify_jwt = true`. Le 15 octobre 2026, `OPTIONS` et `POST` sur `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/delete-account` répondent encore **404** `Requested function was not found`. L’API de gestion répond 401 « Invalid access token », donc la fonction **n’a pas été déployée** et la suppression n’est pas fonctionnelle. L’app affiche dans ce cas que la suppression n’est pas disponible, sans effacer les données.
+
+Déploiement manuel, sans `supabase config push` (cette commande réécrirait le SMTP Brevo et les modèles déjà installés) :
+
+1. Installer la CLI Supabase et se connecter avec un jeton de gestion valide.
+2. Depuis la racine du dépôt : `supabase functions deploy delete-account --project-ref zqfxnzwtptepulmgpxhb`.
+3. Laisser `verify_jwt` activé. Les secrets `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` sont fournis par l’hébergement de la fonction. Ne pas les copier dans l’application.
+4. Vérifier qu’un `POST` sans session ne répond plus 404. Une réponse 401 signifie que la fonction est en ligne et refuse un appel sans utilisateur. Ne pas l’essayer sur un compte personnel.

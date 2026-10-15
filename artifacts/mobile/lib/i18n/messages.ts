@@ -222,7 +222,9 @@ export type MessageKey =
   | 'cloud.recoverSent'
   | 'cloud.statusSynced'
   | 'cloud.statusPending'
+  | 'cloud.statusSyncing'
   | 'cloud.statusError'
+  | 'cloud.localSaveFailed'
   | 'cloud.statusOffline'
   | 'cloud.statusWaitingWifi'
   | 'cloud.statusSignedOut'
@@ -243,6 +245,11 @@ export type MessageKey =
   | 'cloud.errorEmailInvalid'
   | 'cloud.errorRateLimit'
   | 'cloud.errorUnexpected'
+  | 'cloud.signupAmbiguous'
+  | 'cloud.signInBusy'
+  | 'cloud.signInTimeout'
+  | 'cloud.rememberEmail'
+  | 'cloud.rateLimitWait'
   | 'cloud.errorSchema'
   | 'cloud.confirmSent'
   | 'cloud.resendEmail'
@@ -256,6 +263,11 @@ export type MessageKey =
   | 'account.showPassword'
   | 'account.hidePassword'
   | 'account.avatarAdd'
+  | 'account.avatarChoiceTitle'
+  | 'account.chooseMascot'
+  | 'account.importImage'
+  | 'account.mascotTitle'
+  | 'account.mascotConfirm'
   | 'account.avatarChange'
   | 'account.avatarRemove'
   | 'account.avatarCrop'
@@ -276,6 +288,8 @@ export type MessageKey =
   | 'account.deleteReauthFailed'
   | 'account.deleteFailed'
   | 'account.deleteOffline'
+  | 'account.deleteUnavailable'
+  | 'account.deleteSession'
   | 'account.deleteDone'
   | 'settings.title'
   | 'settings.dictationPace'
@@ -1535,11 +1549,13 @@ const fr: Dict = {
     'Les parties et les scores enregistrés sans compte seront copiés dans ce compte. Les données d’un autre compte ne sont pas importées.',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
-  'cloud.statusSynced': 'Données synchronisées',
-  'cloud.statusPending': 'Synchronisation en cours…',
-  'cloud.statusError': 'Erreur de synchronisation',
-  'cloud.statusOffline': 'Hors ligne — synchro au retour du réseau',
-  'cloud.statusWaitingWifi': 'En attente du Wi-Fi',
+  'cloud.statusSynced': 'Synchronisé',
+  'cloud.statusPending': 'En attente',
+  'cloud.statusSyncing': 'Synchronisation en cours',
+  'cloud.statusError': 'Erreur',
+  'cloud.localSaveFailed': 'La sauvegarde sur cet appareil a échoué.',
+  'cloud.statusOffline': 'En attente — hors connexion',
+  'cloud.statusWaitingWifi': 'En attente — Wi-Fi uniquement',
   'cloud.statusSignedOut': 'Non connecté',
   'cloud.statusUnconfigured': 'Connexion au compte temporairement indisponible.',
   'cloud.syncNow': 'Synchroniser',
@@ -1550,7 +1566,8 @@ const fr: Dict = {
   'cloud.unconfiguredHint': 'Connexion au compte temporairement indisponible.',
   'cloud.signedInAs': 'Connecté : {{email}}',
   'cloud.errorInvalid': 'E-mail ou mot de passe incorrect.',
-  'cloud.errorTaken': 'Un compte existe déjà pour cet e-mail.',
+  'cloud.errorTaken':
+    'Un compte utilise déjà cette adresse. Connecte-toi ou réinitialise ton mot de passe.',
   'cloud.errorWeak': 'Mot de passe trop court (6 caractères minimum).',
   'cloud.errorConfirmEmail': 'Confirmez votre e-mail, puis reconnectez-vous.',
   'cloud.errorOffline': 'Problème de réseau. Vérifie ta connexion, puis réessaie.',
@@ -1560,6 +1577,12 @@ const fr: Dict = {
   'cloud.errorEmailInvalid': 'Cette adresse e-mail n’est pas acceptée.',
   'cloud.errorRateLimit': 'Trop de tentatives. Patiente un moment avant de réessayer.',
   'cloud.errorUnexpected': 'La demande n’a pas abouti. Réessaie dans un instant.',
+  'cloud.signupAmbiguous':
+    'Si une confirmation est nécessaire, tu recevras un e-mail. Si tu as déjà un compte, connecte-toi ou utilise « Mot de passe oublié ».',
+  'cloud.signInBusy': 'Connexion en cours…',
+  'cloud.signInTimeout': 'La connexion prend trop de temps. Vérifie le réseau, puis réessaie.',
+  'cloud.rememberEmail': 'Mémoriser mon adresse e-mail',
+  'cloud.rateLimitWait': 'Trop de tentatives. Réessaie dans {{seconds}} s.',
   'cloud.confirmSent':
     'Un e-mail de confirmation t’a été envoyé. Ouvre-le pour activer ton compte, puis reviens te connecter.',
   'cloud.resendEmail': 'Renvoyer l’e-mail',
@@ -1572,7 +1595,12 @@ const fr: Dict = {
   'account.alreadyHave': 'J’ai déjà un compte — Se connecter',
   'account.showPassword': 'Afficher le mot de passe',
   'account.hidePassword': 'Masquer le mot de passe',
-  'account.avatarAdd': 'Ajouter une photo ou un logo',
+  'account.avatarAdd': 'Choisir un avatar',
+  'account.avatarChoiceTitle': 'Choisir un avatar',
+  'account.chooseMascot': 'Choisir une mascotte AnyChess',
+  'account.importImage': 'Importer une image',
+  'account.mascotTitle': 'Mascottes AnyChess',
+  'account.mascotConfirm': 'Utiliser cette mascotte',
   'account.avatarChange': 'Modifier la photo',
   'account.avatarRemove': 'Supprimer la photo',
   'account.avatarCrop': 'Recadrer',
@@ -1598,7 +1626,11 @@ const fr: Dict = {
   'account.deleteReauthFailed': 'Mot de passe incorrect. Le compte n’a pas été supprimé.',
   'account.deleteFailed': 'La suppression n’a pas abouti. Tes données sont toujours là.',
   'account.deleteOffline':
-    'La réponse du serveur n’est pas arrivée. Tes données restent sur cet appareil. Rouvre l’application pour terminer le nettoyage si le compte a bien été supprimé.',
+    'Internet est nécessaire pour supprimer le compte. Rien n’a été mis en attente.',
+  'account.deleteUnavailable':
+    'La suppression du compte n’est pas disponible pour le moment. Ton compte et tes données n’ont pas été supprimés.',
+  'account.deleteSession':
+    'Ta session a expiré. Reconnecte-toi, puis réessaie. Le compte n’a pas été supprimé.',
   'account.deleteDone': 'Ton compte a été supprimé.',
   'cloud.errorSchema':
     'Exécutez supabase/user_documents.sql dans l’éditeur SQL du projet (table absente).',
@@ -2973,11 +3005,13 @@ const en: Dict = {
     'Games and scores saved without an account will be copied into this account. Another account’s data is not imported.',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
-  'cloud.statusSynced': 'Data synced',
-  'cloud.statusPending': 'Syncing…',
-  'cloud.statusError': 'Sync error',
-  'cloud.statusOffline': 'Offline — will sync when the network returns',
-  'cloud.statusWaitingWifi': 'Waiting for Wi-Fi',
+  'cloud.statusSynced': 'Synced',
+  'cloud.statusPending': 'Pending',
+  'cloud.statusSyncing': 'Syncing',
+  'cloud.statusError': 'Error',
+  'cloud.localSaveFailed': 'Saving on this device failed.',
+  'cloud.statusOffline': 'Pending — offline',
+  'cloud.statusWaitingWifi': 'Pending — Wi-Fi only',
   'cloud.statusSignedOut': 'Signed out',
   'cloud.statusUnconfigured': 'Account sign-in is temporarily unavailable.',
   'cloud.syncNow': 'Sync now',
@@ -2988,7 +3022,8 @@ const en: Dict = {
   'cloud.unconfiguredHint': 'Account sign-in is temporarily unavailable.',
   'cloud.signedInAs': 'Signed in: {{email}}',
   'cloud.errorInvalid': 'Incorrect email or password.',
-  'cloud.errorTaken': 'An account already exists for this email.',
+  'cloud.errorTaken':
+    'An account already uses this address. Sign in or reset your password.',
   'cloud.errorWeak': 'Password too short (6 characters minimum).',
   'cloud.errorConfirmEmail': 'Confirm your email, then sign in again.',
   'cloud.errorOffline': 'Network problem. Check your connection, then try again.',
@@ -2998,6 +3033,12 @@ const en: Dict = {
   'cloud.errorEmailInvalid': 'This email address is not accepted.',
   'cloud.errorRateLimit': 'Too many attempts. Wait a moment before trying again.',
   'cloud.errorUnexpected': 'The request did not go through. Try again in a moment.',
+  'cloud.signupAmbiguous':
+    'If a confirmation is required, you will receive an email. If you already have an account, sign in or use “Forgot password”.',
+  'cloud.signInBusy': 'Signing in…',
+  'cloud.signInTimeout': 'Sign-in is taking too long. Check the network, then try again.',
+  'cloud.rememberEmail': 'Remember my email address',
+  'cloud.rateLimitWait': 'Too many attempts. Try again in {{seconds}} s.',
   'cloud.confirmSent':
     'A confirmation email was sent. Open it to activate your account, then come back and sign in.',
   'cloud.resendEmail': 'Resend email',
@@ -3010,7 +3051,12 @@ const en: Dict = {
   'account.alreadyHave': 'I already have an account — Sign in',
   'account.showPassword': 'Show password',
   'account.hidePassword': 'Hide password',
-  'account.avatarAdd': 'Add a photo or a logo',
+  'account.avatarAdd': 'Choose an avatar',
+  'account.avatarChoiceTitle': 'Choose an avatar',
+  'account.chooseMascot': 'Choose an AnyChess mascot',
+  'account.importImage': 'Import an image',
+  'account.mascotTitle': 'AnyChess mascots',
+  'account.mascotConfirm': 'Use this mascot',
   'account.avatarChange': 'Change photo',
   'account.avatarRemove': 'Remove photo',
   'account.avatarCrop': 'Crop',
@@ -3036,7 +3082,11 @@ const en: Dict = {
   'account.deleteReauthFailed': 'Incorrect password. The account was not deleted.',
   'account.deleteFailed': 'Deletion did not go through. Your data is still here.',
   'account.deleteOffline':
-    'The server response did not arrive. Your data stays on this device. Reopen the app to finish cleanup if the account was deleted.',
+    'Internet is required to delete the account. Nothing was queued.',
+  'account.deleteUnavailable':
+    'Account deletion is unavailable right now. Your account and data were not deleted.',
+  'account.deleteSession':
+    'Your session has expired. Sign in again, then try once more. The account was not deleted.',
   'account.deleteDone': 'Your account was deleted.',
   'cloud.errorSchema':
     'Run supabase/user_documents.sql in the project SQL editor (table missing).',

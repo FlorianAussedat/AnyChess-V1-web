@@ -1,17 +1,27 @@
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useCloudAccount } from '@/hooks/useCloudAccount';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { DeleteAccountControl } from '@/components/cloud/DeleteAccountControl';
+import { PasswordField } from '@/components/cloud/PasswordField';
 import { confirmationResendWaitSeconds } from '@/lib/cloud';
 import { decideCloudTransfer } from '@/lib/cloud/syncTransport';
 import { confirmAction } from '@/lib/openings/confirmAction';
 import { consumeAuthReturn } from '@/lib/cloud/authReturn';
+import { setAuthDraftEmail, peekAuthDraftEmail } from '@/lib/cloud/authDraft';
+import {
+  clearRememberedEmail,
+  readRememberedEmail,
+  rememberEmailAfterSignIn,
+} from '@/lib/cloud/rememberedEmail';
+import { defaultKeyValueStorage } from '@/lib/storage';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
 import type { MessageKey } from '@/lib/i18n/messages';
+
+const SIGN_IN_TIMEOUT_MS = 20_000;
 
 export const AUTH_ERROR_KEYS: Record<CloudAuthError, MessageKey> = {
   invalid_credentials: 'cloud.errorInvalid',
@@ -25,17 +35,30 @@ export const AUTH_ERROR_KEYS: Record<CloudAuthError, MessageKey> = {
   rejected: 'cloud.errorUnexpected',
   unexpected: 'cloud.errorUnexpected',
   unconfigured: 'cloud.errorUnexpected',
+  signup_ambiguous: 'cloud.signupAmbiguous',
 };
+
+function authFailureText(
+  result: { error?: CloudAuthError; retryAfterSeconds?: number },
+  t: (key: MessageKey, vars?: Record<string, string | number>) => string,
+): string {
+  if (result.error === 'rate_limited' && result.retryAfterSeconds && result.retryAfterSeconds > 0) {
+    return t('cloud.rateLimitWait', { seconds: result.retryAfterSeconds });
+  }
+  return t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']);
+}
 
 function backupStatusKey(
   status: CloudSyncStatus,
 ):
   | 'cloud.statusSynced'
   | 'cloud.statusPending'
+  | 'cloud.statusSyncing'
   | 'cloud.statusError'
   | 'cloud.statusOffline'
   | 'cloud.statusWaitingWifi' {
   if (status === 'synced') return 'cloud.statusSynced';
+  if (status === 'syncing') return 'cloud.statusSyncing';
   if (status === 'error') return 'cloud.statusError';
   if (status === 'offline') return 'cloud.statusOffline';
   if (status === 'waiting_wifi') return 'cloud.statusWaitingWifi';
@@ -49,13 +72,43 @@ export function CloudAccountSection() {
   const cloud = useCloudAccount();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const attemptRef = useRef(0);
+  const aliveRef = useRef(true);
+  const signingRef = useRef(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [guestImportReady, setGuestImportReady] = useState(false);
 
   const pending = cloud.pendingConfirmationEmail;
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      attemptRef.current += 1;
+    };
+  }, []);
+
+  useEffect(() => {
+    const draft = peekAuthDraftEmail();
+    if (draft) {
+      setEmail(draft);
+      return;
+    }
+    let cancelled = false;
+    void readRememberedEmail(defaultKeyValueStorage).then((saved) => {
+      if (cancelled || !saved.enabled || !saved.email) return;
+      setEmail(saved.email);
+      setRemember(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!pending) return;
@@ -86,6 +139,52 @@ export function CloudAccountSection() {
 
   const waitSeconds = confirmationResendWaitSeconds(now);
 
+  const submitSignIn = () => {
+    if (busy || signingIn || signingRef.current) return;
+    signingRef.current = true;
+    const attempt = attemptRef.current + 1;
+    attemptRef.current = attempt;
+    const abandoned = () => !aliveRef.current || attemptRef.current !== attempt;
+    setSigningIn(true);
+    setBusy(true);
+    setFormError(null);
+    setInfo(null);
+    const timer = setTimeout(() => {
+      if (attemptRef.current !== attempt) return;
+      attemptRef.current += 1;
+      signingRef.current = false;
+      setSigningIn(false);
+      setBusy(false);
+      setFormError(t('cloud.signInTimeout'));
+    }, SIGN_IN_TIMEOUT_MS);
+    void (async () => {
+      try {
+        const result = await cloud.signIn(email.trim(), password, { abandoned });
+        if (abandoned()) return;
+        if (result.ok) {
+          try {
+            await rememberEmailAfterSignIn(defaultKeyValueStorage, email.trim(), remember);
+          } catch {
+            setFormError(t('cloud.localSaveFailed'));
+          }
+          return;
+        }
+        if (result.error !== 'confirm_email' && result.error !== 'email_not_confirmed') {
+          setFormError(authFailureText(result, t));
+        }
+      } catch {
+        if (!abandoned()) setFormError(t('cloud.errorUnexpected'));
+      } finally {
+        clearTimeout(timer);
+        if (!abandoned()) {
+          signingRef.current = false;
+          setSigningIn(false);
+          setBusy(false);
+        }
+      }
+    })();
+  };
+
   const run = async (action: () => Promise<{ ok: boolean; error?: CloudAuthError }>) => {
     if (busy) return;
     setBusy(true);
@@ -94,7 +193,7 @@ export function CloudAccountSection() {
     try {
       const result = await action();
       if (!result.ok && result.error !== 'confirm_email' && result.error !== 'email_not_confirmed') {
-        setFormError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+        setFormError(authFailureText(result, t));
       }
     } finally {
       setBusy(false);
@@ -195,45 +294,72 @@ export function CloudAccountSection() {
         <View style={styles.form}>
           <TextInput
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(value) => {
+              setEmail(value);
+              setAuthDraftEmail(value);
+            }}
             autoCapitalize="none"
+            autoCorrect={false}
             keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
+            importantForAutofill="yes"
             placeholder={t('cloud.email')}
             placeholderTextColor={colors.mutedForeground}
             style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input }]}
             testID="cloud-email"
           />
-          <TextInput
+          <PasswordField
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
             placeholder={t('cloud.password')}
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input }]}
             testID="cloud-password"
+            purpose="current"
+            onSubmitEditing={submitSignIn}
           />
-          <View style={styles.row}>
-            <Pressable
-              testID="cloud-signin"
-              disabled={busy}
-              onPress={() => {
-                void run(() => cloud.signIn(email.trim(), password));
-              }}
-              style={[styles.btn, { borderColor: colors.border }]}
+          <Pressable
+            testID="cloud-remember-email"
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: remember }}
+            accessibilityLabel={t('cloud.rememberEmail')}
+            onPress={() => {
+              setRemember((current) => {
+                if (current) void clearRememberedEmail(defaultKeyValueStorage);
+                return !current;
+              });
+            }}
+            style={styles.remember}
+          >
+            <View
+              style={[
+                styles.check,
+                {
+                  borderColor: colors.primary,
+                  backgroundColor: remember ? colors.primary : 'transparent',
+                },
+              ]}
+            />
+            <Text style={[styles.rememberText, { color: colors.foreground }]}>{t('cloud.rememberEmail')}</Text>
+          </Pressable>
+          <Pressable
+            testID="cloud-signin"
+            disabled={busy || signingIn}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: busy || signingIn, busy: signingIn }}
+            accessibilityLabel={signingIn ? t('cloud.signInBusy') : t('cloud.signIn')}
+            onPress={submitSignIn}
+            style={[styles.primaryBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+          >
+            {signingIn ? (
+              <ActivityIndicator color={colors.primaryForeground} testID="cloud-signin-busy" />
+            ) : null}
+            <Text
+              style={[styles.primaryLabel, { color: colors.primaryForeground }]}
+              numberOfLines={2}
             >
-              <Text style={{ color: colors.primary }}>{t('cloud.signIn')}</Text>
-            </Pressable>
-            <Pressable
-              testID="cloud-signup"
-              disabled={busy}
-              onPress={() => {
-                router.push('/creer-compte' as Href);
-              }}
-              style={[styles.btn, { borderColor: colors.border }]}
-            >
-              <Text style={{ color: colors.primary }}>{t('cloud.signUp')}</Text>
-            </Pressable>
-          </View>
+              {signingIn ? t('cloud.signInBusy') : t('cloud.signIn')}
+            </Text>
+          </Pressable>
           <Pressable
             testID="cloud-recover"
             disabled={busy || !email.trim()}
@@ -241,11 +367,25 @@ export function CloudAccountSection() {
               void (async () => {
                 const result = await cloud.recoverPassword(email.trim());
                 if (result.ok) setInfo(t('cloud.recoverSent'));
-                else setFormError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+                else setFormError(authFailureText(result, t));
               })();
             }}
+            style={styles.recover}
           >
-            <Text style={{ color: colors.mutedForeground }}>{t('cloud.recover')}</Text>
+            <Text style={{ color: colors.mutedForeground, flexShrink: 1 }}>{t('cloud.recover')}</Text>
+          </Pressable>
+          <Pressable
+            testID="cloud-signup"
+            disabled={busy}
+            onPress={() => {
+              setAuthDraftEmail(email);
+              router.push('/creer-compte' as Href);
+            }}
+            style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+          >
+            <Text style={[styles.secondaryLabel, { color: colors.foreground }]} numberOfLines={2}>
+              {t('cloud.signUp')}
+            </Text>
           </Pressable>
         </View>
       ) : null}
@@ -322,6 +462,11 @@ export function CloudAccountSection() {
         </View>
       ) : null}
       {cloud.user ? <DeleteAccountControl /> : null}
+      {cloud.lastError === 'local_save_failed' ? (
+        <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-local-save-error">
+          {t('cloud.localSaveFailed')}
+        </Text>
+      ) : null}
       {cloud.lastError === 'schema_missing' ? (
         <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-schema-missing">
           {t('cloud.errorSchema')}
@@ -366,6 +511,61 @@ const styles = StyleSheet.create({
     minHeight: DesignTokens.minTouchTarget,
   },
   row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  remember: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: DesignTokens.minTouchTarget,
+  },
+  check: {
+    width: 18,
+    height: 18,
+    borderWidth: 2,
+    borderRadius: 4,
+  },
+  rememberText: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 14,
+  },
+  primaryBtn: {
+    width: '100%',
+    minHeight: DesignTokens.minTouchTarget,
+    borderRadius: DesignTokens.radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  primaryLabel: {
+    flexShrink: 1,
+    textAlign: 'center',
+    fontSize: 16,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  secondaryBtn: {
+    width: '100%',
+    minHeight: DesignTokens.minTouchTarget,
+    borderRadius: DesignTokens.radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryLabel: {
+    flexShrink: 1,
+    textAlign: 'center',
+    fontSize: 15,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
+  recover: {
+    minHeight: DesignTokens.minTouchTarget,
+    justifyContent: 'center',
+  },
   btn: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.sm,

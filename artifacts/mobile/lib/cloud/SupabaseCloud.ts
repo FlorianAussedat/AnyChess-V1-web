@@ -1,7 +1,9 @@
 import {
+  classifySignupResponse,
   isPendingEmailConfirmation,
   mapSupabaseAuthError,
   readAuthSession,
+  retryAfterSecondsFromMessage,
 } from './authErrors.ts';
 import {
   authConfirmRedirectUrl,
@@ -12,6 +14,7 @@ import {
 } from './supabaseConfig.ts';
 import type {
   CloudAuth,
+  CloudAuthError,
   CloudAuthResult,
   CloudDocument,
   CloudRemote,
@@ -104,11 +107,12 @@ export class SupabaseCloudAuth implements CloudAuth {
       { email, password },
       authConfirmRedirectUrl(language),
       { language },
+      'signup',
     );
   }
 
   async signIn(email: string, password: string): Promise<CloudAuthResult> {
-    return this.postAuth('/auth/v1/token?grant_type=password', { email, password });
+    return this.postAuth('/auth/v1/token?grant_type=password', { email, password }, null, undefined, 'password');
   }
 
   async signOut(): Promise<void> {
@@ -121,7 +125,7 @@ export class SupabaseCloudAuth implements CloudAuth {
     await this.persist?.save(null);
   }
 
-  async resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
+  async resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthError }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
     const language = await readAuthEmailLanguage();
@@ -143,7 +147,7 @@ export class SupabaseCloudAuth implements CloudAuth {
     }
   }
 
-  async recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
+  async recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthError }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
     const language = await readAuthEmailLanguage();
@@ -200,6 +204,7 @@ export class SupabaseCloudAuth implements CloudAuth {
     body: { email: string; password: string },
     redirectTo?: string | null,
     data?: { language: 'fr' | 'en' },
+    intent: 'signup' | 'password' = 'password',
   ): Promise<CloudAuthResult> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
@@ -215,7 +220,25 @@ export class SupabaseCloudAuth implements CloudAuth {
         body: JSON.stringify(payload),
       });
       const json = await response.json().catch(() => ({}));
-      if (isPendingEmailConfirmation(response.status, json)) {
+      if (intent === 'signup') {
+        const classified = classifySignupResponse(response.status, json);
+        const email = readAuthSession(json).email ?? body.email;
+        if (classified.kind === 'ambiguous') {
+          return { ok: false, error: 'signup_ambiguous', email };
+        }
+        if (classified.kind === 'confirmation') {
+          return { ok: false, error: 'confirm_email', email };
+        }
+        if (classified.kind === 'taken') return { ok: false, error: 'email_taken', email };
+        if (classified.kind === 'error') {
+          return {
+            ok: false,
+            error: classified.error,
+            email,
+            retryAfterSeconds: classified.retryAfterSeconds,
+          };
+        }
+      } else if (isPendingEmailConfirmation(response.status, json)) {
         return {
           ok: false,
           error: 'confirm_email',
@@ -224,7 +247,11 @@ export class SupabaseCloudAuth implements CloudAuth {
       }
       const session = readAuthSession(json);
       if (!response.ok || !session.accessToken || !session.userId) {
-        return mapSupabaseAuthError(response.status, json);
+        const mapped = mapSupabaseAuthError(response.status, json);
+        return {
+          ...mapped,
+          retryAfterSeconds: retryAfterSecondsFromMessage(mapped.message ?? ''),
+        };
       }
       const user = { id: session.userId, email: session.email ?? body.email };
       this.accessToken = session.accessToken;

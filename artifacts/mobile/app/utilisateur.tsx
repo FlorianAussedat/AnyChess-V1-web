@@ -11,6 +11,7 @@ import {
   Text,
   TextInput,
   View,
+  type ImageSourcePropType,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -32,6 +33,7 @@ import {
 } from '@/lib/profile';
 import { cloudSyncEngine } from '@/lib/cloud';
 import { cacheRemoteAvatar, commitAvatarChange } from '@/lib/profile/avatarRemote';
+import { isMascotId } from '@/lib/profile/mascotCatalog';
 import { normalizeAvatarEmail, readAvatarCache, readPendingAvatar } from '@/lib/profile/avatarLocal';
 import { defaultKeyValueStorage } from '@/lib/storage';
 import { repertoireService } from '@/lib/repertoire';
@@ -58,6 +60,7 @@ export default function UtilisateurScreen() {
 
   const [editor, setEditor] = useState<EditorKind>(null);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [mascotSource, setMascotSource] = useState<ImageSourcePropType | null>(null);
   const [avatarSyncError, setAvatarSyncError] = useState(false);
   const [draftUsername, setDraftUsername] = useState('');
   const [repertoireCount, setRepertoireCount] = useState(0);
@@ -113,13 +116,38 @@ export default function UtilisateurScreen() {
     };
   }, [cloud.user, profile.hasAvatar]);
 
+  useEffect(() => {
+    if (!isMascotId(profile.mascotId)) {
+      setMascotSource(null);
+      return;
+    }
+    const id = profile.mascotId;
+    let cancelled = false;
+    void import('@/components/profile/mascotImages').then((mod) => {
+      if (!cancelled) setMascotSource(mod.mascotImage(id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.mascotId]);
+
   const onAvatarChange = async (
     dataUrl: string | null,
-    context?: { cancelled: () => boolean },
+    context?: { cancelled: () => boolean; mascotId?: string },
   ) => {
     const user = cloud.user;
     if (!user) return 'failed' as const;
+    if (context?.mascotId && isMascotId(context.mascotId)) {
+      await updateProfile({ mascotId: context.mascotId });
+      return;
+    }
+    if (dataUrl == null && profile.mascotId) {
+      await updateProfile({ mascotId: null });
+      return;
+    }
     const previous = avatarUri;
+    const previousMascot = profile.mascotId;
+    if (dataUrl && previousMascot) await updateProfile({ mascotId: null });
     const result = await commitAvatarChange({
       storage: defaultKeyValueStorage,
       userId: user.id,
@@ -130,10 +158,12 @@ export default function UtilisateurScreen() {
     });
     if (result === 'cancelled') {
       setAvatarUri(previous);
+      if (previousMascot) await updateProfile({ mascotId: previousMascot });
       return;
     }
     if (result === 'failed') {
       setAvatarUri(previous);
+      if (previousMascot) await updateProfile({ mascotId: previousMascot });
       setAvatarSyncError(false);
       return 'failed' as const;
     }
@@ -240,10 +270,9 @@ export default function UtilisateurScreen() {
       >
         <AvatarField
           username={profile.username}
-          imageUri={avatarUri}
-          onChange={(next) => {
-            void onAvatarChange(next);
-          }}
+          imageUri={profile.mascotId ? null : avatarUri}
+          imageSource={profile.mascotId ? mascotSource : null}
+          onChange={(next, context) => onAvatarChange(next, context)}
           testID="profil-avatar"
         >
           <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>

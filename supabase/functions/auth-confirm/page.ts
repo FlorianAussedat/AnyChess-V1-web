@@ -61,7 +61,7 @@ export function renderConfirmationPage(config: {
       color: #DCE8F5;
       font-size: 18px;
     }
-    button, a.open {
+    #recover-submit, a.open {
       display: block;
       box-sizing: border-box;
       width: 100%;
@@ -78,6 +78,20 @@ export function renderConfirmationPage(config: {
       text-align: center;
       text-decoration: none;
     }
+    .secret-row { position: relative; }
+    .secret-row input { padding-right: 56px; }
+    button.eye {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 44px;
+      min-height: 44px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: #F5A623;
+      border: 0;
+    }
     a.open:focus-visible, button:focus-visible { outline: 3px solid #DCE8F5; outline-offset: 3px; }
     #recover-error { margin-top: 12px; }
     noscript p { margin: 16px; }
@@ -93,10 +107,20 @@ export function renderConfirmationPage(config: {
       <p id="alt" class="alt">${CONFIRM_COPY.fr.alt}</p>
       <form id="recover" hidden="hidden">
         <label id="label-password" for="password">${CONFIRM_COPY.fr.recoverLabel}</label>
-        <input id="password" name="password" type="password" autocomplete="new-password" minlength="6" />
+        <div class="secret-row">
+          <input id="password" name="password" type="password" autocomplete="new-password" minlength="6" />
+          <button type="button" class="eye" id="password-toggle" aria-label="${CONFIRM_COPY.fr.showPassword}">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" fill="none" stroke="#F5A623" stroke-width="1.8"/><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z" fill="none" stroke="#F5A623" stroke-width="1.8"/></svg>
+          </button>
+        </div>
         <label id="label-password2" for="password2">${CONFIRM_COPY.fr.recoverLabel2}</label>
-        <input id="password2" name="password2" type="password" autocomplete="new-password" minlength="6" />
-        <button id="recover-submit" type="submit">${CONFIRM_COPY.fr.recoverSubmit}</button>
+        <div class="secret-row">
+          <input id="password2" name="password2" type="password" autocomplete="new-password" minlength="6" />
+          <button type="button" class="eye" id="password2-toggle" aria-label="${CONFIRM_COPY.fr.showPassword}">
+            <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" fill="none" stroke="#F5A623" stroke-width="1.8"/><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z" fill="none" stroke="#F5A623" stroke-width="1.8"/></svg>
+          </button>
+        </div>
+        <button id="recover-submit" class="submit" type="submit">${CONFIRM_COPY.fr.recoverSubmit}</button>
         <p id="recover-error"></p>
       </form>
     </div>
@@ -209,6 +233,34 @@ ${INTERPRET_SOURCE}
     if (label) label.textContent = text.recoverLabel;
     if (label2) label2.textContent = text.recoverLabel2;
     if (submit) submit.textContent = text.recoverSubmit;
+    function bindSecret(input, button) {
+      if (!input || !button) return;
+      button.type = 'button';
+      button.setAttribute('aria-label', text.showPassword);
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        var start = input.selectionStart;
+        var end = input.selectionEnd;
+        var hidden = input.type === 'password';
+        input.type = hidden ? 'text' : 'password';
+        button.setAttribute('aria-label', hidden ? text.hidePassword : text.showPassword);
+        input.focus();
+        try {
+          if (start != null && end != null) input.setSelectionRange(start, end);
+        } catch (ignore) {}
+      });
+    }
+    function maskSecrets() {
+      if (password) password.type = 'password';
+      if (password2) password2.type = 'password';
+      var first = document.getElementById('password-toggle');
+      var second = document.getElementById('password2-toggle');
+      if (first) first.setAttribute('aria-label', text.showPassword);
+      if (second) second.setAttribute('aria-label', text.showPassword);
+    }
+    bindSecret(password, document.getElementById('password-toggle'));
+    bindSecret(password2, document.getElementById('password2-toggle'));
+    window.addEventListener('pagehide', maskSecrets);
     if (!accessToken || !form || !password || !password2 || !submit || !((cfg.url && cfg.anon) || cfg.verify)) {
       show('recoverFailed', 'recoverFailedTitle');
       stripTokens();
@@ -232,6 +284,7 @@ ${INTERPRET_SOURCE}
       submit.disabled = true;
       requestRecover(next).then(function (result) {
         if (result.ok) {
+          maskSecrets();
           form.hidden = true;
           show('recoverSaved', 'recoverSavedTitle');
           stripTokens();

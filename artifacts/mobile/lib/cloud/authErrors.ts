@@ -1,5 +1,7 @@
 import type { CloudAuthError, CloudAuthResult } from './types.ts';
 
+export type { CloudAuthError };
+
 type AuthBody = {
   code?: unknown;
   error_code?: unknown;
@@ -58,6 +60,59 @@ export function isPendingEmailConfirmation(status: number, body: unknown): boole
   if (status < 200 || status >= 300) return false;
   const session = readAuthSession(body);
   return Boolean(session.userId) && !session.accessToken;
+}
+
+export function retryAfterSecondsFromMessage(message: string): number | undefined {
+  const match = message.match(/(\d+)\s*(?:seconds|secondes|s)\b/i);
+  if (!match) return undefined;
+  const seconds = Number(match[1]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+}
+
+function identityCount(body: unknown): number | null {
+  const row = asBody(body) as AuthBody & { identities?: unknown };
+  if (!Array.isArray(row.identities)) return null;
+  return row.identities.length;
+}
+
+function confirmationSentAt(body: unknown): string {
+  const row = asBody(body) as AuthBody & { confirmation_sent_at?: unknown };
+  return text(row.confirmation_sent_at);
+}
+
+/**
+ * A 200 without an error is not proof that Supabase sent mail.
+ * Empty `identities` is the intentional hidden-account response.
+ * An explicit error code is the only signal that the address is taken.
+ */
+export function classifySignupResponse(
+  status: number,
+  body: unknown,
+):
+  | { kind: 'session' }
+  | { kind: 'confirmation' }
+  | { kind: 'ambiguous' }
+  | { kind: 'taken' }
+  | { kind: 'error'; error: CloudAuthError; retryAfterSeconds?: number } {
+  if (status === 0) return { kind: 'error', error: 'offline' };
+  const session = readAuthSession(body);
+  if (status >= 200 && status < 300 && session.accessToken && session.userId) {
+    return { kind: 'session' };
+  }
+  if (status >= 200 && status < 300 && session.userId && !session.accessToken) {
+    const identities = identityCount(body);
+    if (identities === 0) return { kind: 'ambiguous' };
+    if (confirmationSentAt(body)) return { kind: 'confirmation' };
+    if (identities != null && identities > 0) return { kind: 'confirmation' };
+    return { kind: 'ambiguous' };
+  }
+  const mapped = mapSupabaseAuthError(status, body);
+  if (mapped.error === 'email_taken') return { kind: 'taken' };
+  return {
+    kind: 'error',
+    error: mapped.error,
+    retryAfterSeconds: retryAfterSecondsFromMessage(mapped.message ?? ''),
+  };
 }
 
 export function mapSupabaseAuthError(status: number, body: unknown): Extract<CloudAuthResult, { ok: false }> {

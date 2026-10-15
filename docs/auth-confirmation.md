@@ -2,7 +2,7 @@
 
 La confirmation d’e-mail reste **activée** (`mailer_autoconfirm = false`). Le bouton de l’e-mail doit garder `{{ .ConfirmationURL }}` : c’est Supabase qui vérifie le jeton, pas la page.
 
-Aucun service payant n’est activé par ce parcours : pas de forfait Pro, pas d’add-on Custom Domain, pas de SMTP payant, pas de GitHub Pages.
+Aucun forfait Supabase payant n’est activé par ce parcours : pas de Pro, pas d’add-on Custom Domain, pas de GitHub Pages. L’envoi passe par le SMTP Brevo gratuit configuré dans le tableau de bord Supabase. La clé SMTP n’est pas dans ce dépôt et ne doit pas y être copiée.
 
 ## Dans l’application
 
@@ -24,12 +24,12 @@ Trois restrictions distinctes. Aucune n’impose à elle seule un abonnement Sup
 
 Source : [Changes to Email Template Customisation on Free Tier](https://supabase.com/changelog/46599-changes-to-email-template-customisation-on-free-tier) (3 juin 2026) et [Email Templates](https://supabase.com/docs/guides/auth/auth-email-templates).
 
-- **Service.** Un projet gratuit qui envoie avec le **SMTP par défaut de Supabase** ne peut plus modifier les modèles d’auth (confirmation, reset, magic link, etc.). Les modèles par défaut sont utilisés tels quels. L’API de ce projet a répondu : `Email template modification is not available for free tier projects using the default email provider`.
-- **Ancienneté du projet.** Les projets gratuits **créés avant le 3 juin 2026** gardent leurs modèles déjà en place. Cette réponse d’API montre que l’édition est bloquée ici tant que l’envoi passe par le SMTP Supabase.
+- **Service.** Un projet gratuit qui envoie avec le **SMTP par défaut de Supabase** ne peut plus modifier les modèles d’auth. L’API avait répondu : `Email template modification is not available for free tier projects using the default email provider`. Cette limite concernait le SMTP Supabase, pas le forfait à lui seul.
+- **Ancienneté du projet.** Les projets gratuits **créés avant le 3 juin 2026** gardent leurs modèles déjà en place. Elle ne s’applique plus ici : l’envoi ne passe plus par le SMTP Supabase.
 - **Forfait.** Les forfaits payants (Pro et au-dessus) peuvent continuer à modifier les modèles avec le SMTP Supabase. Ce n’est pas la seule façon de le faire.
-- **SMTP personnel.** Un projet **gratuit** qui configure son propre SMTP (Resend, Postmark, SendGrid, Amazon SES, etc.) peut encore modifier les modèles. Ce n’est pas un abonnement Supabase. On n’en branche aucun dans ce dépôt.
+- **SMTP personnel.** Un projet **gratuit** qui configure son propre SMTP peut modifier les modèles. Ce n’est pas un abonnement Supabase.
 
-Le modèle français du dépôt (`supabase/templates/confirmation.html`, bouton « Confirmer mon adresse e-mail », `{{ .ConfirmationURL }}`) **n’est pas appliqué**. Le modèle en ligne reste le texte anglais par défaut, qui contient déjà `{{ .ConfirmationURL }}`. Le parcours fonctionne avec ce lien. Le français attend un SMTP personnel, ou un forfait qui autorise l’édition. Ne pas désactiver Confirm email.
+C’est le cas ici. Le SMTP Brevo (offre gratuite, sans domaine personnel, expéditeur AnyChess vérifié) est enregistré dans Supabase. Le modèle de **confirmation français** a été collé à la main. Un e-mail réel reçu sur le téléphone affiche le logo, les couleurs AnyChess et le texte français, avec le lien `{{ .ConfirmationURL }}`. Cette configuration n’est pas à refaire. La personnalisation n’est plus bloquée par le forfait ni par un jeton de gestion.
 
 Variables utiles, mêmes docs : `{{ .ConfirmationURL }}`, `{{ .SiteURL }}`, `{{ .RedirectTo }}` (l’adresse passée à l’inscription ou à `resetPasswordForEmail`, qui doit figurer dans Redirect URLs). Après vérification, la session est dans le **fragment** (`#access_token=…&type=signup` ou `type=recovery`), pas dans la query.
 
@@ -50,7 +50,7 @@ La fonction en ligne `GET https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/
 
 Le parcours réel du lien d’e-mail reste celui de Supabase : `GET /auth/v1/verify?token=…&type=signup&redirect_to=…` vérifie le jeton, puis redirige vers la Site URL avec le jeton dans le **fragment**. Tant que cette Site URL est la fonction texte, la page d’arrivée ne peut pas afficher le résultat. L’adresse peut néanmoins être confirmée côté Supabase : il faut alors se connecter dans AnyChess. Confirm email reste activé.
 
-`SUPABASE_ACCESS_TOKEN` fourni à cet agent a été refusé par l’API de management (`HTTP 401`, jeton invalide). N’ont donc **pas** été modifiés en ligne : Site URL, Redirect URLs, modèles d’e-mail, nom d’expéditeur, fonction `auth-confirm`. Les anciens liens continuent d’ouvrir la fonction texte tant que la Site URL n’a pas été remplacée par la page HTTPS, après déploiement de cette branche sur l’hébergement web déjà décrit (`GET /auth/confirm`).
+`SUPABASE_ACCESS_TOKEN` fourni à cet agent a été refusé par l’API de management (`HTTP 401`, jeton invalide). Cet agent n’a donc pas modifié en ligne : Site URL, Redirect URLs, modèles d’e-mail, nom d’expéditeur, fonction `auth-confirm`. Le modèle français a été collé ensuite dans le tableau de bord, et le SMTP Brevo aussi. Plus tard le même jour, quand le téléphone joignait le domaine du projet, le lien de confirmation a affiché la page Netlify « Adresse e-mail confirmée ! ». Cette page n’est pas la fonction texte. Le `redirect_to` d’AnyChess Dev suffit à l’expliquer si cette adresse est autorisée. La valeur actuelle de la Site URL n’a pas été relue.
 
 Hôtes essayés et **non** utilisés pour la page : `anychess-v1-web.replit.app` (« This app isn’t live yet »), `anychess.app` (un autre site), GitHub Pages (API 403, site non activé), jsDelivr (le HTML est renvoyé en `text/plain`, donc le navigateur n’exécute pas la page). Le contournement SVG est abandonné. L’hôte de la page est Netlify, dossier publié `dist/confirm-site` uniquement.
 
@@ -111,16 +111,28 @@ Le logo des e-mails est `https://sparkly-paprenjak-65f499.netlify.app/brand/anyc
 
 ### Expéditeur
 
-Avec le SMTP par défaut de Supabase, l’adresse d’envoi reste celle du service (`noreply@mail.app.supabase.io` dans la documentation actuelle). Le nom affiché « AnyChess » se règle dans Authentication → SMTP Settings → Sender name lorsque l’écran le permet, **sans** changer d’adresse. Une adresse `@anychess…` exige un SMTP personnel et un domaine vérifié (Resend, Postmark, etc.). Ce n’est pas un forfait Supabase. Rien n’a été souscrit : le jeton de management est invalide, donc le nom d’expéditeur en ligne n’a pas été lu ni modifié. Ne pas inventer d’adresse.
+L’envoi utilise le SMTP Brevo déjà enregistré dans Supabase, avec l’expéditeur AnyChess vérifié. La clé reste dans le tableau de bord. Elle n’est pas lue, pas redemandée, et pas recopiée ici. Ne pas remplacer cette configuration.
 
-Ces modèles concernent les **prochains** e-mails, une fois collés dans le projet (ou poussés par la CLI quand l’édition est autorisée). Ils ne changent pas les messages déjà reçus. L’édition reste bloquée sur un projet gratuit qui utilise le SMTP Supabase, comme décrit plus haut. Étapes si l’API refuse encore :
+### Ce qui est en ligne, et ce qui reste dans le dépôt
 
-1. Authentication → Emails → Templates : coller chaque sujet (`*.subject.txt`) et chaque HTML.
-2. Ou configurer un SMTP personnel, puis `supabase config push` avec un jeton de management valide.
-3. Ne pas désactiver Confirm email. Ne pas remplacer `{{ .ConfirmationURL }}`.
+Les modèles bilingues de **confirmation**, de **récupération du mot de passe** et de **changement d’adresse** sont installés dans le tableau de bord. Ils ne sont pas remplacés par une ancienne configuration. Le dépôt en garde la copie correspondante, sans secret : `confirmation.html`, `recovery.html`, `email_change.html` et leurs sujets. Le français est la branche `else`. L’anglais part si `data.language` vaut `en`. Le bouton reste `{{ .ConfirmationURL }}`.
+
+La confirmation française a été reçue sur le téléphone (logo, couleurs, texte français). La réception des versions anglaises, du mot de passe oublié et du changement d’adresse n’a pas été rejouée ici.
+
+Ces modèles sont dans le dépôt, bilingues, avec le même logo et les mêmes couleurs, et **ne sont pas signalés comme installés** :
+
+| E-mail | Fichiers | Variable | Déclenché par l’app |
+|---|---|---|---|
+| Lien magique | `magic_link.html`, `magic_link.subject.txt` | `{{ .ConfirmationURL }}` | non |
+| Invitation | `invite.html`, `invite.subject.txt` | `{{ .ConfirmationURL }}` | non |
+| Réauthentification | `reauthentication.html`, `reauthentication.subject.txt` | `{{ .Token }}` | oui, si Supabase demande un code |
+
+Les coller ne modifie pas le SMTP ni les trois modèles déjà en place. Ne pas désactiver Confirm email. Ne pas remplacer `{{ .ConfirmationURL }}` par une page qui annoncerait le succès toute seule.
 
 ## Réglages déjà appliqués sur `zqfxnzwtptepulmgpxhb`
 
+- SMTP Brevo, offre gratuite, expéditeur AnyChess vérifié : configuré dans le tableau de bord. La clé n’est pas dans le dépôt.
+- Modèles bilingues installés à la main, à laisser en place : confirmation (le français a été reçu), récupération du mot de passe, changement d’adresse. Le dépôt ne les remplace pas.
 - `mailer_autoconfirm` : **false** (inchangé).
 - Site URL et Redirect URLs : la fonction `auth-confirm` (avant : `http://localhost:3000`, liste vide). **Inchangés** par cette page : voir le branchement ci-dessus.
 - Fonction `auth-confirm` déployée, `verify_jwt = false` (sinon le navigateur reçoit 401). `pgn-translate` reste `verify_jwt = true`.
@@ -131,7 +143,7 @@ Le texte brut du dépôt dit maintenant qu’on ne peut pas confirmer le résult
 
 ## Recette Android
 
-Le bundle AnyChess Dev (Metro, `.env.development`, profil EAS `development`) envoie `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. L’inscription, le renvoi et le mot de passe oublié ajoutent `client=dev` et `lang`. Le bouton ouvre alors `exp+mobile` / `com.anychess.app`. L’APK autonome déjà distribué n’est pas reconstruit : sans cette variable, son `redirect_to` reste la fonction, et le bouton ouvre `anychess` / `com.anychess.standalone`. Le bouton ne transmet pas le jeton. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Tant que les modèles ne sont pas collés dans le projet, l’e-mail reçu reste le modèle anglais par défaut.
+Le bundle AnyChess Dev (Metro, `.env.development`, profil EAS `development`) envoie `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. L’inscription, le renvoi et le mot de passe oublié ajoutent `client=dev` et `lang`. Le bouton ouvre alors `exp+mobile` / `com.anychess.app`. L’APK autonome déjà distribué n’est pas reconstruit : sans cette variable, son `redirect_to` reste la fonction, et le bouton ouvre `anychess` / `com.anychess.standalone`. Le bouton ne transmet pas le jeton. La confirmation française AnyChess est celle qui a été reçue. Les modèles bilingues de confirmation, de mot de passe oublié et de changement d’adresse sont déjà dans le tableau de bord. Le lien magique, l’invitation et la réauthentification ne sont pas signalés comme installés. Un envoi trop rapproché peut encore répondre `over_email_send_rate_limit`.
 
 1. Installer AnyChess et ouvrir **Créer un compte** (pseudo, e-mail, mot de passe).
 2. L’app dit qu’un e-mail de confirmation a été envoyé. Le compte n’est pas connecté, rien n’est synchronisé.
@@ -147,7 +159,7 @@ Mot de passe oublié, une fois `EXPO_PUBLIC_AUTH_CONFIRM_URL` et la Redirect URL
 2. Ouvrir le lien. La page demande un nouveau mot de passe (deux champs, 6 caractères minimum) et dit « Mot de passe mis à jour » — pas « Adresse confirmée ».
 3. Revenir dans AnyChess et se connecter avec le nouveau mot de passe.
 
-Cette recette n’a pas été exécutée sur un appareil dans cette branche.
+Sur le téléphone, en 5G avec le DNS privé Android réglé sur `dns.google`, le lien de confirmation a ouvert la page AnyChess « Adresse e-mail confirmée ! ». Le Wi-Fi aboutit aussi. Le retour vers l’écran Utilisateur et la connexion dans l’application après cette page ne sont pas encore vérifiés. Avec le DNS privé laissé sur Automatique, le domaine du projet reste inaccessible sur ce réseau mobile : voir le diagnostic ci-dessous.
 
 ## Netlify
 
@@ -164,17 +176,78 @@ Réglages à laisser ou à corriger dans Project configuration → Build & deplo
 
 Ne pas remettre le dossier publié sur la racine du dépôt : le premier déploiement (`01405d9`, sans `netlify.toml`) a publié toute l’application.
 
-Le site est encore en accès privé (réponse HTTP 401, écran « Make public »). Project configuration → Access & security → Visitor access : **Anyone with the link** / rendre le site public. Tant que l’accès équipe est exigé, le lien d’e-mail ouvre la connexion Netlify au lieu de la page.
+Le 15 octobre 2026, depuis la machine de l’agent, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` répond HTTP 200, `Content-Type: text/html; charset=UTF-8`, après la redirection vers `/auth/confirm/`. Le téléphone a aussi ouvert cette page. Un ancien essai avait reçu HTTP 401 tant que l’accès visiteur était limité à l’équipe.
+
+## Diagnostic 5G du 15 octobre 2026
+
+Les URL, le SMTP Brevo et le modèle français déjà reçu ne sont pas modifiés. Aucune adresse IP fixe ne remplace le domaine. TLS et la confirmation d’adresse restent actifs. Aucun proxy de jetons n’est ajouté.
+
+### Essais du téléphone
+
+Même téléphone, données mobiles 5G. Ces lignes décrivent ce qui a été observé sur l’appareil, pas une mesure faite depuis la machine de développement.
+
+| DNS privé Android | Constat |
+|---|---|
+| Automatique | La page Netlify s’ouvre. Le domaine `zqfxnzwtptepulmgpxhb.supabase.co` ne s’ouvre pas. `GET /auth/v1/health` échoue aussi. |
+| `dns.google` | `GET /auth/v1/health` répond « No API key found in request ». Cette phrase montre que la passerelle répond. Elle ne prouve pas, à elle seule, qu’Auth est entièrement en service. Le lien de confirmation ouvre ensuite « Adresse e-mail confirmée ! ». |
+| Retour à Automatique, réseau mobile reconnecté | L’accès au domaine Supabase échoue de nouveau. |
+| Nouveau retour à `dns.google` | Le parcours de confirmation aboutit encore. |
+| Wi-Fi, indépendamment de ce réglage 5G | La confirmation fonctionne. |
+
+`dns.google` est un contournement sur ce téléphone. Il n’est pas demandé aux autres utilisateurs.
+
+### Mesures depuis la machine de l’agent
+
+Le 15 octobre 2026, vers 15:22 UTC. Ce n’est pas le réseau mobile du téléphone.
+
+Trois résolveurs publics, en DNS sur TLS, répondent de la même façon pour `zqfxnzwtptepulmgpxhb.supabase.co` : `dns.google`, `one.one.one.one`, `dns.quad9.net`.
+
+| Type | Réponse commune |
+|---|---|
+| A | `104.18.38.10`, `172.64.149.246` |
+| AAAA | aucune adresse (NOERROR, zéro réponse) |
+| CNAME | aucune |
+| HTTPS | `1 . alpn="h3,h2" ipv4hint=104.18.38.10,172.64.149.246` |
+| SVCB | aucune |
+
+Depuis cette machine, `GET https://zqfxnzwtptepulmgpxhb.supabase.co/auth/v1/health` atteint les deux adresses IPv4 en HTTP/2. Les deux répondent HTTP 401, corps « No API key found in request », en-tête `sb-error-code: UNAUTHORIZED_MISSING_API_KEY`. Le `cf-ray` indique le site Cloudflare `IAD`. La page de statut publique Supabase indique « All Systems Operational » (dernière mise à jour de cette page : 13 octobre 2026). Les journaux Auth du projet ne sont pas lisibles ici : l’API de gestion répond 401 « Invalid access token ».
+
+Le nom Netlify, interrogé en DNS sur HTTPS chez Google et Cloudflare, a des adresses IPv4 et IPv6, et un enregistrement HTTPS `alpn=h2` seulement. Cela sert de contraste : le téléphone ouvre Netlify pendant que le domaine du projet échoue.
+
+### Ce que cela démontre
+
+La cause précise n’est pas établie. QUIC n’est pas l’explication principale. L’enregistrement HTTPS public annonce `h3` et `h2`, et le parcours qui réussit sur le téléphone est celui qui utilise `dns.google`, donc le résolveur qui publie cet enregistrement. Les trois résolveurs publics consultés donnent les mêmes adresses. Le projet n’a pas d’adresse IPv6. Le succès en Wi-Fi et en 5G avec `dns.google` écarte une panne générale du projet au moment de ces essais.
+
+L’échec suit le DNS privé Automatique sur ce réseau mobile, et il disparaît quand le téléphone interroge `dns.google`. Deux hypothèses restent ouvertes, et les mesures publiques ne les départagent pas :
+
+- le résolveur du réseau mobile ne rend pas ces adresses (échec, ou une autre réponse) ;
+- il rend les mêmes adresses, et un autre effet du mode Automatique empêche ensuite la connexion.
+
+Le suivi de clics Brevo n’explique pas cet échec. L’accès direct à `/auth/v1/health` échouait déjà avant Brevo. L’aide Brevo documente l’anonymisation des ouvertures et des clics, qui ne retire pas la redirection de suivi. La coupure du suivi transactionnel n’est pas un réglage décrit pour l’offre gratuite : les réponses publiques de Brevo la réservent à une demande, pour des comptes Enterprise. On ne suppose pas que cette coupure existe sur le compte actuel. Le SMTP enregistré dans Supabase n’est pas modifié pour l’essayer.
+
+### Une seule vérification suivante
+
+Avec le DNS privé remis sur Automatique, ouvrir dans le navigateur du téléphone uniquement :
+
+`https://zqfxnzwtptepulmgpxhb.supabase.co/auth/v1/health`
+
+Noter la ligne d’erreur exacte (`ERR_NAME_NOT_RESOLVED`, `ERR_CONNECTION_TIMED_OUT`, ou une autre). Ne pas ouvrir un lien d’e-mail et ne pas coller de jeton. Le nom de l’opérateur mobile servira ensuite à nommer le réseau dans le signalement, pas comme second essai.
+
+### Signalement préparé, non envoyé
+
+Texte prêt pour Supabase ou pour l’opérateur. Il n’a pas été transmis.
+
+> Projet `zqfxnzwtptepulmgpxhb`. Le 15 octobre 2026, sur un téléphone Android en 5G, DNS privé Automatique : `zqfxnzwtptepulmgpxhb.supabase.co` et `/auth/v1/health` sont inaccessibles, alors que l’hôte Netlify de la page de confirmation s’ouvre. DNS privé `dns.google` : `/auth/v1/health` répond « No API key found in request », puis le lien de confirmation affiche « Adresse e-mail confirmée ! ». Le retour à Automatique reproduit l’échec. Le Wi-Fi confirme aussi. Depuis une autre machine, `dns.google`, `one.one.one.one` et `dns.quad9.net` répondent A `104.18.38.10` et `172.64.149.246`, sans AAAA, sans CNAME, HTTPS `alpn=h3,h2`. Les deux adresses répondent HTTP/2 401 sans clé API. Le statut public Supabase est opérationnel. Les journaux du projet ne sont pas joints (jeton de gestion refusé). Merci d’indiquer si le résolveur de ce réseau mobile renvoie une autre réponse, ou s’il bloque ce nom.
 
 ## Ce qui reste côté Supabase
 
-Le jeton de management est toujours refusé. Ces réglages ne sont pas appliqués en ligne :
+Le SMTP et le modèle de confirmation français sont déjà en place dans le tableau de bord. Le jeton de gestion de cet agent ne sert pas à les modifier. Il ne bloque pas non plus l’édition des autres modèles : elle se fait dans Authentication → Emails. Restent à vérifier ou à coller :
 
-1. Vérifier que `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` répond `text/html`.
-2. Déployer la fonction `auth-confirm` de `main` (`verify_jwt = false`) pour le `POST` de vérification et la redirection `GET`.
-3. Site URL : `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`.
-4. Redirect URLs : cette page, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`.
-5. Coller les modèles si l’écran le permet. Nom d’expéditeur : `AnyChess`, sans changer l’adresse SMTP par défaut.
+1. Page Netlify : vérifiée le 15 octobre 2026, HTTP 200 en `text/html`. Le téléphone l’a affichée, y compris « Adresse e-mail confirmée ! » quand le domaine Supabase était joignable.
+2. Déployer la fonction `auth-confirm` de `main` (`verify_jwt = false`) pour le `POST` de vérification et la redirection `GET`. Non vérifié : le jeton de gestion est refusé.
+3. Site URL : `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. Non lu dans le tableau de bord depuis ici. Le succès sur le téléphone peut venir du `redirect_to` déjà envoyé par AnyChess Dev.
+4. Redirect URLs : cette page, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`. Même limite de lecture.
+5. Laisser le SMTP Brevo et les modèles bilingues déjà installés (confirmation, récupération du mot de passe, changement d’adresse). Ne pas les remplacer. Les modèles encore absents du signalement sont le lien magique, l’invitation et la réauthentification, dans `supabase/templates/`.
 6. Ne pas désactiver Confirm email.
 
-Sans l’étape 1, les liens n’ouvrent pas encore la page HTML. Les APK autonomes déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev envoie `client=dev` et la page Netlify dès que son bundle JavaScript est rechargé (Metro). Aucun APK autonome n’est produit pour cela.
+Les APK autonomes déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev envoie `client=dev` et la page Netlify dès que son bundle JavaScript est rechargé (Metro). Aucun APK autonome n’est produit pour cela.

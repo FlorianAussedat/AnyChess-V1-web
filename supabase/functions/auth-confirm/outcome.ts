@@ -41,6 +41,8 @@ export const CONFIRM_COPY = {
       'Ce lien ne permet plus de changer le mot de passe. Retourne dans AnyChess et redemande un e-mail.',
     recoverNetwork:
       'Nous ne pouvons pas enregistrer le mot de passe depuis cette page. Réessaie, ou retourne dans AnyChess.',
+    showPassword: 'Afficher le mot de passe',
+    hidePassword: 'Masquer le mot de passe',
   },
   en: {
     confirmedTitle: 'Email address confirmed!',
@@ -70,6 +72,8 @@ export const CONFIRM_COPY = {
     recoverFailedTitle: 'This link is no longer valid',
     recoverFailed: 'This link can no longer change the password. Go back to AnyChess and request a new email.',
     recoverNetwork: 'We can’t save the password from this page. Try again, or return to AnyChess.',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
   },
 } as const;
 

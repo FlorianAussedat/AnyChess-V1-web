@@ -4,7 +4,14 @@
  */
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
-import { loadStoredJson } from '../storage/safeParse.ts';
+import {
+  numberField,
+  readScoreDocument,
+  resetScoreDocument,
+  resetScoreField,
+  stampScalar,
+  updateScoreDocument,
+} from '../records/scoreDocument.ts';
 import type { BlindSubmode } from './types.ts';
 
 const KEY = StorageKeys.blindMemoryRecords.key;
@@ -18,17 +25,19 @@ function defaults(): BlindMemoryRecords {
   return { listenReconstruct: 0, watchRecite: 0 };
 }
 
+function finiteScore(value: unknown): number | null {
+  if (value == null) return 0;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+  return Math.floor(value);
+}
+
 function validate(parsed: unknown): BlindMemoryRecords | null {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
   const o = parsed as { listenReconstruct?: unknown; watchRecite?: unknown };
-  const listen = o.listenReconstruct;
-  const watch = o.watchRecite;
-  if (typeof listen !== 'number' || !Number.isFinite(listen) || listen < 0) return null;
-  if (typeof watch !== 'number' || !Number.isFinite(watch) || watch < 0) return null;
-  return {
-    listenReconstruct: Math.floor(listen),
-    watchRecite: Math.floor(watch),
-  };
+  const listen = finiteScore(o.listenReconstruct);
+  const watch = finiteScore(o.watchRecite);
+  if (listen == null || watch == null) return null;
+  return { listenReconstruct: listen, watchRecite: watch };
 }
 
 export function blindRecordField(submode: BlindSubmode): keyof BlindMemoryRecords {
@@ -43,8 +52,8 @@ export class BlindRecordsStore {
   }
 
   async load(): Promise<BlindMemoryRecords> {
-    const result = await loadStoredJson(this.storage, KEY, defaults(), validate);
-    return result.value;
+    const doc = await readScoreDocument(this.storage, KEY);
+    return validate(doc) ?? defaults();
   }
 
   async loadBest(submode: BlindSubmode): Promise<number> {
@@ -54,22 +63,26 @@ export class BlindRecordsStore {
 
   /** Persist a candidate full-move score if it beats the current best. Returns new best. */
   async saveFullMoves(submode: BlindSubmode, fullMoves: number): Promise<number> {
-    const all = await this.load();
     const field = blindRecordField(submode);
-    const next = Math.max(all[field], Math.max(0, Math.floor(fullMoves)));
-    const updated = { ...all, [field]: next };
-    await this.storage.setItem(KEY, JSON.stringify(updated satisfies BlindMemoryRecords));
-    return next;
+    const candidate = Math.max(0, Math.floor(fullMoves));
+    const at = new Date().toISOString();
+    const doc = await updateScoreDocument(this.storage, KEY, (current) => {
+      const next = Math.max(numberField(current, field), candidate);
+      stampScalar(current, field, next, at);
+    });
+    return numberField(doc, field);
   }
 
-  async reset(): Promise<void> {
-    await this.storage.removeItem(KEY);
+  async reset(at = new Date().toISOString()): Promise<void> {
+    await updateScoreDocument(this.storage, KEY, (current) => {
+      resetScoreDocument(current, at, ['listenReconstruct', 'watchRecite'], []);
+    });
   }
 
-  async resetMode(submode: BlindSubmode): Promise<void> {
-    const all = await this.load();
+  async resetMode(submode: BlindSubmode, at = new Date().toISOString()): Promise<void> {
     const field = blindRecordField(submode);
-    const updated = { ...all, [field]: 0 };
-    await this.storage.setItem(KEY, JSON.stringify(updated satisfies BlindMemoryRecords));
+    await updateScoreDocument(this.storage, KEY, (current) => {
+      resetScoreField(current, field, at);
+    });
   }
 }

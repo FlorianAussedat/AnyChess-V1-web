@@ -6,7 +6,14 @@ import type { AnyChessDifficultyId } from '../difficulty/anyChessDifficulty.ts';
 import { ANYCHESS_DIFFICULTIES } from '../difficulty/anyChessDifficulty.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
-import { loadStoredJson } from '../storage/safeParse.ts';
+import {
+  mapField,
+  readScoreDocument,
+  resetScoreDocument,
+  resetScoreField,
+  stampMapValue,
+  updateScoreDocument,
+} from '../records/scoreDocument.ts';
 import { OPENING_QUIZ_SESSION_SIZE } from './OpeningIdentificationRun.ts';
 
 const KEY = StorageKeys.openingQuizRecords.key;
@@ -53,8 +60,8 @@ export class OpeningQuizRecordsStore {
   }
 
   async load(): Promise<OpeningQuizRecords> {
-    const result = await loadStoredJson(this.storage, KEY, defaults(), validate);
-    return result.value;
+    const doc = await readScoreDocument(this.storage, KEY);
+    return validate(doc) ?? defaults();
   }
 
   async loadBest(difficulty: AnyChessDifficultyId): Promise<number> {
@@ -70,28 +77,35 @@ export class OpeningQuizRecordsStore {
     difficulty: AnyChessDifficultyId,
     score: number,
   ): Promise<{ best: number; isNewRecord: boolean }> {
-    const all = await this.load();
     const candidate = clampScore(score);
-    const current = all.bestByDifficulty[difficulty] ?? 0;
-    if (candidate <= current) {
-      return { best: current, isNewRecord: false };
-    }
-    const updated: OpeningQuizRecords = {
-      bestByDifficulty: { ...all.bestByDifficulty, [difficulty]: candidate },
-    };
-    await this.storage.setItem(KEY, JSON.stringify(updated satisfies OpeningQuizRecords));
-    return { best: candidate, isNewRecord: true };
+    const at = new Date().toISOString();
+    let isNewRecord = false;
+    const doc = await updateScoreDocument(this.storage, KEY, (current) => {
+      const previous = mapField(current, 'bestByDifficulty', difficulty);
+      if (candidate <= previous) return;
+      isNewRecord = true;
+      stampMapValue(current, 'bestByDifficulty', difficulty, candidate, at);
+    });
+    const best = mapField(doc, 'bestByDifficulty', difficulty);
+    return { best, isNewRecord };
   }
 
-  async reset(): Promise<void> {
-    await this.storage.removeItem(KEY);
+  async reset(at = new Date().toISOString()): Promise<void> {
+    await updateScoreDocument(this.storage, KEY, (current) => {
+      const bag = {
+        debutant: 0,
+        confirme: 0,
+        expert: 0,
+        grandMaitre: 0,
+      };
+      current.bestByDifficulty = bag;
+      resetScoreDocument(current, at, [], ['bestByDifficulty']);
+    });
   }
 
-  async resetDifficulty(difficulty: AnyChessDifficultyId): Promise<void> {
-    const all = await this.load();
-    const updated: OpeningQuizRecords = {
-      bestByDifficulty: { ...all.bestByDifficulty, [difficulty]: 0 },
-    };
-    await this.storage.setItem(KEY, JSON.stringify(updated satisfies OpeningQuizRecords));
+  async resetDifficulty(difficulty: AnyChessDifficultyId, at = new Date().toISOString()): Promise<void> {
+    await updateScoreDocument(this.storage, KEY, (current) => {
+      resetScoreField(current, `bestByDifficulty.${difficulty}`, at);
+    });
   }
 }
