@@ -23,5 +23,7 @@ export function useCloudAccount() {
       getActiveCloudEngine().resendSignupConfirmation(email),
     dismissPendingConfirmation: () => getActiveCloudEngine().dismissPendingConfirmation(),
     sync: (options?: { allowCellular?: boolean }) => getActiveCloudEngine().sync(options),
+    guestDataAvailable: () => getActiveCloudEngine().guestDataAvailable(),
+    importGuestData: () => getActiveCloudEngine().importGuestData(),
   };
 }

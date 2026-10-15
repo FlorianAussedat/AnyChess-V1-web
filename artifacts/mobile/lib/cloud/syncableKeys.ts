@@ -37,6 +37,10 @@ export const CLOUD_LAST_BACKUP_KEY = 'anychess.cloud.lastBackup.v1';
 export const CLOUD_BACKUP_INDEX_KEY = 'anychess.cloud.backup.index.v1';
 export const ACCOUNT_DELETION_PENDING_KEY = 'anychess.account.deletion.pending.v1';
 export const CLOUD_STATUS_KEY = 'anychess.cloud.status.v1';
+/** Guest snapshot that matched an account and must not be imported or shown as guest. */
+export const CLOUD_LEGACY_GUEST_KEY = 'anychess.cloud.legacyGuest.v1';
+/** Phone settings that stay put when the account changes. */
+export const DEVICE_PREFERENCES_KEY = 'anychess.device.preferences.v1';
 
 export function cloudWorkspaceKey(ownerId: string): string {
   return `anychess.cloud.workspace.${ownerId}.v1`;

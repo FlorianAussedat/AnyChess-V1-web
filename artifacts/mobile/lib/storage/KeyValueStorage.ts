@@ -8,6 +8,8 @@ export interface KeyValueStorage {
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
   multiRemove?(keys: string[]): Promise<void>;
+  /** Present on AsyncStorage and the in-memory test backend. */
+  getAllKeys?(): Promise<readonly string[]>;
 }
 
 /** In-memory backend for unit tests. */
@@ -28,5 +30,9 @@ export class MemoryKeyValueStorage implements KeyValueStorage {
 
   async multiRemove(keys: string[]): Promise<void> {
     for (const k of keys) this.map.delete(k);
+  }
+
+  async getAllKeys(): Promise<readonly string[]> {
+    return [...this.map.keys()];
   }
 }

@@ -368,6 +368,21 @@ export class PgnTranslationQueue {
     await this.ensureLoaded();
   }
 
+  matchesStorage(storage: KeyValueStorage): boolean {
+    return this.storage === storage;
+  }
+
+  /**
+   * Drop in-flight translation results. A late response must not be written
+   * into the account that is now active.
+   */
+  invalidateSession(): void {
+    this.runGeneration += 1;
+    this.cancelled = true;
+    this.running = false;
+    this.pumping = false;
+  }
+
   /** Sync pause so in-flight work cannot resume the queue. */
   cancel(): void {
     this.cancelled = true;
@@ -501,36 +516,14 @@ export class PgnTranslationQueue {
       if (this.sealed) return { done: 0, failed: 0, blocked: 'held' };
 
       const late = generation !== this.runGeneration;
+      if (late || this.sealed) {
+        return { done, failed, blocked: 'held' };
+      }
       const jobs = { ...this.snapshot!.jobs };
       for (const job of queued) {
         const result = results.find((r) => r.id === job.id);
         const recAnchor = parseJobAnchor(job);
         const current = jobs[job.id] ?? job;
-        if (late) {
-          if (result?.text && !result.error && !isEchoTranslation(job.original, result.text)) {
-            if (fingerprintComment(job.original) === job.fingerprint) {
-              const existing = this.translations.getRecord(recAnchor);
-              if (!(existing?.method === 'manual' && existing.status === 'manual')) {
-                await this.translations.upsert({
-                  anchor: recAnchor,
-                  sourceLang: 'en',
-                  targetLang: 'fr',
-                  originalFingerprint: job.fingerprint,
-                  originalText: job.original,
-                  translatedText: result.text,
-                  status: 'ready',
-                  method: 'automatic',
-                  previousManualText: existing?.previousManualText,
-                });
-              }
-              jobs[job.id] = { ...current, status: 'done', error: undefined, updatedAt: now };
-              done += 1;
-            }
-          } else if (current.status === 'running') {
-            jobs[job.id] = { ...current, status: 'queued', updatedAt: now };
-          }
-          continue;
-        }
         if (this.cancelled || current.status === 'paused') {
           jobs[job.id] = { ...current, status: 'paused', updatedAt: now };
           continue;

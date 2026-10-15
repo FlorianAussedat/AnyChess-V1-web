@@ -22,8 +22,11 @@ Restent **locaux** (éphémères) : session lecteur/analyseur (`gameSession`) et
 
 - Inscription, connexion, déconnexion, mot de passe oublié : écran **Utilisateur**.
 - Avant chaque connexion : sauvegarde locale `anychess.cloud.backup.<horodatage>.v1`.
-- Première connexion depuis l’invité : les données locales sont fusionnées vers le compte (union par id, dédoublonnage PGN, pas d’écrasement).
-- Préférences : un **nouveau** compte garde les réglages invités. Un compte **déjà existant** ne se fait pas remplacer par les valeurs par défaut du téléphone ; seuls les réglages modifiés à la main sur cet appareil sont repris.
+- Chaque compte a son espace `anychess.cloud.workspace.<user.id>.v1`. La déconnexion le met à jour, puis retire ces documents de l’espace actif.
+- L’invité a son espace à part. Le connecter à un compte ne copie rien tout seul. L’import se fait seulement avec « Importer les données invitées ».
+- Une copie d’un compte trouvée dans l’ancien espace invité est conservée dans `anychess.cloud.legacyGuest.v1` et n’est ni affichée ni envoyée. Elle n’est pas effacée.
+- `syncOnWifiOnly` reste le réglage du téléphone. La langue et les parties suivent le compte.
+- Préférences : un compte déjà existant ne se fait pas remplacer par les valeurs par défaut du téléphone.
 - Paramètres (langue, notation, son, voix, difficulté…) restent utilisables sans compte et restent sur l’appareil. La traduction DeepL et la synchronisation demandent une session au moment de s’en servir.
 - Au démarrage, la session enregistrée est relue avant d’afficher l’écran invité. Une panne réseau laisse le compte connecté et les réglages locaux en place.
 - Changement de compte : l’espace précédent est garé, l’autre compte est restauré ou parti d’un vide (pas de mélange).

@@ -1,6 +1,17 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
+import {
+  activeDocsMatchAccount,
+  docsAreEmpty,
+  emptySyncableDocs,
+  parseWorkspace,
+  quarantineLegacyGuest,
+  readSyncableDocs,
+  workspaceEnvelope,
+  writeSyncableDocs,
+} from './accountSpace.ts';
 import { rememberBackup } from './backupIndex.ts';
 import { markConfirmationEmailSent, confirmationResendWaitSeconds } from './confirmCooldown.ts';
+import { applyDevicePreferences, captureDevicePreferences } from './devicePreferences.ts';
 import { mergeDocumentPayload } from './mergeDocuments.ts';
 import { clearDeletionPending, purgeAccountOwnedKeys } from './purgeAccountLocal.ts';
 import {
@@ -45,22 +56,14 @@ const emptyState = (): CloudEngineState => ({
 });
 
 async function readDocs(storage: KeyValueStorage): Promise<Record<string, string | null>> {
-  const docs: Record<string, string | null> = {};
-  for (const key of SYNCABLE_STORAGE_KEYS) {
-    docs[key] = await storage.getItem(key);
-  }
-  return docs;
+  return readSyncableDocs(storage);
 }
 
 async function writeDocs(
   storage: KeyValueStorage,
   docs: Record<string, string | null>,
 ): Promise<void> {
-  for (const key of SYNCABLE_STORAGE_KEYS) {
-    const value = docs[key];
-    if (value == null) await storage.removeItem(key);
-    else await storage.setItem(key, value);
-  }
+  await writeSyncableDocs(storage, docs);
 }
 
 export class CloudSyncEngine {
@@ -235,7 +238,7 @@ export class CloudSyncEngine {
       const docs = await readDocs(this.storage);
       await this.storage.setItem(
         cloudWorkspaceKey(ownerId),
-        JSON.stringify({ ownerId, docs, parkedAt: new Date().toISOString() }),
+        JSON.stringify(workspaceEnvelope(ownerId, docs)),
       );
     });
   }
@@ -243,14 +246,91 @@ export class CloudSyncEngine {
   async restoreWorkspace(ownerId: string): Promise<boolean> {
     return this.withSilentWrites(async () => {
       const raw = await this.storage.getItem(cloudWorkspaceKey(ownerId));
-      if (!raw) {
-        await writeDocs(this.storage, Object.fromEntries(SYNCABLE_STORAGE_KEYS.map((key) => [key, null])));
+      const parsed = parseWorkspace(raw, ownerId);
+      if (!parsed) {
+        await writeDocs(this.storage, emptySyncableDocs());
         return false;
       }
-      const parsed = JSON.parse(raw) as { docs?: Record<string, string | null> };
-      await writeDocs(this.storage, parsed.docs ?? {});
+      await writeDocs(this.storage, parsed.docs);
       return true;
     });
+  }
+
+  /** Guest files exist only when they were saved as guest, never as a copy of an account. */
+  async guestDataAvailable(): Promise<boolean> {
+    const parsed = parseWorkspace(
+      await this.storage.getItem(cloudWorkspaceKey(GUEST_OWNER_ID)),
+      GUEST_OWNER_ID,
+    );
+    return Boolean(parsed && parsed.origin === 'guest' && !docsAreEmpty(parsed.docs));
+  }
+
+  /**
+   * Copy the guest space into the signed-in account. Does not run on sign-in.
+   * The guest copy stays on the device.
+   */
+  async importGuestData(): Promise<{ ok: true } | { ok: false; error: 'signed_out' | 'no_guest' }> {
+    const user = this.state.user;
+    if (!user) return { ok: false, error: 'signed_out' };
+    if (!(await this.guestDataAvailable())) return { ok: false, error: 'no_guest' };
+    const guest = parseWorkspace(
+      await this.storage.getItem(cloudWorkspaceKey(GUEST_OWNER_ID)),
+      GUEST_OWNER_ID,
+    );
+    if (!guest) return { ok: false, error: 'no_guest' };
+    const local = await readDocs(this.storage);
+    const merged: Record<string, string | null> = {};
+    for (const key of SYNCABLE_STORAGE_KEYS) {
+      merged[key] = mergeDocumentPayload(key, local[key] ?? null, guest.docs[key] ?? null);
+    }
+    await this.withSilentWrites(async () => {
+      await writeDocs(this.storage, merged);
+      await this.mirrorPreferences();
+      await this.mirrorProfile();
+    });
+    await this.parkWorkspace(user.id);
+    await this.sync();
+    return { ok: true };
+  }
+
+  private async activeOwnerId(): Promise<string> {
+    return (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID;
+  }
+
+  /** Save whoever currently owns the active documents, without copying an account into guest. */
+  private async parkCurrentOwner(): Promise<void> {
+    await captureDevicePreferences(this.storage);
+    const owner = this.state.user?.id ?? (await this.activeOwnerId());
+    if (owner === GUEST_OWNER_ID) {
+      await quarantineLegacyGuest(this.storage);
+      if (await activeDocsMatchAccount(this.storage)) {
+        await writeDocs(this.storage, emptySyncableDocs());
+        return;
+      }
+    }
+    await this.parkWorkspace(owner);
+  }
+
+  private async showOwner(ownerId: string): Promise<boolean> {
+    const had = await this.restoreWorkspace(ownerId);
+    await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, ownerId);
+    if (ownerId === GUEST_OWNER_ID) await quarantineLegacyGuest(this.storage);
+    await applyDevicePreferences(this.storage);
+    await this.withSilentWrites(async () => {
+      await this.mirrorPreferences();
+      await this.mirrorProfile();
+    });
+    await this.invalidateDeferredWork();
+    return had;
+  }
+
+  private async invalidateDeferredWork(): Promise<void> {
+    try {
+      const { pgnTranslationQueue } = await import('../pgnComments/PgnTranslationQueue.ts');
+      if (pgnTranslationQueue.matchesStorage(this.storage)) pgnTranslationQueue.invalidateSession();
+    } catch {
+      // Translation work is also stored in the account workspace.
+    }
   }
 
   /** Pull merged preferences into the in-memory store when it uses this storage. */
@@ -294,7 +374,15 @@ export class CloudSyncEngine {
         const backup = await this.storage.getItem(CLOUD_LAST_BACKUP_KEY);
         if (!user) {
           this.setState({ status: 'signed_out', user: null, lastBackupKey: backup });
+          await quarantineLegacyGuest(this.storage);
         } else {
+          const active = await this.activeOwnerId();
+          if (active !== user.id && active !== GUEST_OWNER_ID) {
+            await this.parkWorkspace(active);
+            await this.showOwner(user.id);
+          } else {
+            await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, user.id);
+          }
           this.setState({ user, lastBackupKey: backup, status: 'pending' });
           await this.sync();
           await this.settleAccountLifecycle();
@@ -342,9 +430,8 @@ export class CloudSyncEngine {
 
   async signOut(): Promise<{ ok: true } | { ok: false; error: 'unexpected' }> {
     const epoch = this.bumpSession();
-    const current = this.state.user?.id ?? (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY));
     try {
-      if (current && current !== GUEST_OWNER_ID) await this.parkWorkspace(current);
+      await this.parkCurrentOwner();
     } catch {
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
       this.setState({ lastError: 'sign_out_failed', sessionReady: true });
@@ -361,24 +448,14 @@ export class CloudSyncEngine {
       await this.endAuthSession();
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
       await this.storage.removeItem(CLOUD_SESSION_KEY);
-      await this.restoreWorkspace(GUEST_OWNER_ID);
-      await this.withSilentWrites(async () => {
-        await this.mirrorPreferences();
-        await this.mirrorProfile();
-      });
-      await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
+      await this.showOwner(GUEST_OWNER_ID);
     } catch {
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
       await this.storage.removeItem(CLOUD_SESSION_KEY).catch(() => undefined);
-      await this.restoreWorkspace(GUEST_OWNER_ID).catch(async () => {
-        await this.withSilentWrites(() =>
-          writeDocs(
-            this.storage,
-            Object.fromEntries(SYNCABLE_STORAGE_KEYS.map((key) => [key, null])),
-          ),
-        );
+      await this.showOwner(GUEST_OWNER_ID).catch(async () => {
+        await this.withSilentWrites(() => writeDocs(this.storage, emptySyncableDocs()));
+        await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
       });
-      await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID).catch(() => undefined);
       this.setState({ ...signedOut, lastError: 'sign_out_failed' });
       return { ok: false, error: 'unexpected' };
     }
@@ -407,9 +484,7 @@ export class CloudSyncEngine {
     if (!this.sessionIsCurrent(epoch)) {
       return { ok: false as const, error: 'unexpected' as const };
     }
-    const previous =
-      (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID;
-    await this.parkWorkspace(previous);
+    await this.parkCurrentOwner();
     const result = await action();
     if (!this.sessionIsCurrent(epoch)) {
       return result.ok ? { ok: false as const, error: 'unexpected' as const } : result;
@@ -440,18 +515,7 @@ export class CloudSyncEngine {
       });
       return { ok: false as const, error: 'confirm_email' as const, email: email.trim() };
     }
-    await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, result.user.id);
-    const hadWorkspace = await this.restoreWorkspace(result.user.id);
-    if (!hadWorkspace && previous === GUEST_OWNER_ID) {
-      await this.restoreWorkspace(GUEST_OWNER_ID);
-    } else if (!hadWorkspace) {
-      await this.withSilentWrites(() =>
-        writeDocs(
-          this.storage,
-          Object.fromEntries(SYNCABLE_STORAGE_KEYS.map((key) => [key, null])),
-        ),
-      );
-    }
+    await this.showOwner(result.user.id);
     if (!this.sessionIsCurrent(epoch)) {
       return { ok: false as const, error: 'unexpected' as const };
     }
@@ -476,7 +540,6 @@ export class CloudSyncEngine {
   async sync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
     if (this.deletionLocked) return this.getState();
     const epoch = this.sessionEpoch;
-    const stale = () => !this.sessionIsCurrent(epoch);
     if (typeof this.auth.token === 'function' && !this.auth.token()?.trim()) {
       this.setState({
         status: this.auth.configured ? 'signed_out' : 'unconfigured',
@@ -494,6 +557,9 @@ export class CloudSyncEngine {
       this.setState({ status: 'signed_out', user: null });
       return this.getState();
     }
+    const ownerId = user.id;
+    const stale = () =>
+      !this.sessionIsCurrent(epoch) || (this.state.user != null && this.state.user.id !== ownerId);
     const decision = await decideCloudTransfer(options?.allowCellular === true);
     if (stale()) return this.getState();
     if (decision.defer) {
@@ -518,15 +584,16 @@ export class CloudSyncEngine {
         const remote = remoteMap.get(key)?.payload ?? null;
         const next = mergeDocumentPayload(key, local, remote);
         merged[key] = next;
-        if (next != null) {
-          await this.remote.upsertDocument(user.id, {
-            docKey: key,
-            payload: next,
-            updatedAt: new Date().toISOString(),
-            deletedAt: null,
-            revision: (remoteMap.get(key)?.revision ?? 0) + 1,
-          });
-        }
+        if (next == null) continue;
+        const sessionUser = await this.auth.getUser();
+        if (stale() || !sessionUser || sessionUser.id !== ownerId) return this.getState();
+        await this.remote.upsertDocument(ownerId, {
+          docKey: key,
+          payload: next,
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          revision: (remoteMap.get(key)?.revision ?? 0) + 1,
+        });
       }
       if (stale()) return this.getState();
       await this.withSilentWrites(async () => {

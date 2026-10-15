@@ -185,9 +185,9 @@ describe('account deletion', () => {
     const storage = new MemoryKeyValueStorage();
     const auth = new MemoryCloudAuth();
     const engine = new CloudSyncEngine(storage, auth, new MemoryCloudRemote());
-    await storage.setItem(PROFILE, JSON.stringify({ username: 'Ada' }));
     const created = await engine.signUp('ada@example.com', 'secret1');
     assert.equal(created.ok, true);
+    await storage.setItem(PROFILE, JSON.stringify({ username: 'Ada' }));
     await engine.signOut();
     await storage.setItem(PROFILE, JSON.stringify({ username: 'Invite' }));
     const again = await engine.signIn('ada@example.com', 'secret1');

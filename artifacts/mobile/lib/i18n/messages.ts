@@ -215,6 +215,9 @@ export type MessageKey =
   | 'cloud.signOutTitle'
   | 'cloud.signOutBody'
   | 'cloud.signOutFailed'
+  | 'cloud.importGuest'
+  | 'cloud.importGuestTitle'
+  | 'cloud.importGuestBody'
   | 'cloud.recover'
   | 'cloud.recoverSent'
   | 'cloud.statusSynced'
@@ -1502,6 +1505,10 @@ const fr: Dict = {
   'cloud.signOutBody':
     'Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
   'cloud.signOutFailed': 'La déconnexion n’a pas abouti. Réessaie.',
+  'cloud.importGuest': 'Importer les données invitées',
+  'cloud.importGuestTitle': 'Importer les données de l’invité ?',
+  'cloud.importGuestBody':
+    'Les parties et les scores enregistrés sans compte seront copiés dans ce compte. Les données d’un autre compte ne sont pas importées.',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
   'cloud.statusSynced': 'Données synchronisées',
@@ -2903,6 +2910,10 @@ const en: Dict = {
   'cloud.signOutBody':
     'Your games, scores, and other data stay on this device. They will not be sent to the next account.',
   'cloud.signOutFailed': 'Sign-out did not finish. Try again.',
+  'cloud.importGuest': 'Import guest data',
+  'cloud.importGuestTitle': 'Import guest data?',
+  'cloud.importGuestBody':
+    'Games and scores saved without an account will be copied into this account. Another account’s data is not imported.',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
   'cloud.statusSynced': 'Data synced',
