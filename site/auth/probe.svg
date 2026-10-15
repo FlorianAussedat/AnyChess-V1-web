@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <script><![CDATA[
+    document.title = 'SCRIPT_RAN';
+  ]]></script>
+  <text id="message" x="8" y="24">before</text>
+</svg>
