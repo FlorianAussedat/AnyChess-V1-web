@@ -422,6 +422,7 @@ export default function TheoreticalEndgamePlayScreen() {
     enabled: true,
     forceOff: !canMove,
     isSpeaking,
+    positionFen: snap.fen,
     onSan: submitSan,
   });
 

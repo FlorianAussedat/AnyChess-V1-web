@@ -1,0 +1,25 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.voskasr'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.voskasr"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+    consumerProguardFiles 'consumer-rules.pro'
+  }
+  packagingOptions {
+    jniLibs {
+      useLegacyPackaging = true
+    }
+  }
+}
+
+dependencies {
+  implementation 'com.alphacephei:vosk-android:0.3.75'
+}

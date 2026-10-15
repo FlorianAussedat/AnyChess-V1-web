@@ -519,6 +519,7 @@ export default function ContinueLineScreen() {
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
     isSpeaking,
     forceOff: finished || loading,
+    positionFen: snap.currentFen,
     onTranscript: (text) => applyRef.current(text),
   });
 

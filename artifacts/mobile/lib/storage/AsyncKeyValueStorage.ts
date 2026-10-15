@@ -48,6 +48,10 @@ export class AsyncKeyValueStorage implements KeyValueStorage {
     await AsyncStorage.multiRemove(keys);
     for (const key of keys) notifyWrite(key);
   }
+
+  async getAllKeys(): Promise<readonly string[]> {
+    return AsyncStorage.getAllKeys();
+  }
 }
 
 export const defaultKeyValueStorage: KeyValueStorage = new AsyncKeyValueStorage();

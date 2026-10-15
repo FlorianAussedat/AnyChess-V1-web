@@ -80,7 +80,7 @@ describe('avatar crop without the native manipulator', () => {
       2,
     );
     assert.equal(fitted.width, 2);
-    assert.equal(fitted.height, 1);
+    assert.equal(fitted.height, 2);
   });
 
   it('keeps the new local photo when the upload fails and defers on cellular', async () => {
@@ -146,14 +146,19 @@ describe('avatar crop without the native manipulator', () => {
         maxHeight: 220,
         zoom: sample.zoom,
       });
+      const side = Math.min(sample.width, sample.height) / sample.zoom;
       assert.equal(layout.scale, sample.zoom);
-      assert.ok(Math.abs(layout.frameWidth / layout.frameHeight - sample.width / sample.height) < 0.02);
-      assert.ok(layout.frameWidth <= 280);
-      assert.ok(layout.frameHeight <= 220);
-      assert.equal(layout.crop.width, sample.width / sample.zoom);
-      assert.equal(layout.crop.height, sample.height / sample.zoom);
-      assert.equal(layout.crop.x, (sample.width - layout.crop.width) / 2);
-      assert.equal(layout.crop.y, (sample.height - layout.crop.height) / 2);
+      assert.equal(layout.frameWidth, 220);
+      assert.equal(layout.frameHeight, 220);
+      assert.equal(layout.crop.width, side);
+      assert.equal(layout.crop.height, side);
+      assert.equal(layout.crop.x, (sample.width - side) / 2);
+      assert.equal(layout.crop.y, (sample.height - side) / 2);
+      const cover = Math.max(220 / sample.width, 220 / sample.height);
+      assert.ok(layout.imageWidth >= 220 - 0.01);
+      assert.ok(layout.imageHeight >= 220 - 0.01);
+      assert.ok(Math.abs(layout.imageWidth - sample.width * cover) < 0.01);
+      assert.ok(Math.abs(layout.imageHeight - sample.height * cover) < 0.01);
       const painted = cropAndFitRgba(
         {
           data: rgba(sample.width, sample.height, (x, y) => {

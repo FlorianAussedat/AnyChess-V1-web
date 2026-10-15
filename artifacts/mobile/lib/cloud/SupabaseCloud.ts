@@ -45,6 +45,21 @@ function headers(accessToken?: string): Record<string, string> {
   return out;
 }
 
+/** Best-effort server revoke. Never blocks the local sign-out. */
+function forgetRemoteSession(url: string, token: string): void {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  const handle = timer as unknown as { unref?: () => void };
+  handle.unref?.();
+  void fetch(`${url}/auth/v1/logout`, {
+    method: 'POST',
+    headers: headers(token),
+    signal: controller.signal,
+  })
+    .catch(() => undefined)
+    .finally(() => clearTimeout(timer));
+}
+
 export class SupabaseCloudAuth implements CloudAuth {
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
@@ -98,19 +113,11 @@ export class SupabaseCloudAuth implements CloudAuth {
 
   async signOut(): Promise<void> {
     const url = resolveSupabaseUrl();
-    if (url && this.accessToken) {
-      try {
-        await fetch(`${url}/auth/v1/logout`, {
-          method: 'POST',
-          headers: headers(this.accessToken),
-        });
-      } catch {
-        // local sign-out still proceeds
-      }
-    }
+    const token = this.accessToken;
     this.accessToken = null;
     this.refreshToken = null;
     this.user = null;
+    if (url && token) forgetRemoteSession(url, token);
     await this.persist?.save(null);
   }
 

@@ -11,7 +11,7 @@ type Props = {
   testID?: string;
 };
 
-/** Rounded frame. The image is contained so a logo keeps its shape and transparency. */
+/** Rounded square. The photo covers the frame and stays centered. */
 export function ProfileAvatar({ username, imageUri, size = 72, testID }: Props) {
   const colors = useColors();
   const initials = initialsFromUsername(username);
@@ -34,7 +34,7 @@ export function ProfileAvatar({ username, imageUri, size = 72, testID }: Props) 
         <Image
           source={{ uri: imageUri }}
           style={{ width: size - 2, height: size - 2 }}
-          resizeMode="contain"
+          resizeMode="cover"
           testID={testID ? `${testID}-image` : undefined}
         />
       ) : (

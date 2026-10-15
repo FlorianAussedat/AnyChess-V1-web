@@ -128,6 +128,20 @@ describe('castling', () => {
   for (const raw of ['Grand roque', 'Castle queenside', 'O-O-O', '0-0-0']) {
     it(`${raw} → O-O-O`, () => expectMove(raw, fen, 'O-O-O'));
   }
+
+  it('leaves bare roque unresolved when both castles are legal', () => {
+    const r = parse('roque', fen);
+    assert.equal(r.type, 'ambiguous');
+    if (r.type === 'ambiguous') {
+      const sans = r.candidates.map((m) => m.san).sort();
+      assert.deepEqual(sans, ['O-O', 'O-O-O']);
+    }
+  });
+
+  it('plays the only legal castle when roque is unspecified', () => {
+    const kingsideOnly = '4k3/8/8/8/8/8/8/4K2R w K - 0 1';
+    expectMove('roque', kingsideOnly, 'O-O');
+  });
 });
 
 describe('promotion', () => {
@@ -136,6 +150,12 @@ describe('promotion', () => {
   for (const raw of ['e8', 'e8 dame', 'e8 queen', 'e8=D', 'e8=Q']) {
     it(`${raw} → e8=Q`, () => expectMove(raw, fen, 'e8=Q'));
   }
+
+  it('promotion dame plays the only queen promotion and stays ambiguous when two exist', () => {
+    expectMove('promotion dame', '7k/4P3/8/8/8/8/8/4K3 w - - 0 1', 'e8=Q');
+    const both = parse('promotion dame', fen);
+    assert.equal(both.type, 'ambiguous');
+  });
 });
 
 describe('check / checkmate suffixes ignored for parsing', () => {
@@ -371,6 +391,19 @@ describe('piece over pawn preference', () => {
     expectMove('en c 3', undefined, 'Nc3');
     expectMove('en c3', undefined, 'Nc3');
     expectMove('enne c3', undefined, 'Nc3');
+  });
+
+  it('keeps the preposition in "cavalier en e5"', () => {
+    assert.equal(normalizeTranscript('cavalier en e cinq'), 'cavalier en e5');
+    assert.equal(normalizeTranscript('roi en e deux'), 'roi en e2');
+    const fen = 'rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 4 3';
+    const parsed = parseChessVoice('cavalier en e cinq', new Chess(fen), {
+      mode: 'any',
+      chessNotation: 'fr',
+      strict: true,
+    });
+    assert.equal(parsed.type, 'move');
+    if (parsed.type === 'move') assert.equal(parsed.move.san.replace(/[+#]/g, ''), 'Nxe5');
   });
 
   it('bare square stays pawn when only a pawn can go there', () => {

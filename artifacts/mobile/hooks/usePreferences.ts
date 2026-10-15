@@ -55,6 +55,7 @@ export function usePreferences() {
     updatePreferences,
     resetPreferences,
     language: preferences.language,
+    dictationLanguage: preferences.dictationLanguage,
     chessNotation: preferences.chessNotation,
     voiceEnabled: preferences.voiceEnabled,
     coordinatesEnabled: preferences.coordinatesEnabled,

@@ -11,6 +11,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/hooks/useColors';
+import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
 
 type Props = {
@@ -35,6 +36,11 @@ export function GameMicButton({
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
+  const { language, dictationLanguage } = usePreferences();
+  const spoken = dictationLanguage ?? language;
+  const spokenLabel = t('speech.dictationActive', {
+    lang: spoken === 'en' ? 'English' : 'français',
+  });
   const scale = useSharedValue(1);
   const compact = variant === 'compact';
 
@@ -96,6 +102,9 @@ export function GameMicButton({
           <Text style={compact ? styles.micLabelCompact : styles.micLabel}>{micLabel}</Text>
         </Pressable>
       </Animated.View>
+      <Text style={[styles.lang, { color: colors.mutedForeground }]} testID="mic-dictation-language">
+        {spokenLabel}
+      </Text>
       {!!micMessage && (
         <Text style={[styles.permWarn, { color: '#F5A623' }]}>{micMessage}</Text>
       )}
@@ -127,4 +136,5 @@ const styles = StyleSheet.create({
   micLabel: { color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 15 },
   micLabelCompact: { color: '#fff', fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   permWarn: { fontSize: 11, fontFamily: 'Inter_400Regular' },
+  lang: { fontSize: 12, fontFamily: 'Inter_400Regular' },
 });

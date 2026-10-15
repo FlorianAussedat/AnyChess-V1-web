@@ -58,6 +58,17 @@ export function createCloudEngine(
 
 export const cloudSyncEngine = createCloudEngine();
 
+let engineForTests: CloudSyncEngine | null = null;
+
+/** UI tests render against a memory engine. Production always uses the singleton. */
+export function setCloudEngineForTests(engine: CloudSyncEngine | null): void {
+  engineForTests = engine;
+}
+
+export function getActiveCloudEngine(): CloudSyncEngine {
+  return engineForTests ?? cloudSyncEngine;
+}
+
 subscribeKeyValueWrites((key) => {
   if (isSyncableStorageKey(key)) cloudSyncEngine.notifyLocalMutation();
 });

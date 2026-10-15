@@ -6,7 +6,11 @@ export function clampAvatarZoom(zoom: number): number {
   return Math.min(3, Math.max(1, zoom));
 }
 
-/** Center crop that keeps the source aspect ratio. Zoom 1 is the full image. */
+/**
+ * Centered square that fills the avatar. Zoom 1 uses the short side, so a
+ * portrait photo is cropped equally above and below instead of letterboxed.
+ * A higher zoom tightens that same center.
+ */
 export function centerCropRect(
   width: number,
   height: number,
@@ -15,13 +19,12 @@ export function centerCropRect(
   const safeW = Math.max(1, width);
   const safeH = Math.max(1, height);
   const z = clampAvatarZoom(zoom);
-  const cropW = safeW / z;
-  const cropH = safeH / z;
+  const side = Math.min(safeW, safeH) / z;
   return {
-    x: (safeW - cropW) / 2,
-    y: (safeH - cropH) / 2,
-    width: cropW,
-    height: cropH,
+    x: (safeW - side) / 2,
+    y: (safeH - side) / 2,
+    width: side,
+    height: side,
   };
 }
 
@@ -29,14 +32,17 @@ export type AvatarPreviewLayout = {
   crop: { x: number; y: number; width: number; height: number };
   frameWidth: number;
   frameHeight: number;
-  /** Uniform scale of the full image inside the clipped frame. */
+  /** Photo size that covers the square before the zoom scale. */
+  imageWidth: number;
+  imageHeight: number;
+  /** Uniform scale from the center. Zoom 1 already fills the square. */
   scale: number;
 };
 
 /**
- * The clipped frame has the photo's aspect ratio. Scaling it by `zoom`
- * from the center shows exactly `centerCropRect` — the pixels that are saved.
- * Zoom 1 shows the whole photo without stretching.
+ * The clipped frame is a square, like the avatar. The photo covers that
+ * square and stays centered. `scale` then zooms further into the same center,
+ * which is exactly `centerCropRect`.
  */
 export function avatarPreviewLayout(input: {
   imageWidth: number;
@@ -50,11 +56,14 @@ export function avatarPreviewLayout(input: {
   const maxWidth = Math.max(1, input.maxWidth);
   const maxHeight = Math.max(1, input.maxHeight);
   const zoom = clampAvatarZoom(input.zoom);
-  const fit = Math.min(maxWidth / imageWidth, maxHeight / imageHeight);
+  const frame = Math.max(1, Math.round(Math.min(maxWidth, maxHeight)));
+  const cover = Math.max(frame / imageWidth, frame / imageHeight);
   return {
     crop: centerCropRect(imageWidth, imageHeight, zoom),
-    frameWidth: Math.max(1, Math.round(imageWidth * fit)),
-    frameHeight: Math.max(1, Math.round(imageHeight * fit)),
+    frameWidth: frame,
+    frameHeight: frame,
+    imageWidth: imageWidth * cover,
+    imageHeight: imageHeight * cover,
     scale: zoom,
   };
 }
@@ -161,7 +170,7 @@ function loadHtmlImage(src: string): Promise<DrawableImage> {
 }
 
 /**
- * Crop from the center (zoom 1 keeps the whole frame) and shrink the longest
+ * Crop a centered square (zoom 1 fills the avatar) and shrink the longest
  * side to 512px. Output is PNG so a logo's transparency survives.
  * Web uses canvas. Native uses expo-image-manipulator (dev-client rebuild).
  */
@@ -248,31 +257,35 @@ async function prepareAvatarWithInstalledManipulator(
   uri: string,
   zoom: number,
 ): Promise<{ dataUrl: string }> {
-  const { Image } = await import('react-native');
-  const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-    Image.getSize(uri, (width, height) => resolve({ width, height }), reject);
-  });
-  const crop = centerCropRect(size.width, size.height, zoom);
-  const fitted = fittedEdge(crop.width, crop.height);
   const manipulator = await import('expo-image-manipulator');
-  const result = await manipulator.manipulateAsync(
-    uri,
-    [
-      {
-        crop: {
-          originX: Math.round(crop.x),
-          originY: Math.round(crop.y),
-          width: Math.max(1, Math.round(crop.width)),
-          height: Math.max(1, Math.round(crop.height)),
-        },
-      },
-      { resize: fitted },
-    ],
-    { compress: 1, format: manipulator.SaveFormat.PNG },
-  );
-  const response = await fetch(result.uri);
-  const buffer = await response.arrayBuffer();
-  return { dataUrl: bytesToDataUrl(new Uint8Array(buffer), 'image/png') };
+  const context = manipulator.ImageManipulator.manipulate(uri);
+  try {
+    // First render is the oriented bitmap. Cropping that matches the preview,
+    // including photos whose file stores a different EXIF orientation.
+    const oriented = await context.renderAsync();
+    const crop = centerCropRect(oriented.width, oriented.height, zoom);
+    const originX = Math.max(0, Math.round(crop.x));
+    const originY = Math.max(0, Math.round(crop.y));
+    const width = Math.max(1, Math.min(oriented.width - originX, Math.round(crop.width)));
+    const height = Math.max(1, Math.min(oriented.height - originY, Math.round(crop.height)));
+    const fitted = fittedEdge(width, height);
+    context.crop({ originX, originY, width, height });
+    context.resize(fitted);
+    const image = await context.renderAsync();
+    try {
+      const saved = await image.saveAsync({
+        compress: 1,
+        format: manipulator.SaveFormat.PNG,
+      });
+      const response = await fetch(saved.uri);
+      const buffer = await response.arrayBuffer();
+      return { dataUrl: bytesToDataUrl(new Uint8Array(buffer), 'image/png') };
+    } finally {
+      image.release();
+    }
+  } finally {
+    context.release();
+  }
 }
 
 async function prepareAvatarWithJavascript(

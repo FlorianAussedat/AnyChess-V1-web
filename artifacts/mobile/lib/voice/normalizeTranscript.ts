@@ -181,8 +181,16 @@ export function normalizeTranscript(raw: string): string {
   // Spoken SAN letter names before a square → preserve piece letter.
   // MUST run after "c 3" → "c3" so STT "en c 3" / "enne c3" becomes "nc3"
   // (not bare "c3" → false pawn). Same for bee/ar/cue/kay letter names.
+  // A piece word already present keeps "en" as the preposition:
+  // "cavalier en e5" must not become "cavalier ne5".
   n = n
-    .replace(/\b(enne|en|an)\s+([a-h][1-8])\b/g, 'n$2')
+    .replace(/\b(enne|en|an)\s+([a-h][1-8])\b/g, (full, _letter: string, sq: string, offset: number, whole: string) => {
+      const before = whole.slice(0, offset);
+      if (/\b(?:dame|cavalier|fou|tour|roi|pion|queen|knight|bishop|rook|king|pawn)\s+$/.test(before)) {
+        return full;
+      }
+      return `n${sq}`;
+    })
     .replace(/\b(bee|bé|be)\s+([a-h][1-8])\b/g, 'b$2')
     .replace(/\b(ar|are)\s+([a-h][1-8])\b/g, 'r$2')
     .replace(/\b(cue|kyu|queue)\s+([a-h][1-8])\b/g, 'q$2')

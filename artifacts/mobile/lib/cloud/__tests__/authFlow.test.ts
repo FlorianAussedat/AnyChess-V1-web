@@ -12,7 +12,13 @@ import {
 } from '../authErrors.ts';
 import { CloudSyncEngine } from '../CloudSyncEngine.ts';
 import { resetConfirmationEmailCooldown } from '../confirmCooldown.ts';
-import { authClientVariant, authConfirmRedirectUrl, authMailLanguage } from '../supabaseConfig.ts';
+import { SupabaseCloudAuth } from '../SupabaseCloud.ts';
+import {
+  DEV_AUTH_CONFIRM_PAGE_URL,
+  authClientVariant,
+  authConfirmRedirectUrl,
+  authMailLanguage,
+} from '../supabaseConfig.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import type { CloudAuth, CloudDocument } from '../types.ts';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
@@ -168,7 +174,7 @@ describe('confirmation page', () => {
     assert.match(html, /min-height:\s*48px/);
     assert.match(html, /alt="AnyChess"/);
     assert.match(html, /src="\/brand\/anychess-logo\.png"/);
-    assert.match(html, /intent:\/\/open#Intent;scheme=anychess;package=com\.anychess\.standalone;end/);
+    assert.match(html, /intent:\/\/utilisateur#Intent;scheme=anychess;package=com\.anychess\.standalone;end/);
     assert.match(html, /method: 'PUT'/);
     assert.match(html, /action: 'verify'/);
     assert.match(html, /#0B1728/);
@@ -195,10 +201,10 @@ describe('confirmation page', () => {
     assert.match(app, /"slug": "mobile"/);
     const androidApp = appOpenHref('app', 'Mozilla/5.0 (Linux; Android 14)');
     const androidDev = appOpenHref('dev', 'Mozilla/5.0 (Linux; Android 14)');
-    assert.equal(androidApp, 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end');
-    assert.equal(androidDev, 'intent://open#Intent;scheme=exp+mobile;package=com.anychess.app;end');
-    assert.equal(appOpenHref('app', 'iPhone'), 'anychess://');
-    assert.equal(appOpenHref('dev', 'iPhone'), 'exp+mobile://');
+    assert.equal(androidApp, 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end');
+    assert.equal(androidDev, 'intent://utilisateur#Intent;scheme=exp+mobile;package=com.anychess.app;end');
+    assert.equal(appOpenHref('app', 'iPhone'), 'anychess://utilisateur');
+    assert.equal(appOpenHref('dev', 'iPhone'), 'exp+mobile://utilisateur');
     assert.doesNotMatch(androidApp, /com\.anychess\.app/);
     assert.match(androidDev, /package=com\.anychess\.app/);
     assert.equal(appOpenHref('javascript:alert(1)', 'Android'), androidApp);
@@ -427,6 +433,8 @@ describe('auth screen copy wiring', () => {
     process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'public-anon';
     delete process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
+    const previousClient = process.env.EXPO_PUBLIC_APP_CLIENT;
+    process.env.EXPO_PUBLIC_APP_CLIENT = 'app';
     assert.equal(
       authConfirmRedirectUrl(),
       'https://example.supabase.co/functions/v1/auth-confirm',
@@ -436,7 +444,6 @@ describe('auth screen copy wiring', () => {
       authConfirmRedirectUrl(),
       'https://example.supabase.co/functions/v1/auth-confirm',
     );
-    const previousClient = process.env.EXPO_PUBLIC_APP_CLIENT;
     delete process.env.EXPO_PUBLIC_APP_CLIENT;
     process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess.example/auth/confirm/?next=https://evil.example';
     assert.equal(authConfirmRedirectUrl(), 'https://anychess.example/auth/confirm?client=app&lang=fr');
@@ -463,6 +470,23 @@ describe('auth screen copy wiring', () => {
     );
     process.env.EXPO_PUBLIC_APP_CLIENT = 'https://evil.example';
     assert.equal(authClientVariant(), 'app');
+    delete process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
+    process.env.EXPO_PUBLIC_APP_CLIENT = 'dev';
+    assert.equal(DEV_AUTH_CONFIRM_PAGE_URL, PUBLIC_CONFIRM_PAGE_URL);
+    assert.equal(authClientVariant(), 'dev');
+    assert.equal(
+      authConfirmRedirectUrl('fr'),
+      `${PUBLIC_CONFIRM_PAGE_URL}?client=dev&lang=fr`,
+    );
+    assert.equal(
+      authConfirmRedirectUrl('en'),
+      `${PUBLIC_CONFIRM_PAGE_URL}?client=dev&lang=en`,
+    );
+    process.env.EXPO_PUBLIC_APP_CLIENT = 'app';
+    assert.equal(
+      authConfirmRedirectUrl('fr'),
+      'https://example.supabase.co/functions/v1/auth-confirm',
+    );
     assert.equal(authMailLanguage('en'), 'en');
     assert.equal(authMailLanguage('de'), 'fr');
     if (previousClient === undefined) delete process.env.EXPO_PUBLIC_APP_CLIENT;
@@ -478,6 +502,68 @@ describe('auth screen copy wiring', () => {
     assert.match(live, /data/);
     assert.match(live, /isPendingEmailConfirmation/);
     assert.doesNotMatch(live, /DEEPL_API_KEY|api-free\.deepl/);
+  });
+});
+
+describe('AnyChess Dev confirmation redirect', () => {
+  it('sends signup, resend, and recovery to the Netlify page with client=dev', async () => {
+    const devEnv = readFileSync(join(here, '../../../.env.development'), 'utf8');
+    const eas = readFileSync(join(here, '../../../eas.json'), 'utf8');
+    const metro = readFileSync(join(here, '../../../metro.config.js'), 'utf8');
+    const start = readFileSync(join(here, '../../../scripts/start-dev.mjs'), 'utf8');
+    for (const source of [devEnv, eas, metro, start]) {
+      assert.match(source, /EXPO_PUBLIC_APP_CLIENT/);
+      assert.match(source, /sparkly-paprenjak-65f499\.netlify\.app\/auth\/confirm/);
+    }
+    assert.match(devEnv, /^EXPO_PUBLIC_APP_CLIENT=dev$/m);
+    assert.doesNotMatch(eas, /com\.anychess\.standalone/);
+
+    const previousUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const previousAnon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+    const previousPage = process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
+    const previousClient = process.env.EXPO_PUBLIC_APP_CLIENT;
+    process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://example.supabase.co';
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'public-anon';
+    delete process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
+    process.env.EXPO_PUBLIC_APP_CLIENT = 'dev';
+    const expected = `${PUBLIC_CONFIRM_PAGE_URL}?client=dev&lang=`;
+    const calls: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    try {
+      const auth = new SupabaseCloudAuth();
+      await auth.signUp('ada@example.com', 'secret1');
+      await auth.resendSignupConfirmation('ada@example.com');
+      await auth.recoverPassword('ada@example.com');
+    } finally {
+      globalThis.fetch = original;
+      if (previousClient === undefined) delete process.env.EXPO_PUBLIC_APP_CLIENT;
+      else process.env.EXPO_PUBLIC_APP_CLIENT = previousClient;
+      if (previousUrl === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_URL;
+      else process.env.EXPO_PUBLIC_SUPABASE_URL = previousUrl;
+      if (previousAnon === undefined) delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      else process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = previousAnon;
+      if (previousPage === undefined) delete process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL;
+      else process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = previousPage;
+    }
+    assert.deepEqual(
+      calls.map((url) => url.split('?')[0]),
+      [
+        'https://example.supabase.co/auth/v1/signup',
+        'https://example.supabase.co/auth/v1/resend',
+        'https://example.supabase.co/auth/v1/recover',
+      ],
+    );
+    for (const url of calls) {
+      const redirect = new URL(url).searchParams.get('redirect_to');
+      assert.ok(redirect?.startsWith(expected), redirect);
+      assert.equal(new URL(redirect!).searchParams.get('client'), 'dev');
+      assert.match(redirect!, /[?&]lang=(fr|en)$/);
+      assert.equal(redirect!.includes('access_token'), false);
+    }
   });
 });
 

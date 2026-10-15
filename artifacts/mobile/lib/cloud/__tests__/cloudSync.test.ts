@@ -84,6 +84,13 @@ describe('account sync engine', () => {
     assert.ok(engine.getState().lastBackupKey?.startsWith('anychess.cloud.backup.'));
     const backupRaw = await storage.getItem(engine.getState().lastBackupKey!);
     assert.match(backupRaw ?? '', /najdorf/);
+    assert.equal(
+      remote.peek(created.ok ? created.user.id : '', StorageKeys.repertoires.key)?.payload?.includes('najdorf') ??
+        false,
+      false,
+    );
+    const imported = await engine.importGuestData();
+    assert.equal(imported.ok, true);
 
     const uploaded = remote.peek(created.ok ? created.user.id : '', StorageKeys.repertoires.key);
     assert.match(uploaded?.payload ?? '', /najdorf/);
@@ -103,11 +110,12 @@ describe('account sync engine', () => {
     const auth = new MemoryCloudAuth();
     const remote = new MemoryCloudRemote();
     const engine = new CloudSyncEngine(storage, auth, remote);
+    await engine.signUp('alice@example.com', 'secret1');
     await storage.setItem(
       StorageKeys.repertoires.key,
       repertoire([{ id: 'alice-pgn', filename: 'alice.pgn', pgnText: '1. e4 *' }]),
     );
-    await engine.signUp('alice@example.com', 'secret1');
+    await engine.sync();
     await engine.signOut();
 
     await storage.setItem(
@@ -116,9 +124,12 @@ describe('account sync engine', () => {
     );
     await engine.signUp('bob@example.com', 'secret2');
     const bobLocal = await storage.getItem(StorageKeys.repertoires.key);
-    assert.match(bobLocal ?? '', /guest-pgn|bob|d4/);
+    assert.doesNotMatch(bobLocal ?? '', /guest-pgn/);
     assert.doesNotMatch(bobLocal ?? '', /alice-pgn/);
-    assert.equal(remote.peek((await auth.getUser())!.id, StorageKeys.repertoires.key)?.payload?.includes('alice-pgn'), false);
+    assert.match((await storage.getItem('anychess.cloud.workspace.guest.v1')) ?? '', /guest-pgn/);
+    const bobRemote = remote.peek((await auth.getUser())!.id, StorageKeys.repertoires.key)?.payload ?? '';
+    assert.equal(bobRemote.includes('alice-pgn'), false);
+    assert.equal(bobRemote.includes('guest-pgn'), false);
 
     await engine.signOut();
     await engine.signIn('alice@example.com', 'secret1');
@@ -155,12 +166,12 @@ describe('account sync engine', () => {
       },
     };
     const engine = new CloudSyncEngine(storage, auth, remote);
+    await engine.signUp('offline@example.com', 'secret1');
+    assert.equal(engine.getState().status, 'offline');
     await storage.setItem(
       StorageKeys.repertoires.key,
       repertoire([{ id: 'offline1', filename: 'offline.pgn', pgnText: '1. e4 e5 *' }]),
     );
-    await engine.signUp('offline@example.com', 'secret1');
-    assert.equal(engine.getState().status, 'offline');
     assert.match((await storage.getItem(StorageKeys.repertoires.key)) ?? '', /offline1/);
     fail = false;
     await engine.sync();
@@ -331,6 +342,17 @@ describe('preference sync rule', () => {
     );
     const created = await existing.signUp('ada@example.com', 'secret1');
     assert.equal(created.ok, true);
+    if (!created.ok) return;
+    await firstPhone.setItem(
+      StorageKeys.userPreferences.key,
+      preferenceDoc({
+        language: 'fr',
+        chessNotation: 'en',
+        voiceEnabled: false,
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      }),
+    );
+    await existing.sync();
 
     const guestPhone = new MemoryKeyValueStorage();
     const guest = new CloudSyncEngine(guestPhone, auth, remote);
@@ -372,12 +394,8 @@ describe('preference sync rule', () => {
     const signup = await createdEngine.signUp('new@example.com', 'secret1');
     assert.equal(signup.ok, true);
     if (!signup.ok) return;
-    const uploaded = JSON.parse(
-      freshRemote.peek(signup.user.id, StorageKeys.userPreferences.key)?.payload ?? '{}',
-    ) as { language: string; voiceEnabled: boolean; chessNotation: string };
-    assert.equal(uploaded.language, 'en');
-    assert.equal(uploaded.chessNotation, 'en');
-    assert.equal(uploaded.voiceEnabled, false);
+    assert.equal(freshRemote.peek(signup.user.id, StorageKeys.userPreferences.key), undefined);
+    assert.match((await fresh.getItem('anychess.cloud.workspace.guest.v1')) ?? '', /language\\":\\"en/);
   });
 });
 

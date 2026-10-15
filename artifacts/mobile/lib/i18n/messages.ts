@@ -212,6 +212,12 @@ export type MessageKey =
   | 'cloud.signIn'
   | 'cloud.signUp'
   | 'cloud.signOut'
+  | 'cloud.signOutTitle'
+  | 'cloud.signOutBody'
+  | 'cloud.signOutFailed'
+  | 'cloud.importGuest'
+  | 'cloud.importGuestTitle'
+  | 'cloud.importGuestBody'
   | 'cloud.recover'
   | 'cloud.recoverSent'
   | 'cloud.statusSynced'
@@ -1259,6 +1265,30 @@ export type MessageKey =
   | 'speech.unsupported'
   | 'speech.micError'
   | 'speech.nothingRecognized'
+  | 'speech.offlineEngineMissing'
+  | 'speech.offlineEngineFailed'
+  | 'speech.offlineModelNeeded'
+  | 'speech.offlineNoPosition'
+  | 'speech.offlineConflict'
+  | 'speech.repeatMove'
+  | 'speech.dictationLanguage'
+  | 'speech.dictationLanguageHint'
+  | 'speech.dictationActive'
+  | 'speech.offlineDownloadTitle'
+  | 'speech.offlineDownloadBody'
+  | 'speech.offlineCellularTitle'
+  | 'speech.offlineCellularBody'
+  | 'speech.offlineWaitWifi'
+  | 'speech.offlineWaiting'
+  | 'speech.offlineDownload'
+  | 'speech.offlineCancel'
+  | 'speech.offlineRetry'
+  | 'speech.offlineProgress'
+  | 'speech.offlineInstalling'
+  | 'speech.offlineFailedNetwork'
+  | 'speech.offlineFailedSpace'
+  | 'speech.offlineFailedIntegrity'
+  | 'speech.offlineFailedOffline'
   | 'vision.answerUnrecognized'
   | 'errors.folderParentMissing'
   | 'errors.systemFolderDelete'
@@ -1495,6 +1525,14 @@ const fr: Dict = {
   'cloud.signIn': 'Se connecter',
   'cloud.signUp': 'Créer un compte',
   'cloud.signOut': 'Déconnexion',
+  'cloud.signOutTitle': 'Se déconnecter ?',
+  'cloud.signOutBody':
+    'Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
+  'cloud.signOutFailed': 'La déconnexion n’a pas abouti. Réessaie.',
+  'cloud.importGuest': 'Importer les données invitées',
+  'cloud.importGuestTitle': 'Importer les données de l’invité ?',
+  'cloud.importGuestBody':
+    'Les parties et les scores enregistrés sans compte seront copiés dans ce compte. Les données d’un autre compte ne sont pas importées.',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
   'cloud.statusSynced': 'Données synchronisées',
@@ -1538,7 +1576,7 @@ const fr: Dict = {
   'account.avatarChange': 'Modifier la photo',
   'account.avatarRemove': 'Supprimer la photo',
   'account.avatarCrop': 'Recadrer',
-  'account.avatarUseFull': 'Image entière',
+  'account.avatarUseFull': 'Cadrage large',
   'account.avatarZoom': 'Recadrage',
   'account.avatarUnsupported':
     'Ce format ne peut pas être recadré sur cette version. L’ancienne photo est conservée.',
@@ -2657,6 +2695,39 @@ const fr: Dict = {
   'speech.unsupported': 'Reconnaissance vocale non supportée ici.',
   'speech.micError': 'Erreur micro : {{code}}',
   'speech.nothingRecognized': 'Rien d’utilisable reconnu. Réessaie.',
+  'speech.offlineEngineMissing':
+    'Cette version ne contient pas la dictée hors connexion. Le clavier reste disponible.',
+  'speech.offlineEngineFailed':
+    'La dictée hors connexion a échoué. Le clavier reste disponible.',
+  'speech.offlineModelNeeded':
+    'La dictée hors connexion a besoin du modèle {{lang}} ({{size}}). Le clavier reste disponible.',
+  'speech.offlineNoPosition':
+    'La dictée a besoin de la position en cours. Le clavier reste disponible.',
+  'speech.offlineConflict':
+    'Plusieurs interprétations restent possibles. Précise le coup ou utilise le clavier.',
+  'speech.repeatMove': 'Je n’ai pas compris, répète ton coup',
+  'speech.dictationLanguage': 'Langue de dictée',
+  'speech.dictationLanguageHint': 'Français : « cavalier f3 ». Anglais : « knight f3 ». Une seule langue est reconnue à la fois.',
+  'speech.dictationActive': 'Dictée en {{lang}}',
+  'speech.offlineDownloadTitle': 'Dictée hors connexion',
+  'speech.offlineDownloadBody':
+    'Le modèle {{lang}} permet de dicter les coups sans réseau. Taille : {{size}}. Environ {{installed}} une fois installé. Rien ne démarre sans ton accord.',
+  'speech.offlineCellularTitle': 'Télécharger avec les données mobiles ?',
+  'speech.offlineCellularBody':
+    'Modèle {{lang}}, {{size}}. Cet accord ne vaut que pour ce téléchargement.',
+  'speech.offlineWaitWifi': 'Attendre le Wi-Fi',
+  'speech.offlineWaiting': 'En attente du Wi-Fi. Le modèle {{lang}} ({{size}}) reprendra tout seul.',
+  'speech.offlineDownload': 'Télécharger',
+  'speech.offlineCancel': 'Annuler',
+  'speech.offlineRetry': 'Réessayer',
+  'speech.offlineProgress': 'Téléchargement {{progress}}',
+  'speech.offlineInstalling': 'Vérification du modèle…',
+  'speech.offlineFailedNetwork': 'Le téléchargement a échoué. Le clavier reste disponible.',
+  'speech.offlineFailedSpace': 'Espace insuffisant pour le modèle. Le clavier reste disponible.',
+  'speech.offlineFailedIntegrity':
+    'Le modèle téléchargé n’est pas utilisable. Le clavier reste disponible.',
+  'speech.offlineFailedOffline':
+    'Internet est nécessaire pour télécharger le modèle. Le clavier reste disponible.',
   'vision.answerUnrecognized': 'Non reconnu — réessaie (non compté).',
   'errors.folderParentMissing': 'Dossier parent introuvable.',
   'errors.systemFolderDelete': 'Ce dossier système ne peut pas être supprimé.',
@@ -2892,6 +2963,14 @@ const en: Dict = {
   'cloud.signIn': 'Sign in',
   'cloud.signUp': 'Create account',
   'cloud.signOut': 'Sign out',
+  'cloud.signOutTitle': 'Sign out?',
+  'cloud.signOutBody':
+    'Your games, scores, and other data stay on this device. They will not be sent to the next account.',
+  'cloud.signOutFailed': 'Sign-out did not finish. Try again.',
+  'cloud.importGuest': 'Import guest data',
+  'cloud.importGuestTitle': 'Import guest data?',
+  'cloud.importGuestBody':
+    'Games and scores saved without an account will be copied into this account. Another account’s data is not imported.',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
   'cloud.statusSynced': 'Data synced',
@@ -2935,7 +3014,7 @@ const en: Dict = {
   'account.avatarChange': 'Change photo',
   'account.avatarRemove': 'Remove photo',
   'account.avatarCrop': 'Crop',
-  'account.avatarUseFull': 'Full image',
+  'account.avatarUseFull': 'Widest crop',
   'account.avatarZoom': 'Crop',
   'account.avatarUnsupported':
     'This format cannot be cropped in this version. The previous photo is kept.',
@@ -4047,6 +4126,39 @@ const en: Dict = {
   'speech.unsupported': 'Speech recognition is not supported here.',
   'speech.micError': 'Microphone error: {{code}}',
   'speech.nothingRecognized': 'Nothing usable was recognized. Try again.',
+  'speech.offlineEngineMissing':
+    'This build does not include offline dictation. The keyboard stays available.',
+  'speech.offlineEngineFailed':
+    'Offline dictation failed. The keyboard stays available.',
+  'speech.offlineModelNeeded':
+    'Offline dictation needs the {{lang}} model ({{size}}). The keyboard stays available.',
+  'speech.offlineNoPosition':
+    'Dictation needs the current position. The keyboard stays available.',
+  'speech.offlineConflict':
+    'More than one interpretation is possible. Clarify the move or use the keyboard.',
+  'speech.repeatMove': 'I didn’t catch that, repeat your move',
+  'speech.dictationLanguage': 'Dictation language',
+  'speech.dictationLanguageHint': 'French: “cavalier f3”. English: “knight f3”. Only one language is recognized at a time.',
+  'speech.dictationActive': 'Dictation in {{lang}}',
+  'speech.offlineDownloadTitle': 'Offline dictation',
+  'speech.offlineDownloadBody':
+    'The {{lang}} model lets you dictate moves without a network. Size: {{size}}. About {{installed}} once installed. Nothing starts without your agreement.',
+  'speech.offlineCellularTitle': 'Download using mobile data?',
+  'speech.offlineCellularBody':
+    '{{lang}} model, {{size}}. This agreement applies only to this download.',
+  'speech.offlineWaitWifi': 'Wait for Wi-Fi',
+  'speech.offlineWaiting': 'Waiting for Wi-Fi. The {{lang}} model ({{size}}) will resume on its own.',
+  'speech.offlineDownload': 'Download',
+  'speech.offlineCancel': 'Cancel',
+  'speech.offlineRetry': 'Try again',
+  'speech.offlineProgress': 'Downloading {{progress}}',
+  'speech.offlineInstalling': 'Checking the model…',
+  'speech.offlineFailedNetwork': 'The download failed. The keyboard stays available.',
+  'speech.offlineFailedSpace': 'Not enough space for the model. The keyboard stays available.',
+  'speech.offlineFailedIntegrity':
+    'The downloaded model cannot be used. The keyboard stays available.',
+  'speech.offlineFailedOffline':
+    'Internet is required to download the model. The keyboard stays available.',
   'vision.answerUnrecognized': 'Not recognized — try again (not counted).',
   'errors.folderParentMissing': 'Parent folder not found.',
   'errors.systemFolderDelete': 'This system folder cannot be deleted.',

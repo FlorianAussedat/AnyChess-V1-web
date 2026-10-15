@@ -22,8 +22,11 @@ Restent **locaux** (éphémères) : session lecteur/analyseur (`gameSession`) et
 
 - Inscription, connexion, déconnexion, mot de passe oublié : écran **Utilisateur**.
 - Avant chaque connexion : sauvegarde locale `anychess.cloud.backup.<horodatage>.v1`.
-- Première connexion depuis l’invité : les données locales sont fusionnées vers le compte (union par id, dédoublonnage PGN, pas d’écrasement).
-- Préférences : un **nouveau** compte garde les réglages invités. Un compte **déjà existant** ne se fait pas remplacer par les valeurs par défaut du téléphone ; seuls les réglages modifiés à la main sur cet appareil sont repris.
+- Chaque compte a son espace `anychess.cloud.workspace.<user.id>.v1`. La déconnexion le met à jour, puis retire ces documents de l’espace actif.
+- L’invité a son espace à part. Le connecter à un compte ne copie rien tout seul. L’import se fait seulement avec « Importer les données invitées ».
+- Une copie d’un compte trouvée dans l’ancien espace invité est conservée dans `anychess.cloud.legacyGuest.v1` et n’est ni affichée ni envoyée. Elle n’est pas effacée.
+- `syncOnWifiOnly` reste le réglage du téléphone. La langue et les parties suivent le compte.
+- Préférences : un compte déjà existant ne se fait pas remplacer par les valeurs par défaut du téléphone.
 - Paramètres (langue, notation, son, voix, difficulté…) restent utilisables sans compte et restent sur l’appareil. La traduction DeepL et la synchronisation demandent une session au moment de s’en servir.
 - Au démarrage, la session enregistrée est relue avant d’afficher l’écran invité. Une panne réseau laisse le compte connecté et les réglages locaux en place.
 - Changement de compte : l’espace précédent est garé, l’autre compte est restauré ou parti d’un vide (pas de mélange).
@@ -53,8 +56,8 @@ Voir aussi `docs/pgn-comment-translation.md`.
 6. Replit → **Tools → Secrets / Configurations** (variables d’environnement de l’app Expo, pas les secrets serveur DeepL) :
    - `EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co`
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...` (clé anon)
-   - `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` (quand cette page répond en `text/html`)
-7. Build Android de développement : les variables `EXPO_PUBLIC_*` doivent être présentes **au moment du bundle** (EAS env / `.env` local avant `expo run:android`). Puis relancez le bundler.
+   - Le bundle AnyChess Dev fixe déjà `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` (`.env.development`, Metro, profil EAS `development`).
+7. Relancez le bundler de développement pour recharger ce bundle. Ne reconstruisez pas l’APK autonome : son JavaScript déjà installé continue vers la fonction `auth-confirm`.
 8. Laissez `DEEPL_API_KEY` uniquement dans **Supabase → Edge Functions → Secrets**.
 
 Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non configuré** ; les données locales restent intactes.
@@ -73,4 +76,4 @@ Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non co
 
 `lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton, le formulaire de nouveau mot de passe sur un lien `type=recovery`, et `GET /auth/confirm` en `text/html` sur le serveur web existant.
 
-À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre le scheme `mobile` (AnyChess autonome) ou `exp+mobile` (AnyChess Dev) sans y copier le jeton. Il n’y a pas d’App Link https.
+À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre `exp+mobile` / `com.anychess.app` lorsque le lien porte `client=dev`, et `anychess` / `com.anychess.standalone` sinon, sans y copier le jeton. Il n’y a pas d’App Link https.

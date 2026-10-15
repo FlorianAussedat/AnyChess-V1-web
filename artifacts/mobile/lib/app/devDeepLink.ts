@@ -24,6 +24,8 @@
  */
 export const DEV_STOCKFISH_UCI_PATH = '/dev/stockfish-uci';
 export const DEV_SITEMAP_PATH = '/_sitemap';
+/** Where « Ouvrir AnyChess » lands, cold or with the app already open. */
+export const ACCOUNT_RETURN_PATH = '/utilisateur';
 
 export const EXPO_ANDROID_LINKING_BUG = {
   issue: 'https://github.com/expo/expo/issues/42500',
@@ -38,7 +40,8 @@ export type LinkingDecision =
   | { action: 'preserve-auth-link' }
   | { action: 'rewrite-dev-route'; to: string }
   | { action: 'preserve-app-path'; to: string }
-  | { action: 'filter-dev-client-connection' };
+  | { action: 'filter-dev-client-connection' }
+  | { action: 'rewrite-account-return'; to: string };
 
 const diagnostics: LinkingDecision[] = [];
 let lastDecision: LinkingDecision = { action: 'pass-through' };
@@ -112,6 +115,46 @@ function isPackagerUrl(value: string): URL | null {
 const METRO_ASSET =
   /(?:^|\/)[^/]*\.bundle(?:\?|$)|\/_expo\/|\/\.expo\/|\/node_modules\/|^\/assets\//;
 
+const ACCOUNT_SCHEMES = new Set(['exp+mobile', 'mobile', 'anychess', 'intent']);
+
+/**
+ * The confirmation button uses host `open` on the published page, and
+ * `utilisateur` once that page is regenerated. Both open Utilisateur.
+ * A Metro connection and product routes such as `/openings` stay untouched.
+ */
+function accountReturnTarget(value: string): string | null {
+  const bare = value.trim().replace(/\/+$/, '');
+  if (
+    bare === '/open' ||
+    bare === 'open' ||
+    bare === '/utilisateur' ||
+    bare === 'utilisateur'
+  ) {
+    return ACCOUNT_RETURN_PATH;
+  }
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return null;
+  }
+  const scheme = url.protocol.replace(/:$/, '').toLowerCase();
+  if (!ACCOUNT_SCHEMES.has(scheme)) return null;
+  const host = url.hostname.toLowerCase();
+  if (host === 'expo-development-client') return null;
+  const path = url.pathname.replace(/\/+$/, '');
+  if (host === 'open' || host === 'utilisateur') return ACCOUNT_RETURN_PATH;
+  if (
+    host === '' &&
+    path === '' &&
+    !url.search &&
+    (scheme === 'exp+mobile' || scheme === 'anychess')
+  ) {
+    return ACCOUNT_RETURN_PATH;
+  }
+  return null;
+}
+
 function decide(decision: LinkingDecision, detail: string): LinkingDecision {
   lastDecision = decision;
   diagnostics.push(decision);
@@ -155,6 +198,15 @@ export function rewriteDevSystemPath(path: string, initial = true): string {
   if (devRoute) {
     decide({ action: 'rewrite-dev-route', to: devRoute }, 'dev file route');
     return devRoute;
+  }
+
+  const accountReturn = accountReturnTarget(decoded);
+  if (accountReturn) {
+    decide(
+      { action: 'rewrite-account-return', to: accountReturn },
+      initial ? 'cold start opens Utilisateur' : 'open session opens Utilisateur',
+    );
+    return accountReturn;
   }
 
   const packager = isPackagerUrl(candidate);

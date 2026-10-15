@@ -1,22 +1,29 @@
 import { useEffect, useState } from 'react';
-import { cloudSyncEngine } from '@/lib/cloud';
+import { getActiveCloudEngine } from '@/lib/cloud';
 import type { CloudEngineState } from '@/lib/cloud';
 
 export function useCloudAccount() {
-  const [state, setState] = useState<CloudEngineState>(cloudSyncEngine.getState());
+  const [state, setState] = useState<CloudEngineState>(() => getActiveCloudEngine().getState());
 
-  useEffect(() => cloudSyncEngine.subscribe(() => {
-    setState(cloudSyncEngine.getState());
-  }), []);
+  useEffect(() => {
+    const engine = getActiveCloudEngine();
+    setState(engine.getState());
+    return engine.subscribe(() => {
+      setState(getActiveCloudEngine().getState());
+    });
+  }, []);
 
   return {
     ...state,
-    signIn: (email: string, password: string) => cloudSyncEngine.signIn(email, password),
-    signUp: (email: string, password: string) => cloudSyncEngine.signUp(email, password),
-    signOut: () => cloudSyncEngine.signOut(),
-    recoverPassword: (email: string) => cloudSyncEngine.recoverPassword(email),
-    resendSignupConfirmation: (email: string) => cloudSyncEngine.resendSignupConfirmation(email),
-    dismissPendingConfirmation: () => cloudSyncEngine.dismissPendingConfirmation(),
-    sync: (options?: { allowCellular?: boolean }) => cloudSyncEngine.sync(options),
+    signIn: (email: string, password: string) => getActiveCloudEngine().signIn(email, password),
+    signUp: (email: string, password: string) => getActiveCloudEngine().signUp(email, password),
+    signOut: () => getActiveCloudEngine().signOut(),
+    recoverPassword: (email: string) => getActiveCloudEngine().recoverPassword(email),
+    resendSignupConfirmation: (email: string) =>
+      getActiveCloudEngine().resendSignupConfirmation(email),
+    dismissPendingConfirmation: () => getActiveCloudEngine().dismissPendingConfirmation(),
+    sync: (options?: { allowCellular?: boolean }) => getActiveCloudEngine().sync(options),
+    guestDataAvailable: () => getActiveCloudEngine().guestDataAvailable(),
+    importGuestData: () => getActiveCloudEngine().importGuestData(),
   };
 }

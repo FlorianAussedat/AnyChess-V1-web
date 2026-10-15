@@ -180,6 +180,7 @@ export default function NommerLeCoupScreen() {
     forceOff: snap.phase !== 'playing',
     enabled: true,
     isSpeaking: false,
+    positionFen: snap.challenge?.positionFen ?? null,
     onTranscript: (raw) => {
       setShowRecognizedFlash(true);
       setTimeout(() => setShowRecognizedFlash(false), 900);

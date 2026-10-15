@@ -70,13 +70,13 @@ describe('Wi-Fi only sync policy', () => {
     const auth = new MemoryCloudAuth();
     const remote = new MemoryCloudRemote();
     const engine = new CloudSyncEngine(storage, auth, remote);
+    const created = await engine.signUp('alice@example.com', 'secret1');
+    assert.equal(created.ok, true);
+    if (!created.ok) return;
     await storage.setItem(
       StorageKeys.repertoires.key,
       JSON.stringify({ version: 2, folders: [], files: [{ id: 'local-line' }] }),
     );
-    const created = await engine.signUp('alice@example.com', 'secret1');
-    assert.equal(created.ok, true);
-    if (!created.ok) return;
     assert.equal(engine.getState().user?.email, 'alice@example.com');
     assert.equal(engine.getState().status, 'waiting_wifi');
     assert.equal(remote.peek(created.user.id, StorageKeys.repertoires.key), undefined);

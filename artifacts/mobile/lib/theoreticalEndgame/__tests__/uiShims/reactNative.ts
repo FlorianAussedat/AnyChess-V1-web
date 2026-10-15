@@ -27,8 +27,12 @@ export const Animated = {
     setValue(next: number) {
       this.current = next;
     }
+    interpolate(config: { inputRange: number[]; outputRange: number[] }) {
+      return { __animated: config };
+    }
   },
   View: host('Animated.View'),
+  Image: host('Animated.Image'),
   timing() {
     return { start(done?: () => void) { done?.(); } };
   },

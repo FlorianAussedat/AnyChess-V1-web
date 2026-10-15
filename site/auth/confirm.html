@@ -69,7 +69,7 @@
       <img class="logo" src="/brand/anychess-logo.png" alt="AnyChess" width="280" height="97" />
       <h1 id="title">AnyChess</h1>
       <p id="message">Vérification du lien…</p>
-      <a id="open" class="open" href="intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end">Ouvrir AnyChess</a>
+      <a id="open" class="open" href="intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end">Ouvrir AnyChess</a>
       <p id="alt" class="alt">Tu peux aussi fermer cette page et ouvrir l’application.</p>
       <form id="recover" hidden="hidden">
         <label id="label-password" for="password">Nouveau mot de passe</label>
@@ -134,12 +134,12 @@ function appOpenHref(client, userAgent) {
   var android = /Android/i.test(userAgent || '');
   if (client === 'dev') {
     return android
-      ? 'intent://open#Intent;scheme=exp+mobile;package=com.anychess.app;end'
-      : 'exp+mobile://';
+      ? 'intent://utilisateur#Intent;scheme=exp+mobile;package=com.anychess.app;end'
+      : 'exp+mobile://utilisateur';
   }
   return android
-    ? 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end'
-    : 'anychess://';
+    ? 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end'
+    : 'anychess://utilisateur';
 }
 
 (function () {

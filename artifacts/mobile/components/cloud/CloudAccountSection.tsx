@@ -53,6 +53,7 @@ export function CloudAccountSection() {
   const [formError, setFormError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [guestImportReady, setGuestImportReady] = useState(false);
 
   const pending = cloud.pendingConfirmationEmail;
 
@@ -61,6 +62,20 @@ export function CloudAccountSection() {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [pending]);
+
+  useEffect(() => {
+    if (!cloud.user) {
+      setGuestImportReady(false);
+      return;
+    }
+    let cancelled = false;
+    void cloud.guestDataAvailable().then((ready) => {
+      if (!cancelled) setGuestImportReady(ready);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cloud.user]);
 
   useEffect(() => {
     if (!cloud.user) return;
@@ -234,6 +249,25 @@ export function CloudAccountSection() {
           </Pressable>
         </View>
       ) : null}
+      {cloud.user && guestImportReady ? (
+        <Pressable
+          testID="cloud-import-guest"
+          disabled={busy}
+          onPress={() => {
+            confirmAction(t('cloud.importGuestTitle'), t('cloud.importGuestBody'), () => {
+              void (async () => {
+                setFormError(null);
+                const result = await cloud.importGuestData();
+                if (!result.ok) setFormError(t('cloud.errorUnexpected'));
+                else setGuestImportReady(false);
+              })();
+            }, { confirmLabel: t('cloud.importGuest') });
+          }}
+          style={[styles.btn, { borderColor: colors.border }]}
+        >
+          <Text style={{ color: colors.primary }}>{t('cloud.importGuest')}</Text>
+        </Pressable>
+      ) : null}
       {cloud.user ? (
         <View style={styles.row}>
           <Pressable
@@ -262,9 +296,24 @@ export function CloudAccountSection() {
           </Pressable>
           <Pressable
             testID="cloud-signout"
-            disabled={busy}
             onPress={() => {
-              void cloud.signOut();
+              confirmAction(
+                t('cloud.signOutTitle'),
+                t('cloud.signOutBody'),
+                () => {
+                  void (async () => {
+                    setFormError(null);
+                    setInfo(null);
+                    try {
+                      const result = await cloud.signOut();
+                      if (!result.ok) setFormError(t('cloud.signOutFailed'));
+                    } catch {
+                      setFormError(t('cloud.signOutFailed'));
+                    }
+                  })();
+                },
+                { confirmLabel: t('cloud.signOut'), destructive: true },
+              );
             }}
             style={[styles.btn, { borderColor: colors.border }]}
           >
@@ -278,9 +327,9 @@ export function CloudAccountSection() {
           {t('cloud.errorSchema')}
         </Text>
       ) : null}
-      {formError ? (
+      {formError || cloud.lastError === 'sign_out_failed' ? (
         <Text style={{ color: colors.destructive }} testID="cloud-form-error">
-          {formError}
+          {formError ?? t('cloud.signOutFailed')}
         </Text>
       ) : null}
       {info ? (

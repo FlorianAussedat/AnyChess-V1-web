@@ -15,6 +15,15 @@ if (process.env.PORT) {
 }
 
 const env = { ...process.env };
+if (!env.EXPO_PUBLIC_APP_CLIENT?.trim()) {
+  env.EXPO_PUBLIC_APP_CLIENT = 'dev';
+}
+if (
+  env.EXPO_PUBLIC_APP_CLIENT.trim().toLowerCase() === 'dev' &&
+  !env.EXPO_PUBLIC_AUTH_CONFIRM_URL?.trim()
+) {
+  env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://sparkly-paprenjak-65f499.netlify.app/auth/confirm';
+}
 if (onReplit) {
   env.EXPO_PACKAGER_PROXY_URL = `https://${process.env.REPLIT_EXPO_DEV_DOMAIN ?? ''}`;
   env.EXPO_PUBLIC_DOMAIN = process.env.REPLIT_DEV_DOMAIN ?? '';
