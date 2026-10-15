@@ -13,7 +13,10 @@ verify_jwt = false
 [functions.delete-account]
 verify_jwt = true
 
-# Auth emails. Applied to the hosted project only when template editing is allowed.
+# Auth emails. Brevo SMTP is configured in the Supabase dashboard; the secret stays there.
+# The French confirmation body is already installed and was received.
+# These files are the bilingual copies. English confirmation and the other
+# messages are not installed on the project yet.
 [auth.email.template.confirmation]
 subject = "{{ if eq .Data.language \"en\" }}Confirm your email address — AnyChess{{ else }}Confirme ton adresse e-mail — AnyChess{{ end }}"
 content_path = "./templates/confirmation.html"
