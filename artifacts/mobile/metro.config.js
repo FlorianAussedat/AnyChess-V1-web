@@ -54,6 +54,29 @@ function ensurePublicSupabaseEnv(root) {
 
 ensurePublicSupabaseEnv(__dirname);
 
+/**
+ * AnyChess Dev Metro bundle. Production export (standalone) is left alone:
+ * it keeps the function URL unless EXPO_PUBLIC_AUTH_CONFIRM_URL is already set,
+ * and it does not receive client=dev.
+ */
+function applyDevConfirmBundleEnv() {
+  const production =
+    process.env.NODE_ENV === 'production' && process.env.EAS_BUILD_PROFILE !== 'development';
+  if (production) return;
+  if (!process.env.EXPO_PUBLIC_APP_CLIENT?.trim()) {
+    process.env.EXPO_PUBLIC_APP_CLIENT = 'dev';
+  }
+  if (
+    process.env.EXPO_PUBLIC_APP_CLIENT.trim().toLowerCase() === 'dev' &&
+    !process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL?.trim()
+  ) {
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL =
+      'https://sparkly-paprenjak-65f499.netlify.app/auth/confirm';
+  }
+}
+
+applyDevConfirmBundleEnv();
+
 const config = getDefaultConfig(__dirname);
 
 const API_PORT = Number(process.env.ANYCHESS_API_PORT || 8080);

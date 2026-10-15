@@ -53,8 +53,8 @@ Voir aussi `docs/pgn-comment-translation.md`.
 6. Replit → **Tools → Secrets / Configurations** (variables d’environnement de l’app Expo, pas les secrets serveur DeepL) :
    - `EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co`
    - `EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...` (clé anon)
-   - `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` (quand cette page répond en `text/html`)
-7. Build Android de développement : les variables `EXPO_PUBLIC_*` doivent être présentes **au moment du bundle** (EAS env / `.env` local avant `expo run:android`). Puis relancez le bundler.
+   - Le bundle AnyChess Dev fixe déjà `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` (`.env.development`, Metro, profil EAS `development`).
+7. Relancez le bundler de développement pour recharger ce bundle. Ne reconstruisez pas l’APK autonome : son JavaScript déjà installé continue vers la fonction `auth-confirm`.
 8. Laissez `DEEPL_API_KEY` uniquement dans **Supabase → Edge Functions → Secrets**.
 
 Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non configuré** ; les données locales restent intactes.
@@ -73,4 +73,4 @@ Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non co
 
 `lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton, le formulaire de nouveau mot de passe sur un lien `type=recovery`, et `GET /auth/confirm` en `text/html` sur le serveur web existant.
 
-À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre le scheme `mobile` (AnyChess autonome) ou `exp+mobile` (AnyChess Dev) sans y copier le jeton. Il n’y a pas d’App Link https.
+À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre `exp+mobile` / `com.anychess.app` lorsque le lien porte `client=dev`, et `anychess` / `com.anychess.standalone` sinon, sans y copier le jeton. Il n’y a pas d’App Link https.

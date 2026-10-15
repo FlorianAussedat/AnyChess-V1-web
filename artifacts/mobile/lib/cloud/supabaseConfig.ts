@@ -46,6 +46,13 @@ export type AuthClientVariant = 'app' | 'dev';
 export type AuthMailLanguage = 'fr' | 'en';
 
 /**
+ * HTML confirmation page on the connected Netlify site.
+ * AnyChess Dev uses it when the bundle does not override
+ * `EXPO_PUBLIC_AUTH_CONFIRM_URL`. No query: `client` and `lang` are added below.
+ */
+export const DEV_AUTH_CONFIRM_PAGE_URL = 'https://sparkly-paprenjak-65f499.netlify.app/auth/confirm';
+
+/**
  * `dev` is AnyChess Dev (`com.anychess.app`, schemes `mobile` and `exp+mobile`).
  * `app` is the standalone APK already shipped (`com.anychess.standalone`, scheme
  * `anychess`). Only an explicit build flag or a dev bundle selects Dev.
@@ -69,14 +76,19 @@ export function authMailLanguage(value: string | null | undefined): AuthMailLang
  * `EXPO_PUBLIC_AUTH_CONFIRM_URL` is the Netlify page (`text/html`),
  * `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. A path ending in
  * `/auth/confirm` or `/auth/confirm.html` is accepted. It must also be listed
- * in Supabase Redirect URLs, including the `client` and `lang` query. Until
- * that public URL exists, the free `*.supabase.co` function stays the target.
+ * in Supabase Redirect URLs, including the `client` and `lang` query.
+ *
+ * AnyChess Dev (`EXPO_PUBLIC_APP_CLIENT=dev`, or a Metro bundle where `__DEV__`
+ * is true) uses that Netlify page even when the variable is unset, and sends
+ * `client=dev`. The standalone bundle keeps the function URL until the variable
+ * is set, so an already shipped APK is not involved.
  *
  * Query values are only the allowlisted client and language. They are not a
  * scheme, a package, or a token.
  */
 export function authConfirmRedirectUrl(language?: string | null): string | null {
-  const page = readPublic(process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL);
+  const configured = readPublic(process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL);
+  const page = configured ?? (authClientVariant() === 'dev' ? DEV_AUTH_CONFIRM_PAGE_URL : null);
   if (page && /^https:\/\//i.test(page)) {
     try {
       const url = new URL(page);

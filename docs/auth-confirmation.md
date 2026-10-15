@@ -85,8 +85,8 @@ La page `/auth/confirm` traite les deux types de lien. On peut donc en faire la 
 1. Laisser le site Netlify `sparkly-paprenjak-65f499` sur `main`, dossier publié `dist/confirm-site`, et le rendre public.
 2. Vérifier `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` en `text/html` et `https://sparkly-paprenjak-65f499.netlify.app/brand/anychess-logo.png` en `image/png`.
 3. Ajouter cette page dans Authentication → URL Configuration → **Redirect URLs**, y compris `?client=` et `?lang=`. Garder aussi l’URL de la fonction `auth-confirm` pour les APK déjà distribués.
-4. Au bundle de l’app : `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`.
-5. Tant que l’étape 4 n’est pas faite, les e-mails des applications déjà installées continuent vers la fonction. Après redéploiement de la fonction, son `GET` redirige vers la page Netlify en ajoutant `client=app` s’il manque.
+4. Le bundle AnyChess Dev envoie déjà `redirect_to` vers `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm?client=dev&lang=fr` (ou `lang=en`). Relancer Metro pour que le client de développement recharge ce bundle. L’APK autonome déjà distribué n’est pas reconstruit : il continue d’appeler la fonction.
+5. Après redéploiement de la fonction, son `GET` redirige vers la page Netlify en ajoutant `client=app` s’il manque. C’est le parcours des APK déjà installés.
 
 Avec Site URL = cette page :
 
@@ -131,7 +131,7 @@ Le texte brut du dépôt dit maintenant qu’on ne peut pas confirmer le résult
 
 ## Recette Android
 
-Build avec `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, et — dès que la page Netlify répond — `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. Le bouton ouvre `anychess` / `com.anychess.standalone`, ou `exp+mobile` / `com.anychess.app` si `client=dev`. Il ne transmet pas le jeton. Aucun APK autonome n’est à reconstruire pour ce correctif web. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Tant que les modèles ne sont pas collés dans le projet, l’e-mail reçu reste le modèle anglais par défaut.
+Le bundle AnyChess Dev (Metro, `.env.development`, profil EAS `development`) envoie `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. L’inscription, le renvoi et le mot de passe oublié ajoutent `client=dev` et `lang`. Le bouton ouvre alors `exp+mobile` / `com.anychess.app`. L’APK autonome déjà distribué n’est pas reconstruit : sans cette variable, son `redirect_to` reste la fonction, et le bouton ouvre `anychess` / `com.anychess.standalone`. Le bouton ne transmet pas le jeton. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Tant que les modèles ne sont pas collés dans le projet, l’e-mail reçu reste le modèle anglais par défaut.
 
 1. Installer AnyChess et ouvrir **Créer un compte** (pseudo, e-mail, mot de passe).
 2. L’app dit qu’un e-mail de confirmation a été envoyé. Le compte n’est pas connecté, rien n’est synchronisé.
@@ -177,4 +177,4 @@ Le jeton de management est toujours refusé. Ces réglages ne sont pas appliqué
 5. Coller les modèles si l’écran le permet. Nom d’expéditeur : `AnyChess`, sans changer l’adresse SMTP par défaut.
 6. Ne pas désactiver Confirm email.
 
-Sans l’étape 1, les liens n’ouvrent pas encore la page HTML. Les APK déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev n’envoie `client=dev` qu’avec `EXPO_PUBLIC_AUTH_CONFIRM_URL` dans le bundle.
+Sans l’étape 1, les liens n’ouvrent pas encore la page HTML. Les APK autonomes déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev envoie `client=dev` et la page Netlify dès que son bundle JavaScript est rechargé (Metro). Aucun APK autonome n’est produit pour cela.
