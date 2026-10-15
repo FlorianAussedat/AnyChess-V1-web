@@ -98,6 +98,21 @@ export function extractMoveIntent(normalized: string): MoveIntent | null {
   if (/^roque$/.test(base)) {
     return { castle: 'either', checkHint };
   }
+  if (/^castle$/.test(base)) {
+    return { castle: 'either', checkHint };
+  }
+
+  const promoOnly = base.match(
+    /^promo\s+(dame|queen|tour|rook|fou|bishop|cavalier|knight)$/,
+  );
+  if (promoOnly) {
+    return {
+      piece: 'p',
+      promotion: promoFromToken(promoOnly[1]),
+      promotionOnly: true,
+      checkHint,
+    };
+  }
 
   let text = base;
   let promotion: MoveIntent['promotion'] | undefined;
@@ -159,6 +174,24 @@ export function extractMoveIntent(normalized: string): MoveIntent | null {
         fromFile: m[2],
         to: m[3],
         capture: true,
+        promotion,
+        checkHint,
+      };
+    }
+  }
+
+  // "cavalier c e4" normalizes to "cavalier ce4" (file glued to the square).
+  {
+    const m = text.match(
+      new RegExp(
+        `^(dame|cavalier|fou|tour|roi|pion|queen|knight|bishop|rook|king|pawn)\\s+${FILE}(${SQUARE})$`,
+      ),
+    );
+    if (m && m[2] !== m[3][0]) {
+      return {
+        piece: pieceFromSpoken(m[1]),
+        fromFile: m[2],
+        to: m[3],
         promotion,
         checkHint,
       };

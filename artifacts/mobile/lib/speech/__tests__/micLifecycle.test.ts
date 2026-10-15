@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   createMicLifecycleState,
   deactivateOnLeave,
+  shouldApplyRecognitionResult,
   shouldRestartRecognition,
 } from '../micLifecycle.ts';
 
@@ -67,6 +68,23 @@ describe('mic recognition lifecycle', () => {
       ),
       false,
     );
+  });
+
+  it('drops a late result from another session, position, or duplicate', () => {
+    const base = {
+      alive: true,
+      eventSession: 2,
+      activeSession: 2,
+      eventFen: 'fen-a',
+      activeFen: 'fen-a',
+      fingerprint: 'e four',
+      lastFingerprint: null,
+    };
+    assert.equal(shouldApplyRecognitionResult(base), true);
+    assert.equal(shouldApplyRecognitionResult({ ...base, eventSession: 1 }), false);
+    assert.equal(shouldApplyRecognitionResult({ ...base, activeFen: 'fen-b' }), false);
+    assert.equal(shouldApplyRecognitionResult({ ...base, lastFingerprint: 'e four' }), false);
+    assert.equal(shouldApplyRecognitionResult({ ...base, alive: false }), false);
   });
 
   it('still requests stop when leaving with mic already idle', () => {

@@ -11,12 +11,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Chess } from 'chess.js';
 import { chessPhraseGrammar } from '../voskGrammar.ts';
-import { agreeHypotheses, chessInterpretationKey } from '../voskDecision.ts';
+import { agreeHypotheses, chessInterpretationKey, decideDictation } from '../voskDecision.ts';
 
 const ROOT = process.env.ANYCHESS_VOSK_DIR || '/tmp/asr-proto';
 const PYTHON = process.env.ANYCHESS_VOSK_PYTHON || join(ROOT, '.venv/bin/python');
 const FR = join(ROOT, 'vosk-model-small-fr-0.22');
 const EN = join(ROOT, 'vosk-model-small-en-us-0.15');
+const EN_WIDE = join(ROOT, 'vosk-model-small-en-us-0.15-wide');
 const ready = existsSync(PYTHON) && existsSync(FR) && existsSync(EN) && spawnSync('espeak-ng', ['--version']).status === 0;
 
 describe('Vosk live engine', { skip: ready ? false : 'Vosk models or espeak-ng are not installed' }, () => {
@@ -98,5 +99,45 @@ print(json.dumps(out))
       assert.equal(unrelated.status, 'reject');
     }
     assert.ok(new Chess(nf3));
+  });
+
+  it('does not play espeak "pawn e four" at speed 130 as d4', { skip: existsSync(EN_WIDE) ? false : 'widened English model is not installed' }, () => {
+    const fen = new Chess().fen();
+    const grammar = chessPhraseGrammar(fen, 'en');
+    const dir = mkdtempSync(join(tmpdir(), 'vosk-e4-'));
+    const spec = join(dir, 'case.json');
+    writeFileSync(spec, JSON.stringify({ model: EN_WIDE, dir, grammar, fen }));
+    const script = `
+import json, subprocess, wave
+from pathlib import Path
+from vosk import Model, KaldiRecognizer, SetLogLevel
+SetLogLevel(-1)
+spec = json.loads(Path(${JSON.stringify(spec)}).read_text())
+dest = Path(spec["dir"]) / "pawn-e4.wav"
+raw = dest.with_suffix(".raw.wav")
+subprocess.check_call(["espeak-ng","-v","en-us","-s","130","-w",str(raw),"pawn e four"], stdout=subprocess.DEVNULL)
+subprocess.check_call(["ffmpeg","-y","-loglevel","error","-i",str(raw),"-ar","16000","-ac","1",str(dest)])
+model = Model(spec["model"])
+with wave.open(str(dest)) as handle:
+    pcm = handle.readframes(handle.getnframes())
+rec = KaldiRecognizer(model, 16000, json.dumps(spec["grammar"], ensure_ascii=False))
+rec.SetMaxAlternatives(8)
+rec.AcceptWaveform(pcm)
+final = json.loads(rec.FinalResult())
+alts = []
+for alt in final.get("alternatives") or []:
+    text = " ".join(w for w in (alt.get("text") or "").split() if w != "[unk]")
+    alts.append({"text": text, "score": alt.get("confidence") or 0})
+print(json.dumps(alts))
+`;
+    const py = spawnSync(PYTHON, ['-c', script], { encoding: 'utf8' });
+    assert.equal(py.status, 0, py.stderr);
+    const alts = JSON.parse(py.stdout.trim().split('\n').pop() ?? '[]') as { text: string; score: number }[];
+    const decision = decideDictation(alts, fen, 'en');
+    if (decision.action === 'play') {
+      assert.equal(decision.key, 'move:e4');
+    } else {
+      assert.equal(decision.action, 'repeat');
+    }
   });
 });

@@ -1,29 +1,60 @@
 /**
- * Download UI state for the offline dictation model.
- * The banner renders this. The microphone hook asks for a model when it is missing.
+ * Download UI state for one offline dictation model.
+ * The banner renders this. The microphone hook asks for the chosen language only.
+ * Mobile consent is kept in this session, not in account sync settings.
  */
 import { getVoskModule, type VoskDownloadEvent } from './androidDictation.ts';
-import { beginModelDownload, consentForDownloadPress, type NetworkKind } from './offlineModelFlow.ts';
+import {
+  hasRoomForModel,
+  initialModelFlow,
+  reduceModelFlow,
+  type DownloadReason,
+  type ModelFlowEffect,
+  type ModelFlowEvent,
+  type ModelFlowState,
+  type NetworkKind,
+} from './offlineModelFlow.ts';
 import { VOSK_MODELS, type DictationLanguage } from './voskModels.ts';
 
 export type OfflineModelView = {
   language: DictationLanguage;
-  phase: 'ask' | 'downloading' | 'installing' | 'error';
-  cellular: boolean;
+  phase: 'ask' | 'cellular-ask' | 'waiting-wifi' | 'downloading' | 'installing' | 'error';
   received: number;
   total: number;
-  reason: 'network' | 'space' | 'integrity' | 'incompatible' | 'cancelled' | 'offline' | 'unknown';
+  reason: DownloadReason;
 };
 
 type Listener = () => void;
 
+let flow: ModelFlowState = initialModelFlow();
+let language: DictationLanguage = 'fr';
 let view: OfflineModelView | null = null;
 const listeners = new Set<Listener>();
 let progressSub: { remove(): void } | null = null;
 let doneSub: { remove(): void } | null = null;
+let generation = 0;
+let resumeAfterPause = false;
 
 function emit(): void {
   for (const listener of listeners) listener();
+}
+
+function publish(): void {
+  if (flow.phase === 'hidden') {
+    view = null;
+  } else {
+    const spec = VOSK_MODELS[language];
+    view = {
+      language,
+      phase: flow.phase,
+      received: view && view.language === language ? view.received : 0,
+      total: view && view.language === language && view.total > 0
+        ? view.total
+        : spec.downloadBytes,
+      reason: flow.reason,
+    };
+  }
+  emit();
 }
 
 export function getOfflineModelView(): OfflineModelView | null {
@@ -42,85 +73,100 @@ function clearDownloadListeners(): void {
   doneSub = null;
 }
 
-export function dismissOfflineModel(): void {
+function apply(event: ModelFlowEvent): ModelFlowEffect {
+  const reduced = reduceModelFlow(flow, event);
+  flow = reduced.state;
+  publish();
+  return reduced.effect;
+}
+
+function runEffect(effect: ModelFlowEffect): void {
+  if (effect === 'start') {
+    void runDownload();
+    return;
+  }
+  if (effect === 'pause' || effect === 'pause-resume') {
+    resumeAfterPause = effect === 'pause-resume';
+    const native = getVoskModule();
+    if (native?.pauseDownload) native.pauseDownload();
+    else native?.cancelDownload();
+  }
+}
+
+export function offerOfflineModel(nextLanguage: DictationLanguage, network: NetworkKind): void {
+  language = nextLanguage;
   const native = getVoskModule();
-  native?.cancelDownload();
+  const spec = VOSK_MODELS[nextLanguage];
+  const installed = native?.status(nextLanguage, spec.directory) === 'installed';
+  runEffect(apply({ type: 'offer', network, installed: installed === true }));
+}
+
+export function requestOfflineDownload(network: NetworkKind): void {
+  runEffect(apply({ type: 'download', network }));
+}
+
+export function requestOfflineMobileDownload(network: NetworkKind): void {
+  runEffect(apply({ type: 'download-mobile', network }));
+}
+
+export function waitOfflineForWifi(): void {
+  runEffect(apply({ type: 'wait-wifi' }));
+}
+
+export function dismissOfflineModel(): void {
+  runEffect(apply({ type: 'dismiss' }));
+  if (flow.phase === 'hidden') {
+    generation += 1;
+    clearDownloadListeners();
+  }
+}
+
+export function cancelOfflineModel(): void {
+  runEffect(apply({ type: 'cancel' }));
+  generation += 1;
   clearDownloadListeners();
-  view = null;
-  emit();
 }
 
-export function offerOfflineModel(language: DictationLanguage, network: NetworkKind): void {
-  const flow = beginModelDownload({ ready: false, network, consent: 'none' });
-  if (flow.step === 'blocked') {
-    view = {
-      language,
-      phase: 'error',
-      cellular: false,
-      received: 0,
-      total: 0,
-      reason: 'offline',
-    };
-    emit();
-    return;
-  }
-  view = {
-    language,
-    phase: 'ask',
-    cellular: network === 'cellular',
-    received: 0,
-    total: 0,
-    reason: 'unknown',
-  };
-  emit();
+export function retryOfflineModel(network: NetworkKind): void {
+  generation += 1;
+  clearDownloadListeners();
+  runEffect(apply({ type: 'retry', network }));
 }
 
-export async function confirmOfflineModelDownload(network: NetworkKind): Promise<void> {
-  if (!view) return;
-  const consent = consentForDownloadPress(view.cellular);
-  const flow = beginModelDownload({ ready: false, network, consent });
-  if (flow.step === 'ask') {
-    view = { ...view, phase: 'ask', cellular: true };
-    emit();
-    return;
-  }
-  if (flow.step !== 'download') {
-    view = {
-      ...view,
-      phase: 'error',
-      reason: flow.step === 'blocked' ? 'offline' : 'unknown',
-    };
-    emit();
-    return;
-  }
-  await runDownload(view.language);
+/** Called while a transfer is running or waiting, including Wi-Fi to mobile. */
+export function noteOfflineNetwork(network: NetworkKind): void {
+  runEffect(apply({ type: 'network', network }));
 }
 
-async function runDownload(language: DictationLanguage): Promise<void> {
+async function runDownload(): Promise<void> {
+  const gen = ++generation;
+  resumeAfterPause = false;
   const native = getVoskModule();
   const spec = VOSK_MODELS[language];
   if (!native) {
-    view = view && {
-      ...view,
-      phase: 'error',
-      reason: 'unknown',
-    };
-    emit();
+    apply({ type: 'received', ok: false, reason: 'unknown' });
+    return;
+  }
+  const free = native.freeBytes?.() ?? null;
+  if (free != null && !hasRoomForModel({
+    freeBytes: free,
+    downloadBytes: spec.downloadBytes,
+    installedBytes: spec.installedBytes,
+  })) {
+    apply({ type: 'no-space' });
     return;
   }
   const paths = native.paths(language);
-  view = view && {
-    ...view,
-    phase: 'downloading',
-    received: 0,
-    total: spec.downloadMegabytes * 1_000_000,
-    reason: 'unknown',
-  };
+  view = view && { ...view, phase: 'downloading', received: 0, total: spec.downloadBytes };
   emit();
   clearDownloadListeners();
   progressSub = native.addListener('onProgress', (event) => {
-    if (!view || view.phase !== 'downloading') return;
-    view = { ...view, received: event.received, total: event.total > 0 ? event.total : view.total };
+    if (gen !== generation || !view || view.phase !== 'downloading') return;
+    view = {
+      ...view,
+      received: event.received,
+      total: event.total > 0 ? event.total : view.total,
+    };
     emit();
   });
   const done = new Promise<VoskDownloadEvent>((resolve) => {
@@ -128,36 +174,46 @@ async function runDownload(language: DictationLanguage): Promise<void> {
   });
   await native.download(spec.url, paths.zip, spec.sha256);
   const result = await done;
+  if (gen !== generation) return;
   clearDownloadListeners();
-  if (!result.ok) {
-    const reason = (result.reason ?? 'unknown') as OfflineModelView['reason'];
-    view = view && { ...view, phase: 'error', reason };
-    emit();
+  if (!result.ok && result.reason === 'paused') {
+    if (resumeAfterPause && flow.phase === 'downloading' && flow.mobileAllowed) {
+      resumeAfterPause = false;
+      void runDownload();
+    }
     return;
   }
-  view = view && { ...view, phase: 'installing' };
-  emit();
+  if (!result.ok) {
+    const reason = (result.reason ?? 'unknown') as DownloadReason;
+    apply({ type: 'received', ok: false, reason });
+    return;
+  }
+  apply({ type: 'received', ok: true });
   try {
     const modelPath = await native.install(paths.zip, paths.root, spec.sha256, spec.directory);
+    if (gen !== generation) return;
     await native.load(modelPath);
-    view = null;
-    emit();
+    if (gen !== generation) return;
+    apply({ type: 'installed' });
   } catch (err) {
+    if (gen !== generation) return;
     const message = String(err).toLowerCase();
-    const reason: OfflineModelView['reason'] = message.includes('integrity')
+    const reason: DownloadReason = message.includes('integrity')
       ? 'integrity'
       : message.includes('incompatible')
         ? 'incompatible'
         : message.includes('space')
           ? 'space'
           : 'unknown';
-    view = view && { ...view, phase: 'error', reason };
-    emit();
+    apply({ type: 'install-failed', reason });
   }
 }
 
-export function retryOfflineModel(network: NetworkKind): void {
-  if (!view) return;
-  view = { ...view, phase: 'ask', cellular: network === 'cellular', reason: 'unknown' };
-  emit();
+/** Test hook. Production code leaves the session module-scoped. */
+export function resetOfflineModelSessionForTests(): void {
+  generation += 1;
+  clearDownloadListeners();
+  flow = initialModelFlow();
+  view = null;
+  resumeAfterPause = false;
 }

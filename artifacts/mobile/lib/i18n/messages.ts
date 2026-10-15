@@ -1264,9 +1264,16 @@ export type MessageKey =
   | 'speech.offlineModelNeeded'
   | 'speech.offlineNoPosition'
   | 'speech.offlineConflict'
+  | 'speech.repeatMove'
+  | 'speech.dictationLanguage'
+  | 'speech.dictationLanguageHint'
+  | 'speech.dictationActive'
   | 'speech.offlineDownloadTitle'
   | 'speech.offlineDownloadBody'
+  | 'speech.offlineCellularTitle'
   | 'speech.offlineCellularBody'
+  | 'speech.offlineWaitWifi'
+  | 'speech.offlineWaiting'
   | 'speech.offlineDownload'
   | 'speech.offlineCancel'
   | 'speech.offlineRetry'
@@ -2679,16 +2686,23 @@ const fr: Dict = {
   'speech.offlineEngineFailed':
     'La dictée hors connexion a échoué. Le clavier reste disponible.',
   'speech.offlineModelNeeded':
-    'La dictée hors connexion a besoin d’un modèle ({{size}} à télécharger, environ {{installed}} installé). Internet est nécessaire. Le clavier reste disponible.',
+    'La dictée hors connexion a besoin du modèle {{lang}} ({{size}}). Le clavier reste disponible.',
   'speech.offlineNoPosition':
     'La dictée a besoin de la position en cours. Le clavier reste disponible.',
   'speech.offlineConflict':
     'Plusieurs interprétations restent possibles. Précise le coup ou utilise le clavier.',
-  'speech.offlineDownloadTitle': 'Modèle de dictée',
+  'speech.repeatMove': 'Je n’ai pas compris, répète ton coup',
+  'speech.dictationLanguage': 'Langue de dictée',
+  'speech.dictationLanguageHint': 'Français : « cavalier f3 ». Anglais : « knight f3 ». Une seule langue est reconnue à la fois.',
+  'speech.dictationActive': 'Dictée en {{lang}}',
+  'speech.offlineDownloadTitle': 'Dictée hors connexion',
   'speech.offlineDownloadBody':
-    'Télécharger le modèle {{lang}} ({{size}}, environ {{installed}} une fois installé) ? Internet est nécessaire. Rien n’est téléchargé tant que tu ne confirmes pas.',
+    'Le modèle {{lang}} permet de dicter les coups sans réseau. Taille : {{size}}. Environ {{installed}} une fois installé. Rien ne démarre sans ton accord.',
+  'speech.offlineCellularTitle': 'Télécharger avec les données mobiles ?',
   'speech.offlineCellularBody':
-    'Tu es en données mobiles. Télécharger {{size}} maintenant ?',
+    'Modèle {{lang}}, {{size}}. Cet accord ne vaut que pour ce téléchargement.',
+  'speech.offlineWaitWifi': 'Attendre le Wi-Fi',
+  'speech.offlineWaiting': 'En attente du Wi-Fi. Le modèle {{lang}} ({{size}}) reprendra tout seul.',
   'speech.offlineDownload': 'Télécharger',
   'speech.offlineCancel': 'Annuler',
   'speech.offlineRetry': 'Réessayer',
@@ -4095,16 +4109,23 @@ const en: Dict = {
   'speech.offlineEngineFailed':
     'Offline dictation failed. The keyboard stays available.',
   'speech.offlineModelNeeded':
-    'Offline dictation needs a model ({{size}} to download, about {{installed}} installed). Internet is required. The keyboard stays available.',
+    'Offline dictation needs the {{lang}} model ({{size}}). The keyboard stays available.',
   'speech.offlineNoPosition':
     'Dictation needs the current position. The keyboard stays available.',
   'speech.offlineConflict':
     'More than one interpretation is possible. Clarify the move or use the keyboard.',
-  'speech.offlineDownloadTitle': 'Dictation model',
+  'speech.repeatMove': 'I didn’t catch that, repeat your move',
+  'speech.dictationLanguage': 'Dictation language',
+  'speech.dictationLanguageHint': 'French: “cavalier f3”. English: “knight f3”. Only one language is recognized at a time.',
+  'speech.dictationActive': 'Dictation in {{lang}}',
+  'speech.offlineDownloadTitle': 'Offline dictation',
   'speech.offlineDownloadBody':
-    'Download the {{lang}} model ({{size}}, about {{installed}} once installed)? Internet is required. Nothing downloads until you confirm.',
+    'The {{lang}} model lets you dictate moves without a network. Size: {{size}}. About {{installed}} once installed. Nothing starts without your agreement.',
+  'speech.offlineCellularTitle': 'Download using mobile data?',
   'speech.offlineCellularBody':
-    'You are on mobile data. Download {{size}} now?',
+    '{{lang}} model, {{size}}. This agreement applies only to this download.',
+  'speech.offlineWaitWifi': 'Wait for Wi-Fi',
+  'speech.offlineWaiting': 'Waiting for Wi-Fi. The {{lang}} model ({{size}}) will resume on its own.',
   'speech.offlineDownload': 'Download',
   'speech.offlineCancel': 'Cancel',
   'speech.offlineRetry': 'Try again',

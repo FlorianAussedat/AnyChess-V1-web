@@ -32,6 +32,10 @@ type Subscription = { remove(): void };
 export type VoskAsrNative = {
   download(url: string, destPath: string, sha256: string): Promise<void>;
   cancelDownload(): void;
+  /** Stops the transfer and keeps the partial file. Absent on older dev clients. */
+  pauseDownload?: () => void;
+  /** Free bytes in app storage. Absent on older dev clients. */
+  freeBytes?: () => number;
   install(zipPath: string, destDir: string, sha256: string, directory: string): Promise<string>;
   load(path: string): Promise<void>;
   setGrammar(json: string): void;

@@ -20,6 +20,11 @@ export type { DictationPace };
 export type UserPreferences = {
   version: typeof USER_PREFERENCES_DOCUMENT_VERSION;
   language: AppLanguage;
+  /**
+   * Spoken move language. Absent means it follows `language`.
+   * French and English are selected one at a time.
+   */
+  dictationLanguage?: AppLanguage;
   chessNotation: ChessNotation;
   voiceEnabled: boolean;
   coordinatesEnabled: boolean;
@@ -78,6 +83,7 @@ export type UserPreferences = {
 
 export type UserPreferencesPatch = Partial<{
   language: AppLanguage;
+  dictationLanguage: AppLanguage;
   chessNotation: ChessNotation;
   voiceEnabled: boolean;
   coordinatesEnabled: boolean;

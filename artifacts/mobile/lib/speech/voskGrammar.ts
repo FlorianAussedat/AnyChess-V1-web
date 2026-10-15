@@ -5,8 +5,11 @@
  * wordings the chess parser already accepts. It is not the exercise's
  * expected move. `[unk]` lets silence and unrelated speech stay unknown.
  *
- * Square tokens such as "f3" are absent from these lexicons, so coordinates
- * are spoken as a file letter plus a rank word ("f trois", "f three").
+ * Square tokens such as "f3" are absent from these lexicons (Vosk ignores
+ * them), so coordinates are a file letter plus a rank word ("f trois",
+ * "f three"). `[unk]` is a real token in vosk-android 0.3.75: words outside
+ * the phrases can stay unknown. Word confidence in grammar mode stays 0, so
+ * it is not used as a threshold.
  */
 import { Chess } from 'chess.js';
 
@@ -54,7 +57,9 @@ export function chessPhraseGrammar(fen: string, language: 'fr' | 'en'): string[]
   const game = new Chess(fen);
   const moves = game.moves({ verbose: true });
   const phrases = new Set<string>();
-  let anyCastle = false;
+  let kingside = false;
+  let queenside = false;
+  const promoPieces = new Set<string>();
   const rank = language === 'fr' ? FR_RANK : EN_RANK;
   const pieceName = language === 'fr' ? FR_PIECE : EN_PIECE;
   const promoName = language === 'fr' ? FR_PROMO : EN_PROMO;
@@ -63,12 +68,12 @@ export function chessPhraseGrammar(fen: string, language: 'fr' | 'en'): string[]
 
   for (const move of moves) {
     if (move.flags.includes('k')) {
-      anyCastle = true;
+      kingside = true;
       add(phrases, language === 'fr' ? 'petit roque' : 'short castle');
       continue;
     }
     if (move.flags.includes('q')) {
-      anyCastle = true;
+      queenside = true;
       add(phrases, language === 'fr' ? 'grand roque' : 'long castle');
       continue;
     }
@@ -87,6 +92,7 @@ export function chessPhraseGrammar(fen: string, language: 'fr' | 'en'): string[]
       }
     } else if (move.promotion) {
       const promo = promoName[move.promotion] ?? '';
+      if (promo) promoPieces.add(promo);
       add(phrases, `${file} ${rankWord} ${promo}`);
       add(phrases, `${name} ${file} ${rankWord} ${promo}`);
     } else {
@@ -104,7 +110,10 @@ export function chessPhraseGrammar(fen: string, language: 'fr' | 'en'): string[]
     }
   }
 
-  if (anyCastle && language === 'fr') add(phrases, 'roque');
+  // Bare "roque" / "castle" only when a single side is legal. With both
+  // sides available the short word steals "grand roque" / "long castle".
+  if (kingside !== queenside) add(phrases, language === 'fr' ? 'roque' : 'castle');
+  for (const promo of promoPieces) add(phrases, `promotion ${promo}`);
   if (language === 'fr') {
     add(phrases, 'annule');
     add(phrases, 'repete');

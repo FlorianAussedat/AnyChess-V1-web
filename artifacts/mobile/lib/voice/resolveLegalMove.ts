@@ -24,6 +24,10 @@ function matchesIntent(m: Move, intent: MoveIntent, defaultPromotion: string): b
   if (intent.castle === 'kingside') return m.flags.includes('k');
   if (intent.castle === 'queenside') return m.flags.includes('q');
 
+  if (intent.promotionOnly) {
+    return m.piece === 'p' && !!m.promotion && m.promotion === intent.promotion;
+  }
+
   if (intent.piece && m.piece !== intent.piece) return false;
   if (intent.to && m.to !== intent.to) return false;
   if (intent.fromSquare && m.from !== intent.fromSquare) return false;
@@ -96,11 +100,13 @@ export function resolveAgainstLegalMoves(
   game: Chess,
   intent: MoveIntent,
   defaultPromotion: 'q' | 'r' | 'b' | 'n' = 'q',
+  strict = false,
 ): ResolveResult {
   let candidates = filterMovesByIntent(game, intent, defaultPromotion);
 
-  // Bare kingside castle with no match → try any castling if speaker said "roque" intent kingside only
-  if (intent.castle === 'kingside' && candidates.length === 0) {
+  // Keyboard only: "petit roque" can fall through to the one legal castle.
+  // Dictation passes strict and must not play the other castle.
+  if (!strict && intent.castle === 'kingside' && candidates.length === 0) {
     const anyCastle = legalMoves(game).filter(
       (m) => m.flags.includes('k') || m.flags.includes('q'),
     );

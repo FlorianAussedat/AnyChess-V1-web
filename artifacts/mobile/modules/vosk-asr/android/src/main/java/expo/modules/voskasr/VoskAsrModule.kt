@@ -2,6 +2,7 @@ package expo.modules.voskasr
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.StatFs
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -26,6 +27,7 @@ class VoskAsrModule : Module() {
     Thread(runnable, "vosk-asr").apply { isDaemon = true }
   }
   private val cancelDownload = AtomicBoolean(false)
+  private val pauseDownload = AtomicBoolean(false)
   private val activeSession = AtomicInteger(-1)
   /** Latest start requested by JS. A stop or a newer start supersedes an older one. */
   private val requestedSession = AtomicInteger(-1)
@@ -46,6 +48,7 @@ class VoskAsrModule : Module() {
 
     AsyncFunction("download") { url: String, destPath: String, sha256: String ->
       cancelDownload.set(false)
+      pauseDownload.set(false)
       io.submit<Unit> {
         try {
           downloadFile(url, File(destPath), sha256)
@@ -65,6 +68,14 @@ class VoskAsrModule : Module() {
 
     Function("cancelDownload") {
       cancelDownload.set(true)
+    }
+
+    Function("pauseDownload") {
+      pauseDownload.set(true)
+    }
+
+    Function("freeBytes") {
+      StatFs(context.filesDir.absolutePath).availableBytes.toDouble()
     }
 
     Function("paths") { language: String ->
@@ -124,6 +135,7 @@ class VoskAsrModule : Module() {
         recognizer?.close()
         recognizer = null
         model?.close()
+        tuneDecoder(File(path))
         model = Model(path)
         modelPath = path
         recognizer = Recognizer(model, SAMPLE_RATE, grammarJson).also {
@@ -254,6 +266,7 @@ class VoskAsrModule : Module() {
       val code = connection.responseCode
       if (code == 416 && existing > 0L && resume) {
         connection.disconnect()
+        if (expectedSha.equals(hashFile(dest), ignoreCase = true)) return
         dest.delete()
         downloadFile(url, dest, expectedSha, resume = false)
         return
@@ -268,15 +281,18 @@ class VoskAsrModule : Module() {
       } else {
         totalHeader
       }
+      val stat = StatFs(dest.parentFile?.absolutePath ?: dest.absolutePath)
+      val remaining = if (total > existing) total - existing else if (total > 0) total else 0
+      if (total > 0 && stat.availableBytes < remaining + UNPACK_HEADROOM) {
+        throw IllegalStateException("space")
+      }
       connection.inputStream.use { input ->
         FileOutputStream(dest, code == HttpURLConnection.HTTP_PARTIAL).use { output ->
           val buffer = ByteArray(64 * 1024)
           var received = existing
           while (true) {
-            if (cancelDownload.get()) {
-              dest.delete()
-              throw IllegalStateException("cancelled")
-            }
+            if (cancelDownload.get()) throw IllegalStateException("cancelled")
+            if (pauseDownload.get()) throw IllegalStateException("paused")
             val read = input.read(buffer)
             if (read < 0) break
             output.write(buffer, 0, read)
@@ -375,13 +391,30 @@ class VoskAsrModule : Module() {
     return when {
       message.contains("integrity") || message.contains("incompatible") -> message
       message.contains("enospc") || message.contains("no space") -> "space"
+      message.contains("paused") -> "paused"
       message.contains("cancelled") -> "cancelled"
       else -> "network"
     }
   }
 
+  private fun tuneDecoder(modelDir: File) {
+    val conf = File(modelDir, "conf/model.conf")
+    if (!conf.isFile) return
+    val text = conf.readText()
+    val match = Regex("(?m)^--lattice-beam=(\\S+)").find(text) ?: return
+    val value = match.groupValues[1].toDoubleOrNull() ?: return
+    if (value >= 4.0) return
+    val tuned = text
+      .replace(Regex("(?m)^--beam=.*$"), "--beam=15.0")
+      .replace(Regex("(?m)^--lattice-beam=.*$"), "--lattice-beam=8.0")
+      .replace(Regex("(?m)^--max-active=.*$"), "--max-active=7000")
+    if (tuned != text) conf.writeText(tuned)
+  }
+
   companion object {
     private const val SAMPLE_RATE = 16000.0f
     private const val MAX_ALTERNATIVES = 8
+    /** Zip and unpacked model overlap, plus a small margin. */
+    private const val UNPACK_HEADROOM = 80_000_000L
   }
 }

@@ -28,10 +28,14 @@ describe('chess phrase grammar', () => {
     const french = chessPhraseGrammar(castle, 'fr');
     assert.ok(french.includes('petit roque'));
     assert.ok(french.includes('grand roque'));
-    assert.ok(french.includes('roque'));
+    assert.equal(french.includes('roque'), false);
+    const kingside = '4k3/8/8/8/8/8/8/4K2R w K - 0 1';
+    assert.ok(chessPhraseGrammar(kingside, 'fr').includes('roque'));
     const promo = '3k4/4P3/8/8/8/8/8/4K3 w - - 0 1';
     const english = chessPhraseGrammar(promo, 'en');
     assert.ok(english.includes('e eight queen'));
     assert.ok(english.includes('e eight rook'));
+    assert.ok(english.includes('promotion queen'));
+    assert.ok(chessPhraseGrammar(promo, 'fr').includes('promotion dame'));
   });
 });
