@@ -1,0 +1,46 @@
+# Netlify publishes only dist/confirm-site. The build reads the repo, then
+# copies the confirmation page and its logo. Nothing else is deployed.
+[build]
+  command = "node --experimental-strip-types scripts/build-confirm-site.mjs"
+  publish = "dist/confirm-site"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Do not rewrite or minify the confirmation page.
+[build.processing]
+  skip_processing = true
+
+[[redirects]]
+  from = "/"
+  to = "/auth/confirm"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/auth/confirm.html"
+  to = "/auth/confirm"
+  status = 301
+  force = true
+
+[[headers]]
+  for = "/auth/confirm"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex"
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/auth/confirm/"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex"
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/brand/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Cache-Control = "public, max-age=86400"

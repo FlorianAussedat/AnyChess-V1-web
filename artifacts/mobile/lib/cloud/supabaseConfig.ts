@@ -66,11 +66,11 @@ export function authMailLanguage(value: string | null | undefined): AuthMailLang
  * Where Supabase sends the browser after it verifies an email link
  * (signup confirmation and password recovery).
  *
- * `EXPO_PUBLIC_AUTH_CONFIRM_URL` is the readable HTTPS page (`text/html`).
- * A path ending in `/auth/confirm` or `/auth/confirm.html` is accepted, so a
- * file hosted on a CDN can be used. It must also be listed in Supabase
- * Redirect URLs, including the `client` and `lang` query. Until that public
- * URL exists, the free `*.supabase.co` function stays the target.
+ * `EXPO_PUBLIC_AUTH_CONFIRM_URL` is the Netlify page (`text/html`),
+ * `https://anychess-confirm.netlify.app/auth/confirm`. A path ending in
+ * `/auth/confirm` or `/auth/confirm.html` is accepted. It must also be listed
+ * in Supabase Redirect URLs, including the `client` and `lang` query. Until
+ * that public URL exists, the free `*.supabase.co` function stays the target.
  *
  * Query values are only the allowlisted client and language. They are not a
  * scheme, a package, or a token.
@@ -81,7 +81,7 @@ export function authConfirmRedirectUrl(language?: string | null): string | null 
     try {
       const url = new URL(page);
       const path = url.pathname.replace(/\/$/, '');
-      if (url.protocol === 'https:' && /\/auth\/confirm(?:\.(?:html|svg))?$/.test(path)) {
+      if (url.protocol === 'https:' && /\/auth\/confirm(?:\.html)?$/.test(path)) {
         url.pathname = path;
         url.search = '';
         url.hash = '';

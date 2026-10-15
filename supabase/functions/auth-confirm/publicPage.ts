@@ -7,21 +7,36 @@ export const PUBLIC_SUPABASE_URL = 'https://zqfxnzwtptepulmgpxhb.supabase.co';
  */
 export const PUBLIC_VERIFY_URL = `${PUBLIC_SUPABASE_URL}/functions/v1/auth-confirm`;
 
-/**
- * Logo already published on jsDelivr from the commit that added the brand file.
- * Immutable, so the page does not depend on `main`.
- */
-export const PUBLIC_LOGO_URL =
-  'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/artifacts/mobile/server/brand/anychess-logo.png';
+/** Subdomain to type in Netlify. The name is part of the public page URL. */
+export const CONFIRM_SITE_HOST = 'anychess-confirm.netlify.app';
+export const CONFIRM_SITE_ORIGIN = `https://${CONFIRM_SITE_HOST}`;
+
+/** Readable HTML page. Netlify serves it as text/html. */
+export const PUBLIC_CONFIRM_PAGE_URL = `${CONFIRM_SITE_ORIGIN}/auth/confirm`;
+
+/** Same-origin logo copied into the Netlify publish directory. */
+export const PUBLIC_LOGO_PATH = '/brand/anychess-logo.png';
+
+/** Absolute logo for email clients, which cannot use a site-relative path. */
+export const PUBLIC_LOGO_URL = `${CONFIRM_SITE_ORIGIN}${PUBLIC_LOGO_PATH}`;
 
 /**
- * Readable confirmation page. The slash in the branch name stays percent-encoded
- * (`cursor%2F…`). jsDelivr returns 404 if that `%2F` is decoded to `/`.
- * After this file is pushed, the commit-SHA URL of the same path is the Site URL
- * to paste in Supabase: it has no encoded slash.
+ * Browsers that open the Netlify page may call the edge function.
+ * Only this site and its Netlify preview hostnames are accepted.
  */
-export const PUBLIC_CONFIRM_PAGE_URL =
-  'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@cursor%2Fauth-confirm-page-90c2/site/auth/confirm.html';
+export function allowedConfirmOrigin(origin: string | null | undefined): string | null {
+  if (!origin) return null;
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port) return null;
+  const host = url.hostname.toLowerCase();
+  if (host === CONFIRM_SITE_HOST || host.endsWith(`--${CONFIRM_SITE_HOST}`)) return url.origin;
+  return null;
+}
 
 /**
  * Where a browser that still lands on the edge function should go.

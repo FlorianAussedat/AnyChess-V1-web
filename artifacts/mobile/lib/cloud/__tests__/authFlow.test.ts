@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
@@ -15,12 +15,16 @@ import { resetConfirmationEmailCooldown } from '../confirmCooldown.ts';
 import { authClientVariant, authConfirmRedirectUrl, authMailLanguage } from '../supabaseConfig.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import type { CloudAuth, CloudDocument } from '../types.ts';
-import { renderConfirmationPage, renderConfirmationSvg } from '../../../../../supabase/functions/auth-confirm/page.ts';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { renderConfirmationPage } from '../../../../../supabase/functions/auth-confirm/page.ts';
 import {
   PUBLIC_CONFIRM_PAGE_URL,
+  PUBLIC_LOGO_PATH,
   PUBLIC_LOGO_URL,
   PUBLIC_SUPABASE_URL,
   PUBLIC_VERIFY_URL,
+  allowedConfirmOrigin,
   confirmPageRedirect,
 } from '../../../../../supabase/functions/auth-confirm/publicPage.ts';
 import {
@@ -212,35 +216,67 @@ describe('confirmation page', () => {
     const published = renderConfirmationPage({
       supabaseUrl: PUBLIC_SUPABASE_URL,
       anonKey: '',
-      logoUrl: PUBLIC_LOGO_URL,
+      logoUrl: PUBLIC_LOGO_PATH,
       verifyUrl: PUBLIC_VERIFY_URL,
     });
     const onDisk = readFileSync(join(repoRoot, 'site/auth/confirm.html'), 'utf8');
     assert.equal(onDisk, published);
-    const svg = renderConfirmationSvg({
-      supabaseUrl: PUBLIC_SUPABASE_URL,
-      anonKey: '',
-      logoUrl: PUBLIC_LOGO_URL,
-      verifyUrl: PUBLIC_VERIFY_URL,
-    });
-    assert.equal(readFileSync(join(repoRoot, 'site/auth/confirm.svg'), 'utf8'), svg);
-    assert.match(svg, /<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
-    assert.match(svg, /<!\[CDATA\[/);
-    assert.match(onDisk, /src="https:\/\/cdn\.jsdelivr\.net\/gh\/FlorianAussedat\/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0\/artifacts\/mobile\/server\/brand\/anychess-logo\.png"/);
+    assert.match(onDisk, /src="\/brand\/anychess-logo\.png"/);
     assert.match(onDisk, /functions\/v1\/auth-confirm/);
     assert.match(onDisk, /"anon":""/);
-    assert.doesNotMatch(onDisk, /service_role|sb_secret_/);
+    assert.doesNotMatch(onDisk, /service_role|sb_secret_|jsdelivr|\.svg/);
     const devRedirect = confirmPageRedirect(
       'https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm?client=dev&lang=en&access_token=secret',
     );
     assert.equal(
       devRedirect,
-      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@cursor%2Fauth-confirm-page-90c2/site/auth/confirm.html?client=dev&lang=en',
+      'https://anychess-confirm.netlify.app/auth/confirm?client=dev&lang=en',
     );
     assert.equal(confirmPageRedirect('https://example.test/functions/v1/auth-confirm').includes('client=app'), true);
     assert.equal(confirmPageRedirect('https://example.test/functions/v1/auth-confirm?client=javascript').includes('client=app'), true);
-    assert.equal(PUBLIC_CONFIRM_PAGE_URL.includes('cursor%2Fauth-confirm-page-90c2'), true);
+    assert.equal(PUBLIC_CONFIRM_PAGE_URL, 'https://anychess-confirm.netlify.app/auth/confirm');
+    assert.equal(PUBLIC_LOGO_URL, 'https://anychess-confirm.netlify.app/brand/anychess-logo.png');
+    assert.equal(allowedConfirmOrigin('https://anychess-confirm.netlify.app'), 'https://anychess-confirm.netlify.app');
+    assert.equal(
+      allowedConfirmOrigin('https://deploy-preview-109--anychess-confirm.netlify.app'),
+      'https://deploy-preview-109--anychess-confirm.netlify.app',
+    );
+    assert.equal(allowedConfirmOrigin('https://cdn.jsdelivr.net'), null);
+    assert.equal(allowedConfirmOrigin('https://evil.netlify.app'), null);
     assert.doesNotMatch(devRedirect, /access_token/);
+    const netlify = readFileSync(join(repoRoot, 'netlify.toml'), 'utf8');
+    assert.match(netlify, /publish = "dist\/confirm-site"/);
+    assert.match(netlify, /scripts\/build-confirm-site\.mjs/);
+    assert.doesNotMatch(netlify, /jsdelivr|\.svg/);
+  });
+
+  it('builds a Netlify directory that contains only the page and the logo', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'anychess-confirm-'));
+    try {
+      const child = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', join(repoRoot, 'scripts/build-confirm-site.mjs')],
+        { env: { ...process.env, CONFIRM_SITE_OUT: dir }, encoding: 'utf8' },
+      );
+      assert.equal(child.status, 0, child.stderr || child.stdout);
+      const page = await readFile(join(dir, 'auth/confirm/index.html'), 'utf8');
+      assert.equal(page, readFileSync(join(repoRoot, 'site/auth/confirm.html'), 'utf8'));
+      const logo = await readFile(join(dir, 'brand/anychess-logo.png'));
+      assert.ok(logo.byteLength > 1000);
+      async function names(path, prefix = '') {
+        const entries = await readdir(path, { withFileTypes: true });
+        const found = [];
+        for (const entry of entries) {
+          const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+          if (entry.isDirectory()) found.push(...(await names(join(path, entry.name), rel)));
+          else found.push(rel);
+        }
+        return found;
+      }
+      assert.deepEqual((await names(dir)).sort(), ['auth/confirm/index.html', 'brand/anychess-logo.png']);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -406,17 +442,13 @@ describe('auth screen copy wiring', () => {
     assert.equal(authConfirmRedirectUrl(), 'https://anychess.example/auth/confirm?client=app&lang=fr');
     assert.equal(authConfirmRedirectUrl('en'), 'https://anychess.example/auth/confirm?client=app&lang=en');
     process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL =
-      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.html';
+      'https://cdn.example/gh/site/auth/confirm.html';
     assert.equal(
       authConfirmRedirectUrl('en'),
-      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.html?client=app&lang=en',
+      'https://cdn.example/gh/site/auth/confirm.html?client=app&lang=en',
     );
-    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL =
-      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.svg';
-    assert.equal(
-      authConfirmRedirectUrl('fr'),
-      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.svg?client=app&lang=fr',
-    );
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess-confirm.netlify.app/auth/confirm.svg';
+    assert.equal(authConfirmRedirectUrl('fr'), 'https://example.supabase.co/functions/v1/auth-confirm');
     process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = PUBLIC_CONFIRM_PAGE_URL;
     assert.equal(
       authConfirmRedirectUrl('fr'),
