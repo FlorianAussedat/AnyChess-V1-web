@@ -86,16 +86,16 @@ export function renderConfirmationPage(config: {
 <body>
   <main>
     <div class="card">
-      <img class="logo" src="${logo}" alt="AnyChess" width="280" height="97">
+      <img class="logo" src="${logo}" alt="AnyChess" width="280" height="97" />
       <h1 id="title">AnyChess</h1>
       <p id="message">${CONFIRM_COPY.fr.checking}</p>
       <a id="open" class="open" href="${open}">${CONFIRM_COPY.fr.open}</a>
       <p id="alt" class="alt">${CONFIRM_COPY.fr.alt}</p>
-      <form id="recover" hidden>
+      <form id="recover" hidden="hidden">
         <label id="label-password" for="password">${CONFIRM_COPY.fr.recoverLabel}</label>
-        <input id="password" name="password" type="password" autocomplete="new-password" minlength="6">
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="6" />
         <label id="label-password2" for="password2">${CONFIRM_COPY.fr.recoverLabel2}</label>
-        <input id="password2" name="password2" type="password" autocomplete="new-password" minlength="6">
+        <input id="password2" name="password2" type="password" autocomplete="new-password" minlength="6" />
         <button id="recover-submit" type="submit">${CONFIRM_COPY.fr.recoverSubmit}</button>
         <p id="recover-error"></p>
       </form>
@@ -297,4 +297,47 @@ function htmlAttr(value: string): string {
 
 function appOpenFallback(): string {
   return 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end';
+}
+
+/**
+ * Same page as HTML, wrapped so a CDN that serves `.svg` as `image/svg+xml`
+ * can run it. jsDelivr serves `.html` as `text/plain`, which a browser will
+ * not execute. The script stays in CDATA; the markup is XML-safe.
+ */
+export function renderConfirmationSvg(config: {
+  supabaseUrl: string;
+  anonKey: string;
+  logoUrl?: string;
+  verifyUrl?: string;
+}): string {
+  const html = renderConfirmationPage(config);
+  const style = html.match(/<style>([\s\S]*?)<\/style>/)?.[1] ?? '';
+  const body = html.match(/<body>([\s\S]*?)<script>/)?.[1] ?? '';
+  const script = html.match(/<script>\n([\s\S]*?)\n {2}<\/script>/)?.[1] ?? '';
+  if (!style || !body || !script) throw new Error('confirmation page could not be wrapped as svg');
+  if (script.includes(']]>') || style.includes(']]>')) throw new Error('confirmation svg cannot embed cdata terminator');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <foreignObject x="0" y="0" width="100%" height="100%">
+    <html xmlns="http://www.w3.org/1999/xhtml" lang="fr">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="referrer" content="no-referrer" />
+        <meta name="robots" content="noindex" />
+        <title>AnyChess</title>
+        <style>${style}
+          html, body { min-height: 100%; margin: 0; }
+        </style>
+      </head>
+      <body>
+      ${body.trim()}
+      </body>
+    </html>
+  </foreignObject>
+  <script><![CDATA[
+${script}
+  ]]></script>
+</svg>
+`;
 }

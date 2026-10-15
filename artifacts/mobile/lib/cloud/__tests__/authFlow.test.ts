@@ -15,7 +15,7 @@ import { resetConfirmationEmailCooldown } from '../confirmCooldown.ts';
 import { authClientVariant, authConfirmRedirectUrl, authMailLanguage } from '../supabaseConfig.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import type { CloudAuth, CloudDocument } from '../types.ts';
-import { renderConfirmationPage } from '../../../../../supabase/functions/auth-confirm/page.ts';
+import { renderConfirmationPage, renderConfirmationSvg } from '../../../../../supabase/functions/auth-confirm/page.ts';
 import {
   PUBLIC_CONFIRM_PAGE_URL,
   PUBLIC_LOGO_URL,
@@ -170,7 +170,7 @@ describe('confirmation page', () => {
     assert.match(html, /#0B1728/);
     assert.match(html, /#102040/);
     assert.match(html, /#F5A623/);
-    assert.match(html, /<form id="recover" hidden>/);
+    assert.match(html, /<form id="recover" hidden="hidden">/);
     assert.match(html, /Enregistrer le mot de passe/);
     assert.match(html, /Mot de passe mis à jour/);
     assert.notEqual(CONFIRM_COPY.fr.recoverSaved, CONFIRM_COPY.fr.confirmed);
@@ -217,6 +217,15 @@ describe('confirmation page', () => {
     });
     const onDisk = readFileSync(join(repoRoot, 'site/auth/confirm.html'), 'utf8');
     assert.equal(onDisk, published);
+    const svg = renderConfirmationSvg({
+      supabaseUrl: PUBLIC_SUPABASE_URL,
+      anonKey: '',
+      logoUrl: PUBLIC_LOGO_URL,
+      verifyUrl: PUBLIC_VERIFY_URL,
+    });
+    assert.equal(readFileSync(join(repoRoot, 'site/auth/confirm.svg'), 'utf8'), svg);
+    assert.match(svg, /<svg xmlns="http:\/\/www.w3.org\/2000\/svg"/);
+    assert.match(svg, /<!\[CDATA\[/);
     assert.match(onDisk, /src="https:\/\/cdn\.jsdelivr\.net\/gh\/FlorianAussedat\/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0\/artifacts\/mobile\/server\/brand\/anychess-logo\.png"/);
     assert.match(onDisk, /functions\/v1\/auth-confirm/);
     assert.match(onDisk, /"anon":""/);
@@ -402,6 +411,12 @@ describe('auth screen copy wiring', () => {
       authConfirmRedirectUrl('en'),
       'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.html?client=app&lang=en',
     );
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL =
+      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.svg';
+    assert.equal(
+      authConfirmRedirectUrl('fr'),
+      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.svg?client=app&lang=fr',
+    );
     process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = PUBLIC_CONFIRM_PAGE_URL;
     assert.equal(
       authConfirmRedirectUrl('fr'),
@@ -484,7 +499,7 @@ describe('confirmation page on the existing web host', () => {
       assert.equal(response.status, 200);
       assert.match(response.headers.get('content-type') ?? '', /text\/html/);
       assert.match(body, /Vérification du lien/);
-      assert.match(body, /<form id="recover" hidden>/);
+      assert.match(body, /<form id="recover" hidden="hidden">/);
       assert.doesNotMatch(body, /service_role/);
       const logo = await fetch(`http://127.0.0.1:${ready.port}/brand/anychess-logo.png`);
       assert.equal(logo.status, 200);

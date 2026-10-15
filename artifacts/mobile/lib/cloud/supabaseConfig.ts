@@ -81,7 +81,7 @@ export function authConfirmRedirectUrl(language?: string | null): string | null 
     try {
       const url = new URL(page);
       const path = url.pathname.replace(/\/$/, '');
-      if (url.protocol === 'https:' && /\/auth\/confirm(?:\.html)?$/.test(path)) {
+      if (url.protocol === 'https:' && /\/auth\/confirm(?:\.(?:html|svg))?$/.test(path)) {
         url.pathname = path;
         url.search = '';
         url.hash = '';
