@@ -159,7 +159,7 @@ Mot de passe oublié, une fois `EXPO_PUBLIC_AUTH_CONFIRM_URL` et la Redirect URL
 2. Ouvrir le lien. La page demande un nouveau mot de passe (deux champs, 6 caractères minimum) et dit « Mot de passe mis à jour » — pas « Adresse confirmée ».
 3. Revenir dans AnyChess et se connecter avec le nouveau mot de passe.
 
-Sur le téléphone, en 5G avec le DNS privé Android réglé sur `dns.google`, le lien de confirmation a ouvert la page AnyChess « Adresse e-mail confirmée ! ». Le Wi-Fi aboutit aussi. Le retour vers l’écran Utilisateur et la connexion dans l’application après cette page ne sont pas encore vérifiés. Avec le DNS privé laissé sur Automatique, le domaine du projet reste inaccessible sur ce réseau mobile : voir le diagnostic ci-dessous.
+Sur le téléphone Vodafone, en 5G avec le DNS privé Android réglé sur `dns.google`, le lien de confirmation a ouvert la page AnyChess « Adresse e-mail confirmée ! ». Un Wi-Fi qui n’est pas le partage de ce téléphone aboutit aussi. Le retour vers l’écran Utilisateur et la connexion dans l’application après cette page ne sont pas encore vérifiés. Avec le DNS privé laissé sur Automatique, Vodafone affiche `ERR_TIMED_OUT`. Telstra, sur les données mobiles d’un autre téléphone, a confirmé l’adresse. Voir le diagnostic ci-dessous.
 
 ## Netlify
 
@@ -182,19 +182,19 @@ Le 15 octobre 2026, depuis la machine de l’agent, `https://sparkly-paprenjak-6
 
 Les URL, le SMTP Brevo et le modèle français déjà reçu ne sont pas modifiés. Aucune adresse IP fixe ne remplace le domaine. TLS et la confirmation d’adresse restent actifs. Aucun proxy de jetons n’est ajouté.
 
-### Essais du téléphone
+### Essais des téléphones
 
-Même téléphone, données mobiles 5G. Ces lignes décrivent ce qui a été observé sur l’appareil, pas une mesure faite depuis la machine de développement.
+Ces lignes décrivent ce qui a été observé sur les appareils, pas une mesure faite depuis la machine de développement. Aucun échec n’est confirmé sur Telstra.
 
-| DNS privé Android | Constat |
+| Réseau | Constat |
 |---|---|
-| Automatique | La page Netlify s’ouvre. Le domaine `zqfxnzwtptepulmgpxhb.supabase.co` ne s’ouvre pas. `GET /auth/v1/health` échoue aussi. |
-| `dns.google` | `GET /auth/v1/health` répond « No API key found in request ». Cette phrase montre que la passerelle répond. Elle ne prouve pas, à elle seule, qu’Auth est entièrement en service. Le lien de confirmation ouvre ensuite « Adresse e-mail confirmée ! ». |
-| Retour à Automatique, réseau mobile reconnecté | L’accès au domaine Supabase échoue de nouveau. |
-| Nouveau retour à `dns.google` | Le parcours de confirmation aboutit encore. |
-| Wi-Fi, indépendamment de ce réglage 5G | La confirmation fonctionne. |
+| Vodafone 5G, DNS privé Automatique | La page Netlify s’ouvre. Le domaine `zqfxnzwtptepulmgpxhb.supabase.co` ne s’ouvre pas. Le navigateur affiche `ERR_TIMED_OUT`. |
+| Vodafone 5G, DNS privé `dns.google` | L’accès à Supabase répond, et le lien de confirmation ouvre « Adresse e-mail confirmée ! ». Le retour à Automatique reproduit l’échec. Un nouveau passage à `dns.google` aboutit encore. |
+| Partage Wi-Fi du téléphone Vodafone | La confirmation échoue. Le partage utilise la 5G Vodafone. |
+| Données mobiles Telstra, Wi-Fi coupé | La confirmation fonctionne. |
+| Autre Wi-Fi, pas ce partage | La confirmation fonctionne. |
 
-`dns.google` est un contournement sur ce téléphone. Il n’est pas demandé aux autres utilisateurs.
+`dns.google` est un contournement sur le téléphone Vodafone. Il n’est pas demandé aux autres utilisateurs. `ERR_TIMED_OUT` est un délai dépassé. Ce n’est pas `ERR_NAME_NOT_RESOLVED`.
 
 ### Mesures depuis la machine de l’agent
 
@@ -216,28 +216,24 @@ Le nom Netlify, interrogé en DNS sur HTTPS chez Google et Cloudflare, a des adr
 
 ### Ce que cela démontre
 
-La cause précise n’est pas établie. QUIC n’est pas l’explication principale. L’enregistrement HTTPS public annonce `h3` et `h2`, et le parcours qui réussit sur le téléphone est celui qui utilise `dns.google`, donc le résolveur qui publie cet enregistrement. Les trois résolveurs publics consultés donnent les mêmes adresses. Le projet n’a pas d’adresse IPv6. Le succès en Wi-Fi et en 5G avec `dns.google` écarte une panne générale du projet au moment de ces essais.
+La cause précise n’est pas établie. QUIC n’est pas l’explication principale. L’échec confirmé est celui de Vodafone en DNS privé Automatique, y compris pour un autre téléphone qui passe par son partage Wi-Fi. Le même téléphone Vodafone confirme l’adresse avec `dns.google`. Telstra, sur ses propres données mobiles, confirme aussi. Un autre Wi-Fi confirme. Le projet n’a pas d’adresse IPv6. Ces succès écartent une panne générale du projet et un échec Telstra.
 
-L’échec suit le DNS privé Automatique sur ce réseau mobile, et il disparaît quand le téléphone interroge `dns.google`. Deux hypothèses restent ouvertes, et les mesures publiques ne les départagent pas :
+L’enregistrement HTTPS public annonce `h3` et `h2`. Les trois résolveurs publics consultés donnent les mêmes adresses. Ils ne sont pas le résolveur Vodafone. Deux hypothèses restent ouvertes :
 
-- le résolveur du réseau mobile ne rend pas ces adresses (échec, ou une autre réponse) ;
-- il rend les mêmes adresses, et un autre effet du mode Automatique empêche ensuite la connexion.
+- le résolveur utilisé en Automatique sur Vodafone ne répond pas à temps, ou ne rend pas ces adresses ;
+- il rend les mêmes adresses, et la connexion qui suit expire (`ERR_TIMED_OUT`).
 
 Le suivi de clics Brevo n’explique pas cet échec. L’accès direct à `/auth/v1/health` échouait déjà avant Brevo. L’aide Brevo documente l’anonymisation des ouvertures et des clics, qui ne retire pas la redirection de suivi. La coupure du suivi transactionnel n’est pas un réglage décrit pour l’offre gratuite : les réponses publiques de Brevo la réservent à une demande, pour des comptes Enterprise. On ne suppose pas que cette coupure existe sur le compte actuel. Le SMTP enregistré dans Supabase n’est pas modifié pour l’essayer.
 
-### Une seule vérification suivante
+### Vérification reçue
 
-Avec le DNS privé remis sur Automatique, ouvrir dans le navigateur du téléphone uniquement :
-
-`https://zqfxnzwtptepulmgpxhb.supabase.co/auth/v1/health`
-
-Noter la ligne d’erreur exacte (`ERR_NAME_NOT_RESOLVED`, `ERR_CONNECTION_TIMED_OUT`, ou une autre). Ne pas ouvrir un lien d’e-mail et ne pas coller de jeton. Le nom de l’opérateur mobile servira ensuite à nommer le réseau dans le signalement, pas comme second essai.
+L’erreur demandée est arrivée : sur Vodafone, DNS privé Automatique, le navigateur affiche `ERR_TIMED_OUT`. Les essais complémentaires sont prévus demain. Aucun nouvel essai n’est demandé maintenant.
 
 ### Signalement préparé, non envoyé
 
 Texte prêt pour Supabase ou pour l’opérateur. Il n’a pas été transmis.
 
-> Projet `zqfxnzwtptepulmgpxhb`. Le 15 octobre 2026, sur un téléphone Android en 5G, DNS privé Automatique : `zqfxnzwtptepulmgpxhb.supabase.co` et `/auth/v1/health` sont inaccessibles, alors que l’hôte Netlify de la page de confirmation s’ouvre. DNS privé `dns.google` : `/auth/v1/health` répond « No API key found in request », puis le lien de confirmation affiche « Adresse e-mail confirmée ! ». Le retour à Automatique reproduit l’échec. Le Wi-Fi confirme aussi. Depuis une autre machine, `dns.google`, `one.one.one.one` et `dns.quad9.net` répondent A `104.18.38.10` et `172.64.149.246`, sans AAAA, sans CNAME, HTTPS `alpn=h3,h2`. Les deux adresses répondent HTTP/2 401 sans clé API. Le statut public Supabase est opérationnel. Les journaux du projet ne sont pas joints (jeton de gestion refusé). Merci d’indiquer si le résolveur de ce réseau mobile renvoie une autre réponse, ou s’il bloque ce nom.
+> Projet `zqfxnzwtptepulmgpxhb`. Le 15 octobre 2026, téléphone Android en 5G Vodafone, DNS privé Automatique : le navigateur affiche `ERR_TIMED_OUT` vers `zqfxnzwtptepulmgpxhb.supabase.co`, alors que l’hôte Netlify de la page de confirmation s’ouvre. DNS privé `dns.google`, même téléphone et même 5G Vodafone : Supabase répond et le lien affiche « Adresse e-mail confirmée ! ». Le retour à Automatique reproduit l’échec. Un autre téléphone relié au partage Wi-Fi de ce Vodafone échoue aussi. Ses propres données Telstra, Wi-Fi coupé, confirment l’adresse. Aucun échec n’est confirmé sur Telstra. Depuis une autre machine, `dns.google`, `one.one.one.one` et `dns.quad9.net` répondent A `104.18.38.10` et `172.64.149.246`, sans AAAA, sans CNAME, HTTPS `alpn=h3,h2`. Ces résolveurs publics ne sont pas celui de Vodafone. Les deux adresses répondent HTTP/2 401 sans clé API. Le statut public Supabase est opérationnel. Les journaux du projet ne sont pas joints. Merci d’indiquer ce que le résolveur Vodafone renvoie en Automatique pour ce nom, et si le délai vient de la résolution ou de la connexion vers ces adresses.
 
 ## Ce qui reste côté Supabase
 
