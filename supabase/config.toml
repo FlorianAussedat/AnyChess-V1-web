@@ -9,6 +9,10 @@ verify_jwt = true
 [functions.auth-confirm]
 verify_jwt = false
 
+# Deletes the signed-in user. The service role stays in the function environment.
+[functions.delete-account]
+verify_jwt = true
+
 # Auth emails. Applied to the hosted project only when template editing is allowed.
 [auth.email.template.confirmation]
 subject = "{{ if eq .Data.language \"en\" }}Confirm your email address — AnyChess{{ else }}Confirme ton adresse e-mail — AnyChess{{ end }}"

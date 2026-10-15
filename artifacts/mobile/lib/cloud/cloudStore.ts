@@ -1,6 +1,7 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import {
   defaultKeyValueStorage,
+  subscribeKeyValueErrors,
   subscribeKeyValueWrites,
 } from '../storage/AsyncKeyValueStorage.ts';
 import { CloudSyncEngine } from './CloudSyncEngine.ts';
@@ -71,6 +72,10 @@ export function getActiveCloudEngine(): CloudSyncEngine {
 
 subscribeKeyValueWrites((key) => {
   if (isSyncableStorageKey(key)) cloudSyncEngine.notifyLocalMutation();
+});
+
+subscribeKeyValueErrors((key) => {
+  if (isSyncableStorageKey(key)) cloudSyncEngine.noteLocalSaveFailure();
 });
 
 export async function hydrateCloudSession(): Promise<void> {

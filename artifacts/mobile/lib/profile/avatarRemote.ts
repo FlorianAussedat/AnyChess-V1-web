@@ -118,6 +118,13 @@ export async function flushPendingAvatar(input: {
   const pending = await readPendingAvatar(input.storage);
   if (!pending) return 'skipped';
   if (pending.email !== normalizeAvatarEmail(input.email)) return 'skipped';
+  if (pending.intent === 'mascot' && pending.mascotId) {
+    if (profileStore.usesStorage(input.storage)) {
+      await profileStore.update({ mascotId: pending.mascotId });
+    }
+    await clearPendingAvatar(input.storage);
+    return 'uploaded';
+  }
   const decision = await decideCloudTransfer(false);
   if (decision.defer || decision.offline) return 'waiting_wifi';
   if (!input.accessToken) return 'failed';

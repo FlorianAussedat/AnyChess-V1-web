@@ -17,6 +17,11 @@ export interface UserProfile {
    * Missing on older documents means no avatar.
    */
   hasAvatar: boolean;
+  /**
+   * Stable id of a bundled AnyChess mascot. Absent means the previous
+   * photo or initials stay in place. Never invented by sync.
+   */
+  mascotId: string | null;
   updatedAt: string;
 }
 
@@ -29,6 +34,7 @@ export type UserProfilePatch = Partial<
     | 'bulletRangeId'
     | 'chessYears'
     | 'hasAvatar'
+    | 'mascotId'
   >
 >;
 
@@ -47,6 +53,7 @@ export function emptyUserProfile(now: () => string = () => new Date().toISOStrin
     bulletRangeId: null,
     chessYears: null,
     hasAvatar: false,
+    mascotId: null,
     updatedAt: now(),
   };
 }

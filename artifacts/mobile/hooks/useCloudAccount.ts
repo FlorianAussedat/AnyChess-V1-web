@@ -15,7 +15,11 @@ export function useCloudAccount() {
 
   return {
     ...state,
-    signIn: (email: string, password: string) => getActiveCloudEngine().signIn(email, password),
+    signIn: (
+      email: string,
+      password: string,
+      options?: { abandoned?: () => boolean },
+    ) => getActiveCloudEngine().signIn(email, password, options),
     signUp: (email: string, password: string) => getActiveCloudEngine().signUp(email, password),
     signOut: () => getActiveCloudEngine().signOut(),
     recoverPassword: (email: string) => getActiveCloudEngine().recoverPassword(email),

@@ -75,6 +75,9 @@ export class CloudSyncEngine {
   private deletionLocked = false;
   /** Bumped on sign-out and account switch so a late sync cannot write the previous account. */
   private sessionEpoch = 0;
+  /** Bumped on each local change so an in-flight sync can re-read before it writes. */
+  private mutationEpoch = 0;
+  private followUpSync = false;
   private readonly storage: KeyValueStorage;
   private readonly auth: CloudAuth;
   private readonly remote: CloudRemote;
@@ -114,10 +117,7 @@ export class CloudSyncEngine {
 
   beginAccountDeletion(): void {
     this.deletionLocked = true;
-    if (this.syncTimer) {
-      clearTimeout(this.syncTimer);
-      this.syncTimer = null;
-    }
+    this.bumpSession();
   }
 
   releaseAccountDeletion(): void {
@@ -406,8 +406,12 @@ export class CloudSyncEngine {
     return this.authenticate(email, () => this.auth.signUp(email, password), 'signup');
   }
 
-  async signIn(email: string, password: string) {
-    return this.authenticate(email, () => this.auth.signIn(email, password), 'signin');
+  async signIn(
+    email: string,
+    password: string,
+    options?: { abandoned?: () => boolean },
+  ) {
+    return this.authenticate(email, () => this.auth.signIn(email, password), 'signin', options);
   }
 
   async resendSignupConfirmation(email: string) {
@@ -474,6 +478,7 @@ export class CloudSyncEngine {
     email: string,
     action: () => ReturnType<CloudAuth['signIn']>,
     source: 'signup' | 'signin',
+    options?: { abandoned?: () => boolean },
   ) {
     if (!this.auth.configured) {
       this.setState({ status: 'unconfigured' });
@@ -486,6 +491,20 @@ export class CloudSyncEngine {
     }
     await this.parkCurrentOwner();
     const result = await action();
+    if (options?.abandoned?.()) {
+      await this.endAuthSession();
+      await this.storage.removeItem(CLOUD_SESSION_KEY);
+      if (!this.sessionIsCurrent(epoch)) return { ok: false as const, error: 'unexpected' as const };
+      this.setState({
+        user: null,
+        status: this.auth.configured ? 'signed_out' : 'unconfigured',
+        pendingConfirmationEmail: null,
+        pendingConfirmationReason: null,
+        lastError: null,
+        sessionReady: true,
+      });
+      return { ok: false as const, error: 'unexpected' as const };
+    }
     if (!this.sessionIsCurrent(epoch)) {
       return result.ok ? { ok: false as const, error: 'unexpected' as const } : result;
     }
@@ -570,14 +589,27 @@ export class CloudSyncEngine {
       this.setState({ user, status: 'offline', lastError: null });
       return this.getState();
     }
-    this.setState({ user, status: 'pending', lastError: null });
+    this.setState({ user, status: 'syncing', lastError: null });
     this.syncing = true;
+    this.followUpSync = false;
     try {
       const remoteDocs = await this.remote.listDocuments(user.id);
       if (stale()) return this.getState();
       const remoteMap = new Map(remoteDocs.map((doc) => [doc.docKey, doc]));
       const localDocs = await readDocs(this.storage);
       const merged: Record<string, string | null> = { ...localDocs };
+      const push = async (key: (typeof SYNCABLE_STORAGE_KEYS)[number], payload: string) => {
+        const sessionUser = await this.auth.getUser();
+        if (stale() || !sessionUser || sessionUser.id !== ownerId) return false;
+        await this.remote.upsertDocument(ownerId, {
+          docKey: key,
+          payload,
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          revision: (remoteMap.get(key)?.revision ?? 0) + 1,
+        });
+        return true;
+      };
       for (const key of SYNCABLE_STORAGE_KEYS) {
         if (stale()) return this.getState();
         const local = localDocs[key] ?? null;
@@ -585,28 +617,43 @@ export class CloudSyncEngine {
         const next = mergeDocumentPayload(key, local, remote);
         merged[key] = next;
         if (next == null) continue;
-        const sessionUser = await this.auth.getUser();
-        if (stale() || !sessionUser || sessionUser.id !== ownerId) return this.getState();
-        await this.remote.upsertDocument(ownerId, {
-          docKey: key,
-          payload: next,
-          updatedAt: new Date().toISOString(),
-          deletedAt: null,
-          revision: (remoteMap.get(key)?.revision ?? 0) + 1,
-        });
+        if (!(await push(key, next))) return this.getState();
       }
       if (stale()) return this.getState();
+      const seen = this.mutationEpoch;
+      const fresh = await readDocs(this.storage);
+      for (const key of SYNCABLE_STORAGE_KEYS) {
+        if (stale()) return this.getState();
+        if ((fresh[key] ?? null) === (localDocs[key] ?? null)) continue;
+        const next = mergeDocumentPayload(key, fresh[key] ?? null, merged[key] ?? null);
+        merged[key] = next;
+        if (next == null) continue;
+        if (!(await push(key, next))) return this.getState();
+      }
+      if (this.mutationEpoch !== seen) this.followUpSync = true;
+      if (stale()) return this.getState();
       await this.withSilentWrites(async () => {
+        const again = await readDocs(this.storage);
+        for (const key of SYNCABLE_STORAGE_KEYS) {
+          const onDisk = again[key] ?? null;
+          const safe = mergeDocumentPayload(key, onDisk, merged[key] ?? null);
+          merged[key] = safe;
+        }
+        if (this.mutationEpoch !== seen) this.followUpSync = true;
         await writeDocs(this.storage, merged);
         await this.mirrorPreferences();
         await this.mirrorProfile();
       });
       if (stale()) return this.getState();
-      this.setState({
-        status: 'synced',
-        lastSyncedAt: new Date().toISOString(),
-        lastError: null,
-      });
+      if (this.followUpSync) {
+        this.setState({ status: 'pending', lastError: null });
+      } else {
+        this.setState({
+          status: 'synced',
+          lastSyncedAt: new Date().toISOString(),
+          lastError: null,
+        });
+      }
       await this.settleAccountLifecycle();
     } catch (error) {
       if (stale()) return this.getState();
@@ -617,6 +664,10 @@ export class CloudSyncEngine {
       });
     } finally {
       this.syncing = false;
+      if (this.followUpSync && !this.deletionLocked && this.state.user) {
+        this.followUpSync = false;
+        this.scheduleSync(50);
+      }
     }
     return this.getState();
   }
@@ -628,8 +679,22 @@ export class CloudSyncEngine {
     }
   }
 
+  noteLocalSaveFailure(): void {
+    if (!this.state.user || this.deletionLocked) return;
+    this.setState({ status: 'error', lastError: 'local_save_failed' });
+  }
+
   notifyLocalMutation(): void {
-    if (this.deletionLocked || this.silentWrites > 0 || this.syncing || !this.state.user) return;
+    if (this.silentWrites > 0) return;
+    this.mutationEpoch += 1;
+    if (this.deletionLocked || !this.state.user) return;
+    if (this.syncing) {
+      this.followUpSync = true;
+      if (this.state.status !== 'offline' && this.state.status !== 'waiting_wifi') {
+        this.setState({ status: 'pending', lastError: null });
+      }
+      return;
+    }
     void this.queueLocalMutation();
   }
 

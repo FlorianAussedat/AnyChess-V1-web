@@ -7,6 +7,7 @@ import type { KeyValueStorage } from './KeyValueStorage.ts';
 
 type WriteListener = (key: string) => void;
 const writeListeners = new Set<WriteListener>();
+const errorListeners = new Set<WriteListener>();
 
 export function subscribeKeyValueWrites(listener: WriteListener): () => void {
   writeListeners.add(listener);
@@ -25,6 +26,23 @@ function notifyWrite(key: string): void {
   }
 }
 
+export function subscribeKeyValueErrors(listener: WriteListener): () => void {
+  errorListeners.add(listener);
+  return () => {
+    errorListeners.delete(listener);
+  };
+}
+
+function notifyError(key: string): void {
+  for (const listener of errorListeners) {
+    try {
+      listener(key);
+    } catch {
+      // listeners must not break persistence
+    }
+  }
+}
+
 export class AsyncKeyValueStorage implements KeyValueStorage {
   async getItem(key: string): Promise<string | null> {
     try {
@@ -35,7 +53,12 @@ export class AsyncKeyValueStorage implements KeyValueStorage {
   }
 
   async setItem(key: string, value: string): Promise<void> {
-    await AsyncStorage.setItem(key, value);
+    try {
+      await AsyncStorage.setItem(key, value);
+    } catch (error) {
+      notifyError(key);
+      throw error;
+    }
     notifyWrite(key);
   }
 

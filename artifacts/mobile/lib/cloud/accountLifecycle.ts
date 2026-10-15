@@ -13,11 +13,22 @@ import {
   readDeletionPending,
   writeDeletionPending,
 } from './purgeAccountLocal.ts';
+import { decideCloudTransfer } from './syncTransport.ts';
 import { deleteAccountFunctionUrl, resolveSupabaseAnonKey, resolveSupabaseUrl } from './supabaseConfig.ts';
 
 export type DeleteAccountResult =
   | { ok: true; alreadyCleaned?: boolean }
-  | { ok: false; error: 'reauth_failed' | 'failed' | 'offline' | 'signed_out' | 'unconfigured' };
+  | {
+      ok: false;
+      error:
+        | 'reauth_failed'
+        | 'failed'
+        | 'offline'
+        | 'signed_out'
+        | 'unconfigured'
+        | 'unavailable'
+        | 'session_expired';
+    };
 
 async function defaultDeleteRequest(
   accessToken: string,
@@ -78,12 +89,21 @@ export async function performAccountDeletion(
   const accessToken = engine.getAccessToken();
   if (!accessToken) return { ok: false, error: 'unconfigured' };
 
+  const link = await decideCloudTransfer(false);
+  if (link.offline) return { ok: false, error: 'offline' };
+
   engine.beginAccountDeletion();
   const heldJobs = pgnTranslationQueue.holdForAccountDeletion();
   await writeDeletionPending(engine.storageHandle(), { userId: user.id, email: user.email });
 
   const request = deps?.request ?? defaultDeleteRequest;
   const http = await request(accessToken, password);
+  if (http === 'network') {
+    pgnTranslationQueue.releaseDeletionHold(heldJobs);
+    engine.releaseAccountDeletion();
+    await clearDeletionPending(engine.storageHandle());
+    return { ok: false, error: 'offline' };
+  }
   let probe: AccountProbe | undefined;
   if (http === 'network' || http.status >= 500) {
     probe = await (deps?.probe ?? defaultProbe)(engine);
@@ -97,10 +117,13 @@ export async function performAccountDeletion(
   }
   pgnTranslationQueue.releaseDeletionHold(heldJobs);
   engine.releaseAccountDeletion();
-  if (decision === 'keep') await clearDeletionPending(engine.storageHandle());
+  await clearDeletionPending(engine.storageHandle());
+  if (engine.getState().user) engine.scheduleSync(50);
   const error = deletionErrorCode(decision, http);
   if (error === 'reauth_failed') return { ok: false, error: 'reauth_failed' };
   if (error === 'offline') return { ok: false, error: 'offline' };
+  if (error === 'unavailable') return { ok: false, error: 'unavailable' };
+  if (error === 'session_expired') return { ok: false, error: 'session_expired' };
   return { ok: false, error: 'failed' };
 }
 

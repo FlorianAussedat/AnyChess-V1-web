@@ -13,6 +13,7 @@ import { initialsFromUsername } from '../../profile/avatarInitials.ts';
 import { CloudSyncEngine } from '../CloudSyncEngine.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import { performAccountDeletion, resumePendingAccountDeletion } from '../accountLifecycle.ts';
+import { setCloudTransferReadersForTests } from '../syncTransport.ts';
 import {
   CLOUD_BACKUP_INDEX_KEY,
   GUEST_OWNER_ID,
@@ -152,7 +153,7 @@ describe('account deletion', () => {
     assert.equal(await storage.getItem('anychess.avatar.cache.' + userId), null);
   });
 
-  it('finishes cleanup when the server deleted the account but the response was lost', async () => {
+  it('does not queue a deletion when the response never arrives', async () => {
     const { storage, engine, userId } = await signedInEngine();
     const lost = await performAccountDeletion(engine, 'secret1', {
       request: async () => 'network',
@@ -162,9 +163,14 @@ describe('account deletion', () => {
     if (!lost.ok) assert.equal(lost.error, 'offline');
     assert.equal(engine.getState().user?.id, userId);
     assert.match((await storage.getItem(PROFILE)) ?? '', /Ada/);
-    const pending = await readDeletionPending(storage);
-    assert.equal(pending?.userId, userId);
+    assert.equal(await readDeletionPending(storage), null);
+    assert.equal(await storage.getItem(cloudWorkspaceKey(userId)) != null, true);
+  });
 
+  it('still finishes a legacy pending deletion once a probe shows the account is gone', async () => {
+    const { storage, engine, userId } = await signedInEngine();
+    const { writeDeletionPending } = await import('../purgeAccountLocal.ts');
+    await writeDeletionPending(storage, { userId, email: 'ada@example.com' });
     await resumePendingAccountDeletion(engine, async () => 'gone');
     assert.equal(engine.getState().user, null);
     assert.equal(await storage.getItem(cloudWorkspaceKey(userId)), null);
@@ -193,6 +199,60 @@ describe('account deletion', () => {
     const again = await engine.signIn('ada@example.com', 'secret1');
     assert.equal(again.ok, true);
     assert.match((await storage.getItem(PROFILE)) ?? '', /Ada/);
+  });
+
+  it('reports an undeployed function, an expired session, and a server error without wiping', async () => {
+    const cases = [
+      {
+        http: { status: 404, body: JSON.stringify({ message: 'Requested function was not found' }) },
+        error: 'unavailable',
+      },
+      {
+        http: { status: 401, body: JSON.stringify({ message: 'JWT expired' }) },
+        error: 'session_expired',
+      },
+      {
+        http: { status: 500, body: JSON.stringify({ error: 'failed' }) },
+        error: 'offline',
+      },
+    ] as const;
+    for (const item of cases) {
+      const { storage, engine, userId } = await signedInEngine();
+      const result = await performAccountDeletion(engine, 'secret1', {
+        request: async () => item.http,
+        probe: async () => 'unknown',
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.error, item.error);
+      assert.equal(engine.getState().user?.id, userId);
+      assert.match((await storage.getItem(PROFILE)) ?? '', /Ada/);
+      assert.equal(await readDeletionPending(storage), null);
+    }
+  });
+
+  it('refuses deletion while offline and does not call the server', async () => {
+    setCloudTransferReadersForTests({
+      transport: async () => 'offline',
+      wifiOnly: async () => true,
+    });
+    try {
+      const { storage, engine, userId } = await signedInEngine();
+      let called = 0;
+      const result = await performAccountDeletion(engine, 'secret1', {
+        request: async () => {
+          called += 1;
+          return { status: 200, body: JSON.stringify({ ok: true }) };
+        },
+      });
+      assert.equal(result.ok, false);
+      if (!result.ok) assert.equal(result.error, 'offline');
+      assert.equal(called, 0);
+      assert.equal(engine.getState().user?.id, userId);
+      assert.equal(await readDeletionPending(storage), null);
+      assert.match((await storage.getItem(PROFILE)) ?? '', /Ada/);
+    } finally {
+      setCloudTransferReadersForTests({ transport: null, wifiOnly: null });
+    }
   });
 });
 
@@ -253,7 +313,9 @@ describe('account screens', () => {
     assert.match(section, /cloud\.user \? <DeleteAccountControl/);
     assert.match(page, /create-account-pseudo/);
     assert.match(page, /create-account-email/);
-    assert.match(page, /create-account-password-toggle/);
+    assert.match(page, /PasswordField/);
+    assert.match(page, /testID="create-account-password"/);
+    assert.match(readFileSync(join(here, '../../../components/cloud/PasswordField.tsx'), 'utf8'), /-toggle/);
     assert.match(page, /account\.avatarAdd|create-account-avatar/);
     assert.match(page, /account\.alreadyHave/);
     assert.doesNotMatch(page, /rapidRangeId|chessYears|abonnement|stripe/i);

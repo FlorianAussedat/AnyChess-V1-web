@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DesignTokens } from '@/constants/designTokens';
+import { PasswordField } from '@/components/cloud/PasswordField';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { cloudSyncEngine } from '@/lib/cloud';
@@ -18,7 +19,6 @@ export function DeleteAccountControl() {
   const { t } = useTranslation();
   const [reauth, setReauth] = useState(false);
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -75,9 +75,10 @@ export function DeleteAccountControl() {
       setDone(true);
       return;
     }
-    setPassword('');
     if (result.error === 'reauth_failed') setError(t('account.deleteReauthFailed'));
     else if (result.error === 'offline') setError(t('account.deleteOffline'));
+    else if (result.error === 'unavailable') setError(t('account.deleteUnavailable'));
+    else if (result.error === 'session_expired') setError(t('account.deleteSession'));
     else setError(t('account.deleteFailed'));
   };
 
@@ -113,26 +114,13 @@ export function DeleteAccountControl() {
                 {error}
               </Text>
             ) : null}
-            <TextInput
+            <PasswordField
               testID="account-delete-password"
+              purpose="current"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry={!showPassword}
               placeholder={t('cloud.password')}
-              placeholderTextColor={colors.mutedForeground}
-              style={[
-                styles.input,
-                { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input },
-              ]}
             />
-            <Pressable
-              testID="account-delete-password-toggle"
-              onPress={() => setShowPassword((v) => !v)}
-            >
-              <Text style={{ color: colors.primary }}>
-                {showPassword ? t('account.hidePassword') : t('account.showPassword')}
-              </Text>
-            </Pressable>
             <View style={styles.row}>
               <Pressable
                 testID="account-delete-reauth-cancel"

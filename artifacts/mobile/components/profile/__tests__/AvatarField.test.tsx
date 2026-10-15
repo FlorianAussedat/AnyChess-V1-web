@@ -30,6 +30,9 @@ async function openCrop(
   const modal = root.root.findByType('Modal');
   assert.equal(modal.props.visible, true);
   await act(async () => {
+    await byId(root, 'avatar-choice-import').props.onPress();
+  });
+  await act(async () => {
     byId(root, 'avatar-crop-slot').props.onLayout({
       nativeEvent: { layout: { width: 280, height: 220 } },
     });
@@ -252,6 +255,64 @@ describe('avatar crop dialog', () => {
     assert.deepEqual(saved, []);
     assert.equal(root!.root.findByType('Modal').props.visible, false);
 
+    await act(async () => {
+      root!.unmount();
+    });
+  });
+
+  it('confirms a mascot, and cancel keeps the previous avatar', async () => {
+    const changes: Array<string | null> = [];
+    const mascots: string[] = [];
+    let root: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      root = TestRenderer.create(
+        <AvatarField
+          username="Ada"
+          imageUri="data:image/png;base64,old"
+          onChange={(next, context) => {
+            changes.push(next);
+            if (context?.mascotId) mascots.push(context.mascotId);
+          }}
+          mascotSource={() => ({ uri: 'mascot' })}
+        />,
+      );
+    });
+    await act(async () => {
+      byId(root!, 'avatar-field-add').props.onPress();
+    });
+    await act(async () => {
+      byId(root!, 'avatar-choice-cancel').props.onPress();
+    });
+    assert.deepEqual(changes, []);
+    await act(async () => {
+      byId(root!, 'avatar-field-add').props.onPress();
+    });
+    await act(async () => {
+      await byId(root!, 'avatar-choice-mascot').props.onPress();
+    });
+    await act(async () => {
+      byId(root!, 'avatar-mascot-classic-knight-soundwave').props.onPress();
+    });
+    assert.equal(byId(root!, 'avatar-mascot-classic-knight-soundwave').props.accessibilityState.selected, true);
+    await act(async () => {
+      byId(root!, 'avatar-mascot-cancel').props.onPress();
+    });
+    assert.deepEqual(mascots, []);
+    await act(async () => {
+      byId(root!, 'avatar-field-add').props.onPress();
+    });
+    await act(async () => {
+      await byId(root!, 'avatar-choice-mascot').props.onPress();
+    });
+    await act(async () => {
+      byId(root!, 'avatar-mascot-player-knight-dj').props.onPress();
+    });
+    await act(async () => {
+      await byId(root!, 'avatar-mascot-confirm').props.onPress();
+    });
+    assert.deepEqual(mascots, ['player-knight-dj']);
+    assert.equal(changes[0], null);
+    assert.equal(root!.root.findByType('Modal').props.visible, false);
     await act(async () => {
       root!.unmount();
     });

@@ -49,13 +49,23 @@ export function decideDeletionOutcome(http: DeletionHttp, probe?: AccountProbe):
 export function deletionErrorCode(decision: DeletionDecision, http: DeletionHttp): string | null {
   if (decision === 'wipe') return null;
   if (http !== 'network') {
+    const body = http.body.toLowerCase();
+    if (http.status === 404 && /requested function was not found|function was not found/.test(body)) {
+      return 'unavailable';
+    }
     try {
-      const parsed = JSON.parse(http.body) as { error?: string };
-      if (parsed.error === 'reauth_failed' || parsed.error === 'reauth_required') {
-        return 'reauth_failed';
+      const parsed = JSON.parse(http.body) as { error?: string; message?: string; msg?: string };
+      const code = `${parsed.error ?? ''} ${parsed.message ?? ''} ${parsed.msg ?? ''}`.toLowerCase();
+      if (parsed.error === 'reauth_failed') return 'reauth_failed';
+      if (
+        http.status === 401 &&
+        parsed.error !== 'reauth_failed' &&
+        /jwt|session|expired|reauth_required|invalid token/.test(code)
+      ) {
+        return 'session_expired';
       }
     } catch {
-      // fall through
+      if (http.status === 401 && /jwt|expired/.test(body)) return 'session_expired';
     }
   }
   if (decision === 'keep-pending') return 'offline';

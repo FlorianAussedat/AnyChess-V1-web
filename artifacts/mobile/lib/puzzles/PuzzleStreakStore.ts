@@ -4,7 +4,12 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
-import { loadStoredJson } from '../storage/safeParse.ts';
+import {
+  readScoreDocument,
+  resetScoreDocument,
+  stampMapValue,
+  updateScoreDocument,
+} from '../records/scoreDocument.ts';
 
 export const PUZZLE_STREAK_STORAGE_KEY = StorageKeys.puzzleStreaks.key;
 
@@ -72,30 +77,40 @@ export class PuzzleStreakStore {
   }
 
   async getSnapshot(): Promise<PuzzleStreakState> {
-    const result = await loadStoredJson(
-      this.storage,
-      this.key,
-      emptyStreakState(),
-      validateStreakState,
-    );
-    return result.value;
+    const doc = await readScoreDocument(this.storage, this.key);
+    return validateStreakState(doc) ?? emptyStreakState();
   }
 
   async recordResult(
     bandId: string,
     solved: boolean,
   ): Promise<{ current: number; best: number }> {
-    const prev = await this.getSnapshot();
-    const next = applyStreakResult(prev, bandId, solved);
-    await this.storage.setItem(this.key, JSON.stringify(next));
+    const at = new Date().toISOString();
+    const doc = await updateScoreDocument(this.storage, this.key, (current) => {
+      const prev = validateStreakState(current) ?? emptyStreakState();
+      const next = applyStreakResult(prev, bandId, solved);
+      current.currentByBand = next.currentByBand;
+      current.bestByBand = next.bestByBand;
+      if (bandId) {
+        stampMapValue(current, 'currentByBand', bandId, next.currentByBand[bandId] ?? 0, at);
+        if (solved) {
+          stampMapValue(current, 'bestByBand', bandId, next.bestByBand[bandId] ?? 0, at);
+        }
+      }
+    });
+    const snap = validateStreakState(doc) ?? emptyStreakState();
     return {
-      current: next.currentByBand[bandId] ?? 0,
-      best: next.bestByBand[bandId] ?? 0,
+      current: snap.currentByBand[bandId] ?? 0,
+      best: snap.bestByBand[bandId] ?? 0,
     };
   }
 
-  async resetAll(): Promise<void> {
-    await this.storage.removeItem(this.key);
+  async resetAll(at = new Date().toISOString()): Promise<void> {
+    await updateScoreDocument(this.storage, this.key, (current) => {
+      current.currentByBand = {};
+      current.bestByBand = {};
+      resetScoreDocument(current, at, [], ['currentByBand', 'bestByBand']);
+    });
   }
 }
 

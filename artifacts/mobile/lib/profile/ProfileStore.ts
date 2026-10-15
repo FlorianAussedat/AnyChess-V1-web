@@ -7,6 +7,7 @@ import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
 import { loadStoredJson } from '../storage/safeParse.ts';
 import { isValidPlayerEloRangeId } from './playerEloRanges.ts';
+import { isMascotId } from './mascotCatalog.ts';
 import {
   CHESS_YEARS_MAX,
   CHESS_YEARS_MIN,
@@ -46,6 +47,7 @@ function validateProfile(raw: unknown): UserProfile | null {
   if (o.bulletRangeId != null && typeof o.bulletRangeId !== 'string') return null;
   if (o.chessYears != null && typeof o.chessYears !== 'number') return null;
   if (o.hasAvatar != null && typeof o.hasAvatar !== 'boolean') return null;
+  if (o.mascotId != null && typeof o.mascotId !== 'string') return null;
   if (typeof o.updatedAt !== 'string') return null;
   if (!isValidPlayerEloRangeId(o.rapidRangeId as string | null)) return null;
   if (!isValidPlayerEloRangeId(o.blitzRangeId as string | null)) return null;
@@ -60,6 +62,7 @@ function validateProfile(raw: unknown): UserProfile | null {
     bulletRangeId: (o.bulletRangeId as string | null) ?? null,
     chessYears: clampYears((o.chessYears as number | null) ?? null),
     hasAvatar: o.hasAvatar === true,
+    mascotId: isMascotId(o.mascotId) ? o.mascotId : null,
     updatedAt: o.updatedAt,
   };
 }
@@ -141,6 +144,12 @@ export class ProfileStore {
           : current.chessYears,
       hasAvatar:
         patch.hasAvatar !== undefined ? patch.hasAvatar === true : current.hasAvatar === true,
+      mascotId:
+        patch.mascotId !== undefined
+          ? isMascotId(patch.mascotId)
+            ? patch.mascotId
+            : null
+          : current.mascotId ?? null,
       updatedAt: nowIso(),
     };
     await this.persist(next);

@@ -75,9 +75,10 @@ describe('i18n dictionaries', () => {
     assert.equal(translate('en', 'profil.langFr'), 'Français');
     assert.equal(translate('en', 'profil.langEn'), 'English');
     assert.equal(translate('en', 'cloud.signUp'), 'Create account');
-    assert.equal(translate('fr', 'cloud.statusSynced'), 'Données synchronisées');
-    assert.equal(translate('fr', 'cloud.statusPending'), 'Synchronisation en cours…');
-    assert.equal(translate('fr', 'cloud.statusError'), 'Erreur de synchronisation');
+    assert.equal(translate('fr', 'cloud.statusSynced'), 'Synchronisé');
+    assert.equal(translate('fr', 'cloud.statusPending'), 'En attente');
+    assert.equal(translate('fr', 'cloud.statusSyncing'), 'Synchronisation en cours');
+    assert.equal(translate('fr', 'cloud.statusError'), 'Erreur');
     assert.equal(
       translate('fr', 'cloud.confirmSent'),
       'Un e-mail de confirmation t’a été envoyé. Ouvre-le pour activer ton compte, puis reviens te connecter.',

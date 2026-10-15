@@ -3,6 +3,7 @@ export type CloudSyncStatus =
   | 'signed_out'
   | 'synced'
   | 'pending'
+  | 'syncing'
   | 'error'
   | 'offline'
   | 'waiting_wifi';
@@ -39,11 +40,18 @@ export type CloudAuthError =
   | 'offline'
   | 'rejected'
   | 'unexpected'
-  | 'unconfigured';
+  | 'unconfigured'
+  | 'signup_ambiguous';
 
 export type CloudAuthResult =
   | { ok: true; user: CloudUser }
-  | { ok: false; error: CloudAuthError; message?: string; email?: string };
+  | {
+      ok: false;
+      error: CloudAuthError;
+      message?: string;
+      email?: string;
+      retryAfterSeconds?: number;
+    };
 
 export interface CloudAuth {
   configured: boolean;
