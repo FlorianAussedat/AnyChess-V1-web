@@ -67,7 +67,7 @@ export function authMailLanguage(value: string | null | undefined): AuthMailLang
  * (signup confirmation and password recovery).
  *
  * `EXPO_PUBLIC_AUTH_CONFIRM_URL` is the Netlify page (`text/html`),
- * `https://anychess-confirm.netlify.app/auth/confirm`. A path ending in
+ * `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. A path ending in
  * `/auth/confirm` or `/auth/confirm.html` is accepted. It must also be listed
  * in Supabase Redirect URLs, including the `client` and `lang` query. Until
  * that public URL exists, the free `*.supabase.co` function stays the target.

@@ -230,16 +230,16 @@ describe('confirmation page', () => {
     );
     assert.equal(
       devRedirect,
-      'https://anychess-confirm.netlify.app/auth/confirm?client=dev&lang=en',
+      'https://sparkly-paprenjak-65f499.netlify.app/auth/confirm?client=dev&lang=en',
     );
     assert.equal(confirmPageRedirect('https://example.test/functions/v1/auth-confirm').includes('client=app'), true);
     assert.equal(confirmPageRedirect('https://example.test/functions/v1/auth-confirm?client=javascript').includes('client=app'), true);
-    assert.equal(PUBLIC_CONFIRM_PAGE_URL, 'https://anychess-confirm.netlify.app/auth/confirm');
-    assert.equal(PUBLIC_LOGO_URL, 'https://anychess-confirm.netlify.app/brand/anychess-logo.png');
-    assert.equal(allowedConfirmOrigin('https://anychess-confirm.netlify.app'), 'https://anychess-confirm.netlify.app');
+    assert.equal(PUBLIC_CONFIRM_PAGE_URL, 'https://sparkly-paprenjak-65f499.netlify.app/auth/confirm');
+    assert.equal(PUBLIC_LOGO_URL, 'https://sparkly-paprenjak-65f499.netlify.app/brand/anychess-logo.png');
+    assert.equal(allowedConfirmOrigin('https://sparkly-paprenjak-65f499.netlify.app'), 'https://sparkly-paprenjak-65f499.netlify.app');
     assert.equal(
-      allowedConfirmOrigin('https://deploy-preview-109--anychess-confirm.netlify.app'),
-      'https://deploy-preview-109--anychess-confirm.netlify.app',
+      allowedConfirmOrigin('https://deploy-preview-109--sparkly-paprenjak-65f499.netlify.app'),
+      'https://deploy-preview-109--sparkly-paprenjak-65f499.netlify.app',
     );
     assert.equal(allowedConfirmOrigin('https://cdn.jsdelivr.net'), null);
     assert.equal(allowedConfirmOrigin('https://evil.netlify.app'), null);
@@ -447,7 +447,7 @@ describe('auth screen copy wiring', () => {
       authConfirmRedirectUrl('en'),
       'https://cdn.example/gh/site/auth/confirm.html?client=app&lang=en',
     );
-    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess-confirm.netlify.app/auth/confirm.svg';
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://sparkly-paprenjak-65f499.netlify.app/auth/confirm.svg';
     assert.equal(authConfirmRedirectUrl('fr'), 'https://example.supabase.co/functions/v1/auth-confirm');
     process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = PUBLIC_CONFIRM_PAGE_URL;
     assert.equal(

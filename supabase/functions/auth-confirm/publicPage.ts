@@ -7,8 +7,8 @@ export const PUBLIC_SUPABASE_URL = 'https://zqfxnzwtptepulmgpxhb.supabase.co';
  */
 export const PUBLIC_VERIFY_URL = `${PUBLIC_SUPABASE_URL}/functions/v1/auth-confirm`;
 
-/** Subdomain to type in Netlify. The name is part of the public page URL. */
-export const CONFIRM_SITE_HOST = 'anychess-confirm.netlify.app';
+/** Connected Netlify site. The hostname is part of the public page URL. */
+export const CONFIRM_SITE_HOST = 'sparkly-paprenjak-65f499.netlify.app';
 export const CONFIRM_SITE_ORIGIN = `https://${CONFIRM_SITE_HOST}`;
 
 /** Readable HTML page. Netlify serves it as text/html. */

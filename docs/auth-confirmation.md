@@ -62,7 +62,7 @@ Le processus web de l’app (`artifacts/mobile/server/serve.js`) sert déjà la 
 
 Même générateur que `renderConfirmationPage` (`supabase/functions/auth-confirm/page.ts`), avec la clé **anon / publishable** lue depuis `EXPO_PUBLIC_SUPABASE_URL` et `EXPO_PUBLIC_SUPABASE_ANON_KEY` (jamais `service_role`). Sans ces deux variables, la route répond `503` en texte brut et ne dit pas que l’adresse est confirmée.
 
-La page publique est le HTML généré par `scripts/build-confirm-site.mjs`, publié par Netlify depuis `main`. Le dossier déployé ne contient que `auth/confirm/index.html` et `brand/anychess-logo.png`. L’URL est `https://anychess-confirm.netlify.app/auth/confirm`, en `text/html`.
+La page publique est le HTML généré par `scripts/build-confirm-site.mjs`, publié par Netlify depuis `main`. Le dossier déployé ne contient que `auth/confirm/index.html` et `brand/anychess-logo.png`. L’URL est `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`, en `text/html`.
 
 Ce que la page affiche, en français ou en anglais (`?lang=fr|en`, sinon la langue du navigateur, français par défaut) :
 
@@ -82,10 +82,10 @@ Aujourd’hui, Site URL et Redirect URLs du projet pointent vers la fonction tex
 
 La page `/auth/confirm` traite les deux types de lien. On peut donc en faire la Site URL **une fois que Netlify la sert en `text/html`** :
 
-1. Créer le site Netlify `anychess-confirm` sur la branche `main`, avec le dossier publié `dist/confirm-site` (voir `netlify.toml`).
-2. Vérifier `https://anychess-confirm.netlify.app/auth/confirm` en `text/html` et `https://anychess-confirm.netlify.app/brand/anychess-logo.png` en `image/png`.
+1. Laisser le site Netlify `sparkly-paprenjak-65f499` sur `main`, dossier publié `dist/confirm-site`, et le rendre public.
+2. Vérifier `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` en `text/html` et `https://sparkly-paprenjak-65f499.netlify.app/brand/anychess-logo.png` en `image/png`.
 3. Ajouter cette page dans Authentication → URL Configuration → **Redirect URLs**, y compris `?client=` et `?lang=`. Garder aussi l’URL de la fonction `auth-confirm` pour les APK déjà distribués.
-4. Au bundle de l’app : `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://anychess-confirm.netlify.app/auth/confirm`.
+4. Au bundle de l’app : `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`.
 5. Tant que l’étape 4 n’est pas faite, les e-mails des applications déjà installées continuent vers la fonction. Après redéploiement de la fonction, son `GET` redirige vers la page Netlify en ajoutant `client=app` s’il manque.
 
 Avec Site URL = cette page :
@@ -107,7 +107,7 @@ Modèles dans `supabase/templates/` (sujet + HTML), aussi déclarés dans `supab
 - lien magique et invitation — prêts, l’application ne les déclenche pas
 - réauthentification — `{{ .Token }}`, pas un lien de succès
 
-Le logo des e-mails est `https://anychess-confirm.netlify.app/brand/anychess-logo.png`. Il répond une fois le site Netlify publié. Le mot « AnyChess » est aussi en texte, et l’image a `alt="AnyChess"`. Couleurs `#0B1728`, `#102040`, `#F5A623`, tableau `bgcolor` pour Gmail, y compris une règle de mode sombre.
+Le logo des e-mails est `https://sparkly-paprenjak-65f499.netlify.app/brand/anychess-logo.png`. Il répond une fois le site Netlify publié. Le mot « AnyChess » est aussi en texte, et l’image a `alt="AnyChess"`. Couleurs `#0B1728`, `#102040`, `#F5A623`, tableau `bgcolor` pour Gmail, y compris une règle de mode sombre.
 
 ### Expéditeur
 
@@ -131,7 +131,7 @@ Le texte brut du dépôt dit maintenant qu’on ne peut pas confirmer le résult
 
 ## Recette Android
 
-Build avec `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, et — dès que la page Netlify répond — `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://anychess-confirm.netlify.app/auth/confirm`. Le bouton ouvre `anychess` / `com.anychess.standalone`, ou `exp+mobile` / `com.anychess.app` si `client=dev`. Il ne transmet pas le jeton. Aucun APK autonome n’est à reconstruire pour ce correctif web. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Tant que les modèles ne sont pas collés dans le projet, l’e-mail reçu reste le modèle anglais par défaut.
+Build avec `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, et — dès que la page Netlify répond — `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. Le bouton ouvre `anychess` / `com.anychess.standalone`, ou `exp+mobile` / `com.anychess.app` si `client=dev`. Il ne transmet pas le jeton. Aucun APK autonome n’est à reconstruire pour ce correctif web. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Tant que les modèles ne sont pas collés dans le projet, l’e-mail reçu reste le modèle anglais par défaut.
 
 1. Installer AnyChess et ouvrir **Créer un compte** (pseudo, e-mail, mot de passe).
 2. L’app dit qu’un e-mail de confirmation a été envoyé. Le compte n’est pas connecté, rien n’est synchronisé.
@@ -151,29 +151,29 @@ Cette recette n’a pas été exécutée sur un appareil dans cette branche.
 
 ## Netlify
 
-Le fichier `netlify.toml` est à la racine. Netlify déploie `main` et ne publie que `dist/confirm-site`.
+Le site déjà connecté est `sparkly-paprenjak-65f499`. Le fichier `netlify.toml` est à la racine. Netlify déploie `main` et ne publie que `dist/confirm-site`.
 
-Dans l’écran d’import :
+Réglages à laisser ou à corriger dans Project configuration → Build & deploy :
 
-- Dépôt : `FlorianAussedat/AnyChess-V1-web`
-- Branche de production : `main`
-- Nom du site : `anychess-confirm`
+- Production branch : `main`
 - Base directory : vide
 - Build command : `node --experimental-strip-types scripts/build-confirm-site.mjs`
 - Publish directory : `dist/confirm-site`
 - Functions : aucune
 - Variables d’environnement : aucune
-- Deploy Previews : désactivés
-- Branch deploys : aucun, en dehors de la production `main`
+
+Ne pas remettre le dossier publié sur la racine du dépôt : le premier déploiement (`01405d9`, sans `netlify.toml`) a publié toute l’application.
+
+Le site est encore en accès privé (réponse HTTP 401, écran « Make public »). Project configuration → Access & security → Visitor access : **Anyone with the link** / rendre le site public. Tant que l’accès équipe est exigé, le lien d’e-mail ouvre la connexion Netlify au lieu de la page.
 
 ## Ce qui reste côté Supabase
 
 Le jeton de management est toujours refusé. Ces réglages ne sont pas appliqués en ligne :
 
-1. Vérifier que `https://anychess-confirm.netlify.app/auth/confirm` répond `text/html`.
+1. Vérifier que `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` répond `text/html`.
 2. Déployer la fonction `auth-confirm` de `main` (`verify_jwt = false`) pour le `POST` de vérification et la redirection `GET`.
-3. Site URL : `https://anychess-confirm.netlify.app/auth/confirm`.
-4. Redirect URLs : cette page, `https://anychess-confirm.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`.
+3. Site URL : `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`.
+4. Redirect URLs : cette page, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`.
 5. Coller les modèles si l’écran le permet. Nom d’expéditeur : `AnyChess`, sans changer l’adresse SMTP par défaut.
 6. Ne pas désactiver Confirm email.
 

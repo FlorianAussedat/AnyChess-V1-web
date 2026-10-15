@@ -7,7 +7,7 @@
  * static page that only displays success.
  */
 
-export const LOGO_URL = 'https://anychess-confirm.netlify.app/brand/anychess-logo.png';
+export const LOGO_URL = 'https://sparkly-paprenjak-65f499.netlify.app/brand/anychess-logo.png';
 
 const KINDS = {
   confirmation: {
