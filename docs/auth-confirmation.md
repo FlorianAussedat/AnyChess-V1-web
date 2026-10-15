@@ -2,7 +2,7 @@
 
 La confirmation d’e-mail reste **activée** (`mailer_autoconfirm = false`). Le bouton de l’e-mail doit garder `{{ .ConfirmationURL }}` : c’est Supabase qui vérifie le jeton, pas la page.
 
-Aucun service payant n’est activé par ce parcours : pas de forfait Pro, pas d’add-on Custom Domain, pas de SMTP payant, pas de GitHub Pages.
+Aucun service payant n’est activé par ce parcours : pas de forfait Pro, pas d’add-on Custom Domain, pas de SMTP payant, pas de GitHub Pages. L’envoi des e-mails d’auth passe par le SMTP Brevo gratuit que l’utilisateur a configuré dans le dashboard Supabase, sans domaine personnel.
 
 ## Dans l’application
 
@@ -20,18 +20,15 @@ Après une inscription acceptée sans session :
 
 Trois restrictions distinctes. Aucune n’impose à elle seule un abonnement Supabase pour terminer ce parcours.
 
-### Modèles d’e-mail — le service d’envoi, pas le forfait seul
+### Modèles d’e-mail
 
 Source : [Changes to Email Template Customisation on Free Tier](https://supabase.com/changelog/46599-changes-to-email-template-customisation-on-free-tier) (3 juin 2026) et [Email Templates](https://supabase.com/docs/guides/auth/auth-email-templates).
 
-- **Service.** Un projet gratuit qui envoie avec le **SMTP par défaut de Supabase** ne peut plus modifier les modèles d’auth (confirmation, reset, magic link, etc.). Les modèles par défaut sont utilisés tels quels. L’API de ce projet a répondu : `Email template modification is not available for free tier projects using the default email provider`.
-- **Ancienneté du projet.** Les projets gratuits **créés avant le 3 juin 2026** gardent leurs modèles déjà en place. Cette réponse d’API montre que l’édition est bloquée ici tant que l’envoi passe par le SMTP Supabase.
-- **Forfait.** Les forfaits payants (Pro et au-dessus) peuvent continuer à modifier les modèles avec le SMTP Supabase. Ce n’est pas la seule façon de le faire.
-- **SMTP personnel.** Un projet **gratuit** qui configure son propre SMTP (Resend, Postmark, SendGrid, Amazon SES, etc.) peut encore modifier les modèles. Ce n’est pas un abonnement Supabase. On n’en branche aucun dans ce dépôt.
+Le changelog du 3 juin 2026 décrit un projet gratuit qui envoie encore avec le SMTP par défaut de Supabase : l’API répond alors `Email template modification is not available for free tier projects using the default email provider`. Ce projet envoie avec le SMTP **Brevo** (offre gratuite, sans domaine personnel) configuré à la main dans le dashboard. Le nom d’expéditeur vérifié est **AnyChess**. La clé SMTP reste dans Supabase. Ce dépôt ne la contient pas, ne la remplace pas, et ne change pas l’adresse d’envoi.
 
-Le modèle français du dépôt (`supabase/templates/confirmation.html`, bouton « Confirmer mon adresse e-mail », `{{ .ConfirmationURL }}`) **n’est pas appliqué**. Le modèle en ligne reste le texte anglais par défaut, qui contient déjà `{{ .ConfirmationURL }}`. Le parcours fonctionne avec ce lien. Le français attend un SMTP personnel, ou un forfait qui autorise l’édition. Ne pas désactiver Confirm email.
+L’édition des modèles dans le dashboard est disponible. Le modèle de confirmation **français** est en ligne. Un e-mail reçu sur le téléphone affiche le logo AnyChess, les couleurs AnyChess et le texte français, avec le lien `{{ .ConfirmationURL }}`. L’anglais de cette confirmation n’est pas installé. Les autres e-mails de compte ne sont pas installés. Confirm email reste activé.
 
-Variables utiles, mêmes docs : `{{ .ConfirmationURL }}`, `{{ .SiteURL }}`, `{{ .RedirectTo }}` (l’adresse passée à l’inscription ou à `resetPasswordForEmail`, qui doit figurer dans Redirect URLs). Après vérification, la session est dans le **fragment** (`#access_token=…&type=signup` ou `type=recovery`), pas dans la query.
+Variables utiles, mêmes docs : `{{ .ConfirmationURL }}` pour la confirmation, la réinitialisation du mot de passe, le changement d’adresse, le lien magique et l’invitation (la doc Supabase garde ce nom aussi pour le reset). `{{ .Token }}` pour la réauthentification. `{{ .SiteURL }}`, `{{ .RedirectTo }}` (l’adresse passée à l’inscription ou à `resetPasswordForEmail`, qui doit figurer dans Redirect URLs), `{{ .Data }}` (langue : `{{ .Data.language }}`). `{{ .NewEmail }}` n’existe que dans le changement d’adresse. Après vérification, la session est dans le **fragment** (`#access_token=…&type=signup` ou `type=recovery`), pas dans la query.
 
 ### HTML des Edge Functions — le domaine d’hébergement, pas le quota du forfait
 
@@ -50,7 +47,7 @@ La fonction en ligne `GET https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/
 
 Le parcours réel du lien d’e-mail reste celui de Supabase : `GET /auth/v1/verify?token=…&type=signup&redirect_to=…` vérifie le jeton, puis redirige vers la Site URL avec le jeton dans le **fragment**. Tant que cette Site URL est la fonction texte, la page d’arrivée ne peut pas afficher le résultat. L’adresse peut néanmoins être confirmée côté Supabase : il faut alors se connecter dans AnyChess. Confirm email reste activé.
 
-`SUPABASE_ACCESS_TOKEN` fourni à cet agent a été refusé par l’API de management (`HTTP 401`, jeton invalide). N’ont donc **pas** été modifiés en ligne : Site URL, Redirect URLs, modèles d’e-mail, nom d’expéditeur, fonction `auth-confirm`. Les anciens liens continuent d’ouvrir la fonction texte tant que la Site URL n’a pas été remplacée par la page HTTPS, après déploiement de cette branche sur l’hébergement web déjà décrit (`GET /auth/confirm`).
+`SUPABASE_ACCESS_TOKEN` fourni à un agent a été refusé par l’API de management (`HTTP 401`, jeton invalide). Ce dépôt n’appelle pas cette API. Il ne réécrit pas la Site URL, les Redirect URLs, le SMTP Brevo, l’adresse d’envoi, le modèle de confirmation français déjà en ligne, ni la fonction `auth-confirm`. Le SMTP Brevo (nom d’expéditeur AnyChess) et ce modèle français ont été posés à la main dans le dashboard. Les anciens liens continuent d’ouvrir la fonction texte tant que la Site URL n’a pas été remplacée par la page HTTPS, après déploiement de cette branche sur l’hébergement web déjà décrit (`GET /auth/confirm`).
 
 Hôtes essayés et **non** utilisés pour la page : `anychess-v1-web.replit.app` (« This app isn’t live yet »), `anychess.app` (un autre site), GitHub Pages (API 403, site non activé), jsDelivr (le HTML est renvoyé en `text/plain`, donc le navigateur n’exécute pas la page). Le contournement SVG est abandonné. L’hôte de la page est Netlify, dossier publié `dist/confirm-site` uniquement.
 
@@ -99,25 +96,39 @@ La Site URL live n’est pas modifiée par ce dépôt : le jeton de management S
 
 Langue au moment de l’envoi : l’inscription envoie `data.language` (`fr` ou `en`), la langue de l’application, stockée dans `raw_user_meta_data`. Les modèles utilisent `{{ if eq .Data.language "en" }}`. Sans cette valeur, le français (défaut du produit) est utilisé. Les e-mails suivants (mot de passe, changement d’adresse) relisent cette métadonnée : la changer dans l’app après l’inscription ne réécrit pas un compte déjà créé. La page de retour, elle, suit `lang` au moment de la demande.
 
-Modèles dans `supabase/templates/` (sujet + HTML), aussi déclarés dans `supabase/config.toml` :
+Modèles dans `supabase/templates/` (sujet + HTML), aussi déclarés dans `supabase/config.toml`. Chacun est bilingue (`{{ if eq .Data.language "en" }}`, français par défaut). Le logo est `https://sparkly-paprenjak-65f499.netlify.app/brand/anychess-logo.png` (`alt="AnyChess"`, le mot AnyChess est aussi en texte). Couleurs `#0B1728`, `#102040`, `#F5A623`, tableau `bgcolor` pour Gmail, y compris une règle de mode sombre.
 
-- confirmation d’inscription — bouton `{{ .ConfirmationURL }}`
-- réinitialisation du mot de passe — même variable
-- changement d’adresse — même variable
-- lien magique et invitation — prêts, l’application ne les déclenche pas
-- réauthentification — `{{ .Token }}`, pas un lien de succès
+| E-mail | Fichiers | Variable du bouton ou du code | Dans le dépôt | En ligne |
+| --- | --- | --- | --- | --- |
+| Confirmation d’inscription | `confirmation.subject.txt`, `confirmation.html` | `{{ .ConfirmationURL }}` | français et anglais | français seulement, reçu sur le téléphone |
+| Réinitialisation du mot de passe | `recovery.subject.txt`, `recovery.html` | `{{ .ConfirmationURL }}` | français et anglais | non installé |
+| Changement d’adresse | `email_change.subject.txt`, `email_change.html` | `{{ .ConfirmationURL }}` | français et anglais | non installé |
+| Lien magique | `magic_link.subject.txt`, `magic_link.html` | `{{ .ConfirmationURL }}` | français et anglais | non installé |
+| Invitation | `invite.subject.txt`, `invite.html` | `{{ .ConfirmationURL }}` | français et anglais | non installé |
+| Réauthentification | `reauthentication.subject.txt`, `reauthentication.html` | `{{ .Token }}` | français et anglais | non installé |
 
-Le logo des e-mails est `https://sparkly-paprenjak-65f499.netlify.app/brand/anychess-logo.png`. Il répond une fois le site Netlify publié. Le mot « AnyChess » est aussi en texte, et l’image a `alt="AnyChess"`. Couleurs `#0B1728`, `#102040`, `#F5A623`, tableau `bgcolor` pour Gmail, y compris une règle de mode sombre.
+Le lien magique et l’invitation sont prêts dans le dépôt ; l’application ne les déclenche pas. La réauthentification affiche un code, pas un lien de succès.
+
+`config.toml` ne déclare pas d’autre e-mail d’auth. Les notifications de sécurité Supabase (mot de passe changé, adresse changée, téléphone, méthode de connexion, méthode de vérification) sont absentes de ce dépôt. Elles partent seulement si le projet les active. Ce dépôt ne les active pas.
+
+### À coller dans le dashboard
+
+Authentication → Emails → Templates. Pour chaque ligne encore absente : le sujet est le fichier `.subject.txt`, le corps est le fichier `.html`. Laisser le SMTP Brevo, l’adresse d’envoi, Confirm email, la Site URL et les Redirect URLs comme ils sont.
+
+1. **Reset password** — `recovery.subject.txt` et `recovery.html`.
+2. **Change email address** — `email_change.subject.txt` et `email_change.html`.
+3. **Magic link** — `magic_link.subject.txt` et `magic_link.html`.
+4. **Invite user** — `invite.subject.txt` et `invite.html`.
+5. **Reauthentication** — `reauthentication.subject.txt` et `reauthentication.html` (`{{ .Token }}`).
+6. **Confirm sign up**, seulement pour ajouter l’anglais — `confirmation.subject.txt` et `confirmation.html`.
+
+Supabase n’a qu’un emplacement Confirm sign up. Y coller les fichiers du dépôt remplace le HTML français déjà reçu par la version bilingue. Le français reste le texte par défaut (`{{ else }}`). Le logo, les couleurs `#0B1728` / `#102040` / `#F5A623` et `{{ .ConfirmationURL }}` y sont les mêmes. Les cinq autres emplacements sont distincts : les coller laisse la confirmation française en place.
 
 ### Expéditeur
 
-Avec le SMTP par défaut de Supabase, l’adresse d’envoi reste celle du service (`noreply@mail.app.supabase.io` dans la documentation actuelle). Le nom affiché « AnyChess » se règle dans Authentication → SMTP Settings → Sender name lorsque l’écran le permet, **sans** changer d’adresse. Une adresse `@anychess…` exige un SMTP personnel et un domaine vérifié (Resend, Postmark, etc.). Ce n’est pas un forfait Supabase. Rien n’a été souscrit : le jeton de management est invalide, donc le nom d’expéditeur en ligne n’a pas été lu ni modifié. Ne pas inventer d’adresse.
+L’envoi passe par le SMTP Brevo déjà configuré (offre gratuite, sans domaine personnel). Le nom affiché est AnyChess. La clé SMTP et l’adresse d’envoi restent dans le dashboard. Ce dépôt ne les contient pas.
 
-Ces modèles concernent les **prochains** e-mails, une fois collés dans le projet (ou poussés par la CLI quand l’édition est autorisée). Ils ne changent pas les messages déjà reçus. L’édition reste bloquée sur un projet gratuit qui utilise le SMTP Supabase, comme décrit plus haut. Étapes si l’API refuse encore :
-
-1. Authentication → Emails → Templates : coller chaque sujet (`*.subject.txt`) et chaque HTML.
-2. Ou configurer un SMTP personnel, puis `supabase config push` avec un jeton de management valide.
-3. Ne pas désactiver Confirm email. Ne pas remplacer `{{ .ConfirmationURL }}`.
+Ces fichiers concernent les prochains e-mails, une fois collés à la main. Ils ne changent pas les messages déjà reçus. Confirm email reste activé. Le bouton des e-mails à lien garde `{{ .ConfirmationURL }}`.
 
 ## Réglages déjà appliqués sur `zqfxnzwtptepulmgpxhb`
 
@@ -131,7 +142,7 @@ Le texte brut du dépôt dit maintenant qu’on ne peut pas confirmer le résult
 
 ## Recette Android
 
-Le bundle AnyChess Dev (Metro, `.env.development`, profil EAS `development`) envoie `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. L’inscription, le renvoi et le mot de passe oublié ajoutent `client=dev` et `lang`. Le bouton ouvre alors `exp+mobile` / `com.anychess.app`. L’APK autonome déjà distribué n’est pas reconstruit : sans cette variable, son `redirect_to` reste la fonction, et le bouton ouvre `anychess` / `com.anychess.standalone`. Le bouton ne transmet pas le jeton. Quota indicatif du SMTP par défaut : peu d’e-mails par heure (`over_email_send_rate_limit`). Tant que les modèles ne sont pas collés dans le projet, l’e-mail reçu reste le modèle anglais par défaut.
+Le bundle AnyChess Dev (Metro, `.env.development`, profil EAS `development`) envoie `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. L’inscription, le renvoi et le mot de passe oublié ajoutent `client=dev` et `lang`. Le bouton ouvre alors `exp+mobile` / `com.anychess.app`. L’APK autonome déjà distribué n’est pas reconstruit : sans cette variable, son `redirect_to` reste la fonction, et le bouton ouvre `anychess` / `com.anychess.standalone`. Le bouton ne transmet pas le jeton. L’envoi passe par le SMTP Brevo du dashboard. Supabase peut encore répondre `over_email_send_rate_limit`. L’e-mail de confirmation reçu est le modèle français (logo, couleurs, `{{ .ConfirmationURL }}`). Les autres modèles de compte restent ceux de Supabase tant qu’ils ne sont pas collés.
 
 1. Installer AnyChess et ouvrir **Créer un compte** (pseudo, e-mail, mot de passe).
 2. L’app dit qu’un e-mail de confirmation a été envoyé. Le compte n’est pas connecté, rien n’est synchronisé.
@@ -168,13 +179,13 @@ Le site est encore en accès privé (réponse HTTP 401, écran « Make public »
 
 ## Ce qui reste côté Supabase
 
-Le jeton de management est toujours refusé. Ces réglages ne sont pas appliqués en ligne :
+Le jeton de management reste refusé (`HTTP 401`). Ce dépôt ne l’utilise pas. Déjà en place, posés à la main : SMTP Brevo, nom d’expéditeur AnyChess, modèle de confirmation français. Ce dépôt ne les réécrit pas. Restent à faire dans le dashboard, sans toucher au SMTP :
 
 1. Vérifier que `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm` répond `text/html`.
 2. Déployer la fonction `auth-confirm` de `main` (`verify_jwt = false`) pour le `POST` de vérification et la redirection `GET`.
 3. Site URL : `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`.
 4. Redirect URLs : cette page, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`.
-5. Coller les modèles si l’écran le permet. Nom d’expéditeur : `AnyChess`, sans changer l’adresse SMTP par défaut.
-6. Ne pas désactiver Confirm email.
+5. Coller les modèles encore absents, listés dans la section E-mail : reset password, change email address, magic link, invite user, reauthentication. L’anglais de la confirmation est dans le même emplacement que le français déjà reçu : le coller remplace ce HTML par la version bilingue du dépôt.
+6. Laisser Confirm email activé. Laisser le SMTP Brevo et l’adresse d’envoi tels quels.
 
 Sans l’étape 1, les liens n’ouvrent pas encore la page HTML. Les APK autonomes déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev envoie `client=dev` et la page Netlify dès que son bundle JavaScript est rechargé (Metro). Aucun APK autonome n’est produit pour cela.
