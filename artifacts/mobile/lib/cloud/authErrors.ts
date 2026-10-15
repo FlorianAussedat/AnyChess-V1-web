@@ -62,11 +62,11 @@ export function isPendingEmailConfirmation(status: number, body: unknown): boole
   return Boolean(session.userId) && !session.accessToken;
 }
 
-export function retryAfterSecondsFromMessage(message: string): number | null {
+export function retryAfterSecondsFromMessage(message: string): number | undefined {
   const match = message.match(/(\d+)\s*(?:seconds|secondes|s)\b/i);
-  if (!match) return null;
+  if (!match) return undefined;
   const seconds = Number(match[1]);
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
 }
 
 function identityCount(body: unknown): number | null {

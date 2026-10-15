@@ -115,27 +115,24 @@ L’envoi utilise le SMTP Brevo déjà enregistré dans Supabase, avec l’expé
 
 ### Ce qui est en ligne, et ce qui reste dans le dépôt
 
-Seul le **corps français** de la confirmation a été installé et reçu. Le dépôt conserve la version bilingue correspondante, sans secret : `supabase/templates/confirmation.html` et `confirmation.subject.txt`. Le français est la branche `else`. L’anglais ne part que si `data.language` vaut `en` au moment de l’inscription. Coller le fichier du dépôt à la place du corps français seul ajoute l’anglais sans changer le français déjà vérifié, tant que le bouton reste `{{ .ConfirmationURL }}`.
+Les modèles bilingues de **confirmation**, de **récupération du mot de passe** et de **changement d’adresse** sont installés dans le tableau de bord. Ils ne sont pas remplacés par une ancienne configuration. Le dépôt en garde la copie correspondante, sans secret : `confirmation.html`, `recovery.html`, `email_change.html` et leurs sujets. Le français est la branche `else`. L’anglais part si `data.language` vaut `en`. Le bouton reste `{{ .ConfirmationURL }}`.
 
-Le sujet bilingue du dépôt n’a pas été confirmé comme installé. S’il ne l’est pas, le coller aussi.
+La confirmation française a été reçue sur le téléphone (logo, couleurs, texte français). La réception des versions anglaises, du mot de passe oublié et du changement d’adresse n’a pas été rejouée ici.
 
-Ces modèles sont dans le dépôt, bilingues, avec le même logo et les mêmes couleurs, et **ne sont pas installés** sur le projet :
+Ces modèles sont dans le dépôt, bilingues, avec le même logo et les mêmes couleurs, et **ne sont pas signalés comme installés** :
 
 | E-mail | Fichiers | Variable | Déclenché par l’app |
 |---|---|---|---|
-| Confirmation, anglais | même fichier que le français | `{{ .ConfirmationURL }}` | oui, si la langue du compte est `en` |
-| Mot de passe oublié | `recovery.html`, `recovery.subject.txt` | `{{ .ConfirmationURL }}` | oui |
-| Changement d’adresse | `email_change.html`, `email_change.subject.txt` | `{{ .ConfirmationURL }}` | oui, au changement d’e-mail |
 | Lien magique | `magic_link.html`, `magic_link.subject.txt` | `{{ .ConfirmationURL }}` | non |
 | Invitation | `invite.html`, `invite.subject.txt` | `{{ .ConfirmationURL }}` | non |
 | Réauthentification | `reauthentication.html`, `reauthentication.subject.txt` | `{{ .Token }}` | oui, si Supabase demande un code |
 
-Tant qu’ils ne sont pas collés dans Authentication → Emails → Templates, ces envois restent les modèles par défaut de Supabase. Les coller ne modifie pas le SMTP. Ne pas désactiver Confirm email. Ne pas remplacer `{{ .ConfirmationURL }}` par une page qui annoncerait le succès toute seule.
+Les coller ne modifie pas le SMTP ni les trois modèles déjà en place. Ne pas désactiver Confirm email. Ne pas remplacer `{{ .ConfirmationURL }}` par une page qui annoncerait le succès toute seule.
 
 ## Réglages déjà appliqués sur `zqfxnzwtptepulmgpxhb`
 
 - SMTP Brevo, offre gratuite, expéditeur AnyChess vérifié : configuré dans le tableau de bord. La clé n’est pas dans le dépôt.
-- Modèle de confirmation français : installé à la main, reçu sur le téléphone (logo, couleurs, texte français, lien sécurisé).
+- Modèles bilingues installés à la main, à laisser en place : confirmation (le français a été reçu), récupération du mot de passe, changement d’adresse. Le dépôt ne les remplace pas.
 - `mailer_autoconfirm` : **false** (inchangé).
 - Site URL et Redirect URLs : la fonction `auth-confirm` (avant : `http://localhost:3000`, liste vide). **Inchangés** par cette page : voir le branchement ci-dessus.
 - Fonction `auth-confirm` déployée, `verify_jwt = false` (sinon le navigateur reçoit 401). `pgn-translate` reste `verify_jwt = true`.
@@ -146,7 +143,7 @@ Le texte brut du dépôt dit maintenant qu’on ne peut pas confirmer le résult
 
 ## Recette Android
 
-Le bundle AnyChess Dev (Metro, `.env.development`, profil EAS `development`) envoie `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. L’inscription, le renvoi et le mot de passe oublié ajoutent `client=dev` et `lang`. Le bouton ouvre alors `exp+mobile` / `com.anychess.app`. L’APK autonome déjà distribué n’est pas reconstruit : sans cette variable, son `redirect_to` reste la fonction, et le bouton ouvre `anychess` / `com.anychess.standalone`. Le bouton ne transmet pas le jeton. La confirmation française AnyChess est celle qui a été reçue. Les autres modèles du dépôt ne sont pas encore collés : un mot de passe oublié ou un compte en anglais peut encore recevoir le texte par défaut de Supabase. Un envoi trop rapproché peut encore répondre `over_email_send_rate_limit`.
+Le bundle AnyChess Dev (Metro, `.env.development`, profil EAS `development`) envoie `EXPO_PUBLIC_APP_CLIENT=dev` et `EXPO_PUBLIC_AUTH_CONFIRM_URL=https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. L’inscription, le renvoi et le mot de passe oublié ajoutent `client=dev` et `lang`. Le bouton ouvre alors `exp+mobile` / `com.anychess.app`. L’APK autonome déjà distribué n’est pas reconstruit : sans cette variable, son `redirect_to` reste la fonction, et le bouton ouvre `anychess` / `com.anychess.standalone`. Le bouton ne transmet pas le jeton. La confirmation française AnyChess est celle qui a été reçue. Les modèles bilingues de confirmation, de mot de passe oublié et de changement d’adresse sont déjà dans le tableau de bord. Le lien magique, l’invitation et la réauthentification ne sont pas signalés comme installés. Un envoi trop rapproché peut encore répondre `over_email_send_rate_limit`.
 
 1. Installer AnyChess et ouvrir **Créer un compte** (pseudo, e-mail, mot de passe).
 2. L’app dit qu’un e-mail de confirmation a été envoyé. Le compte n’est pas connecté, rien n’est synchronisé.
@@ -250,7 +247,7 @@ Le SMTP et le modèle de confirmation français sont déjà en place dans le tab
 2. Déployer la fonction `auth-confirm` de `main` (`verify_jwt = false`) pour le `POST` de vérification et la redirection `GET`. Non vérifié : le jeton de gestion est refusé.
 3. Site URL : `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm`. Non lu dans le tableau de bord depuis ici. Le succès sur le téléphone peut venir du `redirect_to` déjà envoyé par AnyChess Dev.
 4. Redirect URLs : cette page, `https://sparkly-paprenjak-65f499.netlify.app/auth/confirm**`, et `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm`. Même limite de lecture.
-5. Laisser le SMTP Brevo et le modèle de confirmation français déjà reçus. Coller ensuite le sujet bilingue de confirmation, puis les modèles encore absents (mot de passe, changement d’adresse, lien magique, invitation, réauthentification), depuis `supabase/templates/`.
+5. Laisser le SMTP Brevo et les modèles bilingues déjà installés (confirmation, récupération du mot de passe, changement d’adresse). Ne pas les remplacer. Les modèles encore absents du signalement sont le lien magique, l’invitation et la réauthentification, dans `supabase/templates/`.
 6. Ne pas désactiver Confirm email.
 
 Les APK autonomes déjà distribués n’ont pas besoin d’une nouvelle construction : leur `redirect_to` reste la fonction, qui enverra le navigateur vers Netlify après le redéploiement de la fonction. Le bouton y ouvre l’autonome. AnyChess Dev envoie `client=dev` et la page Netlify dès que son bundle JavaScript est rechargé (Metro). Aucun APK autonome n’est produit pour cela.

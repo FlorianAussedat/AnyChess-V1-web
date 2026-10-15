@@ -121,4 +121,11 @@ Les records concernés par la réinitialisation sont : tactique (`anychess.puzzl
 
 Le parcours client demande une confirmation dans le dialogue AnyChess, puis le mot de passe. L’appel va vers `POST /functions/v1/delete-account` avec le jeton de l’utilisateur. Aucune clé `service_role` n’est dans l’application. Hors connexion, l’app explique qu’Internet est nécessaire et ne met pas la suppression en attente. Le succès n’est annoncé qu’après une réponse serveur qui autorise l’effacement. Alors seulement : session fermée, espace de ce compte, ses sauvegardes, son cache d’avatar et son avatar en attente retirés, espace invité remis dans le slot actif. Les autres comptes et l’invité restent. Un échec, une fonction absente ou une session expirée ne retire rien en local.
 
-Le code de la fonction est dans `supabase/functions/delete-account`. Au moment de cette livraison, un appel réel sur le projet `zqfxnzwtptepulmgpxhb` répond encore **404** `Requested function was not found`. Le jeton d’administration disponible ici est refusé par l’API de gestion, donc la fonction **n’a pas été déployée**. L’app affiche dans ce cas que la suppression n’est pas disponible, sans effacer les données.
+Le code de la fonction est dans `supabase/functions/delete-account/index.ts`. `supabase/config.toml` demande `[functions.delete-account] verify_jwt = true`. Le 15 octobre 2026, `OPTIONS` et `POST` sur `https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/delete-account` répondent encore **404** `Requested function was not found`. L’API de gestion répond 401 « Invalid access token », donc la fonction **n’a pas été déployée** et la suppression n’est pas fonctionnelle. L’app affiche dans ce cas que la suppression n’est pas disponible, sans effacer les données.
+
+Déploiement manuel, sans `supabase config push` (cette commande réécrirait le SMTP Brevo et les modèles déjà installés) :
+
+1. Installer la CLI Supabase et se connecter avec un jeton de gestion valide.
+2. Depuis la racine du dépôt : `supabase functions deploy delete-account --project-ref zqfxnzwtptepulmgpxhb`.
+3. Laisser `verify_jwt` activé. Les secrets `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` sont fournis par l’hébergement de la fonction. Ne pas les copier dans l’application.
+4. Vérifier qu’un `POST` sans session ne répond plus 404. Une réponse 401 signifie que la fonction est en ligne et refuse un appel sans utilisateur. Ne pas l’essayer sur un compte personnel.

@@ -26,6 +26,9 @@ class UnconfiguredAuth implements CloudAuth {
   async recoverPassword() {
     return { ok: false, error: 'unconfigured' as const };
   }
+  async resendSignupConfirmation() {
+    return { ok: false, error: 'unconfigured' as const };
+  }
 }
 
 export function createCloudEngine(

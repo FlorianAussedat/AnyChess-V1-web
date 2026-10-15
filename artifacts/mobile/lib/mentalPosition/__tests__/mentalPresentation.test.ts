@@ -106,11 +106,17 @@ describe('vision UX opt-ins', () => {
     const mental = readFileSync(join(vizDir, 'mental.tsx'), 'utf8');
     const nommer = readFileSync(join(vizDir, 'nommer.tsx'), 'utf8');
     const jouer = readFileSync(join(vizDir, 'jouer.tsx'), 'utf8');
+    const chrome = readFileSync(
+      join(here, '../../../components/visualisation/TimedVisionChrome.tsx'),
+      'utf8',
+    );
+    const sideToMove = chrome.slice(chrome.indexOf('function TimedVisionSideToMove'));
+    assert.match(sideToMove, /colors\.primary/);
     assert.match(mental, /mental-side-to-move/);
+    assert.match(nommer, /TimedVisionSideToMove/);
     assert.match(nommer, /nommer-side-to-move/);
     assert.match(jouer, /jouer-side-to-move/);
     assert.match(mental, /colors\.primary/);
-    assert.match(nommer, /colors\.primary/);
     assert.match(jouer, /colors\.primary/);
   });
 });

@@ -14,6 +14,7 @@ import {
 } from '../../gameReader/gameReaderState.ts';
 import { parseReaderPgn } from '../../gameReader/parseReaderPgn.ts';
 import { AnalysisController } from '../AnalysisController.ts';
+import { sessionAnalysisStore } from '../sessionAnalysisStore.ts';
 import type { AnalyzePositionRequest, ChessEngine } from '../engine/ChessEngine.ts';
 import { formatAnyLyseurEval } from '../formatEval.ts';
 import { mapEngineAnalysisToPosition } from '../mapEngineAnalysis.ts';
@@ -356,6 +357,7 @@ describe('Bug D: mate 0 and terminals', () => {
 
 describe('Bug E: time budget forwarded', () => {
   it('controller passes profile movetime to engine', async () => {
+    sessionAnalysisStore.reset();
     const engine = new MockEngine(() =>
       analysis(5, null, ['e2e4', 'd2d4', 'g1f3']),
     );

@@ -105,7 +105,7 @@ export async function performAccountDeletion(
     return { ok: false, error: 'offline' };
   }
   let probe: AccountProbe | undefined;
-  if (http === 'network' || http.status >= 500) {
+  if (http.status >= 500) {
     probe = await (deps?.probe ?? defaultProbe)(engine);
   }
   const decision = decideDeletionOutcome(http, probe);
@@ -113,7 +113,7 @@ export async function performAccountDeletion(
     await engine.wipeDeletedAccount(user.id);
     pgnTranslationQueue.discardHeldWork();
     await pgnTranslationQueue.reloadFromStorage();
-    return { ok: true, alreadyCleaned: http === 'network' };
+    return { ok: true, alreadyCleaned: false };
   }
   pgnTranslationQueue.releaseDeletionHold(heldJobs);
   engine.releaseAccountDeletion();

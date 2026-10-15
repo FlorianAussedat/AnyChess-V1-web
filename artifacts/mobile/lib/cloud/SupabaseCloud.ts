@@ -14,6 +14,7 @@ import {
 } from './supabaseConfig.ts';
 import type {
   CloudAuth,
+  CloudAuthError,
   CloudAuthResult,
   CloudDocument,
   CloudRemote,
@@ -124,7 +125,7 @@ export class SupabaseCloudAuth implements CloudAuth {
     await this.persist?.save(null);
   }
 
-  async resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
+  async resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthError }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
     const language = await readAuthEmailLanguage();
@@ -146,7 +147,7 @@ export class SupabaseCloudAuth implements CloudAuth {
     }
   }
 
-  async recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthResult['error'] }> {
+  async recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthError }> {
     const url = resolveSupabaseUrl();
     if (!url || !this.configured) return { ok: false, error: 'unconfigured' };
     const language = await readAuthEmailLanguage();
