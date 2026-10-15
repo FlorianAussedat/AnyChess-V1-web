@@ -119,9 +119,12 @@ export function languageFromAccept(header: string | null | undefined): ConfirmLa
  * Opening the page, or a `success=true` parameter, is not confirmation.
  * The only success path is a signup token whose user has `email_confirmed_at`.
  *
- * App links are two constants. A `client` value other than `app` or `dev`,
- * and any scheme or URL supplied in the query, is ignored. Tokens are never
- * copied into the app link.
+ * App links are two constants, matching the APKs already installed:
+ * `client=dev` opens AnyChess Dev (`exp+mobile`, package `com.anychess.app`);
+ * every other value opens standalone AnyChess (`anychess`, package
+ * `com.anychess.standalone`). The Android package disambiguates when both
+ * are installed. A scheme or URL supplied in the query is ignored. Tokens
+ * are never copied into the app link.
  */
 export const INTERPRET_SOURCE = `
 function interpretConfirmationLocation(search, hash) {
@@ -178,8 +181,8 @@ function appOpenHref(client, userAgent) {
       : 'exp+mobile://';
   }
   return android
-    ? 'intent://open#Intent;scheme=mobile;package=com.anychess.app;end'
-    : 'mobile://';
+    ? 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end'
+    : 'anychess://';
 }
 `;
 

@@ -17,6 +17,13 @@ import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import type { CloudAuth, CloudDocument } from '../types.ts';
 import { renderConfirmationPage } from '../../../../../supabase/functions/auth-confirm/page.ts';
 import {
+  PUBLIC_CONFIRM_PAGE_URL,
+  PUBLIC_LOGO_URL,
+  PUBLIC_SUPABASE_URL,
+  PUBLIC_VERIFY_URL,
+  confirmPageRedirect,
+} from '../../../../../supabase/functions/auth-confirm/publicPage.ts';
+import {
   CONFIRM_COPY,
   PLAIN_FALLBACK,
   appOpenHref,
@@ -157,12 +164,14 @@ describe('confirmation page', () => {
     assert.match(html, /min-height:\s*48px/);
     assert.match(html, /alt="AnyChess"/);
     assert.match(html, /src="\/brand\/anychess-logo\.png"/);
+    assert.match(html, /intent:\/\/open#Intent;scheme=anychess;package=com\.anychess\.standalone;end/);
+    assert.match(html, /method: 'PUT'/);
+    assert.match(html, /action: 'verify'/);
     assert.match(html, /#0B1728/);
     assert.match(html, /#102040/);
     assert.match(html, /#F5A623/);
     assert.match(html, /<form id="recover" hidden>/);
     assert.match(html, /Enregistrer le mot de passe/);
-    assert.match(html, /method: 'PUT'/);
     assert.match(html, /Mot de passe mis à jour/);
     assert.notEqual(CONFIRM_COPY.fr.recoverSaved, CONFIRM_COPY.fr.confirmed);
     const recoverBranch = html.indexOf("outcome === 'recover'");
@@ -182,10 +191,12 @@ describe('confirmation page', () => {
     assert.match(app, /"slug": "mobile"/);
     const androidApp = appOpenHref('app', 'Mozilla/5.0 (Linux; Android 14)');
     const androidDev = appOpenHref('dev', 'Mozilla/5.0 (Linux; Android 14)');
-    assert.equal(androidApp, 'intent://open#Intent;scheme=mobile;package=com.anychess.app;end');
+    assert.equal(androidApp, 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end');
     assert.equal(androidDev, 'intent://open#Intent;scheme=exp+mobile;package=com.anychess.app;end');
-    assert.equal(appOpenHref('app', 'iPhone'), 'mobile://');
+    assert.equal(appOpenHref('app', 'iPhone'), 'anychess://');
     assert.equal(appOpenHref('dev', 'iPhone'), 'exp+mobile://');
+    assert.doesNotMatch(androidApp, /com\.anychess\.app/);
+    assert.match(androidDev, /package=com\.anychess\.app/);
     assert.equal(appOpenHref('javascript:alert(1)', 'Android'), androidApp);
     for (const href of [androidApp, androidDev, appOpenHref('app', ''), appOpenHref('dev', '')]) {
       assert.doesNotMatch(href, /access_token|refresh_token|http:|https:/);
@@ -198,6 +209,29 @@ describe('confirmation page', () => {
     assert.equal(languageFromAccept('en-US,en;q=0.9'), 'en');
     assert.equal(languageFromAccept('fr-FR,fr;q=0.9,en;q=0.8'), 'fr');
     assert.equal(languageFromAccept(null), 'fr');
+    const published = renderConfirmationPage({
+      supabaseUrl: PUBLIC_SUPABASE_URL,
+      anonKey: '',
+      logoUrl: PUBLIC_LOGO_URL,
+      verifyUrl: PUBLIC_VERIFY_URL,
+    });
+    const onDisk = readFileSync(join(repoRoot, 'site/auth/confirm.html'), 'utf8');
+    assert.equal(onDisk, published);
+    assert.match(onDisk, /src="https:\/\/cdn\.jsdelivr\.net\/gh\/FlorianAussedat\/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0\/artifacts\/mobile\/server\/brand\/anychess-logo\.png"/);
+    assert.match(onDisk, /functions\/v1\/auth-confirm/);
+    assert.match(onDisk, /"anon":""/);
+    assert.doesNotMatch(onDisk, /service_role|sb_secret_/);
+    const devRedirect = confirmPageRedirect(
+      'https://zqfxnzwtptepulmgpxhb.supabase.co/functions/v1/auth-confirm?client=dev&lang=en&access_token=secret',
+    );
+    assert.equal(
+      devRedirect,
+      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@cursor%2Fauth-confirm-page-90c2/site/auth/confirm.html?client=dev&lang=en',
+    );
+    assert.equal(confirmPageRedirect('https://example.test/functions/v1/auth-confirm').includes('client=app'), true);
+    assert.equal(confirmPageRedirect('https://example.test/functions/v1/auth-confirm?client=javascript').includes('client=app'), true);
+    assert.equal(PUBLIC_CONFIRM_PAGE_URL.includes('cursor%2Fauth-confirm-page-90c2'), true);
+    assert.doesNotMatch(devRedirect, /access_token/);
   });
 });
 
@@ -362,7 +396,19 @@ describe('auth screen copy wiring', () => {
     process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess.example/auth/confirm/?next=https://evil.example';
     assert.equal(authConfirmRedirectUrl(), 'https://anychess.example/auth/confirm?client=app&lang=fr');
     assert.equal(authConfirmRedirectUrl('en'), 'https://anychess.example/auth/confirm?client=app&lang=en');
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL =
+      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.html';
+    assert.equal(
+      authConfirmRedirectUrl('en'),
+      'https://cdn.jsdelivr.net/gh/FlorianAussedat/AnyChess-V1-web@43cd85cd3f2d6e9944106864fecaa7de527fc7b0/site/auth/confirm.html?client=app&lang=en',
+    );
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = PUBLIC_CONFIRM_PAGE_URL;
+    assert.equal(
+      authConfirmRedirectUrl('fr'),
+      `${PUBLIC_CONFIRM_PAGE_URL}?client=app&lang=fr`,
+    );
     process.env.EXPO_PUBLIC_APP_CLIENT = 'dev';
+    process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL = 'https://anychess.example/auth/confirm';
     assert.equal(authClientVariant(), 'dev');
     assert.equal(
       authConfirmRedirectUrl('fr'),

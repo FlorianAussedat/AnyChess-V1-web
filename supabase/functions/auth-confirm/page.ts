@@ -4,8 +4,18 @@ function jsonForScript(value: unknown): string {
   return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
-export function renderConfirmationPage(config: { supabaseUrl: string; anonKey: string }): string {
-  const cfg = jsonForScript({ url: config.supabaseUrl, anon: config.anonKey });
+export function renderConfirmationPage(config: {
+  supabaseUrl: string;
+  anonKey: string;
+  logoUrl?: string;
+  verifyUrl?: string;
+}): string {
+  const cfg = jsonForScript({
+    url: config.supabaseUrl,
+    anon: config.anonKey,
+    verify: config.verifyUrl ?? '',
+  });
+  const logo = htmlAttr(config.logoUrl || '/brand/anychess-logo.png');
   const copy = jsonForScript(CONFIRM_COPY);
   const open = appOpenFallback();
   return `<!DOCTYPE html>
@@ -76,7 +86,7 @@ export function renderConfirmationPage(config: { supabaseUrl: string; anonKey: s
 <body>
   <main>
     <div class="card">
-      <img class="logo" src="/brand/anychess-logo.png" alt="AnyChess" width="280" height="97">
+      <img class="logo" src="${logo}" alt="AnyChess" width="280" height="97">
       <h1 id="title">AnyChess</h1>
       <p id="message">${CONFIRM_COPY.fr.checking}</p>
       <a id="open" class="open" href="${open}">${CONFIRM_COPY.fr.open}</a>
@@ -119,6 +129,53 @@ ${INTERPRET_SOURCE}
     var fragment = new URLSearchParams(rawHash);
     return query.get('access_token') || fragment.get('access_token') || '';
   }
+  function readAuth(response) {
+    return response.json().then(function (body) {
+      var status = response.status;
+      var ok = response.ok;
+      var confirmed = false;
+      var payload = body;
+      if (body && typeof body === 'object' && body.proxy === true) {
+        if (typeof body.status === 'number') status = body.status;
+        if (typeof body.ok === 'boolean') ok = body.ok;
+        confirmed = body.confirmed === true;
+        payload = body.body || null;
+      }
+      return { ok: ok, status: status, body: payload, confirmed: confirmed };
+    }, function () {
+      return { ok: false, status: response.status, body: null, confirmed: false };
+    });
+  }
+  function requestVerify() {
+    if (cfg.anon && cfg.url) {
+      return fetch(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
+        headers: { Authorization: 'Bearer ' + accessToken, apikey: cfg.anon }
+      }).then(readAuth);
+    }
+    return fetch(cfg.verify, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', access_token: accessToken })
+    }).then(readAuth);
+  }
+  function requestRecover(password) {
+    if (cfg.anon && cfg.url) {
+      return fetch(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
+        method: 'PUT',
+        headers: {
+          Authorization: 'Bearer ' + accessToken,
+          apikey: cfg.anon,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: password })
+      }).then(readAuth);
+    }
+    return fetch(cfg.verify, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'recover', access_token: accessToken, password: password })
+    }).then(readAuth);
+  }
   function stripTokens() {
     var keep = new URLSearchParams();
     if (client === 'dev') keep.set('client', 'dev');
@@ -152,7 +209,7 @@ ${INTERPRET_SOURCE}
     if (label) label.textContent = text.recoverLabel;
     if (label2) label2.textContent = text.recoverLabel2;
     if (submit) submit.textContent = text.recoverSubmit;
-    if (!accessToken || !cfg.url || !cfg.anon || !form || !password || !password2 || !submit) {
+    if (!accessToken || !form || !password || !password2 || !submit || !((cfg.url && cfg.anon) || cfg.verify)) {
       show('recoverFailed', 'recoverFailedTitle');
       stripTokens();
       return;
@@ -173,27 +230,19 @@ ${INTERPRET_SOURCE}
       }
       recoverError.textContent = '';
       submit.disabled = true;
-      fetch(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
-        method: 'PUT',
-        headers: {
-          Authorization: 'Bearer ' + accessToken,
-          apikey: cfg.anon,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ password: next })
-      }).then(function (response) {
-        if (response.ok) {
+      requestRecover(next).then(function (result) {
+        if (result.ok) {
           form.hidden = true;
           show('recoverSaved', 'recoverSavedTitle');
           stripTokens();
           return;
         }
         submit.disabled = false;
-        if (response.status === 422) {
+        if (result.status === 422) {
           recoverError.textContent = text.recoverShort;
           return;
         }
-        if (response.status >= 500) {
+        if (result.status >= 500 || result.status === 0) {
           show('unavailable', 'unavailableTitle');
           form.hidden = true;
           return;
@@ -217,25 +266,17 @@ ${INTERPRET_SOURCE}
     show('idle', 'idleTitle');
     return;
   }
-  if (!cfg.url || !cfg.anon || !accessToken) {
+  if (!accessToken || !((cfg.url && cfg.anon) || cfg.verify)) {
     show('idle', 'idleTitle');
     return;
   }
-  fetch(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
-    headers: { Authorization: 'Bearer ' + accessToken, apikey: cfg.anon }
-  }).then(function (response) {
-    return response.json().then(function (body) {
-      return { ok: response.ok, status: response.status, body: body };
-    }, function () {
-      return { ok: response.ok, status: response.status, body: null };
-    });
-  }).then(function (result) {
-    if (result.ok && userEmailIsConfirmed(result.body)) {
+  requestVerify().then(function (result) {
+    if (result.confirmed === true || (result.ok && userEmailIsConfirmed(result.body))) {
       show('confirmed', 'confirmedTitle');
       stripTokens();
       return;
     }
-    if (!result.ok && result.status >= 500) {
+    if (result.status >= 500 || result.status === 0) {
       show('unavailable', 'unavailableTitle');
       return;
     }
@@ -250,6 +291,10 @@ ${INTERPRET_SOURCE}
 </html>`;
 }
 
+function htmlAttr(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 function appOpenFallback(): string {
-  return 'intent://open#Intent;scheme=mobile;package=com.anychess.app;end';
+  return 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end';
 }

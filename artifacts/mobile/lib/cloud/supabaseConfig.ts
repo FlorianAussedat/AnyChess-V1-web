@@ -46,9 +46,10 @@ export type AuthClientVariant = 'app' | 'dev';
 export type AuthMailLanguage = 'fr' | 'en';
 
 /**
- * Standalone AnyChess uses the `mobile` scheme. The dev client also registers
- * `exp+mobile` (Expo slug `mobile`). Only an explicit build flag or a dev
- * bundle selects the dev client. Anything else stays on the standalone app.
+ * `dev` is AnyChess Dev (`com.anychess.app`, schemes `mobile` and `exp+mobile`).
+ * `app` is the standalone APK already shipped (`com.anychess.standalone`, scheme
+ * `anychess`). Only an explicit build flag or a dev bundle selects Dev.
+ * Anything else stays on the standalone app, including when both are installed.
  */
 export function authClientVariant(): AuthClientVariant {
   const raw = readPublic(process.env.EXPO_PUBLIC_APP_CLIENT)?.toLowerCase();
@@ -65,11 +66,11 @@ export function authMailLanguage(value: string | null | undefined): AuthMailLang
  * Where Supabase sends the browser after it verifies an email link
  * (signup confirmation and password recovery).
  *
- * `EXPO_PUBLIC_AUTH_CONFIRM_URL` is the readable HTTPS page on the existing
- * web host (`GET /auth/confirm`, `text/html`). It must also be listed in
- * Supabase Redirect URLs, including the `client` and `lang` query. Until that
- * public origin exists, the free `*.supabase.co` function stays the target:
- * it is text/plain, because that domain rewrites HTML.
+ * `EXPO_PUBLIC_AUTH_CONFIRM_URL` is the readable HTTPS page (`text/html`).
+ * A path ending in `/auth/confirm` or `/auth/confirm.html` is accepted, so a
+ * file hosted on a CDN can be used. It must also be listed in Supabase
+ * Redirect URLs, including the `client` and `lang` query. Until that public
+ * URL exists, the free `*.supabase.co` function stays the target.
  *
  * Query values are only the allowlisted client and language. They are not a
  * scheme, a package, or a token.
@@ -80,7 +81,7 @@ export function authConfirmRedirectUrl(language?: string | null): string | null 
     try {
       const url = new URL(page);
       const path = url.pathname.replace(/\/$/, '');
-      if (url.protocol === 'https:' && path.endsWith('/auth/confirm')) {
+      if (url.protocol === 'https:' && /\/auth\/confirm(?:\.html)?$/.test(path)) {
         url.pathname = path;
         url.search = '';
         url.hash = '';
