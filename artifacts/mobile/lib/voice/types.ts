@@ -85,7 +85,7 @@ export type ParseChessVoiceOptions = {
  * Kept internal to the voice package but useful for diagnostics/tests.
  */
 export type MoveIntent = {
-  castle?: 'kingside' | 'queenside';
+  castle?: 'kingside' | 'queenside' | 'either';
   /** Chess.js piece letter; pawn is `'p'`. */
   piece?: 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
   fromFile?: string;

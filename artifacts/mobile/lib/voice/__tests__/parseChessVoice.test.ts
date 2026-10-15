@@ -128,6 +128,20 @@ describe('castling', () => {
   for (const raw of ['Grand roque', 'Castle queenside', 'O-O-O', '0-0-0']) {
     it(`${raw} → O-O-O`, () => expectMove(raw, fen, 'O-O-O'));
   }
+
+  it('leaves bare roque unresolved when both castles are legal', () => {
+    const r = parse('roque', fen);
+    assert.equal(r.type, 'ambiguous');
+    if (r.type === 'ambiguous') {
+      const sans = r.candidates.map((m) => m.san).sort();
+      assert.deepEqual(sans, ['O-O', 'O-O-O']);
+    }
+  });
+
+  it('plays the only legal castle when roque is unspecified', () => {
+    const kingsideOnly = '4k3/8/8/8/8/8/8/4K2R w K - 0 1';
+    expectMove('roque', kingsideOnly, 'O-O');
+  });
 });
 
 describe('promotion', () => {

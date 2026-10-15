@@ -14,6 +14,11 @@ export interface MicLifecycleState {
   isListening: boolean;
   /** Hook-level enable flag. */
   enabled: boolean;
+  /**
+   * App is in the foreground. Background stops the microphone and must not
+   * restart it until the user is back.
+   */
+  foreground?: boolean;
 }
 
 export function createMicLifecycleState(
@@ -25,6 +30,7 @@ export function createMicLifecycleState(
     isSpeaking: false,
     isListening: false,
     enabled: true,
+    foreground: true,
     ...partial,
   };
 }
@@ -34,6 +40,7 @@ export function shouldRestartRecognition(state: MicLifecycleState): boolean {
   return (
     state.alive &&
     state.enabled &&
+    state.foreground !== false &&
     state.micActive &&
     !state.isListening &&
     !state.isSpeaking

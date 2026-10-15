@@ -340,6 +340,7 @@ export default function EndgameTrainingPlayScreen() {
   });
 
   const speech = useExerciseSpeechInput({
+    positionFen: snap.fen,
     enabled: true,
     forceOff: !canMove,
     onSan: submitSan,

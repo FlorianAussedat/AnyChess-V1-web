@@ -54,6 +54,21 @@ describe('mic recognition lifecycle', () => {
     assert.equal(shouldRestartRecognition(next), false);
   });
 
+  it('does not restart while the app is in the background', () => {
+    assert.equal(
+      shouldRestartRecognition(
+        createMicLifecycleState({
+          alive: true,
+          micActive: true,
+          isListening: false,
+          isSpeaking: false,
+          foreground: false,
+        }),
+      ),
+      false,
+    );
+  });
+
   it('still requests stop when leaving with mic already idle', () => {
     const idle = createMicLifecycleState({ alive: true, micActive: false });
     const { shouldStopRecognition } = deactivateOnLeave(idle);

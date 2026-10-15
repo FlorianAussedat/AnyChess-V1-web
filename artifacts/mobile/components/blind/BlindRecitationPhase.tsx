@@ -59,6 +59,7 @@ export function BlindRecitationPhase() {
 
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
     isSpeaking,
+    positionFen: answerFen,
     onTranscript: (text) => {
       attemptSpokenRef.current(text);
     },

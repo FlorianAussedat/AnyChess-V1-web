@@ -96,7 +96,7 @@ export function extractMoveIntent(normalized: string): MoveIntent | null {
     return { castle: 'kingside', checkHint };
   }
   if (/^roque$/.test(base)) {
-    return { castle: 'kingside', checkHint };
+    return { castle: 'either', checkHint };
   }
 
   let text = base;
@@ -323,6 +323,7 @@ export function extractSanLikeIntent(
 export function describeIntent(intent: MoveIntent): string {
   if (intent.castle === 'kingside') return 'O-O';
   if (intent.castle === 'queenside') return 'O-O-O';
+  if (intent.castle === 'either') return 'roque';
   const pieceMap: Record<string, string> = {
     p: '',
     n: 'N',

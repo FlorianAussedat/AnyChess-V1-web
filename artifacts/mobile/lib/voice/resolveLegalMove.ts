@@ -20,6 +20,7 @@ function legalMoves(game: Chess): Move[] {
 }
 
 function matchesIntent(m: Move, intent: MoveIntent, defaultPromotion: string): boolean {
+  if (intent.castle === 'either') return m.flags.includes('k') || m.flags.includes('q');
   if (intent.castle === 'kingside') return m.flags.includes('k');
   if (intent.castle === 'queenside') return m.flags.includes('q');
 
@@ -60,6 +61,9 @@ export function filterMovesByIntent(
 ): Move[] {
   const legal = legalMoves(game);
 
+  if (intent.castle === 'either') {
+    return legal.filter((m) => m.flags.includes('k') || m.flags.includes('q'));
+  }
   if (intent.castle) {
     return legal.filter((m) =>
       intent.castle === 'kingside' ? m.flags.includes('k') : m.flags.includes('q'),

@@ -106,6 +106,7 @@ export function PuzzlePlayingPhase() {
     isSpeaking,
     enabled: !isReplaying && !isPreviewing,
     forceOff: isReplaying || isPreviewing,
+    positionFen: currentFen,
     onTranscript: submitSpoken,
   });
 

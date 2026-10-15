@@ -1259,6 +1259,23 @@ export type MessageKey =
   | 'speech.unsupported'
   | 'speech.micError'
   | 'speech.nothingRecognized'
+  | 'speech.offlineEngineMissing'
+  | 'speech.offlineEngineFailed'
+  | 'speech.offlineModelNeeded'
+  | 'speech.offlineNoPosition'
+  | 'speech.offlineConflict'
+  | 'speech.offlineDownloadTitle'
+  | 'speech.offlineDownloadBody'
+  | 'speech.offlineCellularBody'
+  | 'speech.offlineDownload'
+  | 'speech.offlineCancel'
+  | 'speech.offlineRetry'
+  | 'speech.offlineProgress'
+  | 'speech.offlineInstalling'
+  | 'speech.offlineFailedNetwork'
+  | 'speech.offlineFailedSpace'
+  | 'speech.offlineFailedIntegrity'
+  | 'speech.offlineFailedOffline'
   | 'vision.answerUnrecognized'
   | 'errors.folderParentMissing'
   | 'errors.systemFolderDelete'
@@ -2657,6 +2674,32 @@ const fr: Dict = {
   'speech.unsupported': 'Reconnaissance vocale non supportée ici.',
   'speech.micError': 'Erreur micro : {{code}}',
   'speech.nothingRecognized': 'Rien d’utilisable reconnu. Réessaie.',
+  'speech.offlineEngineMissing':
+    'Cette version ne contient pas la dictée hors connexion. Le clavier reste disponible.',
+  'speech.offlineEngineFailed':
+    'La dictée hors connexion a échoué. Le clavier reste disponible.',
+  'speech.offlineModelNeeded':
+    'La dictée hors connexion a besoin d’un modèle ({{size}} à télécharger, environ {{installed}} installé). Internet est nécessaire. Le clavier reste disponible.',
+  'speech.offlineNoPosition':
+    'La dictée a besoin de la position en cours. Le clavier reste disponible.',
+  'speech.offlineConflict':
+    'Plusieurs interprétations restent possibles. Précise le coup ou utilise le clavier.',
+  'speech.offlineDownloadTitle': 'Modèle de dictée',
+  'speech.offlineDownloadBody':
+    'Télécharger le modèle {{lang}} ({{size}}, environ {{installed}} une fois installé) ? Internet est nécessaire. Rien n’est téléchargé tant que tu ne confirmes pas.',
+  'speech.offlineCellularBody':
+    'Tu es en données mobiles. Télécharger {{size}} maintenant ?',
+  'speech.offlineDownload': 'Télécharger',
+  'speech.offlineCancel': 'Annuler',
+  'speech.offlineRetry': 'Réessayer',
+  'speech.offlineProgress': 'Téléchargement {{progress}}',
+  'speech.offlineInstalling': 'Vérification du modèle…',
+  'speech.offlineFailedNetwork': 'Le téléchargement a échoué. Le clavier reste disponible.',
+  'speech.offlineFailedSpace': 'Espace insuffisant pour le modèle. Le clavier reste disponible.',
+  'speech.offlineFailedIntegrity':
+    'Le modèle téléchargé n’est pas utilisable. Le clavier reste disponible.',
+  'speech.offlineFailedOffline':
+    'Internet est nécessaire pour télécharger le modèle. Le clavier reste disponible.',
   'vision.answerUnrecognized': 'Non reconnu — réessaie (non compté).',
   'errors.folderParentMissing': 'Dossier parent introuvable.',
   'errors.systemFolderDelete': 'Ce dossier système ne peut pas être supprimé.',
@@ -4047,6 +4090,32 @@ const en: Dict = {
   'speech.unsupported': 'Speech recognition is not supported here.',
   'speech.micError': 'Microphone error: {{code}}',
   'speech.nothingRecognized': 'Nothing usable was recognized. Try again.',
+  'speech.offlineEngineMissing':
+    'This build does not include offline dictation. The keyboard stays available.',
+  'speech.offlineEngineFailed':
+    'Offline dictation failed. The keyboard stays available.',
+  'speech.offlineModelNeeded':
+    'Offline dictation needs a model ({{size}} to download, about {{installed}} installed). Internet is required. The keyboard stays available.',
+  'speech.offlineNoPosition':
+    'Dictation needs the current position. The keyboard stays available.',
+  'speech.offlineConflict':
+    'More than one interpretation is possible. Clarify the move or use the keyboard.',
+  'speech.offlineDownloadTitle': 'Dictation model',
+  'speech.offlineDownloadBody':
+    'Download the {{lang}} model ({{size}}, about {{installed}} once installed)? Internet is required. Nothing downloads until you confirm.',
+  'speech.offlineCellularBody':
+    'You are on mobile data. Download {{size}} now?',
+  'speech.offlineDownload': 'Download',
+  'speech.offlineCancel': 'Cancel',
+  'speech.offlineRetry': 'Try again',
+  'speech.offlineProgress': 'Downloading {{progress}}',
+  'speech.offlineInstalling': 'Checking the model…',
+  'speech.offlineFailedNetwork': 'The download failed. The keyboard stays available.',
+  'speech.offlineFailedSpace': 'Not enough space for the model. The keyboard stays available.',
+  'speech.offlineFailedIntegrity':
+    'The downloaded model cannot be used. The keyboard stays available.',
+  'speech.offlineFailedOffline':
+    'Internet is required to download the model. The keyboard stays available.',
   'vision.answerUnrecognized': 'Not recognized — try again (not counted).',
   'errors.folderParentMissing': 'Parent folder not found.',
   'errors.systemFolderDelete': 'This system folder cannot be deleted.',

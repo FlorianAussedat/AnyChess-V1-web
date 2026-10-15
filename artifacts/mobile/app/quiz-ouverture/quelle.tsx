@@ -135,6 +135,7 @@ export default function QuelleOuvertureScreen() {
   };
 
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
+    dictation: 'open',
     forceOff:
       phase !== 'playing' ||
       !snap ||

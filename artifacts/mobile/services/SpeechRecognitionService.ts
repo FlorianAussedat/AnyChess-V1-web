@@ -8,9 +8,8 @@
  *    the real browser mic prompt only appears on recognition.start() / getUserMedia.
  *  - continuous mode ends after silence on Chrome → must restart while micActive.
  *  - Firefox / some embedded browsers lack the Speech API entirely.
- *  - Android will later replace this with the native SpeechRecognizer path
- *    from the same package (or a dedicated native module) — keep callers on
- *    this service so the swap is local.
+ *  - Android dictation uses the on-device Vosk module. It does not fall back to
+ *    the online recognizer. Web keeps expo-speech-recognition.
  *
  * Responsibilities:
  *  - availability / permission checks with real web getUserMedia when needed;
@@ -18,7 +17,8 @@
  *  - pause while TTS speaks, resume afterwards (caller still drives isSpeaking);
  *  - surface structured status for the UI.
  */
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import * as Network from 'expo-network';
 import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent,
@@ -29,6 +29,11 @@ import { shouldRestartRecognition } from '@/lib/speech/micLifecycle';
 import { preferencesStore } from '@/lib/preferences';
 import { speechLocaleForLanguage } from '@/lib/i18n';
 import { tMsg } from '@/lib/i18n/tMsg.ts';
+import { getVoskModule } from '@/lib/speech/androidDictation';
+import { chessPhraseGrammar, OPEN_VOSK_GRAMMAR } from '@/lib/speech/voskGrammar';
+import { agreeHypotheses, chessInterpretationKey } from '@/lib/speech/voskDecision';
+import { offerOfflineModel } from '@/lib/speech/offlineModelSession';
+import { dictationLanguage, VOSK_MODELS } from '@/lib/speech/voskModels';
 
 export type MicStatusCode =
   | 'idle'
@@ -168,8 +173,22 @@ export function useSpeechInput(options: {
   onTranscript: (text: string) => void;
   /** When true, auto-deactivate mic (e.g. game over). */
   forceOff?: boolean;
+  /**
+   * Current position. Android move dictation builds a phrase grammar from
+   * every legal move. Omit only for dictation that is not a chess move.
+   */
+  positionFen?: string | null;
+  /** `open` keeps the local model but does not constrain it to chess phrases. */
+  dictation?: 'moves' | 'open';
 }) {
-  const { isSpeaking, enabled = true, onTranscript, forceOff = false } = options;
+  const {
+    isSpeaking,
+    enabled = true,
+    onTranscript,
+    forceOff = false,
+    positionFen = null,
+    dictation = 'moves',
+  } = options;
 
   const [micActive, setMicActive] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -181,6 +200,13 @@ export function useSpeechInput(options: {
   const enabledRef = useRef(enabled);
   /** False after unmount — blocks restart / late async starts. */
   const aliveRef = useRef(true);
+  const sessionRef = useRef(0);
+  const fenRef = useRef<string | null>(positionFen);
+  const dictationRef = useRef(dictation);
+  const foregroundRef = useRef(true);
+  const [foreground, setForeground] = useState(true);
+  /** Grammar last sent to the native recognizer, so a position change can retarget it. */
+  const appliedGrammarRef = useRef<string | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
@@ -197,9 +223,47 @@ export function useSpeechInput(options: {
   useEffect(() => {
     enabledRef.current = enabled;
   }, [enabled]);
+  useEffect(() => {
+    fenRef.current = positionFen;
+  }, [positionFen]);
+  useEffect(() => {
+    dictationRef.current = dictation;
+  }, [dictation]);
+  useEffect(() => {
+    foregroundRef.current = foreground;
+  }, [foreground]);
+
+  const stopListening = useCallback(() => {
+    sessionRef.current += 1;
+    appliedGrammarRef.current = null;
+    if (Platform.OS === 'android') {
+      getVoskModule()?.stop();
+    } else {
+      stopSpeechRecognition();
+    }
+    if (aliveRef.current) {
+      setIsListening(false);
+    } else {
+      isListeningRef.current = false;
+    }
+  }, []);
 
   const startListening = useCallback(async () => {
     if (!enabledRef.current || !aliveRef.current) return;
+    if (Platform.OS === 'android') {
+      await startAndroidDictation({
+        aliveRef,
+        micActiveRef,
+        fenRef,
+        dictationRef,
+        sessionRef,
+        appliedGrammarRef,
+        setStatus,
+        setMicActive,
+        setIsListening,
+      });
+      return;
+    }
     try {
       const prep = await prepareSpeechRecognition();
       if (!aliveRef.current || !micActiveRef.current) {
@@ -231,15 +295,6 @@ export function useSpeechInput(options: {
     }
   }, []);
 
-  const stopListening = useCallback(() => {
-    stopSpeechRecognition();
-    if (aliveRef.current) {
-      setIsListening(false);
-    } else {
-      isListeningRef.current = false;
-    }
-  }, []);
-
   // Hard stop on leave — Expo Stack may keep the screen mounted briefly, and
   // continuous-mode restarts must not fire after the user navigates away.
   useEffect(() => {
@@ -247,10 +302,96 @@ export function useSpeechInput(options: {
     return () => {
       aliveRef.current = false;
       micActiveRef.current = false;
-      stopSpeechRecognition();
+      sessionRef.current += 1;
+      appliedGrammarRef.current = null;
+      if (Platform.OS === 'android') getVoskModule()?.stop();
+      else stopSpeechRecognition();
       logMic('unmount-stop');
     };
   }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      const active = next === 'active';
+      foregroundRef.current = active;
+      setForeground(active);
+      if (!active) stopListening();
+    });
+    return () => sub.remove();
+  }, [stopListening]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const native = getVoskModule();
+    if (!native) return;
+    const results = native.addListener('onResult', (event) => {
+      if (!aliveRef.current || event.session !== sessionRef.current) return;
+      if (dictationRef.current === 'open') {
+        const best = event.alternatives[0]?.text?.trim() ?? '';
+        if (!best) return;
+        const text = best;
+        onTranscriptRef.current(text);
+        setStatus({ code: 'listening', message: null });
+        return;
+      }
+      const fen = fenRef.current;
+      if (!fen) return;
+      const language = dictationLanguage(preferencesStore.getPreferences().language);
+      const decision = agreeHypotheses(event.alternatives, (text) =>
+        chessInterpretationKey(text, fen, language),
+      );
+      if (decision.status === 'accept') {
+        onTranscriptRef.current(decision.text);
+        setStatus({ code: 'listening', message: null });
+        return;
+      }
+      if (decision.reason === 'conflict') {
+        setStatus({ code: 'empty-transcript', message: tMsg('speech.offlineConflict') });
+      }
+    });
+    const errors = native.addListener('onError', (event) => {
+      if (!aliveRef.current) return;
+      if (event.session !== sessionRef.current && event.session !== -1) return;
+      logMic('vosk-error', event.message);
+      setStatus({
+        code: 'error',
+        message: tMsg('speech.offlineEngineFailed'),
+        lastError: event.message,
+      });
+    });
+    return () => {
+      results.remove();
+      errors.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !micActive || !isListening) return;
+    const grammar = grammarFor(dictation, positionFen);
+    if (appliedGrammarRef.current === grammar) return;
+    const native = getVoskModule();
+    if (!native) return;
+    appliedGrammarRef.current = grammar;
+    const session = sessionRef.current + 1;
+    sessionRef.current = session;
+    native.stop();
+    native.setGrammar(grammar);
+    void native.start(session).then(() => {
+      if (!aliveRef.current || sessionRef.current !== session) return;
+      setIsListening(true);
+    }).catch((err) => {
+      if (!aliveRef.current || sessionRef.current !== session) return;
+      logMic('vosk-grammar-restart-failed', err);
+      native.stop();
+      setIsListening(false);
+      setMicActive(false);
+      setStatus({
+        code: 'start-failed',
+        message: tMsg('speech.offlineEngineFailed'),
+        lastError: String(err),
+      });
+    });
+  }, [positionFen, dictation, micActive, isListening]);
 
   useSpeechRecognitionEvent('start', () => {
     if (!aliveRef.current) return;
@@ -345,6 +486,7 @@ export function useSpeechInput(options: {
         micActive,
         isListening,
         isSpeaking,
+        foreground,
       })
     ) {
       return;
@@ -357,13 +499,14 @@ export function useSpeechInput(options: {
           micActive: micActiveRef.current,
           isListening: isListeningRef.current,
           isSpeaking: isSpeakingRef.current,
+          foreground: foregroundRef.current,
         })
       ) {
         startListening();
       }
     }, 100);
     return () => clearTimeout(t);
-  }, [micActive, isListening, isSpeaking, enabled, startListening]);
+  }, [micActive, isListening, isSpeaking, enabled, foreground, startListening]);
 
   useEffect(() => {
     if (forceOff && micActive) {
@@ -391,6 +534,122 @@ export function useSpeechInput(options: {
     startListening,
     stopListening,
   };
+}
+
+function grammarFor(dictation: 'moves' | 'open', fen: string | null): string {
+  if (dictation === 'open' || !fen) return OPEN_VOSK_GRAMMAR;
+  const language = dictationLanguage(preferencesStore.getPreferences().language);
+  return JSON.stringify(chessPhraseGrammar(fen, language));
+}
+
+async function readNetwork(): Promise<'wifi' | 'cellular' | 'offline' | 'unknown'> {
+  try {
+    const state = await Network.getNetworkStateAsync();
+    if (state.isConnected === false) return 'offline';
+    if (state.type === Network.NetworkStateType.CELLULAR) return 'cellular';
+    if (state.type === Network.NetworkStateType.WIFI) return 'wifi';
+    return 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+async function ensureAndroidMicPermission(): Promise<MicStatus | null> {
+  try {
+    const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!granted) {
+      return { code: 'permission-denied', message: tMsg('speech.micDenied') };
+    }
+    return null;
+  } catch (err) {
+    return {
+      code: 'start-failed',
+      message: tMsg('speech.micPermissionFailed'),
+      lastError: String(err),
+    };
+  }
+}
+
+function sizeLabel(megabytes: number, language: 'fr' | 'en'): string {
+  return language === 'fr' ? `${megabytes} Mo` : `${megabytes} MB`;
+}
+
+async function startAndroidDictation(refs: {
+  aliveRef: { current: boolean };
+  micActiveRef: { current: boolean };
+  fenRef: { current: string | null };
+  dictationRef: { current: 'moves' | 'open' };
+  sessionRef: { current: number };
+  appliedGrammarRef: { current: string | null };
+  setStatus: (status: MicStatus) => void;
+  setMicActive: (active: boolean) => void;
+  setIsListening: (listening: boolean) => void;
+}): Promise<void> {
+  const native = getVoskModule();
+  if (!native) {
+    refs.setMicActive(false);
+    refs.setStatus({ code: 'unsupported', message: tMsg('speech.offlineEngineMissing') });
+    return;
+  }
+  const denied = await ensureAndroidMicPermission();
+  if (!refs.aliveRef.current || !refs.micActiveRef.current) {
+    native.stop();
+    return;
+  }
+  if (denied) {
+    refs.setStatus(denied);
+    refs.setMicActive(false);
+    return;
+  }
+  const language = dictationLanguage(preferencesStore.getPreferences().language);
+  const spec = VOSK_MODELS[language];
+  if (native.status(language, spec.directory) !== 'installed') {
+    offerOfflineModel(language, await readNetwork());
+    refs.setMicActive(false);
+    refs.setStatus({
+      code: 'unavailable',
+      message: tMsg('speech.offlineModelNeeded', {
+        size: sizeLabel(spec.downloadMegabytes, language),
+        installed: sizeLabel(spec.installedMegabytes, language),
+      }),
+    });
+    return;
+  }
+  if (refs.dictationRef.current === 'moves' && !refs.fenRef.current) {
+    refs.setMicActive(false);
+    refs.setStatus({ code: 'unavailable', message: tMsg('speech.offlineNoPosition') });
+    return;
+  }
+  try {
+    const paths = native.paths(language);
+    await native.load(`${paths.root}/${spec.directory}`);
+    if (!refs.aliveRef.current || !refs.micActiveRef.current) {
+      native.stop();
+      return;
+    }
+    const grammar = grammarFor(refs.dictationRef.current, refs.fenRef.current);
+    native.setGrammar(grammar);
+    refs.sessionRef.current += 1;
+    const session = refs.sessionRef.current;
+    await native.start(session);
+    if (!refs.aliveRef.current || !refs.micActiveRef.current || refs.sessionRef.current !== session) {
+      return;
+    }
+    refs.appliedGrammarRef.current = grammar;
+    refs.setIsListening(true);
+    refs.setStatus({ code: 'listening', message: null });
+  } catch (err) {
+    if (!refs.aliveRef.current) return;
+    logMic('vosk-start-failed', err);
+    native.stop();
+    refs.setIsListening(false);
+    refs.setMicActive(false);
+    refs.setStatus({
+      code: 'start-failed',
+      message: tMsg('speech.offlineEngineFailed'),
+      lastError: String(err),
+    });
+  }
 }
 
 // Re-export the hook dependency so screens don't import the module twice.

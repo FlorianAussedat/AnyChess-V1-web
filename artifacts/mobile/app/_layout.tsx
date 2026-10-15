@@ -8,6 +8,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AnyChessSplashScreen } from '@/components/AnyChessSplashScreen';
 import { BottomNavigation } from '@/components/navigation/BottomNavigation';
 import { AppDialogHost } from '@/components/ui/AppDialogHost';
+import { OfflineModelBanner } from '@/components/speech/OfflineModelBanner';
 import { DesignTokens } from '@/constants/designTokens';
 import { ANYCHESS_NAVY } from '@/lib/brand/splashTiming';
 import {
@@ -137,6 +138,7 @@ export default function RootLayout() {
                 )}
 
                 {/* Prepare home + nav under the fading overlay so they do not pop in. */}
+                {appReady ? <OfflineModelBanner /> : null}
                 {appReady ? <BottomNavigation /> : null}
                 {appReady ? <AppDialogHost /> : null}
 
