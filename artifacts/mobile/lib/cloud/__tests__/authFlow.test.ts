@@ -174,7 +174,7 @@ describe('confirmation page', () => {
     assert.match(html, /min-height:\s*48px/);
     assert.match(html, /alt="AnyChess"/);
     assert.match(html, /src="\/brand\/anychess-logo\.png"/);
-    assert.match(html, /intent:\/\/open#Intent;scheme=anychess;package=com\.anychess\.standalone;end/);
+    assert.match(html, /intent:\/\/utilisateur#Intent;scheme=anychess;package=com\.anychess\.standalone;end/);
     assert.match(html, /method: 'PUT'/);
     assert.match(html, /action: 'verify'/);
     assert.match(html, /#0B1728/);
@@ -201,10 +201,10 @@ describe('confirmation page', () => {
     assert.match(app, /"slug": "mobile"/);
     const androidApp = appOpenHref('app', 'Mozilla/5.0 (Linux; Android 14)');
     const androidDev = appOpenHref('dev', 'Mozilla/5.0 (Linux; Android 14)');
-    assert.equal(androidApp, 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end');
-    assert.equal(androidDev, 'intent://open#Intent;scheme=exp+mobile;package=com.anychess.app;end');
-    assert.equal(appOpenHref('app', 'iPhone'), 'anychess://');
-    assert.equal(appOpenHref('dev', 'iPhone'), 'exp+mobile://');
+    assert.equal(androidApp, 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end');
+    assert.equal(androidDev, 'intent://utilisateur#Intent;scheme=exp+mobile;package=com.anychess.app;end');
+    assert.equal(appOpenHref('app', 'iPhone'), 'anychess://utilisateur');
+    assert.equal(appOpenHref('dev', 'iPhone'), 'exp+mobile://utilisateur');
     assert.doesNotMatch(androidApp, /com\.anychess\.app/);
     assert.match(androidDev, /package=com\.anychess\.app/);
     assert.equal(appOpenHref('javascript:alert(1)', 'Android'), androidApp);

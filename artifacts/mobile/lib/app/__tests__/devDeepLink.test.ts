@@ -97,4 +97,36 @@ describe('rewriteDevSystemPath', () => {
     assert.match(rewriteDevSystemPath(connectionUrl(RECOVERY_PAGE)), /type=recovery/);
     assert.doesNotMatch(rewriteDevSystemPath(wrapped), /^\/$/);
   });
+
+  it('opens Utilisateur from the confirmation button, cold and already running', () => {
+    const links = [
+      'exp+mobile://open',
+      'exp+mobile://utilisateur',
+      'anychess://open',
+      'anychess://utilisateur',
+      'mobile://open',
+      'intent://open#Intent;scheme=exp+mobile;package=com.anychess.app;end',
+      'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end',
+      'exp+mobile://',
+      'anychess://',
+      '/open',
+      'open',
+      '/utilisateur',
+    ];
+    for (const link of links) {
+      for (const initial of [true, false]) {
+        assert.equal(rewriteDevSystemPath(link, initial), '/utilisateur', link);
+        assert.deepEqual(lastLinkingDecision(), {
+          action: 'rewrite-account-return',
+          to: '/utilisateur',
+        });
+      }
+    }
+    assert.equal(rewriteDevSystemPath('/openings'), '/openings');
+    assert.equal(rewriteDevSystemPath('/openings/learn', false), '/openings/learn');
+    assert.equal(
+      rewriteDevSystemPath(connectionUrl('https://abcd.exp.direct'), false),
+      '',
+    );
+  });
 });

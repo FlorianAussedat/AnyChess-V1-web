@@ -296,5 +296,5 @@ function htmlAttr(value: string): string {
 }
 
 function appOpenFallback(): string {
-  return 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end';
+  return 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end';
 }

@@ -119,12 +119,12 @@ export function languageFromAccept(header: string | null | undefined): ConfirmLa
  * Opening the page, or a `success=true` parameter, is not confirmation.
  * The only success path is a signup token whose user has `email_confirmed_at`.
  *
- * App links are two constants, matching the APKs already installed:
- * `client=dev` opens AnyChess Dev (`exp+mobile`, package `com.anychess.app`);
- * every other value opens standalone AnyChess (`anychess`, package
- * `com.anychess.standalone`). The Android package disambiguates when both
- * are installed. A scheme or URL supplied in the query is ignored. Tokens
- * are never copied into the app link.
+ * App links open the Utilisateur screen of the installed variant:
+ * `client=dev` opens AnyChess Dev (`exp+mobile://utilisateur`, package
+ * `com.anychess.app`); every other value opens standalone AnyChess
+ * (`anychess://utilisateur`, package `com.anychess.standalone`). The Android
+ * package disambiguates when both are installed. A scheme or URL supplied
+ * in the query is ignored. Tokens are never copied into the app link.
  */
 export const INTERPRET_SOURCE = `
 function interpretConfirmationLocation(search, hash) {
@@ -177,12 +177,12 @@ function appOpenHref(client, userAgent) {
   var android = /Android/i.test(userAgent || '');
   if (client === 'dev') {
     return android
-      ? 'intent://open#Intent;scheme=exp+mobile;package=com.anychess.app;end'
-      : 'exp+mobile://';
+      ? 'intent://utilisateur#Intent;scheme=exp+mobile;package=com.anychess.app;end'
+      : 'exp+mobile://utilisateur';
   }
   return android
-    ? 'intent://open#Intent;scheme=anychess;package=com.anychess.standalone;end'
-    : 'anychess://';
+    ? 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end'
+    : 'anychess://utilisateur';
 }
 `;
 

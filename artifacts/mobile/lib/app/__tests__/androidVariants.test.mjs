@@ -35,7 +35,7 @@ describe('Android install variants', () => {
   it('names the development client AnyChess Dev and the release AnyChess', () => {
     assert.equal(dev.expo.name, 'AnyChess Dev');
     assert.equal(standalone.expo.name, 'AnyChess');
-    assert.equal(dev.expo.android.versionCode, 3);
+    assert.equal(dev.expo.android.versionCode, 4);
     assert.equal(standalone.expo.android.versionCode, 2);
     assert.equal(dev.expo.version, '0.0.6');
     assert.equal(standalone.expo.version, '0.0.6');
