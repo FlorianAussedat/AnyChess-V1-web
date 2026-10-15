@@ -262,9 +262,24 @@ export function CloudAccountSection() {
           </Pressable>
           <Pressable
             testID="cloud-signout"
-            disabled={busy}
             onPress={() => {
-              void cloud.signOut();
+              confirmAction(
+                t('cloud.signOutTitle'),
+                t('cloud.signOutBody'),
+                () => {
+                  void (async () => {
+                    setFormError(null);
+                    setInfo(null);
+                    try {
+                      const result = await cloud.signOut();
+                      if (!result.ok) setFormError(t('cloud.signOutFailed'));
+                    } catch {
+                      setFormError(t('cloud.signOutFailed'));
+                    }
+                  })();
+                },
+                { confirmLabel: t('cloud.signOut'), destructive: true },
+              );
             }}
             style={[styles.btn, { borderColor: colors.border }]}
           >
@@ -278,9 +293,9 @@ export function CloudAccountSection() {
           {t('cloud.errorSchema')}
         </Text>
       ) : null}
-      {formError ? (
+      {formError || cloud.lastError === 'sign_out_failed' ? (
         <Text style={{ color: colors.destructive }} testID="cloud-form-error">
-          {formError}
+          {formError ?? t('cloud.signOutFailed')}
         </Text>
       ) : null}
       {info ? (

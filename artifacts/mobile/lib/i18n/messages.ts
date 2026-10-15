@@ -212,6 +212,9 @@ export type MessageKey =
   | 'cloud.signIn'
   | 'cloud.signUp'
   | 'cloud.signOut'
+  | 'cloud.signOutTitle'
+  | 'cloud.signOutBody'
+  | 'cloud.signOutFailed'
   | 'cloud.recover'
   | 'cloud.recoverSent'
   | 'cloud.statusSynced'
@@ -1495,6 +1498,10 @@ const fr: Dict = {
   'cloud.signIn': 'Se connecter',
   'cloud.signUp': 'Créer un compte',
   'cloud.signOut': 'Déconnexion',
+  'cloud.signOutTitle': 'Se déconnecter ?',
+  'cloud.signOutBody':
+    'Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
+  'cloud.signOutFailed': 'La déconnexion n’a pas abouti. Réessaie.',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
   'cloud.statusSynced': 'Données synchronisées',
@@ -2892,6 +2899,10 @@ const en: Dict = {
   'cloud.signIn': 'Sign in',
   'cloud.signUp': 'Create account',
   'cloud.signOut': 'Sign out',
+  'cloud.signOutTitle': 'Sign out?',
+  'cloud.signOutBody':
+    'Your games, scores, and other data stay on this device. They will not be sent to the next account.',
+  'cloud.signOutFailed': 'Sign-out did not finish. Try again.',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
   'cloud.statusSynced': 'Data synced',

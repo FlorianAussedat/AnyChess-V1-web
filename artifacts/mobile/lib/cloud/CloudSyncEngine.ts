@@ -70,6 +70,8 @@ export class CloudSyncEngine {
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private syncing = false;
   private deletionLocked = false;
+  /** Bumped on sign-out and account switch so a late sync cannot write the previous account. */
+  private sessionEpoch = 0;
   private readonly storage: KeyValueStorage;
   private readonly auth: CloudAuth;
   private readonly remote: CloudRemote;
@@ -117,6 +119,37 @@ export class CloudSyncEngine {
 
   releaseAccountDeletion(): void {
     this.deletionLocked = false;
+  }
+
+  private bumpSession(): number {
+    this.sessionEpoch += 1;
+    if (this.syncTimer) {
+      clearTimeout(this.syncTimer);
+      this.syncTimer = null;
+    }
+    return this.sessionEpoch;
+  }
+
+  private sessionIsCurrent(epoch: number): boolean {
+    return this.sessionEpoch === epoch && !this.deletionLocked;
+  }
+
+  /**
+   * Local tokens are cleared by auth.signOut before any network call.
+   * A stuck logout request must not keep the account on screen.
+   */
+  private endAuthSession(): Promise<void> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(finish, 800);
+      void this.auth.signOut().then(finish, finish);
+    });
   }
 
   async readRefreshToken(): Promise<string | null> {
@@ -307,24 +340,51 @@ export class CloudSyncEngine {
     return this.auth.recoverPassword(email);
   }
 
-  async signOut(): Promise<void> {
+  async signOut(): Promise<{ ok: true } | { ok: false; error: 'unexpected' }> {
+    const epoch = this.bumpSession();
     const current = this.state.user?.id ?? (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY));
-    if (current && current !== GUEST_OWNER_ID) {
-      await this.parkWorkspace(current);
+    try {
+      if (current && current !== GUEST_OWNER_ID) await this.parkWorkspace(current);
+    } catch {
+      if (!this.sessionIsCurrent(epoch)) return { ok: true };
+      this.setState({ lastError: 'sign_out_failed', sessionReady: true });
+      return { ok: false, error: 'unexpected' };
     }
-    await this.auth.signOut();
-    await this.storage.removeItem(CLOUD_SESSION_KEY);
-    await this.restoreWorkspace(GUEST_OWNER_ID);
-    await this.withSilentWrites(() => this.mirrorPreferences());
-    await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
-    this.setState({
+    const signedOut = {
       user: null,
-      status: this.auth.configured ? 'signed_out' : 'unconfigured',
+      status: this.auth.configured ? ('signed_out' as const) : ('unconfigured' as const),
       pendingConfirmationEmail: null,
       pendingConfirmationReason: null,
-      lastError: null,
       sessionReady: true,
-    });
+    };
+    try {
+      await this.endAuthSession();
+      if (!this.sessionIsCurrent(epoch)) return { ok: true };
+      await this.storage.removeItem(CLOUD_SESSION_KEY);
+      await this.restoreWorkspace(GUEST_OWNER_ID);
+      await this.withSilentWrites(async () => {
+        await this.mirrorPreferences();
+        await this.mirrorProfile();
+      });
+      await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
+    } catch {
+      if (!this.sessionIsCurrent(epoch)) return { ok: true };
+      await this.storage.removeItem(CLOUD_SESSION_KEY).catch(() => undefined);
+      await this.restoreWorkspace(GUEST_OWNER_ID).catch(async () => {
+        await this.withSilentWrites(() =>
+          writeDocs(
+            this.storage,
+            Object.fromEntries(SYNCABLE_STORAGE_KEYS.map((key) => [key, null])),
+          ),
+        );
+      });
+      await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID).catch(() => undefined);
+      this.setState({ ...signedOut, lastError: 'sign_out_failed' });
+      return { ok: false, error: 'unexpected' };
+    }
+    if (!this.sessionIsCurrent(epoch)) return { ok: true };
+    this.setState({ ...signedOut, lastError: null });
+    return { ok: true };
   }
 
   /** Memory auth has no access token. Supabase must not sync on the anon key. */
@@ -342,11 +402,18 @@ export class CloudSyncEngine {
       this.setState({ status: 'unconfigured' });
       return { ok: false as const, error: 'unconfigured' as const };
     }
+    const epoch = this.bumpSession();
     await this.backupLocal();
+    if (!this.sessionIsCurrent(epoch)) {
+      return { ok: false as const, error: 'unexpected' as const };
+    }
     const previous =
       (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID;
     await this.parkWorkspace(previous);
     const result = await action();
+    if (!this.sessionIsCurrent(epoch)) {
+      return result.ok ? { ok: false as const, error: 'unexpected' as const } : result;
+    }
     const needsConfirm =
       !result.ok && (result.error === 'confirm_email' || result.error === 'email_not_confirmed');
     if (!result.ok) {
@@ -385,6 +452,9 @@ export class CloudSyncEngine {
         ),
       );
     }
+    if (!this.sessionIsCurrent(epoch)) {
+      return { ok: false as const, error: 'unexpected' as const };
+    }
     this.setState({
       user: result.user,
       status: 'pending',
@@ -405,6 +475,8 @@ export class CloudSyncEngine {
 
   async sync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
     if (this.deletionLocked) return this.getState();
+    const epoch = this.sessionEpoch;
+    const stale = () => !this.sessionIsCurrent(epoch);
     if (typeof this.auth.token === 'function' && !this.auth.token()?.trim()) {
       this.setState({
         status: this.auth.configured ? 'signed_out' : 'unconfigured',
@@ -423,6 +495,7 @@ export class CloudSyncEngine {
       return this.getState();
     }
     const decision = await decideCloudTransfer(options?.allowCellular === true);
+    if (stale()) return this.getState();
     if (decision.defer) {
       this.setState({ user, status: 'waiting_wifi', lastError: null });
       return this.getState();
@@ -435,11 +508,12 @@ export class CloudSyncEngine {
     this.syncing = true;
     try {
       const remoteDocs = await this.remote.listDocuments(user.id);
+      if (stale()) return this.getState();
       const remoteMap = new Map(remoteDocs.map((doc) => [doc.docKey, doc]));
       const localDocs = await readDocs(this.storage);
       const merged: Record<string, string | null> = { ...localDocs };
       for (const key of SYNCABLE_STORAGE_KEYS) {
-        if (this.deletionLocked) break;
+        if (stale()) return this.getState();
         const local = localDocs[key] ?? null;
         const remote = remoteMap.get(key)?.payload ?? null;
         const next = mergeDocumentPayload(key, local, remote);
@@ -454,11 +528,13 @@ export class CloudSyncEngine {
           });
         }
       }
+      if (stale()) return this.getState();
       await this.withSilentWrites(async () => {
         await writeDocs(this.storage, merged);
         await this.mirrorPreferences();
         await this.mirrorProfile();
       });
+      if (stale()) return this.getState();
       this.setState({
         status: 'synced',
         lastSyncedAt: new Date().toISOString(),
@@ -466,6 +542,7 @@ export class CloudSyncEngine {
       });
       await this.settleAccountLifecycle();
     } catch (error) {
+      if (stale()) return this.getState();
       const offline = error instanceof Error && /network|fetch|offline/i.test(error.message);
       this.setState({
         status: offline ? 'offline' : 'error',
