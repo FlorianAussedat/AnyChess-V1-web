@@ -167,6 +167,8 @@ export function OpeningGameScreen() {
     prevGameOver.current = isGameOver;
   }, [isGameOver, exportPgn]);
 
+  const keypadFen = useMemo(() => fenFromSanHistory(history), [history]);
+
   const {
     micActive,
     isListening,
@@ -175,6 +177,7 @@ export function OpeningGameScreen() {
   } = useSpeechInput({
     isSpeaking,
     forceOff: isGameOver || deciding,
+    positionFen: keypadFen,
     onTranscript: (text) => applyRef.current(text),
   });
 
@@ -186,7 +189,6 @@ export function OpeningGameScreen() {
   });
 
   const moveRows = pairMoveHistory(history);
-  const keypadFen = useMemo(() => fenFromSanHistory(history), [history]);
   const campLabel = playerColor === 'w' ? t('common.whites') : t('common.blacks');
   const phaseLabel =
     trainingState === 'engineContinuation'

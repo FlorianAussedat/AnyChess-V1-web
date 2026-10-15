@@ -197,17 +197,23 @@ describe('account deletion', () => {
 });
 
 describe('avatar helpers', () => {
-  it('builds initials and a proportional crop', () => {
+  it('builds initials and a centered square crop', () => {
     assert.equal(initialsFromUsername('ada'), 'AD');
     assert.equal(initialsFromUsername('Ada Lovelace'), 'AL');
     assert.equal(initialsFromUsername(null), '?');
     const full = centerCropRect(800, 200, 1);
-    assert.equal(full.width, 800);
+    assert.equal(full.width, 200);
     assert.equal(full.height, 200);
+    assert.equal(full.x, 300);
+    assert.equal(full.y, 0);
     const zoomed = centerCropRect(800, 200, 2);
-    assert.equal(zoomed.width, 400);
+    assert.equal(zoomed.width, 100);
     assert.equal(zoomed.height, 100);
-    assert.equal(zoomed.width / zoomed.height, 4);
+    assert.equal(zoomed.x, 350);
+    assert.equal(zoomed.y, 50);
+    const portrait = centerCropRect(300, 600, 1);
+    assert.equal(portrait.width, 300);
+    assert.equal(portrait.y, 150);
     const fitted = fittedEdge(800, 200);
     assert.equal(fitted.width, 512);
     assert.equal(fitted.height, 128);

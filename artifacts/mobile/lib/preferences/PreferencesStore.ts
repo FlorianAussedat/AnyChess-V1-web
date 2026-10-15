@@ -108,6 +108,9 @@ export function mergePreferencesDocument(
   const next: UserPreferences = { ...base };
 
   if (isAppLanguage(o.language)) next.language = o.language;
+  if (o.dictationLanguage === 'fr' || o.dictationLanguage === 'en') {
+    next.dictationLanguage = o.dictationLanguage;
+  }
   if (isChessNotation(o.chessNotation)) next.chessNotation = o.chessNotation;
 
   if (typeof o.voiceEnabled === 'boolean') next.voiceEnabled = o.voiceEnabled;
@@ -381,6 +384,10 @@ export class PreferencesStore {
         patch.language !== undefined && isAppLanguage(patch.language)
           ? patch.language
           : current.language,
+      dictationLanguage:
+        patch.dictationLanguage === 'fr' || patch.dictationLanguage === 'en'
+          ? patch.dictationLanguage
+          : current.dictationLanguage,
       chessNotation:
         patch.chessNotation !== undefined &&
         isChessNotation(patch.chessNotation)

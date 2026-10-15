@@ -78,6 +78,11 @@ export type ParseChessVoiceOptions = {
    * Selected notation wins when English rook `R` and French Roi `R` collide.
    */
   chessNotation?: 'fr' | 'en';
+  /**
+   * Dictation path. Skips the fuzzy legal-move guess and the castle remap
+   * that would play a different legal move from the one that was said.
+   */
+  strict?: boolean;
 };
 
 /**
@@ -85,7 +90,7 @@ export type ParseChessVoiceOptions = {
  * Kept internal to the voice package but useful for diagnostics/tests.
  */
 export type MoveIntent = {
-  castle?: 'kingside' | 'queenside';
+  castle?: 'kingside' | 'queenside' | 'either';
   /** Chess.js piece letter; pawn is `'p'`. */
   piece?: 'p' | 'n' | 'b' | 'r' | 'q' | 'k';
   fromFile?: string;
@@ -94,6 +99,8 @@ export type MoveIntent = {
   to?: string;
   capture?: boolean;
   promotion?: 'q' | 'r' | 'b' | 'n';
+  /** "promotion dame" with no square: match the only pawn promotion to that piece. */
+  promotionOnly?: boolean;
   /** Spoken check/mate suffix was present; ignored for legality. */
   checkHint?: boolean;
 };

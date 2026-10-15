@@ -164,7 +164,7 @@ export function parseChessVoice(
       if (isPawnish) intent.promotion = defaultPromotion;
     }
 
-    const resolved = resolveAgainstLegalMoves(game, intent, defaultPromotion);
+    const resolved = resolveAgainstLegalMoves(game, intent, defaultPromotion, options.strict === true);
     if (resolved.status === 'unique') {
       return moveResult(resolved.move, resolved.confidence, rawTrim, normalized);
     }
@@ -189,6 +189,24 @@ export function parseChessVoice(
   }
 
   // ── 4. Fuzzy fallback against legal moves ───────────────────────────────
+  // Dictation does not guess a different legal move from an impossible one.
+  if (options.strict) {
+    if (intent && (intent.to || intent.castle || intent.piece || intent.promotionOnly)) {
+      return {
+        type: 'illegal',
+        rawTranscript: rawTrim,
+        normalizedTranscript: normalized,
+        reason: 'understood but illegal in position',
+        intendedDescription: describeIntent(intent),
+      };
+    }
+    return {
+      type: 'unrecognized',
+      rawTranscript: rawTrim,
+      normalizedTranscript: normalized,
+      reason: 'no intent extracted',
+    };
+  }
   const legal = game.moves({ verbose: true }) as Move[];
   const fuzzy = fuzzyMatchLegalMoves(normalized, legal);
   if (fuzzy.status === 'unique') {

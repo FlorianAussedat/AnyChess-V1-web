@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   BackHandler,
-  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -65,12 +65,20 @@ export function AvatarField({
   const sessionRef = useRef(0);
   const busyRef = useRef(false);
   const dismissRef = useRef<() => void>(() => {});
+  const zoomAnim = useRef(new Animated.Value(1)).current;
+  const zoomRef = useRef(1);
+
+  const applyZoom = (next: number) => {
+    zoomRef.current = next;
+    zoomAnim.setValue(next);
+  };
 
   const dismiss = () => {
     sessionRef.current += 1;
     busyRef.current = false;
     setBusy(false);
     setCropError(null);
+    applyZoom(1);
     setZoom(1);
     setImageSize(null);
     setPickedUri(null);
@@ -90,6 +98,7 @@ export function AvatarField({
     const picked = await pickImage();
     if (!picked) return;
     setCropError(null);
+    applyZoom(1);
     setZoom(1);
     setImageSize(null);
     setBusy(false);
@@ -101,7 +110,7 @@ export function AvatarField({
     if (!pickedUri || busyRef.current) return;
     const id = sessionRef.current;
     const uri = pickedUri;
-    const chosenZoom = zoom;
+    const chosenZoom = zoomRef.current;
     busyRef.current = true;
     setBusy(true);
     setCropError(null);
@@ -121,6 +130,7 @@ export function AvatarField({
         return;
       }
       setCropError(null);
+      applyZoom(1);
       setZoom(1);
       setImageSize(null);
       setPickedUri(null);
@@ -141,9 +151,14 @@ export function AvatarField({
         imageHeight: imageSize.height,
         maxWidth: frameWidth,
         maxHeight: PREVIEW_MAX_HEIGHT,
-        zoom,
+        zoom: 1,
       })
     : null;
+  const frameSide = layout?.frameWidth ?? Math.min(frameWidth, PREVIEW_MAX_HEIGHT);
+  const thumbLeft = zoomAnim.interpolate({
+    inputRange: [1, 3],
+    outputRange: [0, Math.max(1, trackWidth)],
+  });
   const errorText =
     cropError === 'unavailable'
       ? t('account.avatarCropUnavailable')
@@ -203,26 +218,32 @@ export function AvatarField({
               {pickedUri ? (
                 <View
                   testID="avatar-crop-frame"
+                  collapsable={false}
                   style={{
                     ...styles.frame,
-                    width: layout?.frameWidth ?? frameWidth,
-                    height: layout?.frameHeight ?? PREVIEW_MAX_HEIGHT,
+                    width: frameSide,
+                    height: frameSide,
+                    borderRadius: (DesignTokens.radius.md / 72) * frameSide,
                   }}
                 >
-                  <Image
+                  <Animated.Image
                     source={{ uri: pickedUri }}
-                    resizeMode="cover"
+                    resizeMode="stretch"
                     testID="avatar-crop-preview"
                     onLoad={(event) => {
                       const source = event.nativeEvent.source;
                       if (source.width > 0 && source.height > 0) {
-                        setImageSize({ width: source.width, height: source.height });
+                        setImageSize((current) =>
+                          current?.width === source.width && current?.height === source.height
+                            ? current
+                            : { width: source.width, height: source.height },
+                        );
                       }
                     }}
                     style={{
-                      width: layout?.frameWidth ?? frameWidth,
-                      height: layout?.frameHeight ?? PREVIEW_MAX_HEIGHT,
-                      transform: [{ scale: layout?.scale ?? zoom }],
+                      width: layout?.imageWidth ?? frameSide,
+                      height: layout?.imageHeight ?? frameSide,
+                      transform: [{ scale: zoomAnim }],
                     }}
                   />
                 </View>
@@ -241,20 +262,23 @@ export function AvatarField({
               onMoveShouldSetResponder={() => true}
               onResponderTerminationRequest={() => false}
               onResponderGrant={(event) => {
-                setZoom(zoomFromTrack(event.nativeEvent.locationX, trackWidth));
+                applyZoom(zoomFromTrack(event.nativeEvent.locationX, trackWidth));
               }}
               onResponderMove={(event) => {
-                setZoom(zoomFromTrack(event.nativeEvent.locationX, trackWidth));
+                applyZoom(zoomFromTrack(event.nativeEvent.locationX, trackWidth));
+              }}
+              onResponderRelease={() => {
+                setZoom(zoomRef.current);
               }}
               style={styles.trackHit}
             >
               <View style={[styles.track, { backgroundColor: colors.border }]} />
-              <View
+              <Animated.View
                 style={[
                   styles.thumb,
                   {
                     backgroundColor: colors.primary,
-                    left: `${((zoom - 1) / 2) * 100}%`,
+                    left: thumbLeft,
                   },
                 ]}
               />
@@ -263,7 +287,10 @@ export function AvatarField({
               testID="avatar-use-full"
               label={t('account.avatarUseFull')}
               variant="secondary"
-              onPress={() => setZoom(1)}
+              onPress={() => {
+                applyZoom(1);
+                setZoom(1);
+              }}
             />
             <AppButton
               testID="avatar-crop-confirm"

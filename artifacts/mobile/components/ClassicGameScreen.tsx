@@ -195,6 +195,8 @@ export function ClassicGameScreen() {
     setDraftMove('');
   }, [chessNotation]);
 
+  const keypadFen = useMemo(() => fenFromSanHistory(history), [history]);
+
   const {
     micActive,
     isListening,
@@ -203,6 +205,7 @@ export function ClassicGameScreen() {
   } = useSpeechInput({
     isSpeaking,
     forceOff: isGameOver || !campLocked,
+    positionFen: keypadFen,
     onTranscript: (text) => {
       applyRef.current(text);
     },
@@ -275,8 +278,6 @@ export function ClassicGameScreen() {
     },
     [canAct],
   );
-
-  const keypadFen = useMemo(() => fenFromSanHistory(history), [history]);
 
   const onKeypadAutoSubmit = useCallback(
     (raw: string) => {

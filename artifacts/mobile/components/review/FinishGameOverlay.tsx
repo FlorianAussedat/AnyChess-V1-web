@@ -208,6 +208,7 @@ export function FinishGameOverlay({ visible, payload, onClose }: Props) {
   });
 
   const speech = useExerciseSpeechInput({
+    positionFen: snap.fen,
     enabled: visible && inputMode === 'classic' && canMove,
     onSan: (san) => void activeSession.answerSan(san).then(refresh),
   });

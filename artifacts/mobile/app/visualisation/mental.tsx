@@ -284,6 +284,7 @@ export default function MentalPositionScreen() {
   const { micActive, isListening, toggleMic, status: micStatus } = useSpeechInput({
     isSpeaking,
     forceOff: !questioning,
+    dictation: 'open',
     onTranscript: (t) => {
       setShowRecognizedFlash(true);
       setTimeout(() => setShowRecognizedFlash(false), 900);

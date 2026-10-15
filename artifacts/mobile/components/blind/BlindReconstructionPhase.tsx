@@ -75,6 +75,7 @@ export function BlindReconstructionPhase() {
   }, [attemptSpoken]);
 
   const { micActive, isListening, status: micStatus, toggleMic } = useSpeechInput({
+    positionFen: answerFen,
     isSpeaking,
     onTranscript: (text) => {
       const result = attemptSpokenRef.current(text);

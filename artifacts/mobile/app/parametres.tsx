@@ -67,6 +67,7 @@ export default function ParametresScreen() {
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const {
     language,
+    dictationLanguage,
     chessNotation,
     dictationPace,
     visualProblemDifficulty,
@@ -181,6 +182,31 @@ export default function ParametresScreen() {
           onPress={() => setEditor('notation')}
           testID="profil-row-notation"
         />
+        <View
+          testID="profil-row-dictation-language"
+          style={[styles.languageCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Text style={[styles.languageTitle, { color: colors.foreground }]}>
+            {t('speech.dictationLanguage')}
+          </Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+            {t('speech.dictationLanguageHint')}
+          </Text>
+          <View style={styles.chipWrap}>
+            {APP_LANGUAGE_OPTIONS.map((opt) => (
+              <OptionChip
+                key={opt.id}
+                label={opt.id === 'fr' ? 'Français · cavalier f3' : 'English · knight f3'}
+                active={(dictationLanguage ?? language) === opt.id}
+                onPress={() => {
+                  void updatePreferences({ dictationLanguage: opt.id });
+                }}
+                testID={`profil-dictation-lang-${opt.id}`}
+                accessibilityLabel={opt.nativeName}
+              />
+            ))}
+          </View>
+        </View>
         <BooleanSettingRow
           label={t('profil.voice')}
           value={voiceEnabled}
