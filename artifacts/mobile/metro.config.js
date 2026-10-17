@@ -79,6 +79,18 @@ applyDevConfirmBundleEnv();
 
 const config = getDefaultConfig(__dirname);
 
+const linkingSessionFile = path.resolve(__dirname, 'shims/anychess-linking-session/index.js');
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'anychess-linking-session') {
+    return { type: 'sourceFile', filePath: linkingSessionFile };
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+config.transformer = {
+  ...config.transformer,
+  babelTransformerPath: path.resolve(__dirname, 'scripts/linkingTransformer.js'),
+};
+
 const API_PORT = Number(process.env.ANYCHESS_API_PORT || 8080);
 
 /**

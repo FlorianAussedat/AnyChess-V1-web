@@ -13,27 +13,16 @@
  *
  * Account confirmation and password recovery links are returned unchanged.
  *
- * Expo Router 6 still logs "linking in multiple places" when Android remounts
- * the root. That warning is not hidden.
+ * A second Expo root in the same turn still logs "linking in multiple places".
+ * A root left behind by a Dev reload or an activity handoff is released so
+ * Expo Router keeps a single url listener. Auth links are unchanged.
  * Reference: https://github.com/expo/expo/pull/42644
  * (issue https://github.com/expo/expo/issues/42500).
- * Affected here: expo ~54.0.27, expo-router ~6.0.17 (SDK 54).
- * The Android silence landed on SDK 55+ and is not in expo-router 6.0.x.
- * `plugins/withAndroidSingleTask.js` is the native workaround; it applies
- * only after a new development build.
  */
 export const DEV_STOCKFISH_UCI_PATH = '/dev/stockfish-uci';
 export const DEV_SITEMAP_PATH = '/_sitemap';
 /** Where « Ouvrir AnyChess » lands, cold or with the app already open. */
 export const ACCOUNT_RETURN_PATH = '/utilisateur';
-
-export const EXPO_ANDROID_LINKING_BUG = {
-  issue: 'https://github.com/expo/expo/issues/42500',
-  pullRequest: 'https://github.com/expo/expo/pull/42644',
-  affectedExpo: '~54.0.27',
-  affectedExpoRouter: '~6.0.17',
-  fixedIn: 'SDK 55+ (not backported to expo-router 6.0.x)',
-} as const;
 
 export type LinkingDecision =
   | { action: 'pass-through' }
@@ -160,12 +149,7 @@ function decide(decision: LinkingDecision, detail: string): LinkingDecision {
   diagnostics.push(decision);
   const dev = typeof __DEV__ === 'undefined' || __DEV__;
   if (dev && decision.action !== 'pass-through') {
-    console.warn(
-      `[AnyChess linking] ${decision.action}: ${detail}. ` +
-        `Separate Expo Android bug ${EXPO_ANDROID_LINKING_BUG.pullRequest} ` +
-        `(${EXPO_ANDROID_LINKING_BUG.affectedExpoRouter}, ${EXPO_ANDROID_LINKING_BUG.affectedExpo}; ` +
-        `${EXPO_ANDROID_LINKING_BUG.fixedIn}). LogBox is not filtered.`,
-    );
+    console.warn(`[AnyChess linking] ${decision.action}: ${detail}.`);
   }
   return decision;
 }

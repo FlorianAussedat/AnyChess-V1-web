@@ -10,6 +10,7 @@ const REQUIRED_CONFIG_CHANGES = [
   'screenLayout',
   'smallestScreenSize',
   'uiMode',
+  'assetsPaths',
 ];
 
 function isMainActivity(activity) {
