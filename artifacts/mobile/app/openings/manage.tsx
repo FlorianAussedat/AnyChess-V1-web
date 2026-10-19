@@ -13,6 +13,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import { useOpeningTreeExpanded } from '@/hooks/useOpeningTreeExpanded';
 import {
   hasAssignedRepertoireSide,
@@ -40,6 +41,7 @@ import { DesignTokens } from '@/constants/designTokens';
 import { NameModal } from '@/components/openings/NameModal';
 import { FolderPickModal } from '@/components/openings/FolderPickModal';
 import { ManageOpeningTree } from '@/components/openings/ManageOpeningTree';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { RepertoireSidePicker, sideLabel } from '@/components/RepertoireSidePicker';
 import {
   PgnGameSelectModal,
@@ -58,6 +60,7 @@ export default function OpeningsManageScreen() {
   const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
+  const access = usePersonalPgnAccess();
 
   const {
     ready,
@@ -562,6 +565,28 @@ export default function OpeningsManageScreen() {
       );
     },
   };
+
+  if (access.ready && access.locked) {
+    return (
+      <View
+        style={[
+          styles.root,
+          {
+            backgroundColor: colors.background,
+            paddingTop: contentTop,
+            paddingBottom: contentBottom,
+          },
+        ]}
+      >
+        <ScreenHeader
+          onBack={() => router.back()}
+          title={t('openings.manageTitle')}
+          titleNumberOfLines={2}
+        />
+        <GuestLibraryLock />
+      </View>
+    );
+  }
 
   return (
     <View

@@ -43,6 +43,7 @@ import {
 } from './unfiledFolder';
 import { openingMasteryStore } from './OpeningMasteryStore';
 import { prunePgnCommentFile, scheduleImportedPgnComments } from '../pgnComments/schedule.ts';
+import { assertPersonalPgnWrite } from './personalPgnAccess';
 
 export { normaliseFilename, uniquePgnFilename } from './pgnFilename';
 
@@ -69,10 +70,19 @@ function summariseParse(pgnText: string): PgnParseSummary {
 export class RepertoireService {
   private snapshot: RepertoireStoreSnapshot | null = null;
   private loadPromise: Promise<RepertoireStoreSnapshot> | null = null;
+  private loadEpoch = 0;
+  private writeChain: Promise<void> = Promise.resolve();
   private readonly storage: RepertoireStorage;
 
   constructor(storage: RepertoireStorage = defaultRepertoireStorage) {
     this.storage = storage;
+  }
+
+  /** Drop the in-memory library after the signed-in cache is swapped out. */
+  discardCachedSnapshot(): void {
+    this.loadEpoch += 1;
+    this.snapshot = null;
+    this.loadPromise = null;
   }
 
   // ── Load / save ───────────────────────────────────────────────────────────
@@ -80,12 +90,20 @@ export class RepertoireService {
   async ensureLoaded(): Promise<RepertoireStoreSnapshot> {
     if (this.snapshot) return this.snapshot;
     if (!this.loadPromise) {
+      const epoch = this.loadEpoch;
       this.loadPromise = this.storage.load().then(async (snap) => {
+        if (epoch !== this.loadEpoch) {
+          this.loadPromise = null;
+          return this.ensureLoaded();
+        }
         const migrated = migrateOpeningHierarchy(snap);
         this.snapshot = migrated.snapshot;
         this.loadPromise = null;
+        if (epoch !== this.loadEpoch) return this.ensureLoaded();
         if (migrated.changed) await this.persist();
+        if (epoch !== this.loadEpoch) return this.ensureLoaded();
         await this.ensureUnfiledFolder();
+        if (epoch !== this.loadEpoch) return this.ensureLoaded();
         return this.snapshot!;
       });
     }
@@ -93,8 +111,14 @@ export class RepertoireService {
   }
 
   private async persist(): Promise<void> {
-    if (!this.snapshot) return;
-    await this.storage.save(this.snapshot);
+    const epoch = this.loadEpoch;
+    const run = async () => {
+      if (epoch !== this.loadEpoch || !this.snapshot) return;
+      await this.storage.save(this.snapshot);
+    };
+    const next = this.writeChain.then(run, run);
+    this.writeChain = next;
+    await next;
   }
 
   getFolders(): RepertoireFolder[] {
@@ -152,6 +176,7 @@ export class RepertoireService {
     enabled = true,
     parentId?: string | null,
   ): Promise<RepertoireFolder> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const trimmed = name.trim();
     if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
@@ -194,6 +219,7 @@ export class RepertoireService {
   }
 
   async renameFolder(folderId: string, name: string): Promise<RepertoireFolder> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const trimmed = name.trim();
     if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
@@ -234,6 +260,7 @@ export class RepertoireService {
     folderId: string,
     options?: { relocateContents?: boolean },
   ): Promise<void> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const target = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!target) return;
@@ -283,6 +310,7 @@ export class RepertoireService {
 
   /** Persist which color the user trains this repertoire as. */
   async setFolderSide(folderId: string, side: RepertoireSide): Promise<RepertoireFolder> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
@@ -307,6 +335,7 @@ export class RepertoireService {
   }
 
   async setFolderEnabled(folderId: string, enabled: boolean): Promise<RepertoireFolder> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
@@ -388,6 +417,7 @@ export class RepertoireService {
     pgnText: string,
     displayName?: string,
   ): Promise<StoredPgnFile> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
@@ -420,6 +450,7 @@ export class RepertoireService {
 
   /** Replace an existing file's content (re-parses and updates stats). */
   async replacePgn(fileId: string, pgnText: string, filename?: string): Promise<StoredPgnFile> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
     if (!file) throw new Error(tMsg('errors.pgnNotFound'));
@@ -445,6 +476,7 @@ export class RepertoireService {
 
   /** Enable/disable a PGN for training without deleting it. */
   async setFileEnabled(fileId: string, enabled: boolean): Promise<StoredPgnFile> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
     if (!file) throw new Error(tMsg('errors.pgnNotFound'));
@@ -458,6 +490,7 @@ export class RepertoireService {
 
   /** Pin / unpin a PGN on the Learning screen. Does not affect Review. */
   async setFilePriority(fileId: string, priority: boolean): Promise<StoredPgnFile> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
     if (!file) throw new Error(tMsg('errors.pgnNotFound'));
@@ -470,6 +503,7 @@ export class RepertoireService {
 
   /** Remove one PGN file without deleting its parent folder. */
   async deletePgn(fileId: string): Promise<void> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
     if (!file) return;
@@ -488,6 +522,7 @@ export class RepertoireService {
 
   /** Rename display name only (AnyChess UI) — does not touch disk filename. */
   async renamePgnDisplayName(fileId: string, displayName: string): Promise<StoredPgnFile> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
     if (!file) throw new Error(tMsg('errors.pgnNotFound'));
@@ -502,6 +537,7 @@ export class RepertoireService {
 
   /** Move a PGN into another openings folder (same content, one folder membership). */
   async movePgn(fileId: string, targetFolderId: string): Promise<StoredPgnFile> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
     if (!file) throw new Error(tMsg('errors.pgnNotFound'));
@@ -517,6 +553,7 @@ export class RepertoireService {
 
   /** Move several studies into one folder. Each study keeps its id and PGN. */
   async movePgns(fileIds: readonly string[], targetFolderId: string): Promise<StoredPgnFile[]> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const target = this.snapshot!.folders.find((f) => f.id === targetFolderId);
     if (!target) throw new Error(tMsg('errors.folderNotFound'));
@@ -541,6 +578,7 @@ export class RepertoireService {
     parentId: string | null,
     side?: RepertoireSide,
   ): Promise<RepertoireFolder> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const folder = this.snapshot!.folders.find((f) => f.id === folderId);
     if (!folder) throw new Error(tMsg('errors.folderNotFound'));
@@ -593,6 +631,7 @@ export class RepertoireService {
     fileId: string,
     targetFolderId: string,
   ): Promise<StoredPgnFile> {
+    assertPersonalPgnWrite();
     await this.ensureLoaded();
     const file = this.snapshot!.files.find((f) => f.id === fileId);
     if (!file) throw new Error(tMsg('errors.pgnNotFound'));

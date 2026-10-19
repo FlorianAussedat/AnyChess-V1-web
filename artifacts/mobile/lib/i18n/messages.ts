@@ -217,6 +217,7 @@ export type MessageKey =
   | 'cloud.signOutFailed'
   | 'cloud.importGuest'
   | 'cloud.importGuestTitle'
+  | 'cloud.importGuestUnverified'
   | 'cloud.importGuestBody'
   | 'cloud.recover'
   | 'cloud.recoverSent'
@@ -575,6 +576,8 @@ export type MessageKey =
   | 'openings.moveSelection'
   | 'openings.treeContents'
   | 'openings.learnSubtreeHint'
+  | 'openings.accountRequiredTitle'
+  | 'openings.accountRequiredBody'
   | 'openings.expandFolder'
   | 'openings.collapseFolder'
   | 'openings.deleteFileTitle'
@@ -1560,12 +1563,14 @@ const fr: Dict = {
   'cloud.signOut': 'Déconnexion',
   'cloud.signOutTitle': 'Se déconnecter ?',
   'cloud.signOutBody':
-    'Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
+    'La bibliothèque d’ouvertures de ce compte est masquée tout de suite et n’est pas visible en invité. Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
   'cloud.signOutFailed': 'La déconnexion n’a pas abouti. Réessaie.',
   'cloud.importGuest': 'Importer les données invitées',
   'cloud.importGuestTitle': 'Importer les données de l’invité ?',
   'cloud.importGuestBody':
-    'Les parties et les scores enregistrés sans compte seront copiés dans ce compte. Les données d’un autre compte ne sont pas importées.',
+    'Les études PGN enregistrées sans compte seront copiées dans ce compte après vérification dans Supabase. La copie sur cet appareil est conservée. Les données d’un autre compte ne sont pas importées.',
+  'cloud.importGuestUnverified':
+    'Supabase n’a pas confirmé ces études. Rien n’a été effacé sur cet appareil. Réessaie une fois en ligne.',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
   'cloud.statusSynced': 'Synchronisé',
@@ -1953,6 +1958,9 @@ const fr: Dict = {
   'openings.moveSelection': 'Déplacer ({{count}})',
   'openings.treeContents': '{{folders}} dossier(s) · {{files}} étude(s)',
   'openings.learnSubtreeHint': 'Les études des sous-dossiers sont incluses.',
+  'openings.accountRequiredTitle': 'Tes études sont liées à ton compte',
+  'openings.accountRequiredBody':
+    'Une installation neuve ne contient aucune étude personnelle. Connecte-toi ou crée un compte pour importer, modifier et retrouver tes PGN. Le mode invité reste vide.',
   'openings.expandFolder': 'Déplier {{name}}',
   'openings.collapseFolder': 'Replier {{name}}',
   'openings.deleteFileTitle': 'Supprimer le fichier',
@@ -3039,12 +3047,14 @@ const en: Dict = {
   'cloud.signOut': 'Sign out',
   'cloud.signOutTitle': 'Sign out?',
   'cloud.signOutBody':
-    'Your games, scores, and other data stay on this device. They will not be sent to the next account.',
+    'This account’s openings library is hidden immediately and is not visible as a guest. Your games, scores, and other data stay on this device. They will not be sent to the next account.',
   'cloud.signOutFailed': 'Sign-out did not finish. Try again.',
   'cloud.importGuest': 'Import guest data',
   'cloud.importGuestTitle': 'Import guest data?',
   'cloud.importGuestBody':
-    'Games and scores saved without an account will be copied into this account. Another account’s data is not imported.',
+    'Opening PGNs saved without an account are copied into this account after Supabase confirms them. The copy on this device is kept. Another account’s data is not imported.',
+  'cloud.importGuestUnverified':
+    'Supabase did not confirm these studies. Nothing was deleted on this device. Try again once you are online.',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
   'cloud.statusSynced': 'Synced',
@@ -3431,6 +3441,9 @@ const en: Dict = {
   'openings.moveSelection': 'Move ({{count}})',
   'openings.treeContents': '{{folders}} folder(s) · {{files}} studies',
   'openings.learnSubtreeHint': 'Studies in subfolders are included.',
+  'openings.accountRequiredTitle': 'Your studies belong to your account',
+  'openings.accountRequiredBody':
+    'A fresh install contains no personal studies. Sign in or create an account to import, edit, and recover your PGNs. Guest mode stays empty.',
   'openings.expandFolder': 'Expand {{name}}',
   'openings.collapseFolder': 'Collapse {{name}}',
   'openings.deleteFileTitle': 'Delete file',

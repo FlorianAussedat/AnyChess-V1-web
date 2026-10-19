@@ -2,7 +2,8 @@
  * React hook wrapping RepertoireService for the Openings management screens.
  * Keeps a local refresh counter so list UIs re-render after mutations.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getActiveCloudEngine } from '@/lib/cloud';
 import {
   repertoireService,
   type RepertoireFolder,
@@ -33,6 +34,18 @@ export function useRepertoireLibrary() {
   }, [refresh, tick]);
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
+
+  const accountId = useRef<string | null>(getActiveCloudEngine().getState().user?.id ?? null);
+  useEffect(() => {
+    const engine = getActiveCloudEngine();
+    return engine.subscribe(() => {
+      const next = engine.getState().user?.id ?? null;
+      if (next === accountId.current) return;
+      accountId.current = next;
+      repertoireService.discardCachedSnapshot();
+      bump();
+    });
+  }, [bump]);
 
   const createFolder = useCallback(
     async (

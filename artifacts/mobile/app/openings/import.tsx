@@ -10,10 +10,12 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { PgnImportPanel, type PgnImportPayload } from '@/components/library/PgnImportPanel';
 import { FolderPickModal } from '@/components/openings/FolderPickModal';
 import { NameModal } from '@/components/openings/NameModal';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { RepertoireSidePicker } from '@/components/RepertoireSidePicker';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useColors } from '@/hooks/useColors';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
 import { MAX_OPENINGS_PGN_IMPORT_BATCH } from '@/lib/gameLibrary';
@@ -30,6 +32,7 @@ export default function OpeningsImportScreen() {
   const insets = useAppSafeInsets();
   const router = useRouter();
   const { folders, importPgn, createFolder } = useRepertoireLibrary();
+  const access = usePersonalPgnAccess();
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [pickOpen, setPickOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -39,6 +42,7 @@ export default function OpeningsImportScreen() {
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!access.signedIn) return;
     let cancelled = false;
     void repertoireService.getUnfiledFolderId().then((id) => {
       if (!cancelled) setDestinationId((current) => current ?? id);
@@ -46,7 +50,7 @@ export default function OpeningsImportScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [access.signedIn]);
 
   const destination = folders.find((folder) => folder.id === destinationId) ?? null;
   const destinationLabel = !destination
@@ -107,6 +111,30 @@ export default function OpeningsImportScreen() {
       setBusy(false);
     }
   }, [createFolder, createSide, nameDraft, t]);
+
+  if (access.ready && access.locked) {
+    return (
+      <ScrollView
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={[
+          styles.root,
+          {
+            paddingTop: insets.contentTop,
+            paddingBottom: insets.contentBottom + 24,
+          },
+        ]}
+        testID="openings-import-screen"
+      >
+        <ScreenHeader
+          onBack={() => router.back()}
+          title={t('openings.importTitle')}
+          titleNumberOfLines={2}
+          backTestID="openings-import-back"
+        />
+        <GuestLibraryLock />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView

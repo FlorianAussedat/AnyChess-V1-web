@@ -24,6 +24,7 @@ Restent **locaux** (éphémères) : session lecteur/analyseur (`gameSession`) et
 - Avant chaque connexion : sauvegarde locale `anychess.cloud.backup.<horodatage>.v1`.
 - Chaque compte a son espace `anychess.cloud.workspace.<user.id>.v1`. La déconnexion le met à jour, puis retire ces documents de l’espace actif.
 - L’invité a son espace à part. Le connecter à un compte ne copie rien tout seul. L’import se fait seulement avec « Importer les données invitées ».
+- Les études d’ouvertures n’existent que pour un compte. Sans session, la bibliothèque affichée est vide. Les études déjà sur l’appareil sont conservées dans `anychess.cloud.guestPgnVault.v1` (hors synchronisation) et ne sont copiées qu’après un constat Supabase enregistré dans `anychess.cloud.pgnPresence.v1`. Détail : `docs/pgn-ownership.md`.
 - Une copie d’un compte trouvée dans l’ancien espace invité est conservée dans `anychess.cloud.legacyGuest.v1` et n’est ni affichée ni envoyée. Elle n’est pas effacée.
 - `syncOnWifiOnly` reste le réglage du téléphone. La langue et les parties suivent le compte.
 - Préférences : un compte déjà existant ne se fait pas remplacer par les valeurs par défaut du téléphone.

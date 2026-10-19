@@ -13,6 +13,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import { useOpeningTreeExpanded } from '@/hooks/useOpeningTreeExpanded';
 import {
   flattenOpeningTree,
@@ -23,6 +24,7 @@ import {
   type RepertoireFolder,
 } from '@/lib/repertoire';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { DesignTokens } from '@/constants/designTokens';
 
@@ -32,6 +34,7 @@ export default function OpeningsLearnScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { ready, folders, getSubtreeFiles } = useRepertoireLibrary();
+  const access = usePersonalPgnAccess();
   const { expanded, toggle } = useOpeningTreeExpanded();
 
   const whiteFolders = useMemo(
@@ -151,10 +154,12 @@ export default function OpeningsLearnScreen() {
     >
       <ScreenHeader onBack={() => router.back()} title={t('openings.learn')} />
 
-      {!ready ? (
+      {!access.ready || !ready ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : access.locked ? (
+        <GuestLibraryLock />
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {sections.length === 0 ? (
