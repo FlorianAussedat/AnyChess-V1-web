@@ -553,15 +553,34 @@ export type MessageKey =
   | 'errors.pgnNotFound'
   | 'errors.filePgnNotFound'
   | 'errors.systemFolderProtected'
+  | 'errors.folderNotEmpty'
+  | 'errors.folderCycle'
   // Openings
   | 'openings.title'
   | 'openings.repertoires'
   | 'openings.new'
   | 'openings.deleteFolderTitle'
   | 'openings.deleteFolderBody'
+  | 'openings.deleteEmptyFolderBody'
+  | 'openings.deleteFolderKeepBody'
+  | 'openings.deleteFolderKeepRootBody'
+  | 'openings.keepContents'
+  | 'openings.createSubfolder'
+  | 'openings.moveFolder'
+  | 'openings.moveToTitle'
+  | 'openings.moveToRootWhite'
+  | 'openings.moveToRootBlack'
+  | 'openings.selectStudies'
+  | 'openings.cancelSelection'
+  | 'openings.moveSelection'
+  | 'openings.treeContents'
+  | 'openings.learnSubtreeHint'
+  | 'openings.expandFolder'
+  | 'openings.collapseFolder'
   | 'openings.deleteFileTitle'
   | 'openings.deleteFileBody'
   | 'openings.import'
+  | 'openings.importDestination'
   | 'openings.replace'
   | 'openings.exercises'
   | 'openings.playVsRepertoire'
@@ -1903,7 +1922,11 @@ const fr: Dict = {
   'errors.voiceUnavailable': 'Reconnaissance vocale indisponible',
   'errors.folderNotFound': 'Dossier introuvable.',
   'errors.folderEmptyName': 'Le nom du dossier ne peut pas être vide.',
-  'errors.folderExists': 'Un dossier nommé « {{name}} » existe déjà.',
+  'errors.folderExists': 'Un dossier nommé « {{name}} » existe déjà à cet emplacement.',
+  'errors.folderNotEmpty':
+    'Ce dossier contient encore des éléments. Confirmez leur conservation avant de le supprimer.',
+  'errors.folderCycle':
+    'Impossible de déplacer un dossier dans lui-même ou dans un de ses sous-dossiers.',
   'errors.pgnEmpty': 'Le contenu PGN est vide.',
   'errors.pgnNotFound': 'Fichier PGN introuvable.',
   'errors.filePgnNotFound': 'Fichier PGN introuvable.',
@@ -1914,9 +1937,28 @@ const fr: Dict = {
   'openings.deleteFolderTitle': 'Supprimer le dossier',
   'openings.deleteFolderBody':
     'Supprimer « {{name}} » et tous les PGN qu’il contient ?',
+  'openings.deleteEmptyFolderBody': 'Supprimer le dossier vide « {{name}} » ?',
+  'openings.deleteFolderKeepBody':
+    '« {{name}} » contient des dossiers ou des études. Ils seront déplacés dans « {{parent}} ». Aucune étude ne sera supprimée.',
+  'openings.deleteFolderKeepRootBody':
+    '« {{name}} » est à la racine. Ses sous-dossiers resteront dans la même couleur, et ses études iront dans À classer. Aucune étude ne sera supprimée.',
+  'openings.keepContents': 'Conserver le contenu',
+  'openings.createSubfolder': 'Nouveau sous-dossier',
+  'openings.moveFolder': 'Déplacer le dossier',
+  'openings.moveToTitle': 'Déplacer vers…',
+  'openings.moveToRootWhite': 'Racine — Blancs',
+  'openings.moveToRootBlack': 'Racine — Noirs',
+  'openings.selectStudies': 'Sélectionner',
+  'openings.cancelSelection': 'Annuler la sélection',
+  'openings.moveSelection': 'Déplacer ({{count}})',
+  'openings.treeContents': '{{folders}} dossier(s) · {{files}} étude(s)',
+  'openings.learnSubtreeHint': 'Les études des sous-dossiers sont incluses.',
+  'openings.expandFolder': 'Déplier {{name}}',
+  'openings.collapseFolder': 'Replier {{name}}',
   'openings.deleteFileTitle': 'Supprimer le fichier',
   'openings.deleteFileBody': 'Supprimer « {{name}} » ?',
   'openings.import': 'Importer',
+  'openings.importDestination': 'Dossier de destination',
   'openings.replace': 'Remplacer',
   'openings.exercises': 'Exercices',
   'openings.playVsRepertoire': 'Jouer contre le répertoire',
@@ -3358,7 +3400,11 @@ const en: Dict = {
   'errors.voiceUnavailable': 'Voice recognition unavailable',
   'errors.folderNotFound': 'Folder not found.',
   'errors.folderEmptyName': 'Folder name cannot be empty.',
-  'errors.folderExists': 'A folder named “{{name}}” already exists.',
+  'errors.folderExists': 'A folder named “{{name}}” already exists in this location.',
+  'errors.folderNotEmpty':
+    'This folder still has items. Confirm that they should be kept before deleting it.',
+  'errors.folderCycle':
+    'A folder cannot be moved into itself or one of its subfolders.',
   'errors.pgnEmpty': 'PGN content is empty.',
   'errors.pgnNotFound': 'PGN file not found.',
   'errors.filePgnNotFound': 'PGN file not found.',
@@ -3369,9 +3415,28 @@ const en: Dict = {
   'openings.deleteFolderTitle': 'Delete folder',
   'openings.deleteFolderBody':
     'Delete “{{name}}” and all PGN files it contains?',
+  'openings.deleteEmptyFolderBody': 'Delete the empty folder “{{name}}”?',
+  'openings.deleteFolderKeepBody':
+    '“{{name}}” contains folders or studies. They will be moved into “{{parent}}”. No study will be deleted.',
+  'openings.deleteFolderKeepRootBody':
+    '“{{name}}” is at the root. Its subfolders stay in the same color, and its studies move to Unfiled. No study will be deleted.',
+  'openings.keepContents': 'Keep contents',
+  'openings.createSubfolder': 'New subfolder',
+  'openings.moveFolder': 'Move folder',
+  'openings.moveToTitle': 'Move to…',
+  'openings.moveToRootWhite': 'White root',
+  'openings.moveToRootBlack': 'Black root',
+  'openings.selectStudies': 'Select',
+  'openings.cancelSelection': 'Cancel selection',
+  'openings.moveSelection': 'Move ({{count}})',
+  'openings.treeContents': '{{folders}} folder(s) · {{files}} studies',
+  'openings.learnSubtreeHint': 'Studies in subfolders are included.',
+  'openings.expandFolder': 'Expand {{name}}',
+  'openings.collapseFolder': 'Collapse {{name}}',
   'openings.deleteFileTitle': 'Delete file',
   'openings.deleteFileBody': 'Delete “{{name}}”?',
   'openings.import': 'Import',
+  'openings.importDestination': 'Destination folder',
   'openings.replace': 'Replace',
   'openings.exercises': 'Exercises',
   'openings.playVsRepertoire': 'Play against the repertoire',

@@ -29,6 +29,15 @@ import {
 } from './folderRepertoireCache';
 import { hasAssignedRepertoireSide, requireRepertoireSide } from './folderSide';
 import {
+  canMoveOpeningFolder,
+  collectDescendantFolderIds,
+  filesInFolderSubtree,
+  isUnfiledTreeFolder,
+  migrateOpeningHierarchy,
+  siblingFolderNameTaken,
+  uniqueSiblingFolderName,
+} from './folderTree';
+import {
   isUnfiledOpeningFolder,
   makeUnfiledOpeningFolder,
 } from './unfiledFolder';
@@ -60,8 +69,11 @@ function summariseParse(pgnText: string): PgnParseSummary {
 export class RepertoireService {
   private snapshot: RepertoireStoreSnapshot | null = null;
   private loadPromise: Promise<RepertoireStoreSnapshot> | null = null;
+  private readonly storage: RepertoireStorage;
 
-  constructor(private readonly storage: RepertoireStorage = defaultRepertoireStorage) {}
+  constructor(storage: RepertoireStorage = defaultRepertoireStorage) {
+    this.storage = storage;
+  }
 
   // ── Load / save ───────────────────────────────────────────────────────────
 
@@ -69,8 +81,10 @@ export class RepertoireService {
     if (this.snapshot) return this.snapshot;
     if (!this.loadPromise) {
       this.loadPromise = this.storage.load().then(async (snap) => {
-        this.snapshot = snap;
+        const migrated = migrateOpeningHierarchy(snap);
+        this.snapshot = migrated.snapshot;
         this.loadPromise = null;
+        if (migrated.changed) await this.persist();
         await this.ensureUnfiledFolder();
         return this.snapshot!;
       });
@@ -136,20 +150,38 @@ export class RepertoireService {
     name: string,
     side: RepertoireSide,
     enabled = true,
+    parentId?: string | null,
   ): Promise<RepertoireFolder> {
     await this.ensureLoaded();
     const trimmed = name.trim();
     if (!trimmed) throw new Error(tMsg('errors.folderEmptyName'));
-    const assignedSide = requireRepertoireSide(side);
+    const requestedSide = requireRepertoireSide(side);
+    const parent = parentId
+      ? this.snapshot!.folders.find((f) => f.id === parentId) ?? null
+      : null;
+    if (parentId && !parent) throw new Error(tMsg('errors.folderParentMissing'));
+    if (parent && isUnfiledOpeningFolder(parent)) {
+      throw new Error(tMsg('errors.systemFolderProtected'));
+    }
 
-    const existing = this.snapshot!.folders.find(
-      (f) => f.name.toLowerCase() === trimmed.toLowerCase(),
-    );
-    if (existing) throw new Error(tMsg('errors.folderExists', { name: trimmed }));
+    const assignedSide = parent && hasAssignedRepertoireSide(parent.side)
+      ? parent.side
+      : requestedSide;
+    const nextParentId = parent ? parent.id : null;
+    if (
+      siblingFolderNameTaken(this.snapshot!.folders, {
+        name: trimmed,
+        parentId: nextParentId,
+        side: assignedSide,
+      })
+    ) {
+      throw new Error(tMsg('errors.folderExists', { name: trimmed }));
+    }
 
     const folder: RepertoireFolder = {
       id: newId('folder'),
       name: trimmed,
+      parentId: nextParentId,
       side: assignedSide,
       enabled,
       createdAt: nowIso(),
@@ -172,10 +204,17 @@ export class RepertoireService {
       throw new Error(tMsg('errors.systemFolderProtected'));
     }
 
-    const clash = this.snapshot!.folders.find(
-      (f) => f.id !== folderId && f.name.toLowerCase() === trimmed.toLowerCase(),
-    );
-    if (clash) throw new Error(tMsg('errors.folderExists', { name: trimmed }));
+    if (
+      siblingFolderNameTaken(this.snapshot!.folders, {
+        id: folder.id,
+        name: trimmed,
+        parentId: folder.parentId ?? null,
+        side: folder.side,
+        systemKey: folder.systemKey,
+      })
+    ) {
+      throw new Error(tMsg('errors.folderExists', { name: trimmed }));
+    }
 
     folder.name = trimmed;
     // Rename never clears a classified side (legacy unsided folders stay unsided).
@@ -185,26 +224,61 @@ export class RepertoireService {
   }
 
   /**
-   * Deletes a folder and every PGN file it contains.
-   * Callers must confirm with the user before invoking this.
+   * Deletes a folder. Studies are never removed.
+   * An empty folder is deleted immediately. A folder that still contains
+   * subfolders or studies requires `relocateContents`, which moves that
+   * content to the parent (or, at the root, studies go to À classer and
+   * subfolders become roots).
    */
-  async deleteFolder(folderId: string): Promise<void> {
+  async deleteFolder(
+    folderId: string,
+    options?: { relocateContents?: boolean },
+  ): Promise<void> {
     await this.ensureLoaded();
     const target = this.snapshot!.folders.find((f) => f.id === folderId);
-    if (target && isUnfiledOpeningFolder(target)) {
+    if (!target) return;
+    if (isUnfiledOpeningFolder(target)) {
       throw new Error(tMsg('errors.systemFolderProtected'));
     }
+    const children = this.snapshot!.folders.filter((f) => (f.parentId ?? null) === folderId);
+    const directFiles = this.snapshot!.files.filter((f) => f.folderId === folderId);
+    if ((children.length > 0 || directFiles.length > 0) && !options?.relocateContents) {
+      throw new Error(tMsg('errors.folderNotEmpty'));
+    }
+    if (options?.relocateContents) {
+      const parent = target.parentId
+        ? this.snapshot!.folders.find((f) => f.id === target.parentId) ?? null
+        : null;
+      const destParentId = parent?.id ?? null;
+      const namePool = this.snapshot!.folders.filter((folder) => folder.id !== folderId);
+      for (const child of children) {
+        child.parentId = destParentId;
+        child.name = uniqueSiblingFolderName(
+          namePool,
+          {
+            id: child.id,
+            parentId: destParentId,
+            side: parent?.side ?? child.side,
+            systemKey: child.systemKey,
+          },
+          child.name,
+        );
+        child.updatedAt = nowIso();
+        if (parent && hasAssignedRepertoireSide(parent.side)) {
+          this.applySideToSubtree(child.id, parent.side);
+        }
+      }
+      const fileDestId = parent?.id ?? (await this.getUnfiledFolderId());
+      for (const file of directFiles) {
+        this.placeFileInFolder(file, fileDestId);
+      }
+    }
     this.snapshot!.folders = this.snapshot!.folders.filter((f) => f.id !== folderId);
-    const removedIds = this.snapshot!.files
-      .filter((f) => f.folderId === folderId)
-      .map((f) => f.id);
-    this.snapshot!.files = this.snapshot!.files.filter((f) => f.folderId !== folderId);
     this.snapshot!.syncDeletedIds = [
-      ...new Set([...(this.snapshot!.syncDeletedIds ?? []), folderId, ...removedIds]),
+      ...new Set([...(this.snapshot!.syncDeletedIds ?? []), folderId]),
     ];
-    invalidateFolderRepertoireCache(folderId);
+    invalidateFolderRepertoireCache();
     await this.persist();
-    await openingMasteryStore.pruneFiles(removedIds);
   }
 
   /** Persist which color the user trains this repertoire as. */
@@ -215,8 +289,19 @@ export class RepertoireService {
     if (isUnfiledOpeningFolder(folder)) {
       throw new Error(tMsg('errors.systemFolderProtected'));
     }
-    folder.side = requireRepertoireSide(side);
-    folder.updatedAt = nowIso();
+    const assigned = requireRepertoireSide(side);
+    if (folder.parentId) {
+      const parent = this.snapshot!.folders.find((f) => f.id === folder.parentId);
+      if (parent && hasAssignedRepertoireSide(parent.side) && parent.side !== assigned) {
+        folder.parentId = null;
+        folder.name = uniqueSiblingFolderName(
+          this.snapshot!.folders,
+          { id: folder.id, parentId: null, side: assigned, systemKey: folder.systemKey },
+          folder.name,
+        );
+      }
+    }
+    this.applySideToSubtree(folder.id, assigned);
     await this.persist();
     return folder;
   }
@@ -240,13 +325,44 @@ export class RepertoireService {
     return [...this.snapshot.files];
   }
 
+  /** Studies in this folder and every nested folder. Ids are unchanged. */
+  getFilesInSubtree(folderId: string): StoredPgnFile[] {
+    if (!this.snapshot) return [];
+    return filesInFolderSubtree(this.snapshot.files, this.snapshot.folders, folderId)
+      .sort((a, b) => a.filename.localeCompare(b.filename, 'fr', { sensitivity: 'base' }));
+  }
+
+  private applySideToSubtree(rootId: string, side: RepertoireSide): void {
+    const ids = new Set(collectDescendantFolderIds(this.snapshot!.folders, rootId));
+    const now = nowIso();
+    for (const folder of this.snapshot!.folders) {
+      if (!ids.has(folder.id) || isUnfiledOpeningFolder(folder)) continue;
+      folder.side = side;
+      folder.updatedAt = now;
+    }
+  }
+
+  private placeFileInFolder(file: StoredPgnFile, targetFolderId: string): void {
+    if (file.folderId === targetFolderId) return;
+    const existingNames = this.snapshot!.files
+      .filter((f) => f.folderId === targetFolderId && f.id !== file.id)
+      .map((f) => f.filename);
+    const fromFolderId = file.folderId;
+    file.folderId = targetFolderId;
+    file.filename = uniquePgnFilename(file.filename, existingNames);
+    const from = this.snapshot!.folders.find((f) => f.id === fromFolderId);
+    if (from) from.updatedAt = nowIso();
+    const target = this.snapshot!.folders.find((f) => f.id === targetFolderId);
+    if (target) target.updatedAt = nowIso();
+  }
+
   /** Folders that have at least one parseable PGN and a training side set. */
   getTrainableFolders(): RepertoireFolder[] {
     if (!this.snapshot) return [];
     return this.getFolders().filter((folder) => {
       if (folder.enabled === false) return false;
       if (!hasAssignedRepertoireSide(folder.side)) return false;
-      return this.getFiles(folder.id).some(
+      return this.getFilesInSubtree(folder.id).some(
         (f) => f.summary.parseSucceeded && f.enabled !== false,
       );
     });
@@ -258,7 +374,7 @@ export class RepertoireService {
     return this.getFolders().filter((folder) => {
       if (isUnfiledOpeningFolder(folder)) return false;
       if (hasAssignedRepertoireSide(folder.side)) return false;
-      return this.getFiles(folder.id).some(
+      return this.getFilesInSubtree(folder.id).some(
         (f) => f.summary.parseSucceeded && f.enabled !== false,
       );
     });
@@ -393,19 +509,80 @@ export class RepertoireService {
     if (!target) throw new Error(tMsg('errors.folderNotFound'));
     if (file.folderId === targetFolderId) return file;
 
-    const existingNames = this.snapshot!.files
-      .filter((f) => f.folderId === targetFolderId)
-      .map((f) => f.filename);
-    const fromFolderId = file.folderId;
-    file.folderId = targetFolderId;
-    file.filename = uniquePgnFilename(file.filename, existingNames);
-    const from = this.snapshot!.folders.find((f) => f.id === fromFolderId);
-    if (from) from.updatedAt = nowIso();
-    target.updatedAt = nowIso();
-    invalidateFolderRepertoireCache(fromFolderId);
-    invalidateFolderRepertoireCache(targetFolderId);
+    this.placeFileInFolder(file, targetFolderId);
+    invalidateFolderRepertoireCache();
     await this.persist();
     return file;
+  }
+
+  /** Move several studies into one folder. Each study keeps its id and PGN. */
+  async movePgns(fileIds: readonly string[], targetFolderId: string): Promise<StoredPgnFile[]> {
+    await this.ensureLoaded();
+    const target = this.snapshot!.folders.find((f) => f.id === targetFolderId);
+    if (!target) throw new Error(tMsg('errors.folderNotFound'));
+    const moved: StoredPgnFile[] = [];
+    for (const fileId of fileIds) {
+      const file = this.snapshot!.files.find((f) => f.id === fileId);
+      if (!file) throw new Error(tMsg('errors.pgnNotFound'));
+      this.placeFileInFolder(file, targetFolderId);
+      moved.push(file);
+    }
+    invalidateFolderRepertoireCache();
+    await this.persist();
+    return moved;
+  }
+
+  /**
+   * Move a folder under `parentId` (`null` = root of `side`, or of its current side).
+   * Descendants keep their relative places and follow the new side.
+   */
+  async moveFolder(
+    folderId: string,
+    parentId: string | null,
+    side?: RepertoireSide,
+  ): Promise<RepertoireFolder> {
+    await this.ensureLoaded();
+    const folder = this.snapshot!.folders.find((f) => f.id === folderId);
+    if (!folder) throw new Error(tMsg('errors.folderNotFound'));
+    if (isUnfiledOpeningFolder(folder) || isUnfiledTreeFolder(folder)) {
+      throw new Error(tMsg('errors.systemFolderProtected'));
+    }
+    const parent = parentId
+      ? this.snapshot!.folders.find((f) => f.id === parentId) ?? null
+      : null;
+    if (parentId && !parent) throw new Error(tMsg('errors.folderParentMissing'));
+    if (parent && isUnfiledOpeningFolder(parent)) {
+      throw new Error(tMsg('errors.systemFolderProtected'));
+    }
+    if (!canMoveOpeningFolder(this.snapshot!.folders, folderId, parentId)) {
+      throw new Error(tMsg('errors.folderCycle'));
+    }
+    const nextSide = parent && hasAssignedRepertoireSide(parent.side)
+      ? parent.side
+      : side && hasAssignedRepertoireSide(side)
+        ? side
+        : folder.side;
+    const nextParentId = parent?.id ?? null;
+    if ((folder.parentId ?? null) === nextParentId && folder.side === nextSide) {
+      return folder;
+    }
+    if (
+      siblingFolderNameTaken(this.snapshot!.folders, {
+        id: folder.id,
+        name: folder.name,
+        parentId: nextParentId,
+        side: nextSide,
+        systemKey: folder.systemKey,
+      })
+    ) {
+      throw new Error(tMsg('errors.folderExists', { name: folder.name }));
+    }
+    folder.parentId = nextParentId;
+    if (hasAssignedRepertoireSide(nextSide)) this.applySideToSubtree(folder.id, nextSide);
+    else folder.updatedAt = nowIso();
+    invalidateFolderRepertoireCache();
+    await this.persist();
+    return folder;
   }
 
   /**
@@ -434,7 +611,7 @@ export class RepertoireService {
     fileId?: string,
     gameIndex?: number,
   ): StoredPgnFile[] {
-    return this.getFiles(folderId)
+    return this.getFilesInSubtree(folderId)
       .filter((f) => f.enabled !== false && (!fileId || f.id === fileId))
       .map((file) => {
         if (!fileId || gameIndex === undefined) return file;

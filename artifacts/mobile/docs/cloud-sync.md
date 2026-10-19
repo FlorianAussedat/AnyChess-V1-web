@@ -93,6 +93,7 @@ La sauvegarde locale est immédiate dès que la modification est validée. L’e
 ## Règle de conflit entre deux appareils
 
 - Collections (PGN, parties, traductions, révisions, culture) : union par identifiant. Un tombstone `syncDeletedIds` gagne sur la copie distante. Pour une même fiche, le `updatedAt` le plus récent gagne.
+- Dossiers d’ouvertures (0.0.7) : le document reste `anychess.repertoire.v2`. Chaque dossier peut porter `parentId` (identifiant du parent, ou `null` à la racine). La fusion conserve l’objet le plus récent, puis répare un parent manquant ou un cycle sans supprimer de PGN. L’état déplié de l’arborescence (`anychess.openings.treeExpanded.v1`) reste sur l’appareil.
 - Historiques : union des listes.
 - Records (tactique, nommer le coup, jouer le coup, mémorisation, quiz d’ouverture) : le meilleur score de la génération de réinitialisation la plus récente. Un `resetAt` plus tard annule les scores plus anciens, y compris un nombre sans horodatage. La série en cours (`currentByBand`) suit l’horodatage le plus récent, pas le maximum.
 - Finales théoriques : la génération `scoreResetAt` déjà en place est conservée.
