@@ -33,6 +33,7 @@ import {
   type DictationPace,
 } from '@/lib/preferences';
 import { setAuthReturn } from '@/lib/cloud/authReturn';
+import { formatAppVersionLabel } from '@/lib/app/version';
 import { getPuzzleRatingBand } from '@/lib/puzzles';
 import {
   getStrengthBand,
@@ -445,6 +446,13 @@ export default function ParametresScreen() {
           </View>
         </View>
       </Modal>
+      <Text
+        style={[styles.version, { color: colors.mutedForeground }]}
+        testID="parametres-app-version"
+        accessibilityLabel={formatAppVersionLabel()}
+      >
+        {formatAppVersionLabel()}
+      </Text>
     </ScrollView>
   );
 }
@@ -493,6 +501,12 @@ const styles = StyleSheet.create({
     fontFamily: DesignTokens.typography.weightSemiBold,
   },
   dangerZone: { gap: 8, marginTop: DesignTokens.spacing.sm },
+  version: {
+    marginTop: DesignTokens.spacing.lg,
+    textAlign: 'center',
+    fontSize: 13,
+    fontFamily: DesignTokens.typography.weightSemiBold,
+  },
   dangerBtn: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.sm,

@@ -4,7 +4,9 @@ Les études d’ouvertures appartiennent à un compte AnyChess. L’application 
 
 ## Mode invité
 
-Sans session, la bibliothèque affichée est vide. Les écrans Ouvertures proposent de se connecter ou de créer un compte. La création, l’import, la modification et l’enregistrement d’une étude sont refusés (`PersonalPgnAccessError`).
+Sans session, et lorsque le client Supabase est configuré, la bibliothèque affichée est vide. Les écrans Ouvertures proposent de se connecter ou de créer un compte. La création, l’import, la modification et l’enregistrement d’une étude sont refusés (`PersonalPgnAccessError`).
+
+Si le client Supabase n’est pas configuré dans le build, ce verrou ne s’applique pas : les études déjà présentes sur l’appareil restent lisibles et modifiables. Elles ne sont pas déplacées dans le coffre.
 
 Les études déjà présentes sur l’appareil avant cette règle sont copiées dans le coffre local `anychess.cloud.guestPgnVault.v1`, puis retirées de la bibliothèque active. Ce coffre n’est pas un document synchronisé et n’est pas effacé automatiquement.
 

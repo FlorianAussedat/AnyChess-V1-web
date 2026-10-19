@@ -22,6 +22,7 @@ import type { CloudDocument, CloudRemote } from '../types.ts';
 import { RepertoireService } from '../../repertoire/RepertoireService.ts';
 import {
   installPersonalPgnGuard,
+  personalPgnWritesBlocked,
   PersonalPgnAccessError,
 } from '../../repertoire/personalPgnAccess.ts';
 import type { RepertoireStorage } from '../../repertoire/storage/RepertoireStorage.ts';
@@ -234,6 +235,25 @@ describe('personal PGN ownership', () => {
     releaseLoad(stale);
     await pending;
     assert.equal(savedIds.some((ids) => ids.includes('guest-file')), false);
+  });
+
+  it('keeps the on-device library usable when the account client is not configured', () => {
+    assert.equal(
+      personalPgnWritesBlocked({ sessionReady: true, user: null, status: 'unconfigured' }),
+      false,
+    );
+    assert.equal(
+      personalPgnWritesBlocked({ sessionReady: true, user: null, status: 'signed_out' }),
+      true,
+    );
+    assert.equal(
+      personalPgnWritesBlocked({
+        sessionReady: true,
+        user: { id: 'user_1' },
+        status: 'synced',
+      }),
+      false,
+    );
   });
 
   it('refuses to save a personal PGN when the account guard is installed', async () => {

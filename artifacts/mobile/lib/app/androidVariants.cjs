@@ -9,6 +9,10 @@
  * reserved a second publication id; com.anychess.app is the only one that
  * existed, and it stays with the development client.
  *
+ * The device build is the installable V0.0.7 update of that same identifier.
+ * It embeds the JavaScript bundle, omits the Metro client, and keeps the
+ * debug signature so Android can replace the installed app without wiping data.
+ *
  * Custom schemes differ so the two apps do not compete for the same links.
  * Account confirmation stays on the HTTPS page, not on either scheme.
  */
@@ -32,22 +36,27 @@ function withoutDevClient(plugins) {
 }
 
 function resolveAndroidVariant(variant) {
-  if (variant !== 'development' && variant !== 'standalone') {
+  if (variant !== 'development' && variant !== 'standalone' && variant !== 'device') {
     throw new Error(`Unknown Android variant: ${variant}`);
   }
   const development = variant === 'development';
+  const device = variant === 'device';
   const plugins = development ? base.plugins : withoutDevClient(base.plugins);
+  const installedPackage = development || device;
   return {
     expo: {
       ...base,
       name: development ? 'AnyChess Dev' : 'AnyChess',
-      scheme: development ? 'mobile' : 'anychess',
+      // The installed app answers mobile and exp+mobile. Keep both so account
+      // confirmation still opens this update. The separate standalone package
+      // keeps the anychess scheme.
+      scheme: device ? ['mobile', 'exp+mobile'] : development ? 'mobile' : 'anychess',
       icon: development ? './assets/icon/android-dev-icon.png' : base.icon,
       splash: base.splash,
       android: {
         ...base.android,
-        package: development ? DEV_PACKAGE : STANDALONE_PACKAGE,
-        versionCode: development ? 4 : 2,
+        package: installedPackage ? DEV_PACKAGE : STANDALONE_PACKAGE,
+        versionCode: development ? 6 : device ? 5 : 2,
         adaptiveIcon: {
           ...base.android.adaptiveIcon,
           foregroundImage: development
@@ -59,9 +68,10 @@ function resolveAndroidVariant(variant) {
         ? plugins
         : [
             ...plugins,
-            './plugins/withReleaseSigning.js',
             './plugins/withStandaloneAutolinking.js',
-            './plugins/withStandaloneSchemes.js',
+            ...(device
+              ? []
+              : ['./plugins/withReleaseSigning.js', './plugins/withStandaloneSchemes.js']),
           ],
       autolinking: development
         ? undefined
@@ -69,7 +79,7 @@ function resolveAndroidVariant(variant) {
       extra: {
         ...(base.extra || {}),
         anychessVariant: variant,
-        easUpdateChannel: development ? 'development' : 'standalone',
+        easUpdateChannel: development ? 'development' : device ? 'device' : 'standalone',
       },
     },
   };

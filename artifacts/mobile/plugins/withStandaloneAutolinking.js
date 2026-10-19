@@ -8,7 +8,9 @@ const {
 
 /** Standalone builds must not link the Metro development client. */
 function withStandaloneAutolinking(config) {
-  if (process.env.ANYCHESS_VARIANT !== 'standalone') return config;
+  if (process.env.ANYCHESS_VARIANT !== 'standalone' && process.env.ANYCHESS_VARIANT !== 'device') {
+    return config;
+  }
   config = withSettingsGradle(config, (cfg) => {
     cfg.modResults.contents = patchSettingsGradle(cfg.modResults.contents);
     return cfg;

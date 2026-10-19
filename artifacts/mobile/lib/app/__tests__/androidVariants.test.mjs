@@ -35,8 +35,17 @@ describe('Android install variants', () => {
   it('names the development client AnyChess Dev and the release AnyChess', () => {
     assert.equal(dev.expo.name, 'AnyChess Dev');
     assert.equal(standalone.expo.name, 'AnyChess');
-    assert.equal(dev.expo.android.versionCode, 4);
+    assert.equal(dev.expo.android.versionCode, 6);
     assert.equal(standalone.expo.android.versionCode, 2);
+    const device = resolveAndroidVariant('device');
+    assert.equal(device.expo.android.package, 'com.anychess.app');
+    assert.equal(device.expo.android.versionCode, 5);
+    assert.equal(device.expo.version, '0.0.7');
+    assert.equal(device.expo.name, 'AnyChess');
+    assert.deepEqual(device.expo.scheme, ['mobile', 'exp+mobile']);
+    assert.equal(pluginNames(device).includes('expo-dev-client'), false);
+    assert.equal(pluginNames(device).includes('./plugins/withReleaseSigning.js'), false);
+    assert.ok(pluginNames(device).includes('./plugins/withStandaloneAutolinking.js'));
     assert.equal(dev.expo.version, '0.0.7');
     assert.equal(standalone.expo.version, '0.0.7');
   });
@@ -68,6 +77,11 @@ describe('Android install variants', () => {
     assert.equal(eas.build.standalone.android.buildType, 'apk');
     assert.equal(eas.build.development.channel, 'development');
     assert.equal(eas.build.standalone.channel, 'standalone');
+    assert.equal(eas.build.device.developmentClient, false);
+    assert.equal(eas.build.device.android.buildType, 'apk');
+    assert.equal(eas.build.device.android.gradleCommand, ':app:assembleRelease');
+    assert.equal(eas.build.device.env.ANYCHESS_VARIANT, 'device');
+    assert.equal(eas.build.device.env.EXPO_PUBLIC_APP_CLIENT, 'dev');
     assert.equal(dev.expo.extra.easUpdateChannel, 'development');
     assert.equal(standalone.expo.extra.easUpdateChannel, 'standalone');
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
