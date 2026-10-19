@@ -37,8 +37,8 @@ describe('Android install variants', () => {
     assert.equal(standalone.expo.name, 'AnyChess');
     assert.equal(dev.expo.android.versionCode, 4);
     assert.equal(standalone.expo.android.versionCode, 2);
-    assert.equal(dev.expo.version, '0.0.6');
-    assert.equal(standalone.expo.version, '0.0.6');
+    assert.equal(dev.expo.version, '0.0.7');
+    assert.equal(standalone.expo.version, '0.0.7');
   });
 
   it('uses a discreet dev launcher and the final icon plus splash for the release', () => {

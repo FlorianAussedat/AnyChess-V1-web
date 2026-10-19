@@ -8,13 +8,18 @@
  * an Opening Game in Stage 3).
  *
  * Migration (openings pool):
- * - Store remains version 2 (folders + files). No new snapshot version.
+ * - Store remains version 2 (folders + files) on `anychess.repertoire.v2`.
+ *   Hierarchy is an additive `folder.parentId` (0.0.7), not a new document key.
+ * - Missing `parentId` migrates to `null` (a root). Ids, PGN text, comments,
+ *   favorites, stats and review history are not rewritten.
  * - Missing `folder.enabled` / `file.enabled` means on (legacy snapshots).
  * - Missing `folder.side` stays unassigned until the user picks White or Black
  *   in Gérer les PGN; those folders are excluded from Review until then.
  * - Folders cannot be “both sides”; each folder is White XOR Black.
+ *   A subfolder keeps its parent's side.
  */
 import type { RepertoireIssue } from '../types';
+import { migrateOpeningHierarchy } from '../folderTree.ts';
 
 /** Which color the user trains this repertoire as. */
 export type RepertoireSide = 'white' | 'black';
@@ -22,6 +27,11 @@ export type RepertoireSide = 'white' | 'black';
 export interface RepertoireFolder {
   id: string;
   name: string;
+  /**
+   * Parent folder id. `null` (or missing, before migration) is a root of the
+   * White, Black, or unassigned section. Independent of `name`.
+   */
+  parentId?: string | null;
   /** Side the user studies this repertoire from; required before training modes. */
   side?: RepertoireSide;
   /**
@@ -100,22 +110,25 @@ export function emptyRepertoireStore(): RepertoireStoreSnapshot {
   return { version: 2, folders: [], files: [] };
 }
 
-/** Normalize v1 snapshots and validate shape. */
-export function normalizeRepertoireStore(raw: unknown): RepertoireStoreSnapshot {
-  if (!raw || typeof raw !== 'object') return emptyRepertoireStore();
+/** Version coerce without rewriting parent links. */
+export function coerceRepertoireStore(raw: unknown): RepertoireStoreSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null;
   const parsed = raw as RepertoireStoreSnapshot | RepertoireStoreSnapshotV1;
-  if (!Array.isArray(parsed.folders) || !Array.isArray(parsed.files)) {
-    return emptyRepertoireStore();
-  }
-  if (parsed.version === 1 || parsed.version === 2) {
-    const deleted = Array.isArray((parsed as RepertoireStoreSnapshot).syncDeletedIds)
-      ? (parsed as RepertoireStoreSnapshot).syncDeletedIds!.filter(
-          (id): id is string => typeof id === 'string' && id.length > 0,
-        )
-      : undefined;
-    return deleted?.length
-      ? { version: 2, folders: parsed.folders, files: parsed.files, syncDeletedIds: deleted }
-      : { version: 2, folders: parsed.folders, files: parsed.files };
-  }
-  return emptyRepertoireStore();
+  if (!Array.isArray(parsed.folders) || !Array.isArray(parsed.files)) return null;
+  if (parsed.version !== 1 && parsed.version !== 2) return null;
+  const deleted = Array.isArray((parsed as RepertoireStoreSnapshot).syncDeletedIds)
+    ? (parsed as RepertoireStoreSnapshot).syncDeletedIds!.filter(
+        (id): id is string => typeof id === 'string' && id.length > 0,
+      )
+    : undefined;
+  return deleted?.length
+    ? { version: 2, folders: parsed.folders, files: parsed.files, syncDeletedIds: deleted }
+    : { version: 2, folders: parsed.folders, files: parsed.files };
+}
+
+/** Normalize v1 snapshots and repair the folder tree. */
+export function normalizeRepertoireStore(raw: unknown): RepertoireStoreSnapshot {
+  const coerced = coerceRepertoireStore(raw);
+  if (!coerced) return emptyRepertoireStore();
+  return migrateOpeningHierarchy(coerced).snapshot;
 }

@@ -27,7 +27,7 @@ describe('learning folder scope', () => {
 
   it('lists only the opened folder and titles it with Apprentissage', () => {
     const folder = read('app/openings/[folderId].tsx');
-    assert.match(folder, /learningFilesInFolder\(getFiles\(folderId\), folderId\)/);
+    assert.match(folder, /learningFilesInFolder\(getSubtreeFiles\(folderId\), folderId, folders\)/);
     assert.match(folder, /openings\.learn/);
     assert.match(folder, /learn-folder-title/);
     assert.match(folder, /\/openings\/study\?fileId=/);
@@ -137,7 +137,7 @@ describe('pedagogical reader is openings-specific', () => {
   });
 
   it('manage view opens the pedagogical reader', () => {
-    const manage = read('app/openings/manage.tsx');
+    const manage = `${read('app/openings/manage.tsx')}\n${read('components/openings/ManageOpeningTree.tsx')}`;
     assert.match(manage, /\/openings\/study\?fileId=/);
     assert.match(manage, /needsOppositeSideMoveConfirm/);
   });
@@ -179,7 +179,7 @@ describe('opening PGN editor', () => {
   });
 
   it('manage offers create, annotate and export without hiding other actions', () => {
-    const manage = read('app/openings/manage.tsx');
+    const manage = `${read('app/openings/manage.tsx')}\n${read('components/openings/ManageOpeningTree.tsx')}`;
     assert.match(manage, /create-pgn-btn/);
     assert.match(manage, /annotate-pgn-/);
     assert.match(manage, /export-pgn-/);

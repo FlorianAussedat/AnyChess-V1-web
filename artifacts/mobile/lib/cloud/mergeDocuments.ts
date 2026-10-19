@@ -1,3 +1,4 @@
+import { migrateOpeningHierarchy } from '../repertoire/folderTree.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
 import { mergeEndgameTrainingDocuments } from '../endgameTraining/persistence/defendDrawReview.ts';
 import { mergeTheoreticalDocuments } from '../theoreticalEndgame/persistence/TheoreticalEndgameStore.ts';
@@ -75,12 +76,19 @@ function mergeRepertoire(local: unknown, remote: unknown): unknown {
     seen.add(fingerprint);
     return true;
   });
+  const merged = migrateOpeningHierarchy({
+    version: 2 as const,
+    folders: folders as { id: string; name: string; parentId?: string | null }[],
+    files: deduped as { id: string; folderId: string; filename: string }[],
+    syncDeletedIds: [...deleted],
+  }).snapshot;
   return {
     ...a,
     ...b,
+    ...merged,
     version: 2,
-    folders,
-    files: deduped,
+    folders: merged.folders,
+    files: merged.files,
     syncDeletedIds: [...deleted],
   };
 }

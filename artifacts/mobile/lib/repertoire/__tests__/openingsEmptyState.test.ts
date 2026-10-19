@@ -96,12 +96,13 @@ describe('openings manage import wiring', () => {
   });
 
   it('requires White or Black when creating a folder', () => {
+    const tree = `${manage}\n${read('components/openings/ManageOpeningTree.tsx')}`;
     assert.match(manage, /createSide/);
     assert.match(manage, /openings\.sideRequired/);
     assert.match(manage, /RepertoireSidePicker/);
-    assert.match(manage, /openings\.toClassify/);
-    assert.match(manage, /openings\.chooseWhiteOrBlack/);
-    assert.match(manage, /manage-folder-classify-/);
+    assert.match(tree, /openings\.toClassify/);
+    assert.match(tree, /openings\.chooseWhiteOrBlack/);
+    assert.match(tree, /manage-folder-classify-/);
   });
 });
 
