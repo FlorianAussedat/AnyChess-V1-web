@@ -2,6 +2,12 @@
 
 Build de test pour Pixel 8 Pro (arm64). Ce n’est pas une release définitive et la branche n’est pas fusionnée dans `main`.
 
+## Ne pas utiliser ce fichier pour l’application autonome
+
+`AnyChess-V0.0.7.apk` met à jour `com.anychess.app` (AnyChess Dev). Il ne remplace pas `com.anychess.standalone`.
+
+Le keystore de release de l’application autonome n’est pas dans le dépôt, ni dans cet environnement. Aucun APK `com.anychess.standalone` ne doit être produit avec une autre signature : Android refuserait la mise à jour, et une désinstallation effacerait les études. Le `versionCode` autonome prévu dans le code est 2 (il a d’abord été 1). Une mise à jour compatible devra être signée avec le keystore d’origine et porter un `versionCode` strictement supérieur à celui installé.
+
 ## Identité du binaire
 
 | | |
