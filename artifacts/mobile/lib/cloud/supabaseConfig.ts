@@ -53,10 +53,9 @@ export type AuthMailLanguage = 'fr' | 'en';
 export const DEV_AUTH_CONFIRM_PAGE_URL = 'https://sparkly-paprenjak-65f499.netlify.app/auth/confirm';
 
 /**
- * `dev` is AnyChess Dev (`com.anychess.app`, schemes `mobile` and `exp+mobile`).
- * `app` is the standalone APK already shipped (`com.anychess.standalone`, scheme
- * `anychess`). Only an explicit build flag or a dev bundle selects Dev.
- * Anything else stays on the standalone app, including when both are installed.
+ * `dev` is AnyChess Dev (`com.anychess.dev`, scheme `anychessdev` / `exp+anychessdev`).
+ * `app` is AnyChess Stable (`com.anychess.app`, scheme `mobile`).
+ * The historical package `com.anychess.standalone` stays on `client=standalone`.
  */
 export function authClientVariant(): AuthClientVariant {
   const raw = readPublic(process.env.EXPO_PUBLIC_APP_CLIENT)?.toLowerCase();

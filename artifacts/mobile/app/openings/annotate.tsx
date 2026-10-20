@@ -19,10 +19,12 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { GameReaderNavControls } from '@/components/gameReader/GameReaderNavControls';
 import { OpeningStudyNotation } from '@/components/openings/OpeningStudyNotation';
 import { OpeningChoiceModal } from '@/components/openings/OpeningChoiceModal';
@@ -86,6 +88,7 @@ function oneParam(value?: string | string[]): string | undefined {
 export default function OpeningAnnotateScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const access = usePersonalPgnAccess();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
@@ -435,6 +438,15 @@ export default function OpeningAnnotateScreen() {
     }
     router.back();
   }, [applySession, flushComment, router, session]);
+
+  if (access.ready && access.locked) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
+        <ScreenHeader onBack={() => router.back()} title={t('openings.annotatePgn')} />
+        <GuestLibraryLock />
+      </View>
+    );
+  }
 
   if (loading) {
     return (

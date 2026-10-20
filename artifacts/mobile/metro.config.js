@@ -7,7 +7,8 @@ const path = require('node:path');
 /**
  * Expo reads .env once, before this file, and does not override variables
  * already present in the shell. Fill the public Supabase URL and anon key
- * from the gitignored .env, or from the management API when its token works.
+ * from the gitignored .env, the management API when its token works, or the
+ * public anon key recovered from the V0.0.6 standalone APK.
  * A refused management token is not a client key and is never written here.
  */
 function applyPublicSupabaseEnv(root) {

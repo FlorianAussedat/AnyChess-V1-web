@@ -217,6 +217,7 @@ export type MessageKey =
   | 'cloud.signOutFailed'
   | 'cloud.importGuest'
   | 'cloud.importGuestTitle'
+  | 'cloud.importGuestUnverified'
   | 'cloud.importGuestBody'
   | 'cloud.recover'
   | 'cloud.recoverSent'
@@ -553,15 +554,36 @@ export type MessageKey =
   | 'errors.pgnNotFound'
   | 'errors.filePgnNotFound'
   | 'errors.systemFolderProtected'
+  | 'errors.folderNotEmpty'
+  | 'errors.folderCycle'
   // Openings
   | 'openings.title'
   | 'openings.repertoires'
   | 'openings.new'
   | 'openings.deleteFolderTitle'
   | 'openings.deleteFolderBody'
+  | 'openings.deleteEmptyFolderBody'
+  | 'openings.deleteFolderKeepBody'
+  | 'openings.deleteFolderKeepRootBody'
+  | 'openings.keepContents'
+  | 'openings.createSubfolder'
+  | 'openings.moveFolder'
+  | 'openings.moveToTitle'
+  | 'openings.moveToRootWhite'
+  | 'openings.moveToRootBlack'
+  | 'openings.selectStudies'
+  | 'openings.cancelSelection'
+  | 'openings.moveSelection'
+  | 'openings.treeContents'
+  | 'openings.learnSubtreeHint'
+  | 'openings.accountRequiredTitle'
+  | 'openings.accountRequiredBody'
+  | 'openings.expandFolder'
+  | 'openings.collapseFolder'
   | 'openings.deleteFileTitle'
   | 'openings.deleteFileBody'
   | 'openings.import'
+  | 'openings.importDestination'
   | 'openings.replace'
   | 'openings.exercises'
   | 'openings.playVsRepertoire'
@@ -1541,12 +1563,14 @@ const fr: Dict = {
   'cloud.signOut': 'Déconnexion',
   'cloud.signOutTitle': 'Se déconnecter ?',
   'cloud.signOutBody':
-    'Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
+    'La bibliothèque d’ouvertures de ce compte est masquée tout de suite et n’est pas visible en invité. Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
   'cloud.signOutFailed': 'La déconnexion n’a pas abouti. Réessaie.',
   'cloud.importGuest': 'Importer les données invitées',
   'cloud.importGuestTitle': 'Importer les données de l’invité ?',
   'cloud.importGuestBody':
-    'Les parties et les scores enregistrés sans compte seront copiés dans ce compte. Les données d’un autre compte ne sont pas importées.',
+    'Les études PGN enregistrées sans compte seront copiées dans ce compte après vérification dans Supabase. La copie sur cet appareil est conservée. Les données d’un autre compte ne sont pas importées.',
+  'cloud.importGuestUnverified':
+    'Supabase n’a pas confirmé ces études. Rien n’a été effacé sur cet appareil. Réessaie une fois en ligne.',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
   'cloud.statusSynced': 'Synchronisé',
@@ -1903,7 +1927,11 @@ const fr: Dict = {
   'errors.voiceUnavailable': 'Reconnaissance vocale indisponible',
   'errors.folderNotFound': 'Dossier introuvable.',
   'errors.folderEmptyName': 'Le nom du dossier ne peut pas être vide.',
-  'errors.folderExists': 'Un dossier nommé « {{name}} » existe déjà.',
+  'errors.folderExists': 'Un dossier nommé « {{name}} » existe déjà à cet emplacement.',
+  'errors.folderNotEmpty':
+    'Ce dossier contient encore des éléments. Confirmez leur conservation avant de le supprimer.',
+  'errors.folderCycle':
+    'Impossible de déplacer un dossier dans lui-même ou dans un de ses sous-dossiers.',
   'errors.pgnEmpty': 'Le contenu PGN est vide.',
   'errors.pgnNotFound': 'Fichier PGN introuvable.',
   'errors.filePgnNotFound': 'Fichier PGN introuvable.',
@@ -1914,9 +1942,31 @@ const fr: Dict = {
   'openings.deleteFolderTitle': 'Supprimer le dossier',
   'openings.deleteFolderBody':
     'Supprimer « {{name}} » et tous les PGN qu’il contient ?',
+  'openings.deleteEmptyFolderBody': 'Supprimer le dossier vide « {{name}} » ?',
+  'openings.deleteFolderKeepBody':
+    '« {{name}} » contient des dossiers ou des études. Ils seront déplacés dans « {{parent}} ». Aucune étude ne sera supprimée.',
+  'openings.deleteFolderKeepRootBody':
+    '« {{name}} » est à la racine. Ses sous-dossiers resteront dans la même couleur, et ses études iront dans À classer. Aucune étude ne sera supprimée.',
+  'openings.keepContents': 'Conserver le contenu',
+  'openings.createSubfolder': 'Nouveau sous-dossier',
+  'openings.moveFolder': 'Déplacer le dossier',
+  'openings.moveToTitle': 'Déplacer vers…',
+  'openings.moveToRootWhite': 'Racine — Blancs',
+  'openings.moveToRootBlack': 'Racine — Noirs',
+  'openings.selectStudies': 'Sélectionner',
+  'openings.cancelSelection': 'Annuler la sélection',
+  'openings.moveSelection': 'Déplacer ({{count}})',
+  'openings.treeContents': '{{folders}} dossier(s) · {{files}} étude(s)',
+  'openings.learnSubtreeHint': 'Les études des sous-dossiers sont incluses.',
+  'openings.accountRequiredTitle': 'Tes études sont liées à ton compte',
+  'openings.accountRequiredBody':
+    'Une installation neuve ne contient aucune étude personnelle. Connecte-toi ou crée un compte pour importer, modifier et retrouver tes PGN. Le mode invité reste vide.',
+  'openings.expandFolder': 'Déplier {{name}}',
+  'openings.collapseFolder': 'Replier {{name}}',
   'openings.deleteFileTitle': 'Supprimer le fichier',
   'openings.deleteFileBody': 'Supprimer « {{name}} » ?',
   'openings.import': 'Importer',
+  'openings.importDestination': 'Dossier de destination',
   'openings.replace': 'Remplacer',
   'openings.exercises': 'Exercices',
   'openings.playVsRepertoire': 'Jouer contre le répertoire',
@@ -2997,12 +3047,14 @@ const en: Dict = {
   'cloud.signOut': 'Sign out',
   'cloud.signOutTitle': 'Sign out?',
   'cloud.signOutBody':
-    'Your games, scores, and other data stay on this device. They will not be sent to the next account.',
+    'This account’s openings library is hidden immediately and is not visible as a guest. Your games, scores, and other data stay on this device. They will not be sent to the next account.',
   'cloud.signOutFailed': 'Sign-out did not finish. Try again.',
   'cloud.importGuest': 'Import guest data',
   'cloud.importGuestTitle': 'Import guest data?',
   'cloud.importGuestBody':
-    'Games and scores saved without an account will be copied into this account. Another account’s data is not imported.',
+    'Opening PGNs saved without an account are copied into this account after Supabase confirms them. The copy on this device is kept. Another account’s data is not imported.',
+  'cloud.importGuestUnverified':
+    'Supabase did not confirm these studies. Nothing was deleted on this device. Try again once you are online.',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
   'cloud.statusSynced': 'Synced',
@@ -3358,7 +3410,11 @@ const en: Dict = {
   'errors.voiceUnavailable': 'Voice recognition unavailable',
   'errors.folderNotFound': 'Folder not found.',
   'errors.folderEmptyName': 'Folder name cannot be empty.',
-  'errors.folderExists': 'A folder named “{{name}}” already exists.',
+  'errors.folderExists': 'A folder named “{{name}}” already exists in this location.',
+  'errors.folderNotEmpty':
+    'This folder still has items. Confirm that they should be kept before deleting it.',
+  'errors.folderCycle':
+    'A folder cannot be moved into itself or one of its subfolders.',
   'errors.pgnEmpty': 'PGN content is empty.',
   'errors.pgnNotFound': 'PGN file not found.',
   'errors.filePgnNotFound': 'PGN file not found.',
@@ -3369,9 +3425,31 @@ const en: Dict = {
   'openings.deleteFolderTitle': 'Delete folder',
   'openings.deleteFolderBody':
     'Delete “{{name}}” and all PGN files it contains?',
+  'openings.deleteEmptyFolderBody': 'Delete the empty folder “{{name}}”?',
+  'openings.deleteFolderKeepBody':
+    '“{{name}}” contains folders or studies. They will be moved into “{{parent}}”. No study will be deleted.',
+  'openings.deleteFolderKeepRootBody':
+    '“{{name}}” is at the root. Its subfolders stay in the same color, and its studies move to Unfiled. No study will be deleted.',
+  'openings.keepContents': 'Keep contents',
+  'openings.createSubfolder': 'New subfolder',
+  'openings.moveFolder': 'Move folder',
+  'openings.moveToTitle': 'Move to…',
+  'openings.moveToRootWhite': 'White root',
+  'openings.moveToRootBlack': 'Black root',
+  'openings.selectStudies': 'Select',
+  'openings.cancelSelection': 'Cancel selection',
+  'openings.moveSelection': 'Move ({{count}})',
+  'openings.treeContents': '{{folders}} folder(s) · {{files}} studies',
+  'openings.learnSubtreeHint': 'Studies in subfolders are included.',
+  'openings.accountRequiredTitle': 'Your studies belong to your account',
+  'openings.accountRequiredBody':
+    'A fresh install contains no personal studies. Sign in or create an account to import, edit, and recover your PGNs. Guest mode stays empty.',
+  'openings.expandFolder': 'Expand {{name}}',
+  'openings.collapseFolder': 'Collapse {{name}}',
   'openings.deleteFileTitle': 'Delete file',
   'openings.deleteFileBody': 'Delete “{{name}}”?',
   'openings.import': 'Import',
+  'openings.importDestination': 'Destination folder',
   'openings.replace': 'Replace',
   'openings.exercises': 'Exercises',
   'openings.playVsRepertoire': 'Play against the repertoire',

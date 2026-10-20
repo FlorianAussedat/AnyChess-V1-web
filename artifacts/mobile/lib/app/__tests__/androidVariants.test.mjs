@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const {
+  STABLE_PACKAGE,
   DEV_PACKAGE,
   STANDALONE_PACKAGE,
   DEV_CLIENT_MODULES,
@@ -23,22 +24,34 @@ function pluginNames(config) {
 
 describe('Android install variants', () => {
   const dev = resolveAndroidVariant('development');
+  const stable = resolveAndroidVariant('stable');
   const standalone = resolveAndroidVariant('standalone');
 
-  it('keeps the installed development client id and gives the release a distinct id', () => {
+  it('gives Dev, Stable, and the historical standalone distinct ids', () => {
     assert.equal(dev.expo.android.package, DEV_PACKAGE);
-    assert.equal(dev.expo.android.package, 'com.anychess.app');
+    assert.equal(dev.expo.android.package, 'com.anychess.dev');
+    assert.equal(stable.expo.android.package, STABLE_PACKAGE);
+    assert.equal(stable.expo.android.package, 'com.anychess.app');
     assert.equal(standalone.expo.android.package, STANDALONE_PACKAGE);
-    assert.notEqual(dev.expo.android.package, standalone.expo.android.package);
+    assert.equal(new Set([dev.expo.android.package, stable.expo.android.package, standalone.expo.android.package]).size, 3);
   });
 
-  it('names the development client AnyChess Dev and the release AnyChess', () => {
+  it('names the development client AnyChess Dev and Stable AnyChess', () => {
     assert.equal(dev.expo.name, 'AnyChess Dev');
+    assert.equal(stable.expo.name, 'AnyChess');
     assert.equal(standalone.expo.name, 'AnyChess');
-    assert.equal(dev.expo.android.versionCode, 4);
+    assert.equal(dev.expo.android.versionCode, 1);
+    assert.equal(stable.expo.android.versionCode, 8);
     assert.equal(standalone.expo.android.versionCode, 2);
-    assert.equal(dev.expo.version, '0.0.6');
-    assert.equal(standalone.expo.version, '0.0.6');
+    assert.equal(stable.expo.version, '0.0.7');
+    assert.equal(stable.expo.scheme, 'mobile');
+    assert.equal(dev.expo.slug, 'anychessdev');
+    assert.equal(dev.expo.scheme, 'anychessdev');
+    assert.equal(pluginNames(stable).includes('expo-dev-client'), false);
+    assert.ok(pluginNames(stable).includes('./plugins/withReleaseSigning.js'));
+    assert.ok(pluginNames(stable).includes('./plugins/withStandaloneAutolinking.js'));
+    assert.equal(dev.expo.version, '0.0.7');
+    assert.equal(standalone.expo.version, '0.0.7');
   });
 
   it('uses a discreet dev launcher and the final icon plus splash for the release', () => {
@@ -57,7 +70,8 @@ describe('Android install variants', () => {
   });
 
   it('keeps separate link schemes and does not put account confirmation on either scheme', () => {
-    assert.equal(dev.expo.scheme, 'mobile');
+    assert.equal(dev.expo.scheme, 'anychessdev');
+    assert.equal(stable.expo.scheme, 'mobile');
     assert.equal(standalone.expo.scheme, 'anychess');
     const eas = JSON.parse(readFileSync(join(root, 'eas.json'), 'utf8'));
     assert.equal(eas.build.development.developmentClient, true);
@@ -68,7 +82,14 @@ describe('Android install variants', () => {
     assert.equal(eas.build.standalone.android.buildType, 'apk');
     assert.equal(eas.build.development.channel, 'development');
     assert.equal(eas.build.standalone.channel, 'standalone');
+    assert.equal(eas.build.stable.developmentClient, false);
+    assert.equal(eas.build.stable.android.buildType, 'apk');
+    assert.equal(eas.build.stable.android.gradleCommand, ':app:assembleRelease');
+    assert.equal(eas.build.stable.env.ANYCHESS_VARIANT, 'stable');
+    assert.equal(eas.build.stable.env.EXPO_PUBLIC_APP_CLIENT, 'app');
+    assert.equal(eas.build.development.env.EXPO_PUBLIC_APP_CLIENT, 'dev');
     assert.equal(dev.expo.extra.easUpdateChannel, 'development');
+    assert.equal(stable.expo.extra.easUpdateChannel, 'stable');
     assert.equal(standalone.expo.extra.easUpdateChannel, 'standalone');
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
     assert.equal(pkg.dependencies['expo-updates'], undefined);

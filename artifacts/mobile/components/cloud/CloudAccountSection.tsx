@@ -398,8 +398,13 @@ export function CloudAccountSection() {
               void (async () => {
                 setFormError(null);
                 const result = await cloud.importGuestData();
-                if (!result.ok) setFormError(t('cloud.errorUnexpected'));
-                else setGuestImportReady(false);
+                if (!result.ok) {
+                  setFormError(
+                    result.error === 'remote_unverified'
+                      ? t('cloud.importGuestUnverified')
+                      : t('cloud.errorUnexpected'),
+                  );
+                } else setGuestImportReady(false);
               })();
             }, { confirmLabel: t('cloud.importGuest') });
           }}

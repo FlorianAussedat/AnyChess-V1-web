@@ -9,15 +9,12 @@ import { defaultKeyValueStorage } from '../../storage/AsyncKeyValueStorage.ts';
 import { StorageKeys } from '../../storage/StorageKeys.ts';
 import { loadStoredJson } from '../../storage/safeParse.ts';
 import type { RepertoireStorage } from './RepertoireStorage.ts';
+import { migrateOpeningHierarchy } from '../folderTree.ts';
 import type { RepertoireStoreSnapshot } from './types.ts';
-import { emptyRepertoireStore, normalizeRepertoireStore } from './types.ts';
+import { coerceRepertoireStore, emptyRepertoireStore } from './types.ts';
 
 function validateRepertoire(raw: unknown): RepertoireStoreSnapshot | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const parsed = raw as { version?: unknown; folders?: unknown; files?: unknown };
-  if (!Array.isArray(parsed.folders) || !Array.isArray(parsed.files)) return null;
-  if (parsed.version !== 1 && parsed.version !== 2) return null;
-  return normalizeRepertoireStore(raw);
+  return coerceRepertoireStore(raw);
 }
 
 export class AsyncStorageRepertoireStorage implements RepertoireStorage {
@@ -35,7 +32,9 @@ export class AsyncStorageRepertoireStorage implements RepertoireStorage {
       validateRepertoire,
     );
     if (primary.status === 'ok') {
-      return primary.value;
+      const migrated = migrateOpeningHierarchy(primary.value);
+      if (migrated.changed) await this.save(migrated.snapshot);
+      return migrated.snapshot;
     }
     if (primary.status === 'corrupt') {
       // Keep corrupt v2 bytes; return safe empty without overwriting.
@@ -50,7 +49,7 @@ export class AsyncStorageRepertoireStorage implements RepertoireStorage {
       validateRepertoire,
     );
     if (legacy.status === 'ok') {
-      const migrated = legacy.value;
+      const migrated = migrateOpeningHierarchy(legacy.value).snapshot;
       await this.save(migrated);
       try {
         await this.storage.removeItem(StorageKeys.repertoiresLegacyV1.key);

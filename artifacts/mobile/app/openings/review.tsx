@@ -13,6 +13,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import {
   applyReviewPick,
   countReviewLines,
@@ -22,6 +23,7 @@ import {
   sideToPlayerColor,
 } from '@/lib/repertoire';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { HubModeCard } from '@/components/HubModeCard';
 import { sideLabel } from '@/components/RepertoireSidePicker';
 import { preferencesStore } from '@/lib/preferences';
@@ -34,6 +36,7 @@ export default function OpeningsReviewScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { ready, folders, getAllFiles } = useRepertoireLibrary();
+  const access = usePersonalPgnAccess();
   const [poolOpen, setPoolOpen] = useState(false);
 
   const entries = useMemo(
@@ -82,10 +85,12 @@ export default function OpeningsReviewScreen() {
         subtitle={t('openings.hubReviewHint')}
       />
 
-      {!ready ? (
+      {!access.ready || !ready ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : access.locked ? (
+        <GuestLibraryLock />
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {canTrain ? (
@@ -173,7 +178,7 @@ export default function OpeningsReviewScreen() {
         </ScrollView>
       )}
 
-      <Pressable
+      {access.signedIn ? <Pressable
         onPress={() => router.push('/openings/manage' as Href)}
         style={({ pressed }) => [
           styles.manageLink,
@@ -184,7 +189,7 @@ export default function OpeningsReviewScreen() {
         <Text style={[styles.manageLabel, { color: colors.primary }]}>
           {t('openings.managePgn')}
         </Text>
-      </Pressable>
+      </Pressable> : null}
     </View>
   );
 }

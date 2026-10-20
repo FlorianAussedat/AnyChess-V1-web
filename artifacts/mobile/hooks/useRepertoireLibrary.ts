@@ -2,7 +2,8 @@
  * React hook wrapping RepertoireService for the Openings management screens.
  * Keeps a local refresh counter so list UIs re-render after mutations.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getActiveCloudEngine } from '@/lib/cloud';
 import {
   repertoireService,
   type RepertoireFolder,
@@ -34,9 +35,26 @@ export function useRepertoireLibrary() {
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
+  const accountId = useRef<string | null>(getActiveCloudEngine().getState().user?.id ?? null);
+  useEffect(() => {
+    const engine = getActiveCloudEngine();
+    return engine.subscribe(() => {
+      const next = engine.getState().user?.id ?? null;
+      if (next === accountId.current) return;
+      accountId.current = next;
+      repertoireService.discardCachedSnapshot();
+      bump();
+    });
+  }, [bump]);
+
   const createFolder = useCallback(
-    async (name: string, side: RepertoireSide, enabled = true) => {
-      const folder = await repertoireService.createFolder(name, side, enabled);
+    async (
+      name: string,
+      side: RepertoireSide,
+      enabled = true,
+      parentId?: string | null,
+    ) => {
+      const folder = await repertoireService.createFolder(name, side, enabled, parentId);
       bump();
       return folder;
     },
@@ -53,8 +71,8 @@ export function useRepertoireLibrary() {
   );
 
   const deleteFolder = useCallback(
-    async (folderId: string) => {
-      await repertoireService.deleteFolder(folderId);
+    async (folderId: string, options?: { relocateContents?: boolean }) => {
+      await repertoireService.deleteFolder(folderId, options);
       bump();
     },
     [bump],
@@ -62,6 +80,10 @@ export function useRepertoireLibrary() {
 
   const getFiles = useCallback((folderId: string): StoredPgnFile[] => {
     return repertoireService.getFiles(folderId);
+  }, [tick]);
+
+  const getSubtreeFiles = useCallback((folderId: string): StoredPgnFile[] => {
+    return repertoireService.getFilesInSubtree(folderId);
   }, [tick]);
 
   const importPgn = useCallback(
@@ -97,6 +119,24 @@ export function useRepertoireLibrary() {
       const file = await repertoireService.movePgn(fileId, targetFolderId);
       bump();
       return file;
+    },
+    [bump],
+  );
+
+  const movePgns = useCallback(
+    async (fileIds: readonly string[], targetFolderId: string) => {
+      const files = await repertoireService.movePgns(fileIds, targetFolderId);
+      bump();
+      return files;
+    },
+    [bump],
+  );
+
+  const moveFolder = useCallback(
+    async (folderId: string, parentId: string | null, side?: RepertoireSide) => {
+      const folder = await repertoireService.moveFolder(folderId, parentId, side);
+      bump();
+      return folder;
     },
     [bump],
   );
@@ -193,6 +233,9 @@ export function useRepertoireLibrary() {
     deleteFolder,
     getFolder,
     getFiles,
+    getSubtreeFiles,
+    movePgns,
+    moveFolder,
     importPgn,
     replacePgn,
     deletePgn,

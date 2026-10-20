@@ -4,7 +4,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -14,9 +13,13 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
+import { useOpeningTreeExpanded } from '@/hooks/useOpeningTreeExpanded';
 import {
   hasAssignedRepertoireSide,
+  isOpeningFolderRoot,
   isUnfiledOpeningFolder,
+  listChildFolders,
   needsOppositeSideMoveConfirm,
   pgnFileDisplayName,
   selectedPgnImports,
@@ -32,12 +35,13 @@ import {
 } from '@/lib/gameLibrary';
 import { parkExternalOpeningPgn } from '@/lib/openingStudy';
 import { confirmAction } from '@/lib/openings/confirmAction';
-import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { LibraryFolderFab } from '@/components/library/LibraryFolderFab';
 import { DesignTokens } from '@/constants/designTokens';
 import { NameModal } from '@/components/openings/NameModal';
 import { FolderPickModal } from '@/components/openings/FolderPickModal';
+import { ManageOpeningTree } from '@/components/openings/ManageOpeningTree';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { RepertoireSidePicker, sideLabel } from '@/components/RepertoireSidePicker';
 import {
   PgnGameSelectModal,
@@ -56,6 +60,7 @@ export default function OpeningsManageScreen() {
   const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
+  const access = usePersonalPgnAccess();
 
   const {
     ready,
@@ -65,26 +70,33 @@ export default function OpeningsManageScreen() {
     renameFolder,
     deleteFolder,
     getFiles,
+    getAllFiles,
     importPgn,
     deletePgn,
     renamePgnDisplayName,
     movePgn,
+    movePgns,
+    moveFolder,
     setFolderSide,
     setFolderEnabled,
     setFileEnabled,
   } = useRepertoireLibrary();
+  const { expanded, toggle: toggleExpanded, expand: expandFolders } = useOpeningTreeExpanded();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createSide, setCreateSide] = useState<RepertoireSide | null>(null);
+  const [createParent, setCreateParent] = useState<RepertoireFolder | null>(null);
   const [renameTarget, setRenameTarget] = useState<RepertoireFolder | null>(null);
   const [renameFile, setRenameFile] = useState<StoredPgnFile | null>(null);
   const [moveFile, setMoveFile] = useState<StoredPgnFile | null>(null);
+  const [moveFileIds, setMoveFileIds] = useState<string[] | null>(null);
+  const [moveFolderTarget, setMoveFolderTarget] = useState<RepertoireFolder | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [nameDraft, setNameDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [gameSelectOpen, setGameSelectOpen] = useState(false);
   const [gameCandidates, setGameCandidates] = useState<PgnGameSelectCandidate[]>([]);
@@ -96,17 +108,26 @@ export default function OpeningsManageScreen() {
   const [pgnPickMode, setPgnPickMode] = useState<'import' | 'edit' | null>(null);
 
   const whiteFolders = useMemo(
-    () => folders.filter((f) => f.side === 'white' && !isUnfiledOpeningFolder(f)),
+    () =>
+      folders.filter(
+        (f) => f.side === 'white' && !isUnfiledOpeningFolder(f) && isOpeningFolderRoot(f),
+      ),
     [folders],
   );
   const blackFolders = useMemo(
-    () => folders.filter((f) => f.side === 'black' && !isUnfiledOpeningFolder(f)),
+    () =>
+      folders.filter(
+        (f) => f.side === 'black' && !isUnfiledOpeningFolder(f) && isOpeningFolderRoot(f),
+      ),
     [folders],
   );
   const unassignedFolders = useMemo(
     () =>
       folders.filter(
-        (f) => !hasAssignedRepertoireSide(f.side) && !isUnfiledOpeningFolder(f),
+        (f) =>
+          !hasAssignedRepertoireSide(f.side) &&
+          !isUnfiledOpeningFolder(f) &&
+          isOpeningFolderRoot(f),
       ),
     [folders],
   );
@@ -114,15 +135,6 @@ export default function OpeningsManageScreen() {
     () => folders.find((f) => isUnfiledOpeningFolder(f)) ?? null,
     [folders],
   );
-
-  const toggleExpanded = useCallback((id: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
 
   const openCreatePgn = useCallback(() => {
     setFormError(null);
@@ -133,9 +145,10 @@ export default function OpeningsManageScreen() {
     setFolderPickOpen(true);
   }, []);
 
-  const openCreate = useCallback(() => {
+  const openCreate = useCallback((parent?: RepertoireFolder | null) => {
     setNameDraft('');
-    setCreateSide(null);
+    setCreateParent(parent ?? null);
+    setCreateSide(parent?.side ?? null);
     setFormError(null);
     setCreateOpen(true);
   }, []);
@@ -283,7 +296,7 @@ export default function OpeningsManageScreen() {
           await importPgn(folderId, item.filename, item.pgnText, item.displayName);
         }
         clearImportFlow();
-        setExpanded((prev) => new Set(prev).add(folderId));
+        expandFolders([folderId]);
       } catch (err) {
         setFormError(err instanceof Error ? err.message : String(err));
         setStatusMsg(err instanceof Error ? err.message : String(err));
@@ -291,19 +304,23 @@ export default function OpeningsManageScreen() {
         setBusy(false);
       }
     },
-    [clearImportFlow, importPgn, pendingImport],
+    [clearImportFlow, expandFolders, importPgn, pendingImport],
   );
 
   const submitCreate = useCallback(async () => {
-    if (!createSide) {
+    const side = createParent && hasAssignedRepertoireSide(createParent.side)
+      ? createParent.side
+      : createSide;
+    if (!side) {
       setFormError(t('openings.sideRequired'));
       return;
     }
     setBusy(true);
     setFormError(null);
     try {
-      const folder = await createFolder(nameDraft, createSide, true);
+      const folder = await createFolder(nameDraft, side, true, createParent?.id ?? null);
       setCreateOpen(false);
+      setCreateParent(null);
       if (pendingImport) {
         await importIntoFolder(folder.id);
         return;
@@ -315,13 +332,13 @@ export default function OpeningsManageScreen() {
         setCreatePgnNameOpen(true);
         return;
       }
-      setExpanded((prev) => new Set(prev).add(folder.id));
+      expandFolders([folder.id, ...(createParent ? [createParent.id] : [])]);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
-  }, [createFolder, createPgn, createSide, importIntoFolder, nameDraft, pendingImport, t]);
+  }, [createFolder, createParent, createPgn, createSide, expandFolders, importIntoFolder, nameDraft, pendingImport, t]);
 
   const submitRenameFolder = useCallback(async () => {
     if (!renameTarget) return;
@@ -367,250 +384,209 @@ export default function OpeningsManageScreen() {
     [movePgn],
   );
 
+  const applyMoveMany = useCallback(
+    async (fileIds: string[], targetFolderId: string) => {
+      setBusy(true);
+      try {
+        await movePgns(fileIds, targetFolderId);
+        setMoveFile(null);
+        setMoveFileIds(null);
+        setSelecting(false);
+        setSelectedFileIds(new Set());
+        setFolderPickOpen(false);
+        expandFolders([targetFolderId]);
+      } catch (err) {
+        setStatusMsg(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [expandFolders, movePgns],
+  );
+
+  const confirmSideChange = useCallback(
+    (from: RepertoireFolder | null, to: RepertoireFolder | null, run: () => void) => {
+      if (!needsOppositeSideMoveConfirm(from, to)) {
+        run();
+        return;
+      }
+      confirmAction(
+        t('openings.changeSideConfirmTitle'),
+        t('openings.changeSideConfirmBody', {
+          from: from?.side ? sideLabel(from.side) : '',
+          to: to?.side ? sideLabel(to.side) : '',
+        }),
+        run,
+      );
+    },
+    [t],
+  );
+
   const onPickMoveFolder = useCallback(
     (targetFolderId: string) => {
-      if (!moveFile) return;
-      const from = folders.find((f) => f.id === moveFile.folderId) ?? null;
-      const to = folders.find((f) => f.id === targetFolderId) ?? null;
-      if (needsOppositeSideMoveConfirm(from, to)) {
+      const ids = moveFileIds ?? (moveFile ? [moveFile.id] : []);
+      if (ids.length === 0) return;
+      const library = getAllFiles();
+      const to = folders.find((folder) => folder.id === targetFolderId) ?? null;
+      const changesSide = ids.some((id) => {
+        const file = library.find((item) => item.id === id);
+        const from = folders.find((folder) => folder.id === file?.folderId) ?? null;
+        return needsOppositeSideMoveConfirm(from, to);
+      });
+      const run = () => {
+        if (ids.length === 1 && moveFile && !moveFileIds) void applyMove(moveFile, targetFolderId);
+        else void applyMoveMany(ids, targetFolderId);
+      };
+      if (!changesSide) {
+        run();
+        return;
+      }
+      const sample = library.find((item) => ids.includes(item.id));
+      const from = folders.find((folder) => folder.id === sample?.folderId) ?? null;
+      confirmSideChange(from, to, run);
+    },
+    [applyMove, applyMoveMany, confirmSideChange, folders, getAllFiles, moveFile, moveFileIds],
+  );
+
+  const applyFolderMove = useCallback(
+    async (parentId: string | null, side?: RepertoireSide) => {
+      if (!moveFolderTarget) return;
+      setBusy(true);
+      try {
+        await moveFolder(moveFolderTarget.id, parentId, side);
+        setMoveFolderTarget(null);
+        setFolderPickOpen(false);
+        if (parentId) expandFolders([parentId]);
+      } catch (err) {
+        setStatusMsg(err instanceof Error ? err.message : String(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [expandFolders, moveFolder, moveFolderTarget],
+  );
+
+  const askDeleteFolder = useCallback(
+    (folder: RepertoireFolder) => {
+      const children = listChildFolders(folders, folder.id);
+      const contained = getFiles(folder.id);
+      if (children.length === 0 && contained.length === 0) {
         confirmAction(
-          t('openings.changeSideConfirmTitle'),
-          t('openings.changeSideConfirmBody', {
-            from: from?.side ? sideLabel(from.side) : '',
-            to: to?.side ? sideLabel(to.side) : '',
-          }),
+          t('openings.deleteFolderTitle'),
+          t('openings.deleteEmptyFolderBody', { name: folder.name }),
           () => {
-            void applyMove(moveFile, targetFolderId);
+            void deleteFolder(folder.id);
           },
+          { destructive: true, confirmLabel: t('openings.delete') },
         );
         return;
       }
-      void applyMove(moveFile, targetFolderId);
+      const parent = folder.parentId
+        ? folders.find((item) => item.id === folder.parentId) ?? null
+        : null;
+      const parentName = parent
+        ? isUnfiledOpeningFolder(parent)
+          ? t('openings.toClassify')
+          : parent.name
+        : '';
+      confirmAction(
+        t('openings.deleteFolderTitle'),
+        parent
+          ? t('openings.deleteFolderKeepBody', { name: folder.name, parent: parentName })
+          : t('openings.deleteFolderKeepRootBody', { name: folder.name }),
+        () => {
+          void deleteFolder(folder.id, { relocateContents: true });
+        },
+        { confirmLabel: t('openings.keepContents') },
+      );
     },
-    [applyMove, folders, moveFile, t],
+    [deleteFolder, folders, getFiles, t],
   );
 
-  const renderPgn = (file: StoredPgnFile, folder: RepertoireFolder) => {
-    const active = folder.enabled !== false && file.enabled !== false;
-    const name = pgnFileDisplayName(file);
-    return (
-      <View
-        key={file.id}
-        style={[styles.pgnRow, { borderColor: colors.border, backgroundColor: colors.secondary }]}
-        testID={`manage-pgn-${file.id}`}
-      >
-        <View style={styles.pgnTop}>
-          <View style={styles.pgnMain}>
-            <Text style={[styles.pgnName, { color: colors.foreground }]} numberOfLines={1}>
-              {name}
-            </Text>
-            <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-              {active ? t('openings.folderActive') : t('openings.folderInactive')}
-              {' · '}
-              {t('openings.linesShort', { count: file.summary.branchCount })}
-            </Text>
-          </View>
-          <Switch
-            value={file.enabled !== false}
-            onValueChange={(v) => {
-              void setFileEnabled(file.id, v);
-            }}
-            testID={`toggle-pgn-${file.id}`}
-          />
-        </View>
-        <View style={styles.pgnActions}>
-          <Pressable
-            onPress={() => router.push(`/openings/study?fileId=${encodeURIComponent(file.id)}` as Href)}
-            hitSlop={8}
-            testID={`view-pgn-${file.id}`}
-            accessibilityLabel={t('openings.viewPgn')}
-          >
-            <Ionicons name="eye-outline" size={18} color={colors.primary} />
-          </Pressable>
-          <Pressable
-            onPress={() =>
-              router.push(`/openings/annotate?fileId=${encodeURIComponent(file.id)}` as Href)
-            }
-            hitSlop={8}
-            testID={`annotate-pgn-${file.id}`}
-            accessibilityLabel={t('openings.annotatePgn')}
-          >
-            <Ionicons name="create-outline" size={18} color={colors.primary} />
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setRenameFile(file);
-              setNameDraft(name);
-              setFormError(null);
-            }}
-            hitSlop={8}
-            testID={`rename-pgn-${file.id}`}
-          >
-            <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              setMoveFile(file);
-              setCreatePgn(false);
-              setFolderPickOpen(true);
-            }}
-            hitSlop={8}
-            testID={`move-pgn-${file.id}`}
-          >
-            <Ionicons name="folder-outline" size={18} color={colors.mutedForeground} />
-          </Pressable>
-          <Pressable
-            onPress={() => downloadPgnFile(file.filename, file.pgnText)}
-            hitSlop={8}
-            testID={`export-pgn-${file.id}`}
-            accessibilityLabel={t('openings.exportPgn')}
-          >
-            <Ionicons name="download-outline" size={18} color={colors.mutedForeground} />
-          </Pressable>
-          <Pressable
-            onPress={() =>
-              confirmAction(
-                t('openings.deleteFileTitle'),
-                t('openings.deleteFileBody', { name }),
-                () => {
-                  void deletePgn(file.id);
-                },
-                { destructive: true, confirmLabel: t('openings.delete') },
-              )
-            }
-            hitSlop={8}
-            testID={`delete-pgn-${file.id}`}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-          </Pressable>
-        </View>
-      </View>
-    );
+  const treeProps = {
+    folders,
+    files: getAllFiles(),
+    expanded,
+    onToggle: toggleExpanded,
+    selecting,
+    selectedFileIds,
+    onToggleSelected: (fileId: string) => {
+      setSelectedFileIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(fileId)) next.delete(fileId);
+        else next.add(fileId);
+        return next;
+      });
+    },
+    onCreateSubfolder: (folder: RepertoireFolder) => openCreate(folder),
+    onRenameFolder: (folder: RepertoireFolder) => {
+      setRenameTarget(folder);
+      setNameDraft(folder.name);
+      setFormError(null);
+    },
+    onMoveFolder: (folder: RepertoireFolder) => {
+      setMoveFile(null);
+      setMoveFileIds(null);
+      setCreatePgn(false);
+      setPendingImport(null);
+      setMoveFolderTarget(folder);
+      setFolderPickOpen(true);
+    },
+    onDeleteFolder: askDeleteFolder,
+    onSetSide: (folderId: string, side: RepertoireSide) => {
+      void setFolderSide(folderId, side);
+    },
+    onSetFolderEnabled: (folderId: string, enabled: boolean) => {
+      void setFolderEnabled(folderId, enabled);
+    },
+    onSetFileEnabled: (fileId: string, enabled: boolean) => {
+      void setFileEnabled(fileId, enabled);
+    },
+    onRenameFile: (file: StoredPgnFile) => {
+      setRenameFile(file);
+      setNameDraft(pgnFileDisplayName(file));
+      setFormError(null);
+    },
+    onMoveFile: (file: StoredPgnFile) => {
+      setMoveFolderTarget(null);
+      setMoveFileIds(null);
+      setMoveFile(file);
+      setCreatePgn(false);
+      setFolderPickOpen(true);
+    },
+    onDeleteFile: (file: StoredPgnFile) => {
+      confirmAction(
+        t('openings.deleteFileTitle'),
+        t('openings.deleteFileBody', { name: pgnFileDisplayName(file) }),
+        () => {
+          void deletePgn(file.id);
+        },
+        { destructive: true, confirmLabel: t('openings.delete') },
+      );
+    },
   };
 
-  const renderFolder = (folder: RepertoireFolder) => {
-    const files = getFiles(folder.id);
-    const open = expanded.has(folder.id);
-    const lines = files.reduce((sum, f) => sum + (f.summary.branchCount || 0), 0);
-    const folderOn = folder.enabled !== false;
-    const unfiled = isUnfiledOpeningFolder(folder);
+  if (access.ready && access.locked) {
     return (
       <View
-        key={folder.id}
-        style={[styles.folderCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-        testID={`manage-folder-${folder.id}`}
+        style={[
+          styles.root,
+          {
+            backgroundColor: colors.background,
+            paddingTop: contentTop,
+            paddingBottom: contentBottom,
+          },
+        ]}
       >
-        <Pressable
-          onPress={() => toggleExpanded(folder.id)}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: open }}
-          style={[styles.folderHeader, unfiled ? styles.compactFolderHeader : null]}
-        >
-          <View style={[styles.folderIcon, { backgroundColor: colors.primary }]}>
-            <Ionicons name="folder" size={20} color={colors.primaryForeground} />
-          </View>
-          {unfiled ? (
-            <Text style={[styles.folderName, styles.compactFolderName, { color: colors.foreground }]}>
-              {t('openings.toClassify')}
-            </Text>
-          ) : (
-            <View style={styles.folderBody}>
-              <Text style={[styles.folderName, { color: colors.foreground }]}>{folder.name}</Text>
-              <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                {hasAssignedRepertoireSide(folder.side)
-                  ? sideLabel(folder.side)
-                  : `${t('openings.toClassify')} · ${t('openings.chooseWhiteOrBlack')}`}
-                {' · '}
-                {hasAssignedRepertoireSide(folder.side) && folderOn
-                  ? t('openings.folderActive')
-                  : t('openings.folderInactive')}
-                {' · '}
-                {t('openings.pgnFileCount', { count: files.length })}
-                {lines > 0 ? ` · ${t('openings.linesShort', { count: lines })}` : ''}
-              </Text>
-            </View>
-          )}
-          {unfiled ? (
-            <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-              {t('openings.pgnFileCount', { count: files.length })}
-            </Text>
-          ) : null}
-          <Ionicons
-            name={open ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color={colors.mutedForeground}
-          />
-        </Pressable>
-
-        {unfiled ? (
-          open ? (
-            <Text style={[styles.hint, { color: colors.mutedForeground }]} testID="openings-unfiled-hint">
-              {t('openings.unfiledHint')}
-            </Text>
-          ) : null
-        ) : !hasAssignedRepertoireSide(folder.side) ? (
-          <Text
-            style={[styles.hint, { color: colors.destructive }]}
-            testID={`manage-folder-classify-${folder.id}`}
-          >
-            {t('openings.unassignedSideHint')}
-          </Text>
-        ) : null}
-
-        {unfiled ? null : (
-          <View style={styles.folderTools}>
-            <RepertoireSidePicker
-              value={folder.side ?? null}
-              onChange={(side) => {
-                void setFolderSide(folder.id, side);
-              }}
-            />
-            <View style={styles.toolRow}>
-              <Text style={[styles.meta, { color: colors.foreground }]}>
-                {t('openings.toggleReview')}
-              </Text>
-              <Switch
-                value={folderOn}
-                onValueChange={(v) => {
-                  void setFolderEnabled(folder.id, v);
-                }}
-                testID={`toggle-folder-${folder.id}`}
-              />
-              <Pressable
-                onPress={() => {
-                  setRenameTarget(folder);
-                  setNameDraft(folder.name);
-                  setFormError(null);
-                }}
-                hitSlop={8}
-                testID={`rename-folder-${folder.id}`}
-              >
-                <Ionicons name="pencil-outline" size={18} color={colors.mutedForeground} />
-              </Pressable>
-              <Pressable
-                onPress={() =>
-                  confirmAction(
-                    t('openings.deleteFolderTitle'),
-                    t('openings.deleteFolderBody', { name: folder.name }),
-                    () => {
-                      void deleteFolder(folder.id);
-                    },
-                    { destructive: true, confirmLabel: t('profil.erase') },
-                  )
-                }
-                hitSlop={8}
-                testID={`delete-folder-${folder.id}`}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.destructive} />
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {open ? <View style={styles.pgnList}>{files.map((f) => renderPgn(f, folder))}</View> : null}
+        <ScreenHeader
+          onBack={() => router.back()}
+          title={t('openings.manageTitle')}
+          titleNumberOfLines={2}
+        />
+        <GuestLibraryLock />
       </View>
     );
-  };
+  }
 
   return (
     <View
@@ -702,13 +678,53 @@ export default function OpeningsManageScreen() {
           <Text style={{ color: colors.destructive }}>{error}</Text>
         </View>
       ) : (
+        <View style={styles.treePane}>
+        <View style={styles.selectRow}>
+          <Pressable
+            testID="select-studies-btn"
+            accessibilityRole="button"
+            onPress={() => {
+              setSelecting((value) => !value);
+              setSelectedFileIds(new Set());
+            }}
+            style={({ pressed }) => [
+              styles.selectBtn,
+              { borderColor: colors.border, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={[styles.compactActionLabel, { color: colors.foreground }]}>
+              {selecting ? t('openings.cancelSelection') : t('openings.selectStudies')}
+            </Text>
+          </Pressable>
+          {selecting && selectedFileIds.size > 0 ? (
+            <Pressable
+              testID="move-selection-btn"
+              accessibilityRole="button"
+              onPress={() => {
+                setMoveFile(null);
+                setMoveFolderTarget(null);
+                setCreatePgn(false);
+                setMoveFileIds([...selectedFileIds]);
+                setFolderPickOpen(true);
+              }}
+              style={({ pressed }) => [
+                styles.selectBtn,
+                { backgroundColor: colors.primary, borderColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+              ]}
+            >
+              <Text style={[styles.compactActionLabel, { color: colors.primaryForeground }]}>
+                {t('openings.moveSelection', { count: selectedFileIds.size })}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {whiteFolders.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
                 {t('openings.sectionWhite')}
               </Text>
-              {whiteFolders.map(renderFolder)}
+              <ManageOpeningTree roots={whiteFolders} {...treeProps} />
             </View>
           )}
           {blackFolders.length > 0 && (
@@ -716,12 +732,12 @@ export default function OpeningsManageScreen() {
               <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
                 {t('openings.sectionBlack')}
               </Text>
-              {blackFolders.map(renderFolder)}
+              <ManageOpeningTree roots={blackFolders} {...treeProps} />
             </View>
           )}
           {unfiledFolder ? (
             <View style={styles.section} testID="openings-unfiled-section">
-              {renderFolder(unfiledFolder)}
+              <ManageOpeningTree roots={[unfiledFolder]} {...treeProps} />
             </View>
           ) : null}
           {unassignedFolders.length > 0 && (
@@ -732,22 +748,23 @@ export default function OpeningsManageScreen() {
               <Text style={[styles.hint, { color: colors.mutedForeground }]}>
                 {t('openings.sectionUnassignedHint')}
               </Text>
-              {unassignedFolders.map(renderFolder)}
+              <ManageOpeningTree roots={unassignedFolders} {...treeProps} />
             </View>
           )}
         </ScrollView>
+        </View>
       )}
 
       <LibraryFolderFab
         label={t('openings.createFolderFab')}
         accessibilityLabel={t('openings.createFolderA11y')}
-        onPress={openCreate}
+        onPress={() => openCreate(null)}
         testID="create-folder-btn"
       />
 
       <NameModal
         visible={createOpen}
-        title={t('openings.newRepertoire')}
+        title={createParent ? t('openings.createSubfolder') : t('openings.newRepertoire')}
         placeholder={t('openings.namePlaceholder')}
         value={nameDraft}
         onChangeText={setNameDraft}
@@ -762,12 +779,14 @@ export default function OpeningsManageScreen() {
         error={formError}
         submitLabel={t('openings.create')}
       >
-        <View style={{ gap: 8, marginBottom: 8 }}>
-          <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
-            {t('openings.setSide')}
-          </Text>
-          <RepertoireSidePicker value={createSide} onChange={setCreateSide} />
-        </View>
+        {createParent && hasAssignedRepertoireSide(createParent.side) ? null : (
+          <View style={{ gap: 8, marginBottom: 8 }}>
+            <Text style={{ color: colors.foreground, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+              {t('openings.setSide')}
+            </Text>
+            <RepertoireSidePicker value={createSide} onChange={setCreateSide} />
+          </View>
+        )}
       </NameModal>
 
       <NameModal
@@ -838,9 +857,26 @@ export default function OpeningsManageScreen() {
         visible={folderPickOpen}
         folders={folders}
         busy={busy}
-        excludeFolderId={moveFile?.folderId}
+        title={moveFolderTarget || moveFile || moveFileIds ? t('openings.moveToTitle') : undefined}
+        excludeFolderId={moveFileIds ? null : moveFile?.folderId}
+        movingFolderId={moveFolderTarget?.id ?? null}
+        showRootTargets={moveFolderTarget != null}
+        onSelectRoot={(side) => {
+          if (!moveFolderTarget) return;
+          const synthetic = { ...moveFolderTarget, side };
+          confirmSideChange(moveFolderTarget, synthetic, () => {
+            void applyFolderMove(null, side);
+          });
+        }}
         onSelect={(folderId) => {
-          if (moveFile) onPickMoveFolder(folderId);
+          if (moveFolderTarget) {
+            const target = folders.find((folder) => folder.id === folderId) ?? null;
+            confirmSideChange(moveFolderTarget, target, () => {
+              void applyFolderMove(folderId);
+            });
+            return;
+          }
+          if (moveFile || moveFileIds) onPickMoveFolder(folderId);
           else if (createPgn) {
             setCreatePgnFolderId(folderId);
             setCreatePgn(false);
@@ -851,11 +887,13 @@ export default function OpeningsManageScreen() {
         }}
         onCreateFolder={() => {
           setFolderPickOpen(false);
-          openCreate();
+          openCreate(null);
         }}
         onCancel={() => {
-          if (moveFile) {
+          if (moveFile || moveFileIds || moveFolderTarget) {
             setMoveFile(null);
+            setMoveFileIds(null);
+            setMoveFolderTarget(null);
             setFolderPickOpen(false);
             return;
           }
@@ -915,6 +953,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: 'Inter_600SemiBold',
   },
+  treePane: { flex: 1, gap: 8 },
   list: { gap: 16, paddingBottom: 140 },
   section: { gap: 10 },
   sectionTitle: {
@@ -950,6 +989,17 @@ const styles = StyleSheet.create({
   pgnMain: { flex: 1, gap: 2 },
   pgnName: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
   pgnActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  selectRow: { flexDirection: 'row', gap: 8 },
+  selectBtn: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
   status: { fontSize: 12, fontFamily: 'Inter_400Regular' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   folderFab: {

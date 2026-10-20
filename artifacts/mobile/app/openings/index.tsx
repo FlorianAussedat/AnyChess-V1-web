@@ -17,6 +17,8 @@ import { HubIntro } from '@/components/HubScreen';
 import { HubModeCard } from '@/components/HubModeCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { OpeningEmptyState } from '@/components/openings/OpeningEmptyState';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import { DesignTokens } from '@/constants/designTokens';
 
 export default function OpeningsHub() {
@@ -25,6 +27,7 @@ export default function OpeningsHub() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { ready, folders, error } = useRepertoireLibrary();
+  const access = usePersonalPgnAccess();
 
   const empty = folders.length === 0;
 
@@ -42,10 +45,12 @@ export default function OpeningsHub() {
       <ScreenHeader onBack={() => router.back()} backTestID="openings-back" />
       <HubIntro title={t('openings.title')} subtitle={t('openings.hubLead')} />
 
-      {!ready ? (
+      {!access.ready || !ready ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : access.locked ? (
+        <GuestLibraryLock />
       ) : error ? (
         <View style={styles.centered}>
           <Text style={[styles.emptyTitle, { color: colors.destructive }]}>{error}</Text>
@@ -73,7 +78,7 @@ export default function OpeningsHub() {
         </ScrollView>
       )}
 
-      <Pressable
+      {access.signedIn ? <Pressable
         onPress={() => router.push('/openings/manage' as Href)}
         style={({ pressed }) => [
           styles.manageBtn,
@@ -90,7 +95,7 @@ export default function OpeningsHub() {
           {t('openings.managePgn')}
         </Text>
         <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
-      </Pressable>
+      </Pressable> : null}
     </View>
   );
 }

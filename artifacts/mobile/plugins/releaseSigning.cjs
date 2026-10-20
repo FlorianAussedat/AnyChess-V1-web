@@ -1,3 +1,23 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
+/**
+ * Fill unset ANYCHESS_RELEASE_* variables from the gitignored
+ * .signing/release.env file. Existing shell values stay in place.
+ * Passwords are never printed.
+ */
+function loadGitignoredSigningEnv(env = process.env, file = path.join(__dirname, '..', '.signing', 'release.env')) {
+  if (!fs.existsSync(file)) return env;
+  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    if (!match || env[match[1]]) continue;
+    env[match[1]] = match[2];
+  }
+  return env;
+}
+
 /**
  * Point the release build type at a dedicated keystore.
  * The Expo template signs release with the debug key unless this runs.
@@ -41,4 +61,4 @@ function injectReleaseSigning(contents, signing) {
   return next;
 }
 
-module.exports = { injectReleaseSigning };
+module.exports = { injectReleaseSigning, loadGitignoredSigningEnv };

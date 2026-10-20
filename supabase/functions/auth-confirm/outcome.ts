@@ -124,11 +124,11 @@ export function languageFromAccept(header: string | null | undefined): ConfirmLa
  * The only success path is a signup token whose user has `email_confirmed_at`.
  *
  * App links open the Utilisateur screen of the installed variant:
- * `client=dev` opens AnyChess Dev (`exp+mobile://utilisateur`, package
- * `com.anychess.app`); every other value opens standalone AnyChess
- * (`anychess://utilisateur`, package `com.anychess.standalone`). The Android
- * package disambiguates when both are installed. A scheme or URL supplied
- * in the query is ignored. Tokens are never copied into the app link.
+ * `client=dev` opens AnyChess Dev (`exp+anychessdev://utilisateur`, package
+ * `com.anychess.dev`); `client=app` opens AnyChess Stable (`mobile://utilisateur`,
+ * package `com.anychess.app`); every other value opens the historical standalone
+ * app (`anychess://utilisateur`, package `com.anychess.standalone`). A scheme or
+ * URL supplied in the query is ignored. Tokens are never copied into the app link.
  */
 export const INTERPRET_SOURCE = `
 function interpretConfirmationLocation(search, hash) {
@@ -174,15 +174,20 @@ function pageLanguage(search, navigatorLanguage) {
 function pageClient(search) {
   var query = new URLSearchParams(search.charAt(0) === '?' ? search.slice(1) : search);
   var value = (query.get('client') || '').toLowerCase();
-  if (value === 'dev') return 'dev';
-  return 'app';
+  if (value === 'dev' || value === 'app' || value === 'standalone') return value;
+  return 'standalone';
 }
 function appOpenHref(client, userAgent) {
   var android = /Android/i.test(userAgent || '');
   if (client === 'dev') {
     return android
-      ? 'intent://utilisateur#Intent;scheme=exp+mobile;package=com.anychess.app;end'
-      : 'exp+mobile://utilisateur';
+      ? 'intent://utilisateur#Intent;scheme=exp+anychessdev;package=com.anychess.dev;end'
+      : 'exp+anychessdev://utilisateur';
+  }
+  if (client === 'app') {
+    return android
+      ? 'intent://utilisateur#Intent;scheme=mobile;package=com.anychess.app;end'
+      : 'mobile://utilisateur';
   }
   return android
     ? 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end'

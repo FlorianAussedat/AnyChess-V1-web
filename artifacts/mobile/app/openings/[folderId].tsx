@@ -11,10 +11,12 @@ import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRepertoireLibrary } from '@/hooks/useRepertoireLibrary';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import { useOpeningMastery } from '@/hooks/useOpeningMastery';
 import { useLearningPgnList } from '@/hooks/useLearningPgnList';
-import { learningFilesInFolder } from '@/lib/repertoire';
+import { isUnfiledOpeningFolder, learningFilesInFolder } from '@/lib/repertoire';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { LearningMasteryFilters, emptyFilterCopy } from '@/components/openings/LearningMasteryFilters';
 import { LearningPgnCard } from '@/components/openings/LearningPgnCard';
 import { DesignTokens } from '@/constants/designTokens';
@@ -25,13 +27,14 @@ export default function LearnFolderScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
   const { folderId } = useLocalSearchParams<{ folderId: string }>();
-  const { ready, getFolder, getFiles, folders, setFilePriority } = useRepertoireLibrary();
+  const { ready, getFolder, getSubtreeFiles, folders, setFilePriority } = useRepertoireLibrary();
+  const access = usePersonalPgnAccess();
   const mastery = useOpeningMastery();
 
   const folder = folderId ? getFolder(folderId) : null;
   const files = useMemo(
-    () => (folderId ? learningFilesInFolder(getFiles(folderId), folderId) : []),
-    [folderId, getFiles],
+    () => (folderId ? learningFilesInFolder(getSubtreeFiles(folderId), folderId, folders) : []),
+    [folderId, folders, getSubtreeFiles],
   );
   const { filter, setFilter, visible, counts } = useLearningPgnList(
     folders,
@@ -61,13 +64,22 @@ export default function LearnFolderScreen() {
         style={[styles.folderName, { color: colors.foreground }]}
         testID="learn-folder-title"
       >
-        {folder?.name ?? t('openings.folderMissing')}
+        {folder
+          ? isUnfiledOpeningFolder(folder)
+            ? t('openings.toClassify')
+            : folder.name
+          : t('openings.folderMissing')}
+      </Text>
+      <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+        {t('openings.learnSubtreeHint')}
       </Text>
 
-      {!ready ? (
+      {!access.ready || !ready ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : access.locked ? (
+        <GuestLibraryLock />
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           <LearningMasteryFilters value={filter} counts={counts} onChange={setFilter} />
@@ -107,6 +119,11 @@ const styles = StyleSheet.create({
     fontFamily: DesignTokens.typography.weightBold,
   },
   list: { gap: 10, paddingBottom: 20 },
+  hint: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: DesignTokens.typography.weightRegular,
+  },
   empty: {
     fontSize: 14,
     fontFamily: DesignTokens.typography.weightRegular,

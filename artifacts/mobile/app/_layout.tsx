@@ -24,7 +24,13 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { holdNativeSplash } from '@/lib/brand/holdNativeSplash';
 import { preferencesStore } from '@/lib/preferences';
-import { bindCloudLifecycle, hydrateCloudSession } from '@/lib/cloud';
+import { bindCloudLifecycle, getActiveCloudEngine, hydrateCloudSession } from '@/lib/cloud';
+import {
+  installPersonalPgnGuard,
+  personalPgnWritesBlocked,
+  PersonalPgnAccessError,
+} from '@/lib/repertoire/personalPgnAccess';
+import { tMsg } from '@/lib/i18n';
 import { runStorageMigrations } from '@/lib/storage';
 import { loadActivitySessions } from '@/lib/activitySessions';
 import {
@@ -91,6 +97,15 @@ export default function RootLayout() {
   );
   const appReady = Boolean(fontsLoaded || fontError) && prefsHydrated;
   const [introDone, setIntroDone] = useState(false);
+
+  useEffect(() => {
+    installPersonalPgnGuard(() => {
+      const state = getActiveCloudEngine().getState();
+      if (!personalPgnWritesBlocked(state)) return;
+      throw new PersonalPgnAccessError(tMsg('openings.accountRequiredTitle'));
+    });
+    return () => installPersonalPgnGuard(null);
+  }, []);
 
   useEffect(() => {
     runStorageMigrations().catch(() => {});

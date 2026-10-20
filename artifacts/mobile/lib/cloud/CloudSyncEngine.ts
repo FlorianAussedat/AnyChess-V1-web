@@ -1,4 +1,6 @@
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
+import { StorageKeys } from '../storage/StorageKeys.ts';
+import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
 import {
   activeDocsMatchAccount,
   docsAreEmpty,
@@ -14,6 +16,15 @@ import { markConfirmationEmailSent, confirmationResendWaitSeconds } from './conf
 import { applyDevicePreferences, captureDevicePreferences } from './devicePreferences.ts';
 import { mergeDocumentPayload } from './mergeDocuments.ts';
 import { clearDeletionPending, purgeAccountOwnedKeys } from './purgeAccountLocal.ts';
+import {
+  GUEST_PGN_VAULT_KEY,
+  guestVaultHasStudies,
+  presentEmptyGuestLibrary,
+  preserveGuestRepertoire,
+  repertoireFileIds,
+  repertoirePayloadCovers,
+  writePgnPresenceAudit,
+} from './guestPgnVault.ts';
 import {
   CLOUD_ACTIVE_USER_KEY,
   CLOUD_LAST_BACKUP_KEY,
@@ -236,6 +247,17 @@ export class CloudSyncEngine {
   async parkWorkspace(ownerId: string): Promise<void> {
     await this.withSilentWrites(async () => {
       const docs = await readDocs(this.storage);
+      if (ownerId === GUEST_OWNER_ID) {
+        const matchesAccount = await activeDocsMatchAccount(this.storage);
+        const preserved = await preserveGuestRepertoire(
+          this.storage,
+          matchesAccount ? null : (docs[StorageKeys.repertoires.key] ?? null),
+        );
+        if (preserved) docs[StorageKeys.repertoires.key] = preserved;
+        else if (matchesAccount) {
+          docs[StorageKeys.repertoires.key] = await this.storage.getItem(GUEST_PGN_VAULT_KEY);
+        }
+      }
       await this.storage.setItem(
         cloudWorkspaceKey(ownerId),
         JSON.stringify(workspaceEnvelope(ownerId, docs)),
@@ -258,6 +280,7 @@ export class CloudSyncEngine {
 
   /** Guest files exist only when they were saved as guest, never as a copy of an account. */
   async guestDataAvailable(): Promise<boolean> {
+    if (await guestVaultHasStudies(this.storage)) return true;
     const parsed = parseWorkspace(
       await this.storage.getItem(cloudWorkspaceKey(GUEST_OWNER_ID)),
       GUEST_OWNER_ID,
@@ -269,7 +292,10 @@ export class CloudSyncEngine {
    * Copy the guest space into the signed-in account. Does not run on sign-in.
    * The guest copy stays on the device.
    */
-  async importGuestData(): Promise<{ ok: true } | { ok: false; error: 'signed_out' | 'no_guest' }> {
+  async importGuestData(): Promise<
+    | { ok: true; remoteVerified: true }
+    | { ok: false; error: 'signed_out' | 'no_guest' | 'remote_unverified' }
+  > {
     const user = this.state.user;
     if (!user) return { ok: false, error: 'signed_out' };
     if (!(await this.guestDataAvailable())) return { ok: false, error: 'no_guest' };
@@ -277,20 +303,107 @@ export class CloudSyncEngine {
       await this.storage.getItem(cloudWorkspaceKey(GUEST_OWNER_ID)),
       GUEST_OWNER_ID,
     );
-    if (!guest) return { ok: false, error: 'no_guest' };
+    const vault = await this.storage.getItem(GUEST_PGN_VAULT_KEY);
+    const guestDocs: Record<string, string | null> = { ...(guest?.docs ?? {}) };
+    if (vault) {
+      guestDocs[StorageKeys.repertoires.key] = mergeDocumentPayload(
+        StorageKeys.repertoires.key,
+        guestDocs[StorageKeys.repertoires.key] ?? null,
+        vault,
+      );
+    }
+    if (!guest && !vault) return { ok: false, error: 'no_guest' };
+    const vaultIds = repertoireFileIds(guestDocs[StorageKeys.repertoires.key]);
+    const auditBase = {
+      at: new Date().toISOString(),
+      userId: user.id,
+      vaultFileIds: vaultIds,
+    };
+    let remoteDocs;
+    try {
+      remoteDocs = await this.remote.listDocuments(user.id);
+    } catch {
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        remoteReachable: false,
+        remoteVerified: false,
+        remoteFileIds: [],
+        note: 'Supabase unreachable. Guest studies were left untouched.',
+      });
+      return { ok: false, error: 'remote_unverified' };
+    }
+    const remoteMap = new Map(remoteDocs.map((doc) => [doc.docKey, doc]));
+    await writePgnPresenceAudit(this.storage, {
+      ...auditBase,
+      remoteReachable: true,
+      remoteVerified: false,
+      remoteFileIds: repertoireFileIds(remoteMap.get(StorageKeys.repertoires.key)?.payload),
+      note: 'Remote repertoire listed before any guest copy.',
+    });
     const local = await readDocs(this.storage);
     const merged: Record<string, string | null> = {};
     for (const key of SYNCABLE_STORAGE_KEYS) {
-      merged[key] = mergeDocumentPayload(key, local[key] ?? null, guest.docs[key] ?? null);
+      merged[key] = mergeDocumentPayload(key, local[key] ?? null, guestDocs[key] ?? null);
+    }
+    if (
+      !repertoirePayloadCovers(merged[StorageKeys.repertoires.key], vaultIds)
+    ) {
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        at: new Date().toISOString(),
+        remoteReachable: true,
+        remoteVerified: false,
+        remoteFileIds: repertoireFileIds(remoteMap.get(StorageKeys.repertoires.key)?.payload),
+        note: 'Staged merge would drop a guest study. Nothing was written.',
+      });
+      return { ok: false, error: 'remote_unverified' };
+    }
+    try {
+      for (const key of SYNCABLE_STORAGE_KEYS) {
+        const next = merged[key];
+        if (next == null) continue;
+        await this.remote.upsertDocument(user.id, {
+          docKey: key,
+          payload: next,
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          revision: (remoteMap.get(key)?.revision ?? 0) + 1,
+        });
+      }
+      const after = await this.remote.listDocuments(user.id);
+      const remotePayload =
+        after.find((doc) => doc.docKey === StorageKeys.repertoires.key)?.payload ?? null;
+      const verified = repertoirePayloadCovers(remotePayload, vaultIds);
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        at: new Date().toISOString(),
+        remoteReachable: true,
+        remoteVerified: verified,
+        remoteFileIds: repertoireFileIds(remotePayload),
+        note: verified
+          ? 'Guest studies are present in Supabase. The device vault was kept.'
+          : 'Supabase did not return every guest study. Local account cache was not replaced.',
+      });
+      if (!verified) return { ok: false, error: 'remote_unverified' };
+    } catch {
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        at: new Date().toISOString(),
+        remoteReachable: false,
+        remoteVerified: false,
+        remoteFileIds: [],
+        note: 'Upload failed. Guest studies were left on the device.',
+      });
+      return { ok: false, error: 'remote_unverified' };
     }
     await this.withSilentWrites(async () => {
       await writeDocs(this.storage, merged);
       await this.mirrorPreferences();
       await this.mirrorProfile();
     });
+    await this.discardRepertoireCache();
     await this.parkWorkspace(user.id);
-    await this.sync();
-    return { ok: true };
+    return { ok: true, remoteVerified: true };
   }
 
   private async activeOwnerId(): Promise<string> {
@@ -312,9 +425,20 @@ export class CloudSyncEngine {
   }
 
   private async showOwner(ownerId: string): Promise<boolean> {
+      if (ownerId === GUEST_OWNER_ID) {
+        const current = this.state.user?.id ?? (await this.activeOwnerId());
+        if (current && current !== GUEST_OWNER_ID) await this.parkWorkspace(current);
+        else if (!(await activeDocsMatchAccount(this.storage))) {
+          const live = await this.storage.getItem(StorageKeys.repertoires.key);
+          await preserveGuestRepertoire(this.storage, live);
+        }
+      }
     const had = await this.restoreWorkspace(ownerId);
     await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, ownerId);
-    if (ownerId === GUEST_OWNER_ID) await quarantineLegacyGuest(this.storage);
+    if (ownerId === GUEST_OWNER_ID) {
+      await quarantineLegacyGuest(this.storage);
+      await presentEmptyGuestLibrary(this.storage);
+    }
     await applyDevicePreferences(this.storage);
     await this.withSilentWrites(async () => {
       await this.mirrorPreferences();
@@ -330,6 +454,17 @@ export class CloudSyncEngine {
       if (pgnTranslationQueue.matchesStorage(this.storage)) pgnTranslationQueue.invalidateSession();
     } catch {
       // Translation work is also stored in the account workspace.
+    }
+    await this.discardRepertoireCache();
+  }
+
+  private async discardRepertoireCache(): Promise<void> {
+    if (this.storage !== defaultKeyValueStorage) return;
+    try {
+      const { repertoireService } = await import('../repertoire/index.ts');
+      repertoireService.discardCachedSnapshot();
+    } catch {
+      // The next screen load reads storage again.
     }
   }
 
@@ -375,6 +510,14 @@ export class CloudSyncEngine {
         if (!user) {
           this.setState({ status: 'signed_out', user: null, lastBackupKey: backup });
           await quarantineLegacyGuest(this.storage);
+          const owner = await this.activeOwnerId();
+          if (owner !== GUEST_OWNER_ID) {
+            await this.parkWorkspace(owner);
+            await this.showOwner(GUEST_OWNER_ID);
+          } else {
+            await presentEmptyGuestLibrary(this.storage);
+            await this.discardRepertoireCache();
+          }
         } else {
           const active = await this.activeOwnerId();
           if (active !== user.id && active !== GUEST_OWNER_ID) {
@@ -434,10 +577,14 @@ export class CloudSyncEngine {
 
   async signOut(): Promise<{ ok: true } | { ok: false; error: 'unexpected' }> {
     const epoch = this.bumpSession();
+    const accountId = this.state.user?.id ?? null;
     try {
-      await this.parkCurrentOwner();
+      if (accountId) await this.parkWorkspace(accountId);
+      else await this.parkCurrentOwner();
     } catch {
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
+      // Parking failed: keep the account session. Clearing the user first would
+      // show guest mode while the account studies are still in the live store.
       this.setState({ lastError: 'sign_out_failed', sessionReady: true });
       return { ok: false, error: 'unexpected' };
     }
@@ -448,6 +595,9 @@ export class CloudSyncEngine {
       pendingConfirmationReason: null,
       sessionReady: true,
     };
+    // The account copy is parked. Hide it before the auth round-trip finishes.
+    this.setState({ ...signedOut, lastError: null });
+    await this.discardRepertoireCache();
     try {
       await this.endAuthSession();
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
