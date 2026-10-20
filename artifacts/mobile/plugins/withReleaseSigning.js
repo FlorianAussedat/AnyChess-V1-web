@@ -4,11 +4,12 @@ const { withAppBuildGradle, createRunOncePlugin } = require('expo/config-plugins
 const { injectReleaseSigning, loadGitignoredSigningEnv } = require('./releaseSigning.cjs');
 
 /**
- * Standalone release APK only. The development client keeps the Expo debug key
- * so it can update com.anychess.app.
+ * Stable and the historical standalone package. AnyChess Dev keeps the debug
+ * key on com.anychess.dev and does not use the release keystore.
  *
- * The release keystore must present the public certificate recorded in
- * signing/standalone-release-cert.json. Any other certificate stops the build.
+ * Stable must present signing/stable-release-cert.json. The historical
+ * standalone package must present signing/standalone-release-cert.json.
+ * The public Expo debug certificate is refused for both.
  */
 function assertOriginalReleaseCertificate() {
   const script = path.join(__dirname, '..', 'scripts', 'verify-release-keystore.mjs');
@@ -24,7 +25,9 @@ function assertOriginalReleaseCertificate() {
 }
 
 function withReleaseSigning(config) {
-  if (process.env.ANYCHESS_VARIANT !== 'standalone') return config;
+  if (process.env.ANYCHESS_VARIANT !== 'standalone' && process.env.ANYCHESS_VARIANT !== 'stable') {
+    return config;
+  }
   loadGitignoredSigningEnv();
   assertOriginalReleaseCertificate();
   const signing = {

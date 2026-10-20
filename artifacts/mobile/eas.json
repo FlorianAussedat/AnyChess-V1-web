@@ -19,13 +19,13 @@
         "withoutCredentials": true
       }
     },
-    "device": {
+    "stable": {
       "developmentClient": false,
       "distribution": "internal",
-      "channel": "device",
+      "channel": "stable",
       "env": {
-        "ANYCHESS_VARIANT": "device",
-        "EXPO_PUBLIC_APP_CLIENT": "dev",
+        "ANYCHESS_VARIANT": "stable",
+        "EXPO_PUBLIC_APP_CLIENT": "app",
         "EXPO_PUBLIC_AUTH_CONFIRM_URL": "https://sparkly-paprenjak-65f499.netlify.app/auth/confirm"
       },
       "android": {

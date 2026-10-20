@@ -189,8 +189,9 @@ describe('confirmation page', () => {
     assert.ok(recoverBranch > 0 && verifyBranch > recoverBranch);
     assert.equal(pageClient('?client=dev'), 'dev');
     assert.equal(pageClient('?client=app'), 'app');
-    assert.equal(pageClient('?client=https://evil.example'), 'app');
-    assert.equal(pageClient('?scheme=exp%2Bmobile&url=https://evil.example'), 'app');
+    assert.equal(pageClient('?client=standalone'), 'standalone');
+    assert.equal(pageClient('?client=https://evil.example'), 'standalone');
+    assert.equal(pageClient('?scheme=exp%2Bmobile&url=https://evil.example'), 'standalone');
     assert.equal(pageLanguage('?lang=en', 'fr-FR'), 'en');
     assert.equal(pageLanguage('?lang=de', 'en-US'), 'en');
     assert.equal(pageLanguage('', 'fr-FR'), 'fr');
@@ -201,13 +202,15 @@ describe('confirmation page', () => {
     assert.match(app, /"slug": "mobile"/);
     const androidApp = appOpenHref('app', 'Mozilla/5.0 (Linux; Android 14)');
     const androidDev = appOpenHref('dev', 'Mozilla/5.0 (Linux; Android 14)');
-    assert.equal(androidApp, 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end');
-    assert.equal(androidDev, 'intent://utilisateur#Intent;scheme=exp+mobile;package=com.anychess.app;end');
-    assert.equal(appOpenHref('app', 'iPhone'), 'anychess://utilisateur');
-    assert.equal(appOpenHref('dev', 'iPhone'), 'exp+mobile://utilisateur');
-    assert.doesNotMatch(androidApp, /com\.anychess\.app/);
-    assert.match(androidDev, /package=com\.anychess\.app/);
-    assert.equal(appOpenHref('javascript:alert(1)', 'Android'), androidApp);
+    const androidStandalone = appOpenHref('standalone', 'Mozilla/5.0 (Linux; Android 14)');
+    assert.equal(androidApp, 'intent://utilisateur#Intent;scheme=mobile;package=com.anychess.app;end');
+    assert.equal(androidDev, 'intent://utilisateur#Intent;scheme=exp+anychessdev;package=com.anychess.dev;end');
+    assert.equal(androidStandalone, 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end');
+    assert.equal(appOpenHref('app', 'iPhone'), 'mobile://utilisateur');
+    assert.equal(appOpenHref('dev', 'iPhone'), 'exp+anychessdev://utilisateur');
+    assert.match(androidApp, /package=com\.anychess\.app/);
+    assert.match(androidDev, /package=com\.anychess\.dev/);
+    assert.equal(appOpenHref('javascript:alert(1)', 'Android'), androidStandalone);
     for (const href of [androidApp, androidDev, appOpenHref('app', ''), appOpenHref('dev', '')]) {
       assert.doesNotMatch(href, /access_token|refresh_token|http:|https:/);
     }

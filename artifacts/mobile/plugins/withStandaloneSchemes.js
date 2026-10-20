@@ -2,11 +2,13 @@ const { withAndroidManifest, createRunOncePlugin } = require('expo/config-plugin
 const { stripDevClientSchemes } = require('./standaloneSchemes.cjs');
 
 /**
- * Standalone only. The development client keeps exp+mobile so Metro links
- * still open AnyChess Dev.
+ * Stable and the historical standalone package must not claim the Dev Client
+ * scheme. AnyChess Dev keeps exp+anychessdev for Metro.
  */
 function withStandaloneSchemes(config) {
-  if (process.env.ANYCHESS_VARIANT !== 'standalone') return config;
+  if (process.env.ANYCHESS_VARIANT !== 'standalone' && process.env.ANYCHESS_VARIANT !== 'stable') {
+    return config;
+  }
   return withAndroidManifest(config, (cfg) => {
     stripDevClientSchemes(cfg.modResults.manifest);
     return cfg;

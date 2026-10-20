@@ -1,4 +1,6 @@
-# Signature de l’application autonome
+# Signature Android
+
+AnyChess Stable (`com.anychess.app`) est signé avec une clé release privée, décrite dans `docs/android-stable-dev.md`. Le certificat debug public ne signe plus cette application. `com.anychess.standalone` n’est pas reconstruit.
 
 L’application déjà installée sous `com.anychess.standalone` (APK `AnyChess-standalone-release.apk`, version affichée 0.0.6, `versionCode` 1) ne peut être mise à jour que par un APK du même paquet, signé avec le même certificat, et portant un `versionCode` supérieur à 1. Le code source prévoit déjà `versionCode` 2 pour cette variante.
 
@@ -24,30 +26,20 @@ apksigner verify --print-certs /tmp/installed.apk
 
 On compare uniquement le SHA-256.
 
-## Le keystore d’origine n’est pas dans cet environnement
+## Deux clés distinctes
 
-La recherche locale n’a trouvé que les keystores de debug du modèle Expo (`android/app/debug.keystore`). Leur SHA-256 est `FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C`. Ce certificat signe `com.anychess.app`. Il ne met pas à jour `com.anychess.standalone`.
+Le certificat debug Expo, SHA-256 `FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C`, signe uniquement AnyChess Dev (`com.anychess.dev`). Il est refusé pour Stable.
 
-Aucun fichier `.jks` de release n’est dans le dépôt, dans l’historique git, ni sur la machine de build. Les secrets GitHub Actions de ce dépôt ne sont pas lisibles depuis ici (HTTP 403). La clé privée ne se reconstruit pas à partir de l’APK ni du certificat public.
+Stable utilise la clé privée créée par `scripts/create-stable-release-keystore.mjs`. Son empreinte publique est `signing/stable-release-cert.json`. Le keystore historique de `com.anychess.standalone` reste introuvable et n’est pas remplacé par cette clé.
 
-Aucun APK autonome V0.0.7 n’est donc produit. Le fichier déjà publié `AnyChess-V0.0.7.apk` reste une mise à jour de `com.anychess.app` seulement.
-
-## Fournir le keystore d’origine
-
-Le fichier `.jks` reste hors du dépôt git. Les mots de passe restent hors du dépôt. Deux endroits acceptés :
-
-- les variables `ANYCHESS_RELEASE_STORE_FILE`, `ANYCHESS_RELEASE_STORE_PASSWORD`, `ANYCHESS_RELEASE_KEY_ALIAS`, `ANYCHESS_RELEASE_KEY_PASSWORD` ;
-- ou le fichier gitignoré `artifacts/mobile/.signing/release.env` (mode `0600`), dont le modèle est `signing/release.env.example`.
-
-Vérification, avant tout build autonome :
+Vérification :
 
 ```bash
-node scripts/verify-release-keystore.mjs
+ANYCHESS_VARIANT=stable node scripts/verify-release-keystore.mjs
+ANYCHESS_VARIANT=standalone node scripts/verify-release-keystore.mjs
 ```
 
-La commande affiche l’empreinte attendue et le résultat. Elle n’affiche pas les mots de passe. Le plugin `plugins/withReleaseSigning.js` exécute cette vérification dès que `ANYCHESS_VARIANT=standalone`. Un certificat différent arrête la compilation. Un keystore neuf est refusé : le test `verifyReleaseKeystore` en génère un temporaire et constate l’écart.
-
-Le keystore de debug et le paquet `com.anychess.app` ne passent pas par cette vérification. Leur mise à jour continue avec la clé debug déjà installée.
+La commande affiche l’empreinte attendue. Elle n’affiche pas les mots de passe. Le plugin `plugins/withReleaseSigning.js` l’exécute pour `stable` et pour `standalone`.
 
 ## Copie durable
 

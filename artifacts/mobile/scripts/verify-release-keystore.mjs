@@ -10,8 +10,19 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const MOBILE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CERT_PATH = path.join(MOBILE_ROOT, 'signing', 'standalone-release-cert.json');
+const STANDALONE_CERT_PATH = path.join(MOBILE_ROOT, 'signing', 'standalone-release-cert.json');
+const STABLE_CERT_PATH = path.join(MOBILE_ROOT, 'signing', 'stable-release-cert.json');
 const SIGNING_ENV_PATH = path.join(MOBILE_ROOT, '.signing', 'release.env');
+
+/** Public Expo / React Native debug certificate. It must never sign Stable. */
+export const DEBUG_CERT_SHA256 =
+  'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C';
+
+export function certificatePathForVariant(variant = process.env.ANYCHESS_VARIANT) {
+  if (variant === 'standalone') return STANDALONE_CERT_PATH;
+  if (variant === 'stable') return STABLE_CERT_PATH;
+  throw new Error('Release certificate check requires ANYCHESS_VARIANT=stable or standalone');
+}
 
 export function normalizeSha256(value) {
   return String(value ?? '')
@@ -30,13 +41,18 @@ export function sha256FromKeytoolOutput(text) {
   return match ? match[1].toUpperCase() : null;
 }
 
-export function loadExpectedCertificate(text = fs.readFileSync(CERT_PATH, 'utf8')) {
-  const cert = JSON.parse(text);
-  if (!fingerprintsMatch(cert.certSha256, cert.certSha256) || normalizeSha256(cert.certSha256).length !== 64) {
-    throw new Error('standalone-release-cert.json has no usable certSha256');
+export function loadExpectedCertificate(text, variant = process.env.ANYCHESS_VARIANT || 'stable') {
+  const raw = text ?? fs.readFileSync(certificatePathForVariant(variant), 'utf8');
+  const cert = JSON.parse(raw);
+  if (normalizeSha256(cert.certSha256).length !== 64) {
+    throw new Error('release certificate file has no usable certSha256');
   }
-  if (cert.package !== 'com.anychess.standalone') {
-    throw new Error('standalone-release-cert.json package is not com.anychess.standalone');
+  if (fingerprintsMatch(cert.certSha256, DEBUG_CERT_SHA256)) {
+    throw new Error('release certificate file records the public debug certificate');
+  }
+  const expectedPackage = variant === 'standalone' ? 'com.anychess.standalone' : 'com.anychess.app';
+  if (cert.package !== expectedPackage) {
+    throw new Error(`release certificate package is not ${expectedPackage}`);
   }
   return cert;
 }
@@ -131,6 +147,15 @@ export function verifyReleaseKeystore({
       message: '[anychess] keytool listed the keystore but printed no SHA-256 certificate fingerprint.',
     };
   }
+  if (fingerprintsMatch(actual, DEBUG_CERT_SHA256)) {
+    return {
+      ok: false,
+      code: 'debug-refused',
+      message:
+        `[anychess] the keystore is the public debug certificate ${DEBUG_CERT_SHA256}. ` +
+        'Stable and standalone release builds refuse it.',
+    };
+  }
   if (!fingerprintsMatch(actual, expectedSha)) {
     return {
       ok: false,
@@ -145,7 +170,9 @@ export function verifyReleaseKeystore({
 
 function main() {
   loadGitignoredSigningEnv(process.env);
-  const result = verifyReleaseKeystore();
+  const result = verifyReleaseKeystore({
+    expected: loadExpectedCertificate(undefined, process.env.ANYCHESS_VARIANT || 'stable'),
+  });
   if (!result.ok) {
     console.error(result.message);
     process.exitCode = 1;

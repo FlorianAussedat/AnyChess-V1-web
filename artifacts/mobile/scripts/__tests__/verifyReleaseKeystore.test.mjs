@@ -4,7 +4,9 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { keystoreAction } from '../create-stable-release-keystore.mjs';
 import {
+  DEBUG_CERT_SHA256,
   applySigningEnv,
   fingerprintsMatch,
   loadExpectedCertificate,
@@ -12,7 +14,15 @@ import {
   verifyReleaseKeystore,
 } from '../verify-release-keystore.mjs';
 
-const expected = loadExpectedCertificate();
+const expected = loadExpectedCertificate(undefined, 'standalone');
+
+test('keystore setup keeps an existing release key', () => {
+  assert.equal(keystoreAction({ storeExists: false, certExists: false, sameFingerprint: false }), 'create');
+  assert.equal(keystoreAction({ storeExists: true, certExists: true, sameFingerprint: true }), 'keep');
+  assert.equal(keystoreAction({ storeExists: true, certExists: true, sameFingerprint: false }), 'refuse');
+  assert.equal(keystoreAction({ storeExists: false, certExists: true, sameFingerprint: false }), 'refuse-missing-store');
+  assert.equal(keystoreAction({ storeExists: true, certExists: false, sameFingerprint: false }), 'adopt');
+});
 
 test('expected standalone certificate is the V0.0.6 public fingerprint', () => {
   assert.equal(expected.package, 'com.anychess.standalone');
@@ -61,6 +71,22 @@ test('verify refuses a missing keystore and a different certificate', () => {
   assert.equal(mismatch.ok, false);
   assert.equal(mismatch.code, 'mismatch');
   assert.equal(mismatch.message.includes('secret-value'), false);
+});
+
+test('verify refuses the public debug certificate for a release build', () => {
+  const result = verifyReleaseKeystore({
+    env: {
+      ANYCHESS_RELEASE_STORE_FILE: '/tmp/debug.keystore',
+      ANYCHESS_RELEASE_STORE_PASSWORD: 'secret-value',
+      ANYCHESS_RELEASE_KEY_ALIAS: 'androiddebugkey',
+    },
+    expected,
+    exists: () => true,
+    listCert: () => `SHA256: ${DEBUG_CERT_SHA256}`,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'debug-refused');
+  assert.equal(result.message.includes('secret-value'), false);
 });
 
 test('verify accepts only the recorded certificate', () => {
