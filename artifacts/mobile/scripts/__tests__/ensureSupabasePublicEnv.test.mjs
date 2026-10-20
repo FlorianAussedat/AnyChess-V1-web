@@ -8,7 +8,9 @@ import {
   jwtRole,
   pickPublicKey,
   publicPairFromEnvText,
+  recoveredPublicPair,
   redact,
+  selectPublicSupabaseSource,
   upsertPublicEnv,
 } from '../ensure-supabase-public-env.mjs';
 
@@ -69,6 +71,33 @@ test('upsertPublicEnv preserves unrelated secrets and replaces a forbidden anon 
   assert.match(next, /^OTHER=1$/m);
   assert.equal(publicPairFromEnvText(next)?.anon, ANON_JWT);
   assert.equal(publicPairFromEnvText(before), null);
+});
+
+test('recovered public anon key is the V0.0.6 client key for this project', () => {
+  const recovered = recoveredPublicPair();
+  assert.equal(recovered?.url, PUBLIC_URL);
+  assert.equal(jwtRole(recovered?.anon), 'anon');
+  assert.equal(isForbiddenPublicKey(ANON_KEY, recovered?.anon), false);
+  assert.equal(recoveredPublicPair(SERVICE_JWT), null);
+  const expired = [
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+    Buffer.from(JSON.stringify({ role: 'anon', ref: 'zqfxnzwtptepulmgpxhb', exp: 1 })).toString('base64url'),
+    'signature',
+  ].join('.');
+  assert.equal(recoveredPublicPair(expired), null);
+});
+
+test('selectPublicSupabaseSource prefers a local pair and otherwise uses the recovered key', () => {
+  const recovered = recoveredPublicPair();
+  const local = { url: PUBLIC_URL, anon: ANON_JWT };
+  assert.equal(selectPublicSupabaseSource({ fromFile: local, recovered })?.source, 'file');
+  assert.equal(selectPublicSupabaseSource({ fromShell: local, recovered })?.source, 'shell');
+  assert.equal(
+    selectPublicSupabaseSource({ fromApi: { url: PUBLIC_URL, anon: ANON_JWT }, recovered })?.source,
+    'api',
+  );
+  assert.equal(selectPublicSupabaseSource({ recovered })?.source, 'v0.0.6-apk');
+  assert.equal(selectPublicSupabaseSource({ recovered: null }), null);
 });
 
 test('redact hides jwt and publishable material', () => {

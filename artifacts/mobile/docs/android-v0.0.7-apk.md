@@ -6,7 +6,7 @@ Build de test pour Pixel 8 Pro (arm64). Ce n’est pas une release définitive e
 
 `AnyChess-V0.0.7.apk` met à jour `com.anychess.app` (AnyChess Dev). Il ne remplace pas `com.anychess.standalone`.
 
-Le keystore de release de l’application autonome n’est pas dans le dépôt, ni dans cet environnement. Aucun APK `com.anychess.standalone` ne doit être produit avec une autre signature : Android refuserait la mise à jour, et une désinstallation effacerait les études. Le `versionCode` autonome prévu dans le code est 2 (il a d’abord été 1). Une mise à jour compatible devra être signée avec le keystore d’origine et porter un `versionCode` strictement supérieur à celui installé.
+Le keystore de release de l’application autonome n’est pas dans le dépôt, ni dans cet environnement. Le certificat public de l’APK autonome V0.0.6 (`versionCode` 1) est enregistré dans `signing/standalone-release-cert.json`. Le détail, la vérification et la marche à suivre sont dans `docs/android-signing.md`. Aucun APK `com.anychess.standalone` n’est produit tant que le `.jks` d’origine n’est pas fourni et reconnu par `node scripts/verify-release-keystore.mjs`. Le `versionCode` autonome prévu dans le code est 2, donc supérieur au `versionCode` 1 de cet APK.
 
 ## Identité du binaire
 
@@ -35,7 +35,7 @@ Ne désinstalle pas l’application actuelle.
 
 - Si Android refuse l’installation à cause de la signature, les données restent dans l’ancienne application. Il ne faut pas la désinstaller pour « faire de la place ».
 - L’autre paquet `com.anychess.standalone` n’est pas celui de cet APK. S’il est installé à côté, ses données ne sont pas copiées ici. Aucun keystore de release n’était disponible pour le mettre à jour.
-- Ce build n’a pas pu embarquer la clé publique Supabase : le jeton de gestion présent dans l’environnement a été refusé (HTTP 401). La connexion au compte est donc indisponible dans cet APK. Le verrou « bibliothèque vide sans compte » ne s’applique pas tant que le client n’est pas configuré : les études déjà sur l’appareil restent lisibles et modifiables, et elles ne sont pas déplacées dans le coffre. La synchronisation reviendra dans un prochain APK qui contiendra la clé publique.
+- Ce fichier-ci n’embarque pas la clé publique Supabase : il a été compilé alors que le jeton de gestion était refusé (HTTP 401). La connexion au compte y est indisponible. Le verrou « bibliothèque vide sans compte » ne s’applique pas tant que le client n’est pas configuré : les études déjà sur l’appareil restent lisibles et modifiables, et elles ne sont pas déplacées dans le coffre. La clé publique `anon` retrouvée dans l’APK autonome V0.0.6 est maintenant le repli des prochains bundles (`docs/android-signing.md`). Elle n’est pas dans ce fichier déjà publié.
 
 ## Installation sur le Pixel 8 Pro
 

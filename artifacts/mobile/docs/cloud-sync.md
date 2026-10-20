@@ -63,6 +63,8 @@ Voir aussi `docs/pgn-comment-translation.md`.
 
 Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non configuré** ; les données locales restent intactes.
 
+Si ni `.env` ni le jeton de gestion ne fournissent la clé, le build reprend la clé publique `anon` déjà présente dans l’APK autonome V0.0.6, pour le projet `zqfxnzwtptepulmgpxhb`. Une clé `service_role` est refusée. Voir `docs/android-signing.md`.
+
 ## Tests automatisés (sans projet Supabase)
 
 `lib/cloud/__tests__/cloudSync.test.ts` (backend mémoire) :
