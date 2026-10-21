@@ -701,9 +701,9 @@ export class CloudSyncEngine {
     return result;
   }
 
-  markWaitingForWifi(): void {
+  markOffline(): void {
     if (this.deletionLocked || !this.state.user) return;
-    this.setState({ status: 'waiting_wifi', lastError: null });
+    this.setState({ status: 'offline', lastError: null });
   }
 
   async sync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
@@ -731,10 +731,6 @@ export class CloudSyncEngine {
       !this.sessionIsCurrent(epoch) || (this.state.user != null && this.state.user.id !== ownerId);
     const decision = await decideCloudTransfer(options?.allowCellular === true);
     if (stale()) return this.getState();
-    if (decision.defer) {
-      this.setState({ user, status: 'waiting_wifi', lastError: null });
-      return this.getState();
-    }
     if (decision.offline) {
       this.setState({ user, status: 'offline', lastError: null });
       return this.getState();
@@ -834,6 +830,11 @@ export class CloudSyncEngine {
     this.setState({ status: 'error', lastError: 'local_save_failed' });
   }
 
+  noteAvatarTransferFailure(): void {
+    if (!this.state.user || this.deletionLocked) return;
+    this.setState({ status: 'error', lastError: 'avatar_transfer_failed' });
+  }
+
   notifyLocalMutation(): void {
     if (this.silentWrites > 0) return;
     this.mutationEpoch += 1;
@@ -851,10 +852,6 @@ export class CloudSyncEngine {
   private async queueLocalMutation(): Promise<void> {
     const decision = await decideCloudTransfer(false);
     if (!this.state.user || this.deletionLocked || this.syncing) return;
-    if (decision.defer) {
-      this.setState({ status: 'waiting_wifi', lastError: null });
-      return;
-    }
     if (decision.offline) {
       this.setState({ status: 'offline', lastError: null });
       return;

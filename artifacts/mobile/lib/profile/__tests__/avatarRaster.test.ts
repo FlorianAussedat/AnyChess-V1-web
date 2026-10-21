@@ -123,12 +123,12 @@ describe('avatar crop without the native manipulator', () => {
       accessToken: 'token',
       dataUrl: next,
       fetchImpl: (async () => {
-        throw new Error('must not upload on cellular');
+        return { ok: true, status: 200 } as Response;
       }) as typeof fetch,
     });
-    assert.equal(waiting, 'waiting_wifi');
+    assert.equal(waiting, 'uploaded');
     assert.equal(await readAvatarCache(storage, 'user-1'), next);
-    assert.equal((await readPendingAvatar(storage))?.intent, 'upload');
+    assert.equal(await readPendingAvatar(storage), null);
   });
 
   it('matches the preview to the saved crop for portrait, landscape, and square', () => {

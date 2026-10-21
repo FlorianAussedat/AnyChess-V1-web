@@ -125,7 +125,7 @@ export async function flushPendingAvatar(input: {
   accessToken: string | null;
   fetchImpl?: typeof fetch;
   markHasAvatar?: (hasAvatar: boolean) => Promise<void>;
-}): Promise<'uploaded' | 'removed' | 'skipped' | 'failed' | 'waiting_wifi'> {
+}): Promise<'uploaded' | 'removed' | 'skipped' | 'failed' | 'offline'> {
   const pending = await readPendingAvatar(input.storage);
   if (!pending) return 'skipped';
   if (pending.email !== normalizeAvatarEmail(input.email)) return 'skipped';
@@ -137,7 +137,7 @@ export async function flushPendingAvatar(input: {
     return 'uploaded';
   }
   const decision = await decideCloudTransfer(false);
-  if (decision.defer || decision.offline) return 'waiting_wifi';
+  if (decision.offline) return 'offline';
   if (!input.accessToken) return 'failed';
   if (pending.intent === 'remove') {
     const removed = await deleteAvatarObject(
@@ -204,7 +204,7 @@ export async function removeLocalAndRemoteAvatar(input: {
 export type AvatarCommitResult =
   | 'uploaded'
   | 'removed'
-  | 'waiting_wifi'
+  | 'offline'
   | 'stored'
   | 'sync_failed'
   | 'cancelled'
@@ -326,10 +326,9 @@ async function commitAvatarChangeSerial(
       await restore();
       return 'cancelled';
     }
-    let result: AvatarCommitResult = decision.defer ? 'waiting_wifi' : 'stored';
+    let result: AvatarCommitResult = decision.offline ? 'offline' : 'stored';
     if (
       intent !== 'mascot' &&
-      !decision.defer &&
       !decision.offline &&
       input.accessToken
     ) {

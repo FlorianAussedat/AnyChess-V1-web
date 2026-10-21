@@ -58,7 +58,7 @@ export function PuzzleRatingBandSlider({
       }}
       leftHint={first.label}
       rightHint={last.label}
-      accessibilityLabel={`${label} : ${valueLabel}`}
+      accessibilityLabel={`${resolvedLabel} : ${valueLabel}`}
     />
   );
 }

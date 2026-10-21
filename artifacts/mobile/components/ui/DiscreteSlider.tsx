@@ -1,7 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useColors } from '@/hooks/useColors';
+import { useTranslation } from '@/hooks/useTranslation';
+import { snapDiscreteValue } from '@/lib/preferences/discreteValue';
 import { DesignTokens } from '@/constants/designTokens';
 
 type Props = {
@@ -38,18 +40,37 @@ export function DiscreteSlider({
   testID,
 }: Props) {
   const colors = useColors();
+  const { t } = useTranslation();
+  const selected = snapDiscreteValue(value, minimumValue, maximumValue, step);
+  const change = (next: number) => {
+    if (Number.isFinite(next))
+      onValueChange(snapDiscreteValue(next, minimumValue, maximumValue, step));
+  };
+  const adjust = (direction: number) => change(selected + direction * step);
+
   return (
     <View style={styles.block} testID={testID}>
-      <Text style={[styles.label, { color: colors.mutedForeground }]}>{label}</Text>
+      <Text style={[styles.label, { color: colors.mutedForeground }]}>
+        {label}
+      </Text>
       <View style={styles.valueRow}>
         {leftHint ? (
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>{leftHint}</Text>
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+            {leftHint}
+          </Text>
         ) : (
           <View style={styles.hintSpacer} />
         )}
-        <Text style={[styles.value, { color: colors.foreground }]}>{valueLabel}</Text>
+        <Text style={[styles.value, { color: colors.foreground }]}>
+          {valueLabel}
+        </Text>
         {rightHint ? (
-          <Text style={[styles.hint, { color: colors.mutedForeground, textAlign: 'right' }]}>
+          <Text
+            style={[
+              styles.hint,
+              { color: colors.mutedForeground, textAlign: 'right' },
+            ]}
+          >
             {rightHint}
           </Text>
         ) : (
@@ -61,13 +82,72 @@ export function DiscreteSlider({
         minimumValue={minimumValue}
         maximumValue={maximumValue}
         step={step}
-        value={value}
-        onValueChange={(v) => onValueChange(Math.round(v))}
+        value={selected}
+        onValueChange={change}
+        {...(Platform.OS === 'web'
+          ? {
+              onKeyDown: (event: {
+                key: string;
+                preventDefault: () => void;
+              }) => {
+                if (event.key === 'Home') change(minimumValue);
+                else if (event.key === 'End') change(maximumValue);
+                else if (event.key === 'ArrowRight' || event.key === 'ArrowUp')
+                  adjust(1);
+                else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown')
+                  adjust(-1);
+                else return;
+                event.preventDefault();
+              },
+              tabIndex: 0,
+            }
+          : {})}
+        accessibilityRole="adjustable"
+        accessibilityValue={{
+          min: minimumValue,
+          max: maximumValue,
+          now: selected,
+          text: valueLabel,
+        }}
+        accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+        onAccessibilityAction={({ nativeEvent }) => {
+          if (nativeEvent.actionName === 'increment') adjust(1);
+          if (nativeEvent.actionName === 'decrement') adjust(-1);
+        }}
+        testID={testID ? `${testID}-track` : undefined}
         minimumTrackTintColor={colors.primary}
         maximumTrackTintColor={colors.border}
         thumbTintColor={colors.primary}
         accessibilityLabel={accessibilityLabel ?? label}
       />
+      <View style={styles.controls}>
+        {([-1, 1] as const).map((direction) => (
+          <Pressable
+            key={direction}
+            accessibilityRole="button"
+            accessibilityLabel={`${t(direction < 0 ? 'settings.levelDecrease' : 'settings.levelIncrease')} — ${label}`}
+            disabled={
+              direction < 0
+                ? selected <= minimumValue
+                : selected >= maximumValue
+            }
+            onPress={() => adjust(direction)}
+            testID={
+              testID
+                ? `${testID}-${direction < 0 ? 'decrease' : 'increase'}`
+                : undefined
+            }
+            style={({ pressed }) => [
+              styles.control,
+              { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
+            ]}
+          >
+            <Text style={{ color: colors.primary, fontSize: 22 }}>
+              {direction < 0 ? '−' : '+'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -97,5 +177,14 @@ const styles = StyleSheet.create({
     fontFamily: DesignTokens.typography.weightRegular,
   },
   hintSpacer: { width: 56 },
-  slider: { width: '100%', height: 40 },
+  slider: { width: '100%', height: DesignTokens.minTouchTarget },
+  controls: { flexDirection: 'row', justifyContent: 'space-between' },
+  control: {
+    minWidth: DesignTokens.minTouchTarget,
+    minHeight: DesignTokens.minTouchTarget,
+    borderWidth: 1,
+    borderRadius: DesignTokens.radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
