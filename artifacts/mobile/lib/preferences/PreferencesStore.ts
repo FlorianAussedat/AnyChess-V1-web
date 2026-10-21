@@ -23,7 +23,6 @@ import {
   DEFAULT_CHESS_NOTATION,
   USER_PREFERENCES_DOCUMENT_VERSION,
   type AppLanguage,
-  type ChessNotation,
   type UserPreferences,
   type UserPreferencesPatch,
 } from './types.ts';
@@ -61,10 +60,6 @@ function isAppLanguage(value: unknown): value is AppLanguage {
   return value === 'fr' || value === 'en';
 }
 
-function isChessNotation(value: unknown): value is ChessNotation {
-  return value === 'fr' || value === 'en';
-}
-
 function parseBoolFlag(raw: string | null | undefined): boolean | null {
   if (raw === '0' || raw === 'false') return false;
   if (raw === '1' || raw === 'true') return true;
@@ -80,6 +75,7 @@ export function defaultUserPreferences(): UserPreferences {
     version: USER_PREFERENCES_DOCUMENT_VERSION,
     language: DEFAULT_APP_LANGUAGE,
     chessNotation: DEFAULT_CHESS_NOTATION,
+    dictationLanguage: DEFAULT_APP_LANGUAGE,
     voiceEnabled: true,
     coordinatesEnabled: true,
     voiceSpeed: DEFAULT_VOICE_SPEED,
@@ -90,7 +86,7 @@ export function defaultUserPreferences(): UserPreferences {
     stockfishStrengthBandId: DEFAULT_STRENGTH_BAND_ID,
     translateExistingPgnComments: false,
     translateImportedPgnComments: false,
-    syncOnWifiOnly: true,
+    syncOnWifiOnly: false,
     updatedAt: nowIso(),
   };
 }
@@ -108,10 +104,11 @@ export function mergePreferencesDocument(
   const next: UserPreferences = { ...base };
 
   if (isAppLanguage(o.language)) next.language = o.language;
-  if (o.dictationLanguage === 'fr' || o.dictationLanguage === 'en') {
-    next.dictationLanguage = o.dictationLanguage;
-  }
-  if (isChessNotation(o.chessNotation)) next.chessNotation = o.chessNotation;
+  // The existing interface language is authoritative when legacy choices diverge.
+  // Keep aliases in the document for older clients, with one coherent value.
+  next.chessNotation = next.language;
+  next.dictationLanguage = next.language;
+  next.syncOnWifiOnly = false;
 
   if (typeof o.voiceEnabled === 'boolean') next.voiceEnabled = o.voiceEnabled;
   if (typeof o.coordinatesEnabled === 'boolean') {
@@ -158,10 +155,6 @@ export function mergePreferencesDocument(
   ) {
     next.translateImportedPgnComments = o.autoTranslateImportedPgnComments;
   }
-  if (typeof o.syncOnWifiOnly === 'boolean') {
-    next.syncOnWifiOnly = o.syncOnWifiOnly;
-  }
-
   if (typeof o.updatedAt === 'string' && o.updatedAt) {
     next.updatedAt = o.updatedAt;
   }
@@ -252,9 +245,11 @@ export class PreferencesStore {
   private async loadOrMigrate(): Promise<UserPreferences> {
     const defaults = defaultUserPreferences();
     let fromDoc: UserPreferences | null = null;
+    let storedDocument: string | null = null;
 
     try {
       const raw = await this.storage.getItem(StorageKeys.userPreferences.key);
+      storedDocument = raw;
       if (raw != null && raw !== '') {
         try {
           const parsed = JSON.parse(raw) as unknown;
@@ -294,11 +289,15 @@ export class PreferencesStore {
         manualFields: [],
         updatedAt: nowIso(),
       };
+      created.chessNotation = created.language;
+      created.dictationLanguage = created.language;
       await this.writeDocument(created);
       await this.writeLegacyMirrors(created);
       return created;
     }
 
+    // Persist the migration without inventing a newer user change timestamp.
+    if (JSON.stringify(merged) !== storedDocument) await this.writeDocument(merged);
     return merged;
   }
 
@@ -384,15 +383,6 @@ export class PreferencesStore {
         patch.language !== undefined && isAppLanguage(patch.language)
           ? patch.language
           : current.language,
-      dictationLanguage:
-        patch.dictationLanguage === 'fr' || patch.dictationLanguage === 'en'
-          ? patch.dictationLanguage
-          : current.dictationLanguage,
-      chessNotation:
-        patch.chessNotation !== undefined &&
-        isChessNotation(patch.chessNotation)
-          ? patch.chessNotation
-          : current.chessNotation,
       voiceEnabled:
         patch.voiceEnabled !== undefined
           ? Boolean(patch.voiceEnabled)
@@ -444,17 +434,20 @@ export class PreferencesStore {
         patch.translateImportedPgnComments !== undefined
           ? Boolean(patch.translateImportedPgnComments)
           : current.translateImportedPgnComments,
-      syncOnWifiOnly:
-        patch.syncOnWifiOnly !== undefined
-          ? Boolean(patch.syncOnWifiOnly)
-          : current.syncOnWifiOnly,
+      syncOnWifiOnly: false,
       updatedAt: nowIso(),
       version: USER_PREFERENCES_DOCUMENT_VERSION,
     };
 
+    next.chessNotation = next.language;
+    next.dictationLanguage = next.language;
+
     const touched = (Object.keys(patch) as (keyof UserPreferencesPatch)[]).filter(
       (key) => patch[key] !== undefined,
     );
+    if (isAppLanguage(patch.language)) {
+      touched.push('chessNotation', 'dictationLanguage');
+    }
     if (current.preferencesOrigin === 'device') {
       next.preferencesOrigin = 'device';
       next.manualFields = [...new Set([...(current.manualFields ?? []), ...touched])];

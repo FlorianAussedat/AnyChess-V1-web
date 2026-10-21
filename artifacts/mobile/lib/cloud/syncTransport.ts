@@ -1,6 +1,4 @@
-import { preferencesStore } from '../preferences/PreferencesStore.ts';
 import {
-  shouldDeferCloudTransfer,
   transportFromExpoState,
   type SyncTransport,
 } from './wifiSyncPolicy.ts';
@@ -16,7 +14,6 @@ type TransportReader = () => Promise<SyncTransport>;
 type WifiOnlyReader = () => Promise<boolean>;
 
 let transportReader: TransportReader | null = null;
-let wifiOnlyReader: WifiOnlyReader | null = null;
 let loggedMissingNetworkModule = false;
 
 export function setCloudTransferReadersForTests(readers: {
@@ -24,19 +21,6 @@ export function setCloudTransferReadersForTests(readers: {
   wifiOnly?: WifiOnlyReader | null;
 }): void {
   if ('transport' in readers) transportReader = readers.transport ?? null;
-  if ('wifiOnly' in readers) wifiOnlyReader = readers.wifiOnly ?? null;
-}
-
-async function readWifiOnly(): Promise<boolean> {
-  if (wifiOnlyReader) return wifiOnlyReader();
-  try {
-    await preferencesStore.ensureLoaded();
-    return preferencesStore.getPreferences().syncOnWifiOnly !== false;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[AnyChess] Wi-Fi-only preference unread: ${message}`);
-    return true;
-  }
 }
 
 /** Reads Expo Network when that native module is in the installed client. */
@@ -51,7 +35,7 @@ export async function readSyncTransport(): Promise<SyncTransport> {
       if (!loggedMissingNetworkModule) {
         loggedMissingNetworkModule = true;
         console.warn(
-          '[AnyChess] ExpoNetwork is not in this client. Wi-Fi versus mobile data cannot be told apart until the Android dev client is rebuilt with expo-network.',
+          '[AnyChess] ExpoNetwork unavailable; transfers use their existing network error handling.',
         );
       }
       return 'unknown';
@@ -68,13 +52,13 @@ export async function readSyncTransport(): Promise<SyncTransport> {
   }
 }
 
-export async function decideCloudTransfer(allowCellular = false): Promise<CloudTransferDecision> {
-  const [wifiOnly, transport] = await Promise.all([readWifiOnly(), readSyncTransport()]);
+export async function decideCloudTransfer(_allowCellular = false): Promise<CloudTransferDecision> {
+  const transport = await readSyncTransport();
   return {
-    wifiOnly,
+    wifiOnly: false,
     transport,
     offline: transport === 'offline',
-    defer: shouldDeferCloudTransfer({ wifiOnly, transport, allowCellular }),
+    defer: false,
   };
 }
 

@@ -154,13 +154,16 @@ export async function settleAccountLifecycle(engine: CloudSyncEngine): Promise<v
   if (!user || engine.isAccountDeletionLocked()) return;
   const token = engine.getAccessToken();
   try {
-    await flushPendingAvatar({
+    const avatarResult = await flushPendingAvatar({
       storage: engine.storageHandle(),
       userId: user.id,
       email: user.email,
       accessToken: token,
     });
+    if (avatarResult === 'offline') engine.markOffline();
+    if (avatarResult === 'failed') engine.noteAvatarTransferFailure();
   } catch {
-    // The account already exists. The photo can be sent on the next sign-in.
+    // Keep the retry intent and expose the transfer failure.
+    engine.noteAvatarTransferFailure();
   }
 }

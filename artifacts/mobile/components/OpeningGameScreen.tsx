@@ -31,6 +31,7 @@ import { BackButton } from '@/components/BackButton';
 import { BoardCoordinatesToggle } from '@/components/BoardCoordinatesToggle';
 import { BoardVisibilityToggle } from '@/components/BoardVisibilityToggle';
 import { TheoryContinuationViewer } from '@/components/TheoryContinuationViewer';
+import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import { TheoryDecisionPanel } from '@/components/openings/TheoryDecisionPanel';
 import { GameActionRow } from '@/components/game/GameActionRow';
 import { GameStatusCard } from '@/components/game/GameStatusCard';
@@ -96,6 +97,8 @@ export function OpeningGameScreen() {
     repertoireName,
     openingLabel,
     strengthBandLabel,
+    strengthBandId,
+    setStrengthBandId,
     ready,
     loadError,
     applyUserMove,
@@ -133,11 +136,12 @@ export function OpeningGameScreen() {
     routeFor: (id) => {
       const qs = new URLSearchParams(playQuery);
       qs.set('sessionId', id);
+      qs.set('band', strengthBandId);
       return `/openings/play?${qs.toString()}`;
     },
     enabled: ready && history.length > 0,
-    revision: history.join(','),
-    capture: () => ({ history, playerColor, status }),
+    revision: `${history.join(',')}|${strengthBandId}`,
+    capture: () => ({ history, playerColor, status, strengthBandId }),
   });
 
   const openingIdentity = useOpeningIdentity(history);
@@ -409,6 +413,13 @@ export function OpeningGameScreen() {
           )}
         </ChessBoardSection>
 
+        {trainingState === 'lineComplete' || trainingState === 'outOfTheory' ? (
+          <StrengthBandSlider
+            bandId={strengthBandId}
+            onBandIdChange={setStrengthBandId}
+            testID="opening-session-strength"
+          />
+        ) : null}
         <TheoryDecisionPanel
           trainingState={trainingState}
           strengthBandLabel={strengthBandLabel}

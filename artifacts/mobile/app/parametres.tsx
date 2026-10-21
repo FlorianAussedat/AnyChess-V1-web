@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { navigateMainTab } from '@/lib/navigation/routes';
-import { useRouter, usePathname, type Href } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
@@ -31,15 +31,12 @@ import { PuzzleFilterChip } from '@/components/puzzles/PuzzleFilterChip';
 import {
   APP_LANGUAGE_OPTIONS,
   DICTATION_PACES,
-  type ChessNotation,
   type DictationPace,
 } from '@/lib/preferences';
 import { setAuthReturn } from '@/lib/cloud/authReturn';
 import { formatAppVersionLabel } from '@/lib/app/version';
 import { getPuzzleRatingBand } from '@/lib/puzzles';
-import {
-  getStrengthBand,
-} from '@/lib/difficulty/StockfishStrengthBands';
+import { getStrengthBand } from '@/lib/difficulty/StockfishStrengthBands';
 import { StrengthBandSlider } from '@/components/ui/StrengthBandSlider';
 import {
   PgnTranslationSettingsSection,
@@ -48,11 +45,7 @@ import {
 import type { MessageKey } from '@/lib/i18n/messages';
 
 type EditorKind =
-  | null
-  | 'notation'
-  | 'visualDifficulty'
-  | 'blindDifficulty'
-  | 'stockfishStrength';
+  null | 'visualDifficulty' | 'blindDifficulty' | 'stockfishStrength';
 
 const PACE_LABEL_KEYS: Record<DictationPace, MessageKey> = {
   slow: 'settings.paceSlow',
@@ -71,13 +64,11 @@ export default function ParametresScreen() {
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const {
     language,
-    dictationLanguage,
     chessNotation,
     dictationPace,
     visualProblemDifficulty,
     blindProblemDifficulty,
     stockfishStrengthBandId,
-    syncOnWifiOnly,
     updatePreferences,
     resetPreferences,
   } = usePreferences();
@@ -122,7 +113,10 @@ export default function ParametresScreen() {
 
       {cloud.sessionReady && !cloud.user ? (
         <View
-          style={[styles.notice, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.notice,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           testID="parametres-guest-notice"
         >
           <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>
@@ -139,7 +133,12 @@ export default function ParametresScreen() {
               { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
             ]}
           >
-            <Text style={{ color: colors.primary, fontFamily: DesignTokens.typography.weightSemiBold }}>
+            <Text
+              style={{
+                color: colors.primary,
+                fontFamily: DesignTokens.typography.weightSemiBold,
+              }}
+            >
               {t('cloud.signIn')}
             </Text>
           </Pressable>
@@ -147,20 +146,15 @@ export default function ParametresScreen() {
       ) : null}
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-        {t('profil.sectionPreferences')}
+        {t('settings.languageNotation')}
       </Text>
       <View style={styles.section}>
-        <BooleanSettingRow
-          label={t('settings.syncWifiOnly')}
-          value={syncOnWifiOnly}
-          onToggle={() => {
-            void updatePreferences({ syncOnWifiOnly: !syncOnWifiOnly });
-          }}
-          testID="parametres-sync-wifi-only"
-        />
         <View
           testID="profil-row-language"
-          style={[styles.languageCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.languageCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
         >
           <Text style={[styles.languageTitle, { color: colors.foreground }]}>
             {t('profil.language')}
@@ -180,37 +174,33 @@ export default function ParametresScreen() {
             ))}
           </View>
         </View>
-        <ProfilNavRow
-          label={t('profil.notation')}
-          value={notationLabel}
-          onPress={() => setEditor('notation')}
+        <Text
           testID="profil-row-notation"
-        />
-        <View
-          testID="profil-row-dictation-language"
-          style={[styles.languageCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={{ color: colors.mutedForeground }}
         >
-          <Text style={[styles.languageTitle, { color: colors.foreground }]}>
-            {t('speech.dictationLanguage')}
-          </Text>
-          <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
-            {t('speech.dictationLanguageHint')}
-          </Text>
-          <View style={styles.chipWrap}>
-            {APP_LANGUAGE_OPTIONS.map((opt) => (
-              <OptionChip
-                key={opt.id}
-                label={opt.id === 'fr' ? 'Français · cavalier f3' : 'English · knight f3'}
-                active={(dictationLanguage ?? language) === opt.id}
-                onPress={() => {
-                  void updatePreferences({ dictationLanguage: opt.id });
-                }}
-                testID={`profil-dictation-lang-${opt.id}`}
-                accessibilityLabel={opt.nativeName}
-              />
-            ))}
-          </View>
-        </View>
+          {notationLabel}
+        </Text>
+        <Text style={{ color: colors.mutedForeground }}>
+          {t('settings.languageUnifiedHint')}
+        </Text>
+      </View>
+
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('settings.boardDisplay')}
+      </Text>
+      <BooleanSettingRow
+        label={t('profil.coordinates')}
+        value={showCoordinates}
+        onToggle={() => {
+          void toggleCoordinates();
+        }}
+        testID="profil-pref-coordinates"
+      />
+
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('settings.voiceDictation')}
+      </Text>
+      <View style={styles.section}>
         <BooleanSettingRow
           label={t('profil.voice')}
           value={voiceEnabled}
@@ -220,14 +210,6 @@ export default function ParametresScreen() {
           activeIcon="volume-high"
           inactiveIcon="volume-mute"
           testID="profil-pref-voice"
-        />
-        <BooleanSettingRow
-          label={t('profil.coordinates')}
-          value={showCoordinates}
-          onToggle={() => {
-            void toggleCoordinates();
-          }}
-          testID="profil-pref-coordinates"
         />
       </View>
 
@@ -259,18 +241,29 @@ export default function ParametresScreen() {
       </View>
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-        {t('settings.problemDifficulty')}
+        {t('settings.defaultDifficulties')}
+      </Text>
+      <Text style={{ color: colors.mutedForeground }}>
+        {t('settings.sessionDifficultyHint')}
       </Text>
       <View style={styles.section}>
         <ProfilNavRow
           label={t('settings.visualProblemDifficulty')}
-          value={getPuzzleRatingBand(visualProblemDifficulty).label}
+          value={
+            visualProblemDifficulty === 'all'
+              ? t('puzzle.bandRandomAll')
+              : getPuzzleRatingBand(visualProblemDifficulty).label
+          }
           onPress={() => setEditor('visualDifficulty')}
           testID="profil-row-visual-difficulty"
         />
         <ProfilNavRow
           label={t('settings.blindProblemDifficulty')}
-          value={getPuzzleRatingBand(blindProblemDifficulty).label}
+          value={
+            blindProblemDifficulty === 'all'
+              ? t('puzzle.bandRandomAll')
+              : getPuzzleRatingBand(blindProblemDifficulty).label
+          }
           onPress={() => setEditor('blindDifficulty')}
           testID="profil-row-blind-difficulty"
         />
@@ -290,6 +283,9 @@ export default function ParametresScreen() {
 
       <PgnTranslationSettingsSection />
 
+      <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+        {t('settings.resetSection')}
+      </Text>
       <View style={styles.dangerZone}>
         <Pressable
           onPress={resetPrefs}
@@ -299,49 +295,20 @@ export default function ParametresScreen() {
             { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Text style={{ color: colors.mutedForeground, fontFamily: DesignTokens.typography.weightSemiBold }}>
+          <Text
+            style={{
+              color: colors.mutedForeground,
+              fontFamily: DesignTokens.typography.weightSemiBold,
+            }}
+          >
             {t('profil.resetPrefs')}
           </Text>
         </Pressable>
       </View>
 
-      {typeof __DEV__ !== 'undefined' && __DEV__ ? <PgnTranslationTechnicalDiagnostic /> : null}
-
-      <Modal
-        visible={editor === 'notation'}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditor(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {t('profil.notation')}
-            </Text>
-            <View style={styles.chipWrap}>
-              {([
-                { id: 'fr' as ChessNotation, label: t('profil.notationFr') },
-                { id: 'en' as ChessNotation, label: t('profil.notationEn') },
-              ]).map((opt) => (
-                <OptionChip
-                  key={opt.id}
-                  label={opt.label}
-                  active={chessNotation === opt.id}
-                  onPress={() => {
-                    void updatePreferences({ chessNotation: opt.id }).then(() =>
-                      setEditor(null),
-                    );
-                  }}
-                  testID={`profil-notation-${opt.id}`}
-                />
-              ))}
-            </View>
-            <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {typeof __DEV__ !== 'undefined' && __DEV__ ? (
+        <PgnTranslationTechnicalDiagnostic />
+      ) : null}
 
       <Modal
         visible={editor === 'visualDifficulty' || editor === 'blindDifficulty'}
@@ -350,63 +317,73 @@ export default function ParametresScreen() {
         onRequestClose={() => setEditor(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <PuzzleRatingBandSlider
-              bandId={
-                editor === 'blindDifficulty'
-                  ? blindProblemDifficulty
-                  : visualProblemDifficulty
-              }
-              onBandIdChange={(bandId) => {
-                void updatePreferences(
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <PuzzleRatingBandSlider
+                bandId={
                   editor === 'blindDifficulty'
-                    ? { blindProblemDifficulty: bandId }
-                    : { visualProblemDifficulty: bandId },
-                );
-              }}
-              label={
-                editor === 'blindDifficulty'
-                  ? t('settings.blindProblemDifficulty')
-                  : t('settings.visualProblemDifficulty')
-              }
-              testID={
-                editor === 'blindDifficulty'
-                  ? 'profil-blind-difficulty-slider'
-                  : 'profil-visual-difficulty-slider'
-              }
-            />
-            <View style={styles.chipWrap}>
-              <PuzzleFilterChip
-                label={t('puzzle.randomAll')}
-                active={
-                  (editor === 'blindDifficulty'
                     ? blindProblemDifficulty
-                    : visualProblemDifficulty) === 'all'
+                    : visualProblemDifficulty
                 }
-                onPress={() => {
+                onBandIdChange={(bandId) => {
                   void updatePreferences(
                     editor === 'blindDifficulty'
-                      ? { blindProblemDifficulty: 'all' }
-                      : { visualProblemDifficulty: 'all' },
+                      ? { blindProblemDifficulty: bandId }
+                      : { visualProblemDifficulty: bandId },
                   );
                 }}
+                label={
+                  editor === 'blindDifficulty'
+                    ? t('settings.blindProblemDifficulty')
+                    : t('settings.visualProblemDifficulty')
+                }
+                testID={
+                  editor === 'blindDifficulty'
+                    ? 'profil-blind-difficulty-slider'
+                    : 'profil-visual-difficulty-slider'
+                }
               />
-            </View>
-            <Pressable
-              onPress={() => setEditor(null)}
-              style={[styles.modalBtn, { backgroundColor: colors.primary, alignSelf: 'stretch' }]}
-              testID="profil-difficulty-done"
-            >
-              <Text
-                style={{
-                  color: colors.primaryForeground,
-                  fontFamily: DesignTokens.typography.weightSemiBold,
-                  textAlign: 'center',
-                }}
+              <View style={styles.chipWrap}>
+                <PuzzleFilterChip
+                  label={t('puzzle.randomAll')}
+                  active={
+                    (editor === 'blindDifficulty'
+                      ? blindProblemDifficulty
+                      : visualProblemDifficulty) === 'all'
+                  }
+                  onPress={() => {
+                    void updatePreferences(
+                      editor === 'blindDifficulty'
+                        ? { blindProblemDifficulty: 'all' }
+                        : { visualProblemDifficulty: 'all' },
+                    );
+                  }}
+                />
+              </View>
+              <Pressable
+                onPress={() => setEditor(null)}
+                style={[
+                  styles.modalBtn,
+                  { backgroundColor: colors.primary, alignSelf: 'stretch' },
+                ]}
+                testID="profil-difficulty-done"
               >
-                OK
-              </Text>
-            </Pressable>
+                <Text
+                  style={{
+                    color: colors.primaryForeground,
+                    fontFamily: DesignTokens.typography.weightSemiBold,
+                    textAlign: 'center',
+                  }}
+                >
+                  {t('common.close')}
+                </Text>
+              </Pressable>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -417,35 +394,45 @@ export default function ParametresScreen() {
         onRequestClose={() => setEditor(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-              {t('settings.stockfishStrength')}
-            </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
-              {t('settings.stockfishStrengthHint')}
-            </Text>
-            <StrengthBandSlider
-              bandId={stockfishStrengthBandId}
-              onBandIdChange={(bandId) => {
-                void updatePreferences({ stockfishStrengthBandId: bandId });
-              }}
-              testID="profil-stockfish-strength-slider"
-            />
-            <Pressable
-              onPress={() => setEditor(null)}
-              style={[styles.modalBtn, { backgroundColor: colors.primary, alignSelf: 'stretch' }]}
-              testID="profil-stockfish-strength-done"
-            >
-              <Text
-                style={{
-                  color: colors.primaryForeground,
-                  fontFamily: DesignTokens.typography.weightSemiBold,
-                  textAlign: 'center',
-                }}
-              >
-                OK
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+                {t('settings.stockfishStrength')}
               </Text>
-            </Pressable>
+              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                {t('settings.stockfishStrengthHint')}
+              </Text>
+              <StrengthBandSlider
+                bandId={stockfishStrengthBandId}
+                onBandIdChange={(bandId) => {
+                  void updatePreferences({ stockfishStrengthBandId: bandId });
+                }}
+                testID="profil-stockfish-strength-slider"
+              />
+              <Pressable
+                onPress={() => setEditor(null)}
+                style={[
+                  styles.modalBtn,
+                  { backgroundColor: colors.primary, alignSelf: 'stretch' },
+                ]}
+                testID="profil-stockfish-strength-done"
+              >
+                <Text
+                  style={{
+                    color: colors.primaryForeground,
+                    fontFamily: DesignTokens.typography.weightSemiBold,
+                    textAlign: 'center',
+                  }}
+                >
+                  {t('common.close')}
+                </Text>
+              </Pressable>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -526,6 +513,9 @@ const styles = StyleSheet.create({
   modalCard: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.lg,
+    maxHeight: '90%',
+  },
+  modalContent: {
     padding: DesignTokens.spacing.lg,
     gap: DesignTokens.spacing.md,
   },

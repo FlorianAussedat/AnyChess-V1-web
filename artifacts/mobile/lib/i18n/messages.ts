@@ -313,6 +313,15 @@ export type MessageKey =
   | 'account.deleteUnavailable'
   | 'account.deleteSession'
   | 'account.deleteDone'
+  | 'settings.languageNotation'
+  | 'settings.languageUnifiedHint'
+  | 'settings.boardDisplay'
+  | 'settings.voiceDictation'
+  | 'settings.defaultDifficulties'
+  | 'settings.sessionDifficultyHint'
+  | 'settings.resetSection'
+  | 'settings.levelDecrease'
+  | 'settings.levelIncrease'
   | 'settings.title'
   | 'settings.dictationPace'
   | 'settings.dictationPaceHint'
@@ -1700,6 +1709,15 @@ const fr: Dict = {
   'account.deleteDone': 'Ton compte a été supprimé.',
   'cloud.errorSchema':
     'Exécutez supabase/user_documents.sql dans l’éditeur SQL du projet (table absente).',
+  'settings.languageNotation': 'Langue et notation',
+  'settings.languageUnifiedHint': 'Ce choix s’applique à l’interface, aux pièces affichées, à la dictée et à la voix. Les fichiers PGN conservent la notation standard anglaise.',
+  'settings.boardDisplay': 'Échiquier et affichage',
+  'settings.voiceDictation': 'Voix, dictée et rythme',
+  'settings.defaultDifficulties': 'Difficultés par défaut',
+  'settings.sessionDifficultyHint': 'Ces niveaux sont proposés pour les nouvelles activités. Un choix ponctuel ne change pas vos préférences ni une session en cours.',
+  'settings.resetSection': 'Réinitialisation des préférences',
+  'settings.levelDecrease': 'Diminuer le niveau',
+  'settings.levelIncrease': 'Augmenter le niveau',
   'settings.title': 'Paramètres',
   'settings.dictationPace': "Rythme d'énonciation des coups",
   'settings.dictationPaceHint':
@@ -3205,6 +3223,15 @@ const en: Dict = {
   'account.deleteDone': 'Your account was deleted.',
   'cloud.errorSchema':
     'Run supabase/user_documents.sql in the project SQL editor (table missing).',
+  'settings.languageNotation': 'Language and notation',
+  'settings.languageUnifiedHint': 'This choice applies to the interface, displayed pieces, dictation and speech. PGN files keep standard English notation.',
+  'settings.boardDisplay': 'Board and display',
+  'settings.voiceDictation': 'Speech, dictation and pace',
+  'settings.defaultDifficulties': 'Default difficulties',
+  'settings.sessionDifficultyHint': 'These levels are suggested for new activities. A session choice does not change your defaults or an existing session.',
+  'settings.resetSection': 'Reset preferences',
+  'settings.levelDecrease': 'Decrease level',
+  'settings.levelIncrease': 'Increase level',
   'settings.title': 'Settings',
   'settings.dictationPace': 'Move dictation pace',
   'settings.dictationPaceHint':
