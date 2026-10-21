@@ -9,6 +9,24 @@ export type MessageKey =
   | 'nav.generalMenu'
   | 'nav.userSignIn'
   | 'nav.userAccount'
+  | 'account.avatarChoose'
+  | 'account.avatarDragHint'
+  | 'account.avatarResetCrop'
+  | 'account.avatarSaveFailed'
+  | 'profil.chessInformation'
+  | 'profil.editIdentity'
+  | 'profil.accountShortcut'
+  | 'profil.accountHint'
+  | 'profil.notProvided'
+  | 'profil.yearsTwentyPlus'
+  | 'profil.saveFailed'
+  | 'profil.avatarFor'
+  | 'account.avatarMoveLeft'
+  | 'account.avatarMoveRight'
+  | 'account.avatarMoveUp'
+  | 'account.avatarMoveDown'
+  | 'account.avatarZoomOut'
+  | 'account.avatarZoomIn'
   | 'nav.home'
   | 'nav.records'
   | 'nav.profil'
@@ -1341,6 +1359,24 @@ export type MessageKey =
 type Dict = Record<MessageKey, string>;
 
 const fr: Dict = {
+  'account.avatarChoose': 'Choisir un avatar',
+  'account.avatarDragHint': 'Faites glisser la photo pour ajuster le cadrage, puis réglez le zoom.',
+  'account.avatarResetCrop': 'Recentrer et réinitialiser le zoom',
+  'account.avatarSaveFailed': 'L’avatar n’a pas pu être enregistré. Votre avatar précédent est conservé. Réessayez.',
+  'profil.chessInformation': 'MON PROFIL ÉCHIQUÉEN',
+  'profil.editIdentity': 'Modifier le pseudo',
+  'profil.accountShortcut': 'Voir mon compte et ma synchronisation',
+  'profil.accountHint': 'Retrouvez ici votre adresse e-mail, votre connexion, la synchronisation et les actions de votre compte.',
+  'profil.notProvided': 'Non renseigné',
+  'profil.yearsTwentyPlus': '20+',
+  'profil.saveFailed': 'La modification n’a pas pu être enregistrée. Vos informations précédentes sont conservées.',
+  'profil.avatarFor': 'Avatar de {{name}}',
+  'account.avatarMoveLeft': 'Déplacer la photo vers la gauche',
+  'account.avatarMoveRight': 'Déplacer la photo vers la droite',
+  'account.avatarMoveUp': 'Déplacer la photo vers le haut',
+  'account.avatarMoveDown': 'Déplacer la photo vers le bas',
+  'account.avatarZoomOut': 'Dézoomer',
+  'account.avatarZoomIn': 'Zoomer',
   'nav.generalMenu': 'Menu général',
   'nav.userSignIn': 'Utilisateur · Connexion',
   'nav.userAccount': 'Utilisateur · Mon compte',
@@ -1635,7 +1671,7 @@ const fr: Dict = {
   'account.avatarRemove': 'Supprimer la photo',
   'account.avatarCrop': 'Recadrer',
   'account.avatarUseFull': 'Cadrage large',
-  'account.avatarZoom': 'Recadrage',
+  'account.avatarZoom': 'Zoom',
   'account.avatarUnsupported':
     'Ce format ne peut pas être recadré sur cette version. L’ancienne photo est conservée.',
   'account.avatarCropFailed':
@@ -2828,6 +2864,24 @@ const fr: Dict = {
 };
 
 const en: Dict = {
+  'account.avatarChoose': 'Choose an avatar',
+  'account.avatarDragHint': 'Drag the photo to frame it, then adjust the zoom.',
+  'account.avatarResetCrop': 'Center and reset zoom',
+  'account.avatarSaveFailed': 'The avatar could not be saved. Your previous avatar is kept. Try again.',
+  'profil.chessInformation': 'MY CHESS PROFILE',
+  'profil.editIdentity': 'Edit username',
+  'profil.accountShortcut': 'View my account and sync status',
+  'profil.accountHint': 'Find your email address, connection, sync status and account actions here.',
+  'profil.notProvided': 'Not provided',
+  'profil.yearsTwentyPlus': '20+',
+  'profil.saveFailed': 'The change could not be saved. Your previous information is kept.',
+  'profil.avatarFor': 'Avatar for {{name}}',
+  'account.avatarMoveLeft': 'Move photo left',
+  'account.avatarMoveRight': 'Move photo right',
+  'account.avatarMoveUp': 'Move photo up',
+  'account.avatarMoveDown': 'Move photo down',
+  'account.avatarZoomOut': 'Zoom out',
+  'account.avatarZoomIn': 'Zoom in',
   'nav.generalMenu': 'Main menu',
   'nav.userSignIn': 'User · Sign in',
   'nav.userAccount': 'User · My account',
@@ -3122,7 +3176,7 @@ const en: Dict = {
   'account.avatarRemove': 'Remove photo',
   'account.avatarCrop': 'Crop',
   'account.avatarUseFull': 'Widest crop',
-  'account.avatarZoom': 'Crop',
+  'account.avatarZoom': 'Zoom',
   'account.avatarUnsupported':
     'This format cannot be cropped in this version. The previous photo is kept.',
   'account.avatarCropFailed':

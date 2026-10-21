@@ -12,21 +12,24 @@ export function OptionChip({
   onPress,
   testID,
   accessibilityLabel,
+  disabled = false,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
   testID?: string;
   accessibilityLabel?: string;
+  disabled?: boolean;
 }) {
   const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ selected: active }}
+      accessibilityState={{ selected: active, disabled }}
       style={[
         styles.chip,
         {
