@@ -15,7 +15,7 @@ import {
   type PgnCommentSource,
   type PgnExportMode,
 } from '@/lib/pgnComments';
-import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import { defaultPgnTranslationProvider } from '@/lib/pgnComments/provider.ts';
 
 type FileRef = { id: string; filename: string; pgnText: string };
@@ -83,7 +83,7 @@ export function PgnTranslationActions({
         return { original: unit.original, french: rec.translatedText };
       })
       .filter((row): row is { original: string; french: string } => !!row);
-    downloadPgnFile(file.filename, applyFrenchToPgnText(file.pgnText, pairs, mode));
+    void requestPgnExport(file.filename, applyFrenchToPgnText(file.pgnText, pairs, mode));
   };
 
   return (

@@ -6,11 +6,13 @@ import {
   indexPgnGamesLight,
   type PgnGameIndexEntry,
 } from '../gameLibrary/indexPgnGamesLight.ts';
+import type { PickedPgnFile } from '../files/readPgnFile.ts';
 
 export type PreparedPgnSource = {
   filename?: string;
   sourceText: string;
   entries: PgnGameIndexEntry[];
+  filenamesByIndex?: Record<number, string>;
 };
 
 export function preparePgnSource(
@@ -28,7 +30,7 @@ export function preparePgnSource(
 export function selectedPgnSlices(
   source: PreparedPgnSource,
   selectedIndices: readonly number[],
-): { pgnText: string; displayName?: string }[] {
+): { pgnText: string; displayName?: string; filename?: string }[] {
   const selected = new Set(selectedIndices);
   return source.entries
     .filter((entry) => selected.has(entry.index))
@@ -44,8 +46,52 @@ export function selectedPgnSlices(
           : undefined;
       return {
         pgnText: extractPgnSlice(source.sourceText, entry),
+        ...(source.filenamesByIndex
+          ? { filename: source.filenamesByIndex[entry.index] }
+          : {}),
         displayName,
       };
     })
     .filter((item) => item.pgnText.trim().length > 0);
+}
+
+/** Index every file independently: headerless files cannot accidentally become one game. */
+export function preparePgnFiles(files: PickedPgnFile[]): {
+  source: PreparedPgnSource;
+  issues: { filename: string; reason: string }[];
+} {
+  const source: PreparedPgnSource = {
+    sourceText: '',
+    entries: [],
+    filenamesByIndex: {},
+    filename: files.map((f) => f.filename).join(' · '),
+  };
+  const issues: { filename: string; reason: string }[] = [];
+  for (const file of files) {
+    if (file.error) {
+      issues.push({ filename: file.filename, reason: file.error });
+      continue;
+    }
+    const prepared = preparePgnSource(file.text, file.filename);
+    if (!prepared.entries.length) {
+      issues.push({
+        filename: file.filename,
+        reason: file.text.trim() ? 'invalid' : 'empty',
+      });
+      continue;
+    }
+    const offset = source.sourceText.length;
+    source.sourceText += file.text + '\n\n';
+    for (const entry of prepared.entries) {
+      const index = source.entries.length;
+      source.entries.push({
+        ...entry,
+        index,
+        startOffset: offset + entry.startOffset,
+        endOffset: offset + entry.endOffset,
+      });
+      source.filenamesByIndex![index] = file.filename;
+    }
+  }
+  return { source, issues };
 }

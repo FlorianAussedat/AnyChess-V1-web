@@ -1,3 +1,4 @@
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import React, {
   createContext,
   useCallback,
@@ -23,7 +24,6 @@ import {
 import { speechService } from '@/services/SpeechService';
 import {
   anyChessPgnFilename,
-  downloadPgnFile,
   exportGamePgn,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
@@ -80,7 +80,7 @@ interface GameContextValue {
   /** Reset the board without starting a replacement game. */
   returnToCampSetup: () => void;
   exportPgn: () => string;
-  downloadPgn: () => void;
+  downloadPgn: () => Promise<unknown>;
   exportPlaySnapshot: () => ClassicPlaySnapshot;
   hydratePlaySnapshot: (snap: ClassicPlaySnapshot) => void;
 }
@@ -483,7 +483,7 @@ export function GameProvider({
 
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
   const downloadPgn = useCallback(() => {
-    downloadPgnFile(anyChessPgnFilename(), buildPgn());
+    return requestPgnExport(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
 
   const retryOpponentMove = useCallback(() => {
