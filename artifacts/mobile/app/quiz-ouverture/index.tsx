@@ -39,7 +39,6 @@ export default function QuizOuvertureHub() {
     <HubScreen
       title={t('quiz.title')}
       subtitle={t('quiz.subtitle')}
-      onBack={() => router.back()}
     >
       {EXERCISES.map((ex) => (
         <HubModeCard

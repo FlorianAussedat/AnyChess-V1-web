@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Catalogue — Finales théoriques (canonical carousel + list).
  */
@@ -58,6 +59,7 @@ export default function TheoreticalEndgameCatalogScreen() {
   const colors = useColors();
   const { t, language } = useTranslation();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [viewMode, setViewMode] = useState<CatalogViewMode>('cards');
   const [scores, setScores] = useState<Record<string, typeof EMPTY_THEME_SCORE>>({});
@@ -275,7 +277,7 @@ export default function TheoreticalEndgameCatalogScreen() {
             setExplanationThemeId(null);
             return;
           }
-          router.back();
+          goBack();
         }}
         testID="theoretical-endgame-catalog"
       >

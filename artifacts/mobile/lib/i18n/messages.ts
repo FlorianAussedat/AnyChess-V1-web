@@ -6,6 +6,9 @@ import type { AppLanguage } from '../preferences/types.ts';
 
 export type MessageKey =
   // Nav / common
+  | 'nav.generalMenu'
+  | 'nav.userSignIn'
+  | 'nav.userAccount'
   | 'nav.home'
   | 'nav.records'
   | 'nav.profil'
@@ -1338,6 +1341,9 @@ export type MessageKey =
 type Dict = Record<MessageKey, string>;
 
 const fr: Dict = {
+  'nav.generalMenu': 'Menu général',
+  'nav.userSignIn': 'Utilisateur · Connexion',
+  'nav.userAccount': 'Utilisateur · Mon compte',
   'nav.home': 'Accueil',
   'nav.records': 'Records',
   'nav.profil': 'Profil',
@@ -2822,6 +2828,9 @@ const fr: Dict = {
 };
 
 const en: Dict = {
+  'nav.generalMenu': 'Main menu',
+  'nav.userSignIn': 'User · Sign in',
+  'nav.userAccount': 'User · My account',
   'nav.home': 'Home',
   'nav.records': 'Records',
   'nav.profil': 'Profile',

@@ -61,7 +61,6 @@ export default function PartiesImportScreen() {
       testID="parties-import-screen"
     >
       <ScreenHeader
-        onBack={() => router.back()}
         title={t('parties.importTitle')}
         titleNumberOfLines={2}
         backTestID="parties-import-back"

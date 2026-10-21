@@ -26,7 +26,10 @@ function useUiShims(parentURL) {
     parentURL.includes('/components/') ||
     parentURL.includes('/theoreticalEndgame/ui/') ||
     parentURL.includes('/EndgameEngineStatusBanner.tsx') ||
-    parentURL.includes('/uiShims/')
+    parentURL.includes('/uiShims/') ||
+    parentURL.includes('/navigation/useSmartBack.ts') ||
+    parentURL.includes('/hooks/useHeaderHardwareBack.ts') ||
+    parentURL.includes('/hooks/useWebNavigationGuard.ts')
   );
 }
 

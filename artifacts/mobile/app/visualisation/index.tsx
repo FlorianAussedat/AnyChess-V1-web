@@ -46,7 +46,6 @@ export default function VisualisationHub() {
     <HubScreen
       title={t('vision.title')}
       subtitle={t('vision.subtitle')}
-      onBack={() => router.back()}
     >
       {EXERCISES.map((ex) => (
         <HubModeCard

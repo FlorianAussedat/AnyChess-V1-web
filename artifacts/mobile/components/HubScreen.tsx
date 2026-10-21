@@ -29,7 +29,7 @@ export function HubIntro({ title, subtitle }: IntroProps) {
 type Props = {
   title: string;
   subtitle?: string;
-  onBack: () => void;
+  onBack?: () => void;
   children: React.ReactNode;
   showSound?: boolean;
 };

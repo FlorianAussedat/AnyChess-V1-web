@@ -1,3 +1,4 @@
+import { GeneralMenu } from '@/components/navigation/GeneralMenu';
 /**
  * Paramètres — app preferences (language, notation, voice, coords, dictation pace).
  */
@@ -10,7 +11,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { navigateMainTab } from '@/lib/navigation/routes';
+import { useRouter, usePathname, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useAudioSettings } from '@/hooks/useAudioSettings';
@@ -62,6 +64,7 @@ const PACE_LABEL_KEYS: Record<DictationPace, MessageKey> = {
 
 export default function ParametresScreen() {
   const colors = useColors();
+  const pathname = usePathname();
   const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { voiceEnabled, toggleVoice } = useAudioSettings();
@@ -112,7 +115,7 @@ export default function ParametresScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <ScreenHeader
-        onBack={() => router.back()}
+        trailing={<GeneralMenu />}
         title={t('settings.title')}
         backTestID="parametres-back"
       />
@@ -129,7 +132,7 @@ export default function ParametresScreen() {
             testID="parametres-sign-in"
             onPress={() => {
               setAuthReturn('/parametres');
-              router.push('/utilisateur' as Href);
+              navigateMainTab(router, pathname, '/utilisateur');
             }}
             style={({ pressed }) => [
               styles.noticeBtn,

@@ -77,7 +77,6 @@ export default function DefendDrawHistoryScreen() {
   return (
     <ChessScreenScaffold
       title={t('quiz.ddHistory')}
-      onBack={() => router.back()}
       testID="endgame-history"
     >
       {rows.length === 0 ? (

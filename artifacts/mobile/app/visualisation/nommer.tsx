@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -43,6 +44,7 @@ export default function NommerLeCoupScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
+  const goBack = useSmartBack();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const resumeSessionId =
     typeof params.sessionId === 'string' ? params.sessionId : undefined;
@@ -101,7 +103,7 @@ export default function NommerLeCoupScreen() {
     onLeave: returnNommerToIdle,
     onNavigateBack: () => {
       returnNommerToIdle();
-      router.navigate('/');
+      goBack();
     },
     captureHardwareBack: true,
   });
@@ -342,7 +344,7 @@ export default function NommerLeCoupScreen() {
           onBack={() => {
             sessionRef.current.returnToIdle();
             sync();
-            router.navigate('/');
+            goBack();
           }}
         />
       )}

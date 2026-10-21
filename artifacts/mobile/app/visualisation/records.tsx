@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
@@ -18,7 +17,6 @@ const playMoveStore = new PlayMoveRecordsStore(defaultKeyValueStorage);
 export default function VisualisationRecordsScreen() {
   const colors = useColors();
   const { t } = useTranslation();
-  const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const [moveNamingBest, setMoveNamingBest] = useState(0);
   const [playMoveBest, setPlayMoveBest] = useState(0);
@@ -60,7 +58,7 @@ export default function VisualisationRecordsScreen() {
         },
       ]}
     >
-      <ScreenHeader onBack={() => router.back()} title={t('records.title')} />
+      <ScreenHeader title={t('records.title')} />
       <Text style={{ color: colors.mutedForeground }}>
         {t('records.visionSubtitle')}
       </Text>

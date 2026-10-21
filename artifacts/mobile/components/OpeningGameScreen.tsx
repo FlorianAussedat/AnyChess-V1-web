@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -64,6 +65,7 @@ export function OpeningGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
   const { t } = useTranslation();
@@ -242,11 +244,11 @@ export function OpeningGameScreen() {
   }, [inputMode, setChessInputMode]);
 
   const goHome = useCallback(() => {
-    router.navigate('/');
-  }, [router]);
+    goBack();
+  }, [goBack]);
   const leaveOpeningSession = useCallback(() => {
-    router.replace('/openings' as Href);
-  }, [router]);
+    goBack();
+  }, [goBack]);
   const onBack = useActiveSessionBack({
     sessionActive: ready && history.length > 0 && !isGameOver,
     kind: 'exercice',
@@ -266,7 +268,7 @@ export function OpeningGameScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, paddingTop: contentTop }]}>
         <ScreenHeader
-          onBack={() => router.navigate('/')}
+          onBack={() => goBack()}
           title={t('openings.repertoire')}
         />
         <Text style={[styles.errorText, { color: colors.destructive }]}>{loadError}</Text>
@@ -286,7 +288,7 @@ export function OpeningGameScreen() {
         ]}
       >
         <BackButton
-          onPress={() => router.navigate('/')}
+          onPress={() => goBack()}
         />
         <View style={styles.loadingBody}>
           <ActivityIndicator color={colors.primary} />
@@ -470,7 +472,7 @@ export function OpeningGameScreen() {
             if (id) {
               router.push(`/openings/study?fileId=${encodeURIComponent(id)}` as Href);
             } else {
-              router.back();
+              goBack();
             }
           }}
         />
