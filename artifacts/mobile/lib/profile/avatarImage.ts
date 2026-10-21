@@ -1,10 +1,12 @@
+import {
+  avatarCropRect,
+  clampAvatarZoom,
+  type AvatarPosition,
+} from './avatarCrop.ts';
+export { clampAvatarZoom } from './avatarCrop.ts';
+
 /** Longest side kept after crop. PNG output keeps logo transparency. */
 export const AVATAR_MAX_EDGE = 512;
-
-export function clampAvatarZoom(zoom: number): number {
-  if (!Number.isFinite(zoom)) return 1;
-  return Math.min(3, Math.max(1, zoom));
-}
 
 /**
  * Centered square that fills the avatar. Zoom 1 uses the short side, so a
@@ -83,7 +85,8 @@ export function zoomFromTrack(
 export type AvatarImageFormat = 'jpeg' | 'png' | 'other';
 
 export function sniffAvatarFormat(bytes: Uint8Array): AvatarImageFormat {
-  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) return 'jpeg';
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8)
+    return 'jpeg';
   if (
     bytes.length >= 8 &&
     bytes[0] === 0x89 &&
@@ -131,7 +134,9 @@ export function fittedEdge(
 export function dataUrlToBytes(
   dataUrl: string,
 ): { bytes: Uint8Array; mime: string } | null {
-  const match = /^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(dataUrl.trim());
+  const match = /^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(
+    dataUrl.trim(),
+  );
   if (!match?.[1] || !match[2]) return null;
   const mime = match[1];
   const b64 = match[2].replace(/\s/g, '');
@@ -172,19 +177,25 @@ function loadHtmlImage(src: string): Promise<DrawableImage> {
 /**
  * Crop a centered square (zoom 1 fills the avatar) and shrink the longest
  * side to 512px. Output is PNG so a logo's transparency survives.
- * Web uses canvas. Native uses expo-image-manipulator (dev-client rebuild).
+ * Web uses canvas. Native uses the installed manipulator or the JavaScript fallback; no rebuild is required.
  */
 export type AvatarPrepareError = 'unsupported' | 'failed' | 'unavailable';
 
 export async function prepareAvatarImage(input: {
   uri: string;
   zoom?: number;
+  position?: AvatarPosition;
 }): Promise<{ dataUrl: string } | { error: AvatarPrepareError }> {
   const zoom = clampAvatarZoom(input.zoom ?? 1);
   if (typeof document !== 'undefined' && typeof Image !== 'undefined') {
     try {
       const img = await loadHtmlImage(input.uri);
-      const crop = centerCropRect(img.naturalWidth, img.naturalHeight, zoom);
+      const crop = avatarCropRect(
+        img.naturalWidth,
+        img.naturalHeight,
+        zoom,
+        input.position,
+      );
       const fitted = fittedEdge(crop.width, crop.height);
       const canvas = document.createElement('canvas') as HTMLCanvasElement;
       canvas.width = fitted.width;
@@ -208,7 +219,7 @@ export async function prepareAvatarImage(input: {
       return { error: 'unsupported' };
     }
   }
-  return prepareAvatarImageNative(input.uri, zoom);
+  return prepareAvatarImageNative(input.uri, zoom, input.position);
 }
 
 function nativeManipulatorReady(): boolean {
@@ -256,18 +267,31 @@ async function readUriBytes(uri: string): Promise<Uint8Array | null> {
 async function prepareAvatarWithInstalledManipulator(
   uri: string,
   zoom: number,
+  position?: AvatarPosition,
 ): Promise<{ dataUrl: string }> {
   const manipulator = await import('expo-image-manipulator');
   const context = manipulator.ImageManipulator.manipulate(uri);
+  let oriented: Awaited<ReturnType<typeof context.renderAsync>> | undefined;
   try {
     // First render is the oriented bitmap. Cropping that matches the preview,
     // including photos whose file stores a different EXIF orientation.
-    const oriented = await context.renderAsync();
-    const crop = centerCropRect(oriented.width, oriented.height, zoom);
+    oriented = await context.renderAsync();
+    const crop = avatarCropRect(
+      oriented.width,
+      oriented.height,
+      zoom,
+      position,
+    );
     const originX = Math.max(0, Math.round(crop.x));
     const originY = Math.max(0, Math.round(crop.y));
-    const width = Math.max(1, Math.min(oriented.width - originX, Math.round(crop.width)));
-    const height = Math.max(1, Math.min(oriented.height - originY, Math.round(crop.height)));
+    const width = Math.max(
+      1,
+      Math.min(oriented.width - originX, Math.round(crop.width)),
+    );
+    const height = Math.max(
+      1,
+      Math.min(oriented.height - originY, Math.round(crop.height)),
+    );
     const fitted = fittedEdge(width, height);
     context.crop({ originX, originY, width, height });
     context.resize(fitted);
@@ -284,6 +308,7 @@ async function prepareAvatarWithInstalledManipulator(
       image.release();
     }
   } finally {
+    oriented?.release();
     context.release();
   }
 }
@@ -291,9 +316,10 @@ async function prepareAvatarWithInstalledManipulator(
 async function prepareAvatarWithJavascript(
   bytes: Uint8Array,
   zoom: number,
+  position?: AvatarPosition,
 ): Promise<{ dataUrl: string } | null> {
   const { prepareAvatarBytes } = await import('./avatarRaster.ts');
-  const prepared = prepareAvatarBytes(bytes, zoom);
+  const prepared = prepareAvatarBytes(bytes, zoom, position);
   if (!prepared) return null;
   return { dataUrl: bytesToDataUrl(prepared.bytes, prepared.mime) };
 }
@@ -301,12 +327,13 @@ async function prepareAvatarWithJavascript(
 async function prepareAvatarImageNative(
   uri: string,
   zoom: number,
+  position?: AvatarPosition,
 ): Promise<{ dataUrl: string } | { error: AvatarPrepareError }> {
   const manipulatorReady = nativeManipulatorReady();
   try {
     if (manipulatorReady) {
       try {
-        return await prepareAvatarWithInstalledManipulator(uri, zoom);
+        return await prepareAvatarWithInstalledManipulator(uri, zoom, position);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(`[AnyChess] ExpoImageManipulator crop failed: ${message}`);
@@ -328,12 +355,82 @@ async function prepareAvatarImageNative(
       );
       return { error: 'unavailable' };
     }
-    const prepared = await prepareAvatarWithJavascript(bytes, zoom);
+    const prepared = await prepareAvatarWithJavascript(bytes, zoom, position);
     if (!prepared) return { error: 'failed' };
     return prepared;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`[AnyChess] avatar crop failed: ${message}`);
+    return { error: 'failed' };
+  }
+}
+
+export type AvatarSource = { uri: string; width: number; height: number };
+
+/** Normalize orientation once before both preview and crop; strip EXIF from the PNG. */
+export async function prepareAvatarSource(
+  uri: string,
+): Promise<AvatarSource | { error: AvatarPrepareError }> {
+  try {
+    if (typeof document !== 'undefined' && typeof Image !== 'undefined') {
+      const image = await loadHtmlImage(uri);
+      const size = fittedEdge(image.naturalWidth, image.naturalHeight, 2048);
+      const canvas = document.createElement('canvas');
+      canvas.width = size.width;
+      canvas.height = size.height;
+      const context = canvas.getContext('2d');
+      if (!context) return { error: 'unsupported' };
+      context.drawImage(
+        image as unknown as CanvasImageSource,
+        0,
+        0,
+        size.width,
+        size.height,
+      );
+      return { uri: canvas.toDataURL('image/png'), ...size };
+    }
+    if (nativeManipulatorReady()) {
+      try {
+        const module = await import('expo-image-manipulator');
+        const context = module.ImageManipulator.manipulate(uri);
+        try {
+          const oriented = await context.renderAsync();
+          try {
+            const size = fittedEdge(oriented.width, oriented.height, 2048);
+            context.resize(size);
+            const image = await context.renderAsync();
+            try {
+              const saved = await image.saveAsync({
+                format: module.SaveFormat.PNG,
+              });
+              return { uri: saved.uri, ...size };
+            } finally {
+              image.release();
+            }
+          } finally {
+            oriented.release();
+          }
+        } finally {
+          context.release();
+        }
+      } catch {
+        /* Installed clients can still fall back to the bundled JPEG/PNG codecs. */
+      }
+    }
+    const bytes = await readUriBytes(uri);
+    if (!bytes) return { error: 'failed' };
+    if (sniffAvatarFormat(bytes) === 'other') return { error: 'unavailable' };
+    const { decodeAvatarBytes, fitAvatarRgba, encodeAvatarPng } =
+      await import('./avatarRaster.ts');
+    const decoded = decodeAvatarBytes(bytes);
+    if (!decoded) return { error: 'failed' };
+    const image = fitAvatarRgba(decoded, 2048);
+    return {
+      uri: bytesToDataUrl(encodeAvatarPng(image), 'image/png'),
+      width: image.width,
+      height: image.height,
+    };
+  } catch {
     return { error: 'failed' };
   }
 }
