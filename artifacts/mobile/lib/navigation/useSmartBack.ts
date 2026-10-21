@@ -1,16 +1,12 @@
-/**
- * Smart back navigation — fallback when history is empty.
- */
+/** History first; an explicit or route-aware fallback for direct links. */
 import { useCallback } from 'react';
-import { useRouter, type Href } from 'expo-router';
+import { usePathname, useRouter, type Href } from 'expo-router';
+import { backToPrevious } from './routes';
 
-export function useSmartBack(fallbackHref: Href) {
+export function useSmartBack(fallbackHref?: Href) {
   const router = useRouter();
+  const pathname = usePathname();
   return useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace(fallbackHref);
-    }
-  }, [router, fallbackHref]);
+    backToPrevious(router, pathname, fallbackHref);
+  }, [router, pathname, fallbackHref]);
 }

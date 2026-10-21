@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { AppButton } from '@/components/ui/AppButton';
 import { useColors } from '@/hooks/useColors';
@@ -28,7 +27,6 @@ function pieceLabel(id: string): string {
 export default function PuzzleRecordsScreen() {
   const colors = useColors();
   const { t } = useTranslation();
-  const router = useRouter();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const [snapshot, setSnapshot] = useState<PuzzleStreakState>(emptyStreakState());
 
@@ -66,7 +64,7 @@ export default function PuzzleRecordsScreen() {
         },
       ]}
     >
-      <ScreenHeader onBack={() => router.back()} title={t('records.title')} />
+      <ScreenHeader title={t('records.title')} />
       <Text style={{ color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }}>
         {t('records.puzzleSubtitle')}
       </Text>

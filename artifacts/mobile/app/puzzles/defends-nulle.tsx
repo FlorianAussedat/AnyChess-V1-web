@@ -46,7 +46,6 @@ export default function EndgameTrainingMenuScreen() {
   return (
     <ChessScreenScaffold
       title={t('quiz.defendsNullePageTitle')}
-      onBack={() => router.back()}
       testID="endgame-training-menu"
     >
       <HubModeCard

@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
@@ -75,6 +76,7 @@ export function ClassicGameScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
   const { t } = useTranslation();
@@ -293,8 +295,8 @@ export function ClassicGameScreen() {
   }, [inputMode, setChessInputMode]);
 
   const goHome = useCallback(() => {
-    router.navigate('/');
-  }, [router]);
+    goBack();
+  }, [goBack]);
   const leaveClassicSession = useCallback(() => {
     void endActivity(sessionId).then(goHome);
   }, [sessionId, goHome]);

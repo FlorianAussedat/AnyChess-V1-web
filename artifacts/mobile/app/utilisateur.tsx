@@ -1,3 +1,5 @@
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { GeneralMenu } from '@/components/navigation/GeneralMenu';
 /**
  * Utilisateur — profile identity + local data links (no preferences).
  */
@@ -13,7 +15,8 @@ import {
   View,
   type ImageSourcePropType,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { navigateMainTab } from '@/lib/navigation/routes';
+import { usePathname, useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -53,6 +56,7 @@ const YEAR_OPTIONS = Array.from(
 export default function UtilisateurScreen() {
   const colors = useColors();
   const router = useRouter();
+  const pathname = usePathname();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { profile, updateProfile } = useUserProfile();
   const cloud = useCloudAccount();
@@ -231,9 +235,7 @@ export default function UtilisateurScreen() {
         testID="utilisateur-screen"
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          {t('utilisateur.title')}
-        </Text>
+        <ScreenHeader title={t('utilisateur.title')} trailing={<GeneralMenu />} />
         <View
           style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
           testID="utilisateur-guest-card"
@@ -260,9 +262,7 @@ export default function UtilisateurScreen() {
       testID="utilisateur-screen"
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>
-        {t('utilisateur.title')}
-      </Text>
+      <ScreenHeader title={t('utilisateur.title')} trailing={<GeneralMenu />} />
 
       <View
         style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -341,7 +341,7 @@ export default function UtilisateurScreen() {
               ? t('profil.recordsSee')
               : `${activeRecords} / ${RECORDS_CATEGORIES.length}`
           }
-          onPress={() => router.push('/records')}
+          onPress={() => navigateMainTab(router, pathname, '/records')}
           testID="profil-row-records"
         />
       </View>

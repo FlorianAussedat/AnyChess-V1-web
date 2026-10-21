@@ -35,12 +35,12 @@ describe('launch intro and home logo wiring', () => {
     assert.doesNotMatch(splash, /BrandAssets\.logoMark/);
   });
 
-  it('mounts the intro only in the root shell and prepares home + nav underneath', () => {
+  it('mounts the intro only in the root shell and reveals main navigation afterwards', () => {
     const layout = read('app/_layout.tsx');
     const home = read('app/index.tsx');
     assert.match(layout, /AnyChessSplashScreen/);
-    assert.match(layout, /\{appReady \? <BottomNavigation \/> : null\}/);
-    assert.match(layout, /paddingBottom: DesignTokens\.bottomNavContentHeight/);
+    assert.match(layout, /<NavigationShell introDone=\{introDone\}>/);
+    assert.doesNotMatch(layout, /paddingBottom: DesignTokens\.bottomNavContentHeight/);
     assert.doesNotMatch(home, /AnyChessSplashScreen/);
     assert.match(home, /BrandAssets\.horizontalLogo/);
     assert.match(home, /HORIZONTAL_LOGO_ART/);

@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -56,6 +57,7 @@ export default function QuelleOuvertureScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
+  const goBack = useSmartBack();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const resumeSessionId =
     typeof params.sessionId === 'string' ? params.sessionId : undefined;
@@ -95,7 +97,7 @@ export default function QuelleOuvertureScreen() {
     kind: 'exercice',
     activityId: sessionId,
     onLeave: () => setPhase('pick-level'),
-    onNavigateBack: () => router.navigate('/'),
+    onNavigateBack: () => goBack(),
     captureHardwareBack: true,
   });
 

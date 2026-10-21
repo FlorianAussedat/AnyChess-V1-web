@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Culture générale — mixed chess culture quiz (offline).
  * Question data lives in lib/chessCulture; this screen only manages UI/session state.
@@ -49,6 +50,7 @@ export default function CultureGeneraleQuizScreen() {
   const insets = useAppSafeInsets();
   const boardSize = useBoardSize('wide');
   const router = useRouter();
+  const goBack = useSmartBack();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const resumeSessionId =
     typeof params.sessionId === 'string' ? params.sessionId : undefined;
@@ -147,8 +149,8 @@ export default function CultureGeneraleQuizScreen() {
     sessionActive: phase === 'playing',
     kind: 'exercice',
     activityId: sessionId,
-    onLeave: () => router.replace('/quiz-ouverture' as Href),
-    onNavigateBack: () => router.navigate('/'),
+    onLeave: goBack,
+    onNavigateBack: () => goBack(),
     captureHardwareBack: true,
   });
 

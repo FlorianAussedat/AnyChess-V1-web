@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { usePathname, useRouter, type Href } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -18,17 +18,8 @@ import { BrandAssets } from '@/constants/BrandAssets';
 import { DesignTokens } from '@/constants/designTokens';
 import { NAV_HOME_ART, artHeight } from '@/constants/brandArtBounds';
 
-export type BottomNavTabId = 'home' | 'records' | 'utilisateur' | 'parametres';
-
-function resolveActiveTab(pathname: string): BottomNavTabId | null {
-  if (pathname === '/' || pathname === '/index') return 'home';
-  if (pathname.startsWith('/records')) return 'records';
-  if (pathname.startsWith('/utilisateur') || pathname.startsWith('/profil')) {
-    return 'utilisateur';
-  }
-  if (pathname.startsWith('/parametres')) return 'parametres';
-  return null;
-}
+export type { BottomNavTabId } from '@/lib/navigation/routes';
+import { resolveActiveTab, navigateMainTab } from '@/lib/navigation/routes';
 
 function HomeNavIcon({ active }: { active: boolean }) {
   // ~28–32px visible artwork; compensate for canvas padding (~44% × 28% content).
@@ -71,36 +62,23 @@ function HomeNavIcon({ active }: { active: boolean }) {
 
 export function BottomNavigation() {
   const colors = useColors();
-  const { bottom: safeBottom } = useAppSafeInsets();
-  const router = useRouter();
+  const { bottom: safeBottom, left: safeLeft, right: safeRight } = useAppSafeInsets();
   const pathname = usePathname();
+  const router = useRouter();
   const active = resolveActiveTab(pathname);
   const { t } = useTranslation();
 
-  const goHome = () => {
-    if (pathname === '/' || pathname === '/index') return;
-    router.navigate('/' as Href);
-  };
+  if (!active) return null;
 
-  const goRecords = () => {
-    if (pathname.startsWith('/records')) return;
-    router.push('/records' as Href);
-  };
-
-  const goUtilisateur = () => {
-    if (pathname.startsWith('/utilisateur')) return;
-    router.push('/utilisateur' as Href);
-  };
-
-  const goParametres = () => {
-    if (pathname.startsWith('/parametres')) return;
-    router.push('/parametres' as Href);
-  };
+  const goHome = () => navigateMainTab(router, pathname, '/');
+  const goRecords = () => navigateMainTab(router, pathname, '/records');
+  const goUtilisateur = () => navigateMainTab(router, pathname, '/utilisateur');
+  const goParametres = () => navigateMainTab(router, pathname, '/parametres');
 
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.wrap, { paddingBottom: safeBottom }]}
+      style={[styles.wrap, { paddingBottom: safeBottom, paddingLeft: safeLeft, paddingRight: safeRight, backgroundColor: colors.background }]}
     >
       <View
         style={[
@@ -198,11 +176,7 @@ function NavItem({
 
 const styles = StyleSheet.create({
   wrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 50,
+    flexShrink: 0,
   },
   bar: {
     flexDirection: 'row',

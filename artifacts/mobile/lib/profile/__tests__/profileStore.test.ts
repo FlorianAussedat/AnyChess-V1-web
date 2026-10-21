@@ -105,7 +105,7 @@ describe('Utilisateur / Paramètres screen scope', () => {
     assert.match(parametres, /parametres-screen/);
     assert.match(parametres, /ScreenHeader/);
     assert.match(parametres, /parametres-back/);
-    assert.match(parametres, /router\.back\(\)/);
+    assert.doesNotMatch(parametres, /onBack=\{/); // Uses the shared header's history + fallback.
     assert.match(parametres, /profil-row-language/);
     assert.match(parametres, /profil-lang-\$\{opt\.id\}/);
     assert.match(parametres, /nativeName/);

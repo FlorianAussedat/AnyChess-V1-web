@@ -6,6 +6,7 @@
 import { useCallback, useRef } from 'react';
 import { BackHandler } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useWebNavigationGuard } from '@/hooks/useWebNavigationGuard';
 import {
   confirmActiveSessionBack,
   type ActiveSessionBackKind,
@@ -25,15 +26,19 @@ export function useActiveSessionBack(opts: {
 }): () => void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
+  const allowRemoval = useWebNavigationGuard(opts.sessionActive, () => onBack(), opts.activityId);
 
   const onBack = useCallback(() => {
     const current = optsRef.current;
     if (current.sessionActive) {
-      confirmActiveSessionBack(current.kind, current.activityId, current.onLeave);
+      confirmActiveSessionBack(current.kind, current.activityId, () => {
+        allowRemoval();
+        current.onLeave();
+      });
       return;
     }
     current.onNavigateBack();
-  }, []);
+  }, [allowRemoval]);
 
   useFocusEffect(
     useCallback(() => {

@@ -152,7 +152,7 @@ export default function OpeningsLearnScreen() {
         },
       ]}
     >
-      <ScreenHeader onBack={() => router.back()} title={t('openings.learn')} />
+      <ScreenHeader title={t('openings.learn')} />
 
       {!access.ready || !ready ? (
         <View style={styles.centered}>

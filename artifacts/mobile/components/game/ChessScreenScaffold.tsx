@@ -17,7 +17,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -66,7 +65,6 @@ export function ChessScreenScaffold({
   scrollEnabled = true,
 }: Props) {
   const colors = useColors();
-  const router = useRouter();
   const { contentTop, contentBottom } = useAppSafeInsets();
 
   const resolvedHeader =
@@ -74,7 +72,7 @@ export function ChessScreenScaffold({
       header
     ) : title != null ? (
       <ScreenHeader
-        onBack={onBack ?? (() => router.back())}
+        onBack={onBack}
         title={title}
         subtitle={subtitle}
         showSound={showSound}
