@@ -125,15 +125,19 @@ export async function flushPendingAvatar(input: {
   accessToken: string | null;
   fetchImpl?: typeof fetch;
   markHasAvatar?: (hasAvatar: boolean) => Promise<void>;
+  isCurrent?: () => boolean;
 }): Promise<'uploaded' | 'removed' | 'skipped' | 'failed' | 'offline'> {
-  const pending = await readPendingAvatar(input.storage);
+  const pending = await readPendingAvatar(input.storage, input.email);
   if (!pending) return 'skipped';
+  const stillCurrent = async () => (input.isCurrent?.() ?? true) && JSON.stringify(await readPendingAvatar(input.storage, input.email)) === JSON.stringify(pending);
+  if (!(await stillCurrent())) return 'skipped';
   if (pending.email !== normalizeAvatarEmail(input.email)) return 'skipped';
   if (pending.intent === 'mascot' && pending.mascotId) {
     if (profileStore.usesStorage(input.storage)) {
       await profileStore.update({ mascotId: pending.mascotId });
     }
-    await clearPendingAvatar(input.storage);
+    if (!(await stillCurrent())) return 'skipped';
+    await clearPendingAvatar(input.storage, input.email, pending);
     return 'uploaded';
   }
   const decision = await decideCloudTransfer(false);
@@ -146,7 +150,8 @@ export async function flushPendingAvatar(input: {
       input.fetchImpl,
     );
     if (!removed) return 'failed';
-    await clearPendingAvatar(input.storage);
+    if (!(await stillCurrent())) return 'skipped';
+    await clearPendingAvatar(input.storage, input.email, pending);
     if (input.markHasAvatar) await input.markHasAvatar(false);
     else if (profileStore.usesStorage(input.storage)) {
       await profileStore.update({ hasAvatar: false });
@@ -160,8 +165,10 @@ export async function flushPendingAvatar(input: {
     input.fetchImpl,
   );
   if (!ok) return 'failed';
+  if (!(await stillCurrent())) return 'skipped';
   await writeAvatarCache(input.storage, input.userId, pending.dataUrl);
-  await clearPendingAvatar(input.storage);
+  if (!(await stillCurrent())) return 'skipped';
+  await clearPendingAvatar(input.storage, input.email, pending);
   if (input.markHasAvatar) await input.markHasAvatar(true);
   else if (profileStore.usesStorage(input.storage)) {
     await profileStore.update({ hasAvatar: true });
@@ -375,7 +382,7 @@ async function commitAvatarChangeSerial(
           ? 'uploaded'
           : 'removed'
         : 'sync_failed';
-      if (ok) await clearPendingAvatar(storage);
+      if (ok) await clearPendingAvatar(storage, input.email);
     }
     if (input.cancelled?.()) {
       const restored = await rollback();

@@ -69,6 +69,7 @@ export interface StoredPgnFile {
    */
   displayName?: string;
   importedAt: string;
+  updatedAt?: string;
   /** Raw PGN text as imported / replaced. */
   pgnText: string;
   summary: PgnParseSummary;

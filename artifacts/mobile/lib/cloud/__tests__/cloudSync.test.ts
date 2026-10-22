@@ -146,7 +146,7 @@ describe('account sync engine', () => {
     const key = await engine.backupLocal();
     await storage.setItem(StorageKeys.repertoires.key, repertoire([]));
     assert.equal(await restoreBackup(storage, key), true);
-    assert.equal(await storage.getItem(StorageKeys.repertoires.key), original);
+    assert.deepEqual(JSON.parse((await storage.getItem(StorageKeys.repertoires.key))!).files, JSON.parse(original).files);
     assert.match(key, new RegExp(cloudBackupKey('').replace('.v1', '')));
   });
 

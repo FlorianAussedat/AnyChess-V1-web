@@ -378,6 +378,7 @@ export class RepertoireService {
       .map((f) => f.filename);
     const fromFolderId = file.folderId;
     file.folderId = targetFolderId;
+    file.updatedAt = nowIso();
     file.filename = uniquePgnFilename(file.filename, existingNames);
     const from = this.snapshot!.folders.find((f) => f.id === fromFolderId);
     if (from) from.updatedAt = nowIso();
@@ -472,6 +473,7 @@ export class RepertoireService {
     const mutationAt = nowIso();
     file.pgnText = text;
     file.importedAt = mutationAt;
+    file.updatedAt = mutationAt;
     file.summary = summariseParse(text);
     if (filename) file.filename = normaliseFilename(filename);
 

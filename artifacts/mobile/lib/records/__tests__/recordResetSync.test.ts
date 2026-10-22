@@ -101,7 +101,7 @@ describe('record reset survives sync', () => {
     await storage.setItem(PLAY, highScore(40, '2026-10-01T00:00:00.000Z'));
     await engine.sync();
     arm = true;
-    await storage.setItem(PLAY, highScore(40, '2026-10-01T00:00:00.000Z'));
+    await storage.setItem(PLAY, highScore(41, '2026-10-01T00:00:00.000Z'));
     await engine.sync();
     const local = JSON.parse((await storage.getItem(PLAY)) ?? '{}') as { best: number; resetAt?: string };
     assert.equal(local.best, 0);
