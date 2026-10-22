@@ -26,7 +26,7 @@ export const DesignTokens = {
     secondary: '#1C3558',
     secondaryForeground: '#DCE8F5',
     muted: '#0E1C34',
-    mutedForeground: '#5B7FA0',
+    mutedForeground: '#8FAAC5',
     accent: '#1F4080',
     accentForeground: '#ffffff',
     tint: '#F5A623',
