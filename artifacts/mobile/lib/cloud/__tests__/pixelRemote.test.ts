@@ -108,6 +108,10 @@ it('retains local modifications and a connected session when the actual REST ada
 it('reports failed local backup as local storage rather than a Supabase error and keeps data', async () => {
   class FailingBackup extends MemoryKeyValueStorage {
     fail = false;
+    override async updateItem(k:string,update:(current:string|null)=>string|null) {
+      if(this.fail&&k.includes('.backup.'))throw new Error('SQLITE_FULL');
+      await super.updateItem(k,update);
+    }
     override async setItem(k: string, v: string) {
       if (this.fail && k.includes('.backup.')) throw new Error('SQLITE_FULL');
       await super.setItem(k, v);

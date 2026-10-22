@@ -15,6 +15,8 @@ import { mergeDocumentPayload } from '../mergeDocuments.ts';
 import { clearPendingAvatar, readPendingAvatar, savePendingAvatar } from '../../profile/avatarLocal.ts';
 import { flushPendingAvatar } from '../../profile/avatarRemote.ts';
 
+const engines = new Set<CloudSyncEngine>();
+function tracked(engine:CloudSyncEngine):CloudSyncEngine { engines.add(engine);return engine; }
 const key = StorageKeys.repertoires.key;
 const pgn = (id: string, text = '1. e4 {demo} (1. d4 d5) e5 $1 *') => ({ id, filename: 'same.pgn', pgnText: text, folderId: 'nested', importedAt: '2026-01-01' });
 const doc = (...files: ReturnType<typeof pgn>[]) => JSON.stringify({ version: 2, folders: [{ id: 'root', name: 'Root', parentId: null }, { id: 'nested', name: 'Nested', parentId: 'root' }], files });
@@ -27,11 +29,11 @@ function gate() {
 async function device(remote: CloudRemote, storage = new MemoryKeyValueStorage()) {
   const auth = new MemoryCloudAuth();
   auth.seed('demo@example.com', 'secret1', 'shared-owner');
-  const engine = new CloudSyncEngine(storage, auth, remote);
+  const engine = tracked(new CloudSyncEngine(storage, auth, remote));
   await engine.signIn('demo@example.com', 'secret1');
   return { engine, storage, auth };
 }
-afterEach(() => setCloudTransferReadersForTests({ transport: null }));
+afterEach(() => { for(const engine of engines)engine.dispose();engines.clear();setCloudTransferReadersForTests({ transport: null }); });
 
 describe('two devices and a shared remote', () => {
   it('preserves distinct same-name/same-content IDs, nested folders and round-trip PGN without duplicates', async () => {
@@ -77,7 +79,8 @@ describe('two devices and a shared remote', () => {
     await a.storage.setItem(key, doc(pgn('offline')));
     await a.storage.setItem(StorageKeys.userPreferences.key, JSON.stringify({ language: 'en', syncOnWifiOnly: true }));
     await a.engine.sync(); assert.equal(a.engine.getState().status, 'offline');
-    const restarted = new CloudSyncEngine(a.storage, a.auth, remote);
+    a.engine.dispose();
+    const restarted = tracked(new CloudSyncEngine(a.storage, a.auth, remote));
     await restarted.hydrate(); assert.equal(restarted.getState().user?.id, 'shared-owner');
     assert.match((await a.storage.getItem(key))!, /offline/);
     setCloudTransferReadersForTests({ transport: async () => 'cellular' });
@@ -181,7 +184,8 @@ describe('single-flight, interruptions and local durability', () => {
     const a = await device(remote); const original = doc(pgn('safe')); await a.storage.setItem(key, original);
     fail = true; await a.engine.sync(); assert.equal(await a.storage.getItem(key), original);
     assert.equal(a.engine.getState().lastError, 'sync_failed'); assert.equal(a.engine.getState().status, 'offline');
-    const restarted = new CloudSyncEngine(a.storage, a.auth, remote); await restarted.hydrate();
+    a.engine.dispose();
+    const restarted = tracked(new CloudSyncEngine(a.storage, a.auth, remote)); await restarted.hydrate();
     fail = false; await restarted.sync(); assert.match(inner.peek('shared-owner', key)!.payload!, /safe/);
   });
   it('retains a visible failed local save until a later durable local mutation', async () => {

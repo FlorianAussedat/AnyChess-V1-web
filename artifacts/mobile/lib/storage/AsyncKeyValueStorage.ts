@@ -1,3 +1,4 @@
+import { inspectStorage, approximateBytes } from './storageDiagnostics.ts';
 /**
  * AsyncStorage implementation of KeyValueStorage (React Native / Expo).
  * Keep AsyncStorage imports here — not in mode business logic.
@@ -46,6 +47,7 @@ function notifyError(key: string): void {
   }
 }
 
+const backendEpochs = new WeakMap<object, number>();
 const backendLocks = new WeakMap<object, object>();
 export class AsyncKeyValueStorage implements KeyValueStorage {
   private readonly lock: object;
@@ -58,6 +60,10 @@ export class AsyncKeyValueStorage implements KeyValueStorage {
       backendLocks.set(backend, lock);
     }
     this.lock = lock;
+  }
+  async diagnoseStorage() {
+    const epoch = backendEpochs.get(this.backend) ?? 0;
+    return inspectStorage(this.backend, () => (backendEpochs.get(this.backend) ?? 0) === epoch);
   }
   async getItem(key: string): Promise<string | null> {
     try {
@@ -78,11 +84,14 @@ export class AsyncKeyValueStorage implements KeyValueStorage {
     source?: 'cloud',
   ): Promise<void> {
     await serializedUpdate(this.lock, key, async () => {
+      let attempted: string | undefined;
       try {
+        backendEpochs.set(this.backend, (backendEpochs.get(this.backend) ?? 0) + 1);
         const current = await (isSnapshotKey(key)
           ? readSnapshot(this.backend, key)
           : this.backend.getItem(key));
         const next = update(current);
+        if (typeof next === 'string') attempted = next;
         if (next === current) return;
         if (next == null)
           await (isSnapshotKey(key)
@@ -94,7 +103,19 @@ export class AsyncKeyValueStorage implements KeyValueStorage {
             : this.backend.setItem(key, next));
       } catch (error) {
         notifyError(key);
-        throw reportCloudError('storage.update', 'local', error);
+        const safe = reportCloudError('storage.update', 'local', error);
+        if (
+          isSnapshotKey(key) &&
+          attempted !== undefined &&
+          typeof __DEV__ !== 'undefined' &&
+          __DEV__
+        )
+          console.warn('[AnyChess storage write]', {
+            stage: 'storage.snapshot.refused',
+            kind: safe.kind,
+            requestedKiB: Math.ceil(approximateBytes(attempted) / 1024),
+          });
+        throw safe;
       }
       notifyWrite(key, source);
     });
@@ -103,13 +124,21 @@ export class AsyncKeyValueStorage implements KeyValueStorage {
   async setItem(key: string, value: string): Promise<void> {
     if (!isSnapshotKey(key)) return this.updateItem(key, () => value);
     await serializedUpdate(this.lock, key, async () => {
+      backendEpochs.set(this.backend, (backendEpochs.get(this.backend) ?? 0) + 1);
       try {
         await cloudStep('storage.snapshot.write', 'local', () =>
           writeSnapshot(this.backend, key, value),
         );
       } catch (error) {
         notifyError(key);
-        throw error;
+        const safe = reportCloudError('storage.snapshot.refused', 'local', error);
+        if (typeof __DEV__ !== 'undefined' && __DEV__)
+          console.warn('[AnyChess storage write]', {
+            stage: 'storage.snapshot.refused',
+            kind: safe.kind,
+            requestedKiB: Math.ceil(approximateBytes(value) / 1024),
+          });
+        throw safe;
       }
       notifyWrite(key);
     });

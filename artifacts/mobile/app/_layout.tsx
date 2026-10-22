@@ -113,10 +113,10 @@ export default function RootLayout() {
       .then(() => {
         setPrefsHydrated(true);
         bindCloudLifecycle();
-        void hydrateCloudSession().finally(() => {
+        void hydrateCloudSession().catch(error=>getActiveCloudEngine().noteBackgroundFailure('boot.cloud_hydrate',error)).finally(() => {
           bindPgnTranslationLifecycle();
-          void reconcilePgnTranslationAfterBoot();
-        });
+          void reconcilePgnTranslationAfterBoot().catch(error=>getActiveCloudEngine().noteBackgroundFailure('boot.translation_reconcile',error));
+        }).catch(error=>getActiveCloudEngine().noteBackgroundFailure('boot.cloud_finally',error));
       })
       .catch(() => setPrefsHydrated(true));
   }, []);

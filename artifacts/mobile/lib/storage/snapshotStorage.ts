@@ -1,4 +1,4 @@
-import { classifyCloudError, reportCloudError } from '../cloud/diagnostics.ts';
+import { classifyCloudError, reportCloudError, cloudStep } from '../cloud/diagnostics.ts';
 import type { KeyValueStorage } from './KeyValueStorage.ts';
 /** Snapshot-only physical framing. Legacy plain values remain readable; no startup migration. */
 const PREFIX = '@anychess/snapshot-chunks/1:';
@@ -10,7 +10,7 @@ export function isSnapshotKey(key: string): boolean {
   );
 }
 type Manifest = { generation: string; count: number; length: number; hash: number };
-function hash(text: string): number {
+export function snapshotHash(text: string): number {
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
   return h >>> 0;
@@ -43,7 +43,8 @@ export async function readSnapshot(storage: KeyValueStorage, key: string): Promi
     chunks.push(chunk);
   }
   const text = chunks.join('');
-  if (text.length !== m.length || hash(text) !== m.hash) throw new Error('snapshot_integrity');
+  if (text.length !== m.length || snapshotHash(text) !== m.hash)
+    throw new Error('snapshot_integrity');
   return text;
 }
 export async function writeSnapshot(
@@ -54,12 +55,15 @@ export async function writeSnapshot(
   // Only read the small old marker if possible. An oversized legacy row must not
   // prevent replacement by a fresh snapshot built from the intact active docs.
   let previous: Manifest | null = null;
+  let previousRaw: string | null = null;
   try {
-    previous = manifest(await storage.getItem(key));
+    previousRaw = await storage.getItem(key);
+    previous = manifest(previousRaw);
   } catch (error) {
     if (classifyCloudError(error, 'local') !== 'local_size_limit') throw error;
     reportCloudError('storage.snapshot.legacy_row_unreadable', 'local', error);
   }
+  if (previousRaw === value || (previous && (await readSnapshot(storage, key)) === value)) return;
   if (value.length <= SNAPSHOT_CHUNK_SIZE) {
     await storage.setItem(key, value);
     if ((await storage.getItem(key)) !== value) throw new Error('snapshot_verify_failed');
@@ -72,19 +76,32 @@ export async function writeSnapshot(
       offset = end;
     }
     const next: Manifest = {
-      generation: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+      generation: `resume-${snapshotHash(value).toString(36)}-${value.length}`,
       count: chunks.length,
       length: value.length,
-      hash: hash(value),
+      hash: snapshotHash(value),
     };
+    // Check every pre-existing block before writing anything. Never overwrite
+    // bytes of an ambiguous previous attempt, even on a fingerprint collision.
+    const present: boolean[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const existing = await storage.getItem(chunkKey(key, next, i));
+      if (existing != null && existing !== chunks[i]) throw new Error('snapshot_staging_collision');
+      present.push(existing != null);
+    }
     for (let i = 0; i < chunks.length; i++) {
       const part = chunkKey(key, next, i);
-      await storage.setItem(part, chunks[i]);
+      if (!present[i])
+        await cloudStep(`storage.snapshot.block_write.${i}`, 'local', () =>
+          storage.setItem(part, chunks[i]),
+        );
       if ((await storage.getItem(part)) !== chunks[i]) throw new Error('snapshot_verify_failed');
     }
     // Publish only after every new chunk has been read back. A failed/ambiguous
     // commit keeps the old snapshot and/or the complete new generation available.
-    await storage.setItem(key, PREFIX + JSON.stringify(next));
+    await cloudStep('storage.snapshot.publish', 'local', () =>
+      storage.setItem(key, PREFIX + JSON.stringify(next)),
+    );
     if ((await readSnapshot(storage, key)) !== value) throw new Error('snapshot_verify_failed');
   }
   // Called under the adapter's per-key read/write lock. Never remove backups or
@@ -105,4 +122,19 @@ export async function removeSnapshot(storage: KeyValueStorage, key: string): Pro
       ? Array.from({ length: m.count }, (_, i) => chunkKey(key, m, i))
       : [];
   for (const part of owned) await storage.removeItem(part);
+}
+
+/** Internal metadata only. Never expose owner-bearing keys/generation IDs in logs. */
+export function snapshotReferences(
+  key: string,
+  raw: string | null,
+): { keys: string[]; length: number; hash: number } | null {
+  const m = manifest(raw);
+  return m
+    ? {
+        keys: Array.from({ length: m.count }, (_, i) => chunkKey(key, m, i)),
+        length: m.length,
+        hash: m.hash,
+      }
+    : null;
 }
