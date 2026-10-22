@@ -33,6 +33,7 @@ export async function rememberBackup(
     return;
   }
   const list = await readBackupIndex(storage);
+  if(list.some(row=>row.key===key&&row.ownerId===ownerId))return;
   list.push({ key, ownerId });
   await storage.setItem(CLOUD_BACKUP_INDEX_KEY, JSON.stringify(list));
 }

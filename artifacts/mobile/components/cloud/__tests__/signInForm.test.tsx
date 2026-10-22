@@ -306,3 +306,18 @@ it('distinguishes the missing server revision column from local storage failure 
     await engine.signOut();
   });
 });
+
+it('catches a rejected guest import before its backup instead of emitting an unhandled rejection',async()=>{
+  const {CloudOperationError}=await import('../../../lib/cloud/diagnostics.ts');
+  const engine=getActiveCloudEngine();await engine.signUp('demo@example.com','secret1');
+  engine.guestDataAvailable=async()=>true;
+  engine.importGuestData=async()=>{throw new CloudOperationError('local_quota','sync.backup','local');};
+  const errors:unknown[]=[];const listener=(error:unknown)=>errors.push(error);process.on('unhandledRejection',listener);
+  let renderer!:ReturnType<typeof create>;
+  try{
+    await act(async()=>{renderer=create(React.createElement(CloudAccountSection));await new Promise(resolve=>setImmediate(resolve));});
+    await act(async()=>renderer.root.findByProps({testID:'cloud-import-guest'}).props.onPress());
+    await act(async()=>{getAppDialogRequest()!.onConfirm!();dismissAppDialog();await new Promise(resolve=>setImmediate(resolve));});
+    assert.equal(engine.getState().lastError,'local_quota');assert.ok(engine.getState().user);assert.equal(errors.length,0);assert.ok(renderer.root.findByProps({testID:'cloud-quota-paused'}));
+  }finally{process.off('unhandledRejection',listener);if(renderer)await act(async()=>renderer.unmount());}
+});

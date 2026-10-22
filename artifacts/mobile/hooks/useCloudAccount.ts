@@ -28,6 +28,8 @@ export function useCloudAccount() {
     dismissPendingConfirmation: () => getActiveCloudEngine().dismissPendingConfirmation(),
     sync: (options?: { allowCellular?: boolean }) => getActiveCloudEngine().sync(options),
     guestDataAvailable: () => getActiveCloudEngine().guestDataAvailable(),
+    noteBackgroundFailure: (stage:string,error:unknown)=>getActiveCloudEngine().noteBackgroundFailure(stage,error),
+    diagnoseStorage: ()=>getActiveCloudEngine().storageHandle().diagnoseStorage?.(),
     importGuestData: () => getActiveCloudEngine().importGuestData(),
   };
 }

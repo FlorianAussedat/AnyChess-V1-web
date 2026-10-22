@@ -8,7 +8,7 @@ const RESUME_STATUSES: CloudSyncStatus[] = ['pending', 'offline', 'error', 'wait
 function resumeCloudSync(): void {
   const { status, user } = cloudSyncEngine.getState();
   if (user && RESUME_STATUSES.includes(status)) {
-    void cloudSyncEngine.sync();
+    void cloudSyncEngine.sync({automatic:true}).catch(error=>cloudSyncEngine.noteBackgroundFailure('sync.lifecycle',error));
   }
 }
 
