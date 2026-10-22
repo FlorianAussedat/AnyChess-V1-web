@@ -34,6 +34,7 @@ function validate(parsed: unknown): PgnTranslationSnapshot | null {
 
 export class PgnCommentTranslationStore {
   private snapshot: PgnTranslationSnapshot | null = null;
+  private cacheEpoch = 0;
   private readonly listeners = new Set<() => void>();
   private readonly storage: KeyValueStorage;
 
@@ -54,7 +55,9 @@ export class PgnCommentTranslationStore {
 
   async ensureLoaded(): Promise<PgnTranslationSnapshot> {
     if (this.snapshot) return this.snapshot;
+    const epoch = this.cacheEpoch;
     const result = await loadStoredJson(this.storage, KEY, emptySnapshot(), validate);
+    if (epoch !== this.cacheEpoch) return this.ensureLoaded();
     this.snapshot = result.value;
     return this.snapshot;
   }
@@ -160,6 +163,12 @@ export class PgnCommentTranslationStore {
     if (ready.length === 0) return records.some((r) => r.status === 'failed') ? 'failed' : 'pending';
     if (ready.length < englishCount) return 'stale';
     return ready.some((r) => r.method === 'manual') ? 'manual' : 'ready';
+  }
+
+  /** Account transition: discard memory only, retaining the parked owner's document. */
+  discardCachedSnapshot(): void {
+    this.cacheEpoch++;
+    this.snapshot = null;
   }
 
   resetForTests(): void {

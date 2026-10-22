@@ -54,6 +54,7 @@ export function PasswordField({
           selectionRef.current = event.nativeEvent.selection;
           if (pinned) setPinned(undefined);
         }}
+        accessibilityLabel={placeholder}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
         autoCapitalize="none"

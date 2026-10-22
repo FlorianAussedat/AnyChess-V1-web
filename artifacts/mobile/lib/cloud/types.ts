@@ -41,7 +41,11 @@ export type CloudAuthError =
   | 'rejected'
   | 'unexpected'
   | 'unconfigured'
-  | 'signup_ambiguous';
+  | 'signup_ambiguous'
+  | 'timeout'
+  | 'service_unavailable'
+  | 'session_expired'
+  | 'local_save_failed';
 
 export type CloudAuthResult =
   | { ok: true; user: CloudUser }
@@ -50,16 +54,22 @@ export type CloudAuthResult =
       error: CloudAuthError;
       message?: string;
       email?: string;
+      pendingUserId?: string;
       retryAfterSeconds?: number;
     };
 
+export type AuthAttemptOptions = { abandoned?: () => boolean };
+
 export interface CloudAuth {
   configured: boolean;
+  /** The adapter detaches server revocation and awaits only durable local cleanup. */
+  readonly localSignOutOnly?: boolean;
   hydrate?(): Promise<CloudUser | null>;
   token?(): string | null;
   getUser(): Promise<CloudUser | null>;
-  signUp(email: string, password: string): Promise<CloudAuthResult>;
-  signIn(email: string, password: string): Promise<CloudAuthResult>;
+  probeAccount?(): Promise<'exists' | 'gone' | 'unknown'>;
+  signUp(email: string, password: string, options?: AuthAttemptOptions): Promise<CloudAuthResult>;
+  signIn(email: string, password: string, options?: AuthAttemptOptions): Promise<CloudAuthResult>;
   signOut(): Promise<void>;
   resendSignupConfirmation(email: string): Promise<{ ok: boolean; error?: CloudAuthError }>;
   recoverPassword(email: string): Promise<{ ok: boolean; error?: CloudAuthError }>;
