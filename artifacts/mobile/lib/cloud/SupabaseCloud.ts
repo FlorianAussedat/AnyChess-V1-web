@@ -1,3 +1,4 @@
+import { CloudOperationError } from './diagnostics.ts';
 import { classifyAuthProbe, type AccountProbe } from './deletionDecision.ts';
 import { authRequest, AuthTimeoutError, validAuthEmail } from './authRequest.ts';
 import {
@@ -424,6 +425,18 @@ export class SupabaseCloudAuth implements CloudAuth {
   }
 }
 
+function remoteHttpError(status: number, body: string, stage: string): CloudOperationError {
+  let code: string | undefined;
+  let message = '';
+  try { const parsed = JSON.parse(body); code = ['42703','42P01','42501','23505','PGRST204','PGRST205'].includes(parsed.code) ? parsed.code : undefined; message = typeof parsed.message === 'string' ? parsed.message : ''; } catch { /* no raw response in diagnostic */ }
+  const kind = status === 401 ? 'session_expired'
+    : ((code === '42703' || code === 'PGRST204') && /revision/i.test(message)) ? 'schema_revision_missing'
+    : code === '42P01' || code === 'PGRST205' || (status === 404 && /user_documents/i.test(body)) ? 'schema_missing'
+    : status === 403 || code === '42501' ? 'remote_permission'
+    : status === 409 || code === '23505' ? 'sync_conflict' : 'remote_service';
+  return new CloudOperationError(kind, stage, 'remote', status, code);
+}
+
 export class SupabaseCloudRemote implements CloudRemote {
   private readonly auth: SupabaseCloudAuth;
 
@@ -438,10 +451,11 @@ export class SupabaseCloudRemote implements CloudRemote {
   ): Promise<Response> {
     const token = this.auth.token();
     if (!token) throw new Error('unconfigured');
-    const response = await fetch(url, {
+    const response = await authRequest(signal => fetch(url, {
+      signal,
       ...init,
       headers: { ...headers(token), ...(init.headers as Record<string, string> | undefined) },
-    });
+    }));
     if (
       response.status === 401 &&
       !retried &&
@@ -455,25 +469,25 @@ export class SupabaseCloudRemote implements CloudRemote {
 
   async listDocuments(userId: string): Promise<CloudDocument[]> {
     const url = resolveSupabaseUrl();
-    if (!url) return [];
+    if (!url) throw new CloudOperationError('remote_service', 'remote.list.config', 'remote');
     const response = await this.authorizedFetch(
       `${url}/rest/v1/user_documents?user_id=eq.${encodeURIComponent(userId)}&select=doc_key,payload,updated_at,deleted_at,revision`,
       { method: 'GET' },
     );
-    const body = await response.text();
+    const body = await authRequest(() => response.text());
     if (!response.ok) {
-      if (response.status === 404 && /user_documents/i.test(body)) {
-        throw new Error('schema_missing');
-      }
-      throw new Error(response.status === 401 ? 'session_expired' : `list ${response.status}`);
+      throw remoteHttpError(response.status, body, 'remote.list');
     }
-    const rows = JSON.parse(body || '[]') as {
+    let decoded: unknown;
+    try { decoded = JSON.parse(body); } catch { throw new CloudOperationError('remote_service', 'remote.list.invalid_json', 'remote', response.status); }
+    const rows = decoded as {
       doc_key: string;
       payload: unknown;
       updated_at: string;
       deleted_at: string | null;
       revision: number;
     }[];
+    if (!Array.isArray(rows) || rows.some(row => !row || typeof row.doc_key !== 'string' || !Number.isSafeInteger(row.revision) || row.revision < 1)) throw new CloudOperationError('remote_service', 'remote.list.invalid_response', 'remote');
     return rows
       .filter((row) => !row.deleted_at)
       .map((row) => ({
@@ -511,13 +525,14 @@ export class SupabaseCloudRemote implements CloudRemote {
       },
     );
     if (!response.ok) {
-      const body = await response.text();
-      if (response.status === 404 && /user_documents/i.test(body)) {
-        throw new Error('schema_missing');
-      }
-      throw new Error(response.status === 401 ? 'session_expired' : `upsert ${response.status}`);
+      const body = await authRequest(() => response.text());
+      throw remoteHttpError(response.status, body, 'remote.upsert');
     }
-    const rows = (await response.json()) as unknown[];
-    if (!Array.isArray(rows) || rows.length !== 1) throw new Error('sync_conflict');
+    let rows: unknown;
+    try { rows = await authRequest(() => response.json()); } catch (error) {
+      if (error instanceof SyntaxError) throw new CloudOperationError('remote_service', 'remote.upsert.invalid_json', 'remote', response.status);
+      throw error;
+    }
+    if (!Array.isArray(rows) || rows.length !== 1) throw new CloudOperationError('sync_conflict', 'remote.upsert.compare_revision', 'remote', response.status);
   }
 }

@@ -1,3 +1,4 @@
+import { cloudStep } from './diagnostics.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import {
   CLOUD_LEGACY_GUEST_KEY,
@@ -20,7 +21,7 @@ export async function readSyncableDocs(
 ): Promise<Record<string, string | null>> {
   const docs: Record<string, string | null> = {};
   for (const key of SYNCABLE_STORAGE_KEYS) {
-    docs[key] = await storage.getItem(key);
+    docs[key] = await cloudStep(`workspace.read_document.${SYNCABLE_STORAGE_KEYS.indexOf(key)}`, 'local', () => storage.getItem(key));
   }
   return docs;
 }

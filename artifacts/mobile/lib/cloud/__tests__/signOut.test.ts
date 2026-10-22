@@ -261,7 +261,7 @@ describe('sign-out session', () => {
     assert.equal(result.error, 'unexpected');
     assert.equal(engine.getState().user?.id, created.user.id);
     assert.equal(engine.getState().sessionReady, true);
-    assert.equal(engine.getState().lastError, 'sign_out_failed');
+    assert.equal(engine.getState().lastError, 'local_quota');
     assert.match((await storage.getItem(StorageKeys.repertoires.key)) ?? '', /1\. e4 e5/);
   });
 });
