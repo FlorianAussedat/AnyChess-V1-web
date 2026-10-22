@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -8,7 +8,7 @@ type Props = {
   body: string;
   exportedText: string;
   exportPgn: () => string;
-  downloadPgn: () => void;
+  downloadPgn: () => Promise<unknown>;
   onClose: () => void;
   /** Save into Game Library and open the unified analyzer. */
   onOpenInAnalyzer?: () => void | Promise<void>;
@@ -25,40 +25,68 @@ export function GameExportPgnModal({
 }: Props) {
   const colors = useColors();
   const { t } = useTranslation();
-  const isWeb = Platform.OS === 'web';
+  const exportLock = useRef(false);
   const [opening, setOpening] = useState(false);
 
-  const exportOnly = () => {
-    if (isWeb) downloadPgn();
-    else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(exportedText || exportPgn()).catch(() => {});
+  const exportOnly = async () => {
+    if (exportLock.current) return;
+    exportLock.current = true;
+    setOpening(true);
+    try {
+      await downloadPgn();
+    } finally {
+      exportLock.current = false;
+      setOpening(false);
     }
-    onClose();
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.modalBackdrop}>
-        <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.modalCard,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
           <Text style={[styles.modalTitle, { color: colors.foreground }]}>
             {onOpenInAnalyzer ? t('game.exportOrAnalyze') : t('game.exportPgn')}
           </Text>
-          <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>{body}</Text>
+          <Text style={[styles.modalBody, { color: colors.mutedForeground }]}>
+            {body}
+          </Text>
           <View style={styles.modalActions}>
             <Pressable
               onPress={onClose}
               disabled={opening}
               style={({ pressed }) => [
                 styles.modalBtn,
-                { borderColor: colors.border, opacity: pressed || opening ? 0.6 : 1 },
+                {
+                  borderColor: colors.border,
+                  opacity: pressed || opening ? 0.6 : 1,
+                },
               ]}
             >
-              <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>{t('game.exportNo')}</Text>
+              <Text
+                style={{
+                  color: colors.foreground,
+                  fontFamily: 'Inter_500Medium',
+                }}
+              >
+                {t('game.exportNo')}
+              </Text>
             </Pressable>
             {onOpenInAnalyzer ? (
               <>
                 <Pressable
-                  onPress={exportOnly}
+                  testID="game-export-file-actions"
+                  accessibilityRole="button"
+                  onPress={() => void exportOnly()}
                   disabled={opening}
                   style={({ pressed }) => [
                     styles.modalBtn,
@@ -68,7 +96,12 @@ export function GameExportPgnModal({
                     },
                   ]}
                 >
-                  <Text style={{ color: colors.foreground, fontFamily: 'Inter_500Medium' }}>
+                  <Text
+                    style={{
+                      color: colors.foreground,
+                      fontFamily: 'Inter_500Medium',
+                    }}
+                  >
                     {t('game.export')}
                   </Text>
                 </Pressable>
@@ -94,15 +127,23 @@ export function GameExportPgnModal({
                   ]}
                 >
                   <Text
-                    style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}
+                    style={{
+                      color: colors.primaryForeground,
+                      fontFamily: 'Inter_600SemiBold',
+                    }}
                   >
-                    {opening ? t('openings.opening') : t('quiz.theoreticalAnalyse')}
+                    {opening
+                      ? t('openings.opening')
+                      : t('quiz.theoreticalAnalyse')}
                   </Text>
                 </Pressable>
               </>
             ) : (
               <Pressable
-                onPress={exportOnly}
+                testID="game-export-file-actions"
+                accessibilityRole="button"
+                onPress={() => void exportOnly()}
+                disabled={opening}
                 style={({ pressed }) => [
                   styles.modalBtn,
                   {
@@ -112,7 +153,12 @@ export function GameExportPgnModal({
                   },
                 ]}
               >
-                <Text style={{ color: colors.primaryForeground, fontFamily: 'Inter_600SemiBold' }}>
+                <Text
+                  style={{
+                    color: colors.primaryForeground,
+                    fontFamily: 'Inter_600SemiBold',
+                  }}
+                >
                   {t('game.exportYes')}
                 </Text>
               </Pressable>
@@ -142,7 +188,12 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   modalBody: { fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19 },
-  modalActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'flex-end' },
+  modalActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
   modalBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,

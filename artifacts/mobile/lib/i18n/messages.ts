@@ -33,6 +33,31 @@ export type MessageKey =
   | 'nav.utilisateur'
   | 'nav.parametres'
   | 'common.back'
+  | 'files.export'
+  | 'files.chooseAction'
+  | 'files.save'
+  | 'files.copy'
+  | 'files.share'
+  | 'files.saved'
+  | 'files.downloadStarted'
+  | 'files.copied'
+  | 'files.sharedText'
+  | 'files.unavailable'
+  | 'files.failed'
+  | 'files.retry'
+  | 'files.savePgn'
+  | 'files.saveFen'
+  | 'files.sharePgn'
+  | 'files.shareFen'
+  | 'files.tooLarge'
+  | 'files.empty'
+  | 'files.unreadable'
+  | 'files.invalidPgn'
+  | 'files.fileLimit'
+  | 'files.importSummary'
+  | 'files.imported'
+  | 'files.duplicates'
+  | 'files.changeSelection'
   | 'common.close'
   | 'common.cancel'
   | 'common.confirm'
@@ -1395,6 +1420,31 @@ const fr: Dict = {
   'nav.utilisateur': 'Utilisateur',
   'nav.parametres': 'Paramètres',
   'common.back': 'Retour',
+  'files.export': 'Export PGN / FEN',
+  'files.chooseAction': 'Enregistrer un fichier, partager le texte ou copier le contenu. Le partage du texte ne garantit pas l’enregistrement d’un fichier.',
+  'files.save': 'Enregistrer un fichier',
+  'files.copy': 'Copier le contenu',
+  'files.share': 'Partager le texte',
+  'files.saved': 'Le fichier a été écrit dans le dossier choisi.',
+  'files.downloadStarted': 'Téléchargement lancé. Vérifiez les téléchargements de votre navigateur.',
+  'files.copied': 'Contenu copié.',
+  'files.sharedText': 'Texte transmis au partage Android. Vérifiez sa réception dans l’application choisie ; aucun fichier enregistré n’est confirmé.',
+  'files.unavailable': 'Cette action est indisponible dans ce client. Pour enregistrer un fichier Android, le module ExponentFileSystem et ses API SAF sont nécessaires. Vous pouvez réessayer, copier le contenu ou partager le texte.',
+  'files.failed': 'L’opération a échoué. Vos données sont conservées. Réessayez ou choisissez une autre action.',
+  'files.retry': 'Réessayer / autre action',
+  'files.savePgn': 'Enregistrer le fichier PGN',
+  'files.saveFen': 'Enregistrer le fichier FEN',
+  'files.sharePgn': 'Partager le texte PGN',
+  'files.shareFen': 'Partager le texte FEN',
+  'files.tooLarge': 'Fichier trop volumineux (8 Mo par fichier, lot de 16 millions de caractères maximum).',
+  'files.empty': 'Fichier vide.',
+  'files.unreadable': 'Fichier illisible ou API de lecture absente. Réessayez depuis Téléchargements ou rendez le fichier disponible hors ligne.',
+  'files.invalidPgn': 'Partie PGN invalide.',
+  'files.fileLimit': 'Choisissez jusqu’à {{count}} fichiers ; aucun fichier n’est importé sans votre sélection.',
+  'files.importSummary': 'Bilan de l’import',
+  'files.imported': '{{count}} partie(s) chargée(s) ou importée(s), {{failed}} échec(s).',
+  'files.duplicates': 'Dans les ouvertures, un nom existant reçoit un suffixe : aucun fichier précédent n’est remplacé.',
+  'files.changeSelection': 'Modifier la sélection des parties',
   'common.close': 'Fermer',
   'common.cancel': 'Annuler',
   'common.continue': 'Continuer',
@@ -1793,7 +1843,7 @@ const fr: Dict = {
   'parties.gameSelectTitle': 'Sélectionne jusqu’à {{count}} parties à importer.',
   'parties.gameSelectFound': '{{count}} parties trouvées',
   'parties.gameSelectSearch': 'Rechercher (joueur, événement, date…)',
-  'parties.gameSelectMax': 'Maximum 10 parties par import.',
+  'parties.gameSelectMax': 'Maximum {{count}} parties par import.',
   'parties.gameSelectEmpty': 'Aucune partie ne correspond.',
   'parties.gameSelectIndexed': 'Indexé {{count}} parties en {{ms}} ms',
   'parties.importSelectedCount': 'Importer {{count}} parties',
@@ -2909,6 +2959,31 @@ const en: Dict = {
   'nav.utilisateur': 'User',
   'nav.parametres': 'Settings',
   'common.back': 'Back',
+  'files.export': 'PGN / FEN export',
+  'files.chooseAction': 'Save a file, share its text, or copy the content. Sharing text does not guarantee that a file is saved.',
+  'files.save': 'Save a file',
+  'files.copy': 'Copy content',
+  'files.share': 'Share text',
+  'files.saved': 'The file was written to the selected folder.',
+  'files.downloadStarted': 'Download started. Check your browser downloads.',
+  'files.copied': 'Content copied.',
+  'files.sharedText': 'Text handed to Android sharing. Check receipt in the chosen app; no saved file is confirmed.',
+  'files.unavailable': 'This action is unavailable in this client. Saving an Android file requires ExponentFileSystem and its SAF APIs. You can retry, copy the content or share its text.',
+  'files.failed': 'The operation failed. Your data is preserved. Retry or choose another action.',
+  'files.retry': 'Retry / another action',
+  'files.savePgn': 'Save PGN file',
+  'files.saveFen': 'Save FEN file',
+  'files.sharePgn': 'Share PGN text',
+  'files.shareFen': 'Share FEN text',
+  'files.tooLarge': 'File too large (8 MB per file, batch limited to 16 million characters).',
+  'files.empty': 'Empty file.',
+  'files.unreadable': 'Unreadable file or missing file-reading API. Retry from Downloads or make the file available offline.',
+  'files.invalidPgn': 'Invalid PGN game.',
+  'files.fileLimit': 'Choose up to {{count}} files; no file is imported without your selection.',
+  'files.importSummary': 'Import summary',
+  'files.imported': '{{count}} game(s) loaded or imported, {{failed}} failure(s).',
+  'files.duplicates': 'In openings, an existing filename receives a suffix: no previous file is replaced.',
+  'files.changeSelection': 'Change game selection',
   'common.close': 'Close',
   'common.cancel': 'Cancel',
   'common.confirm': 'Confirm',
@@ -3306,7 +3381,7 @@ const en: Dict = {
   'parties.gameSelectTitle': 'Select up to {{count}} games to import.',
   'parties.gameSelectFound': '{{count}} games found',
   'parties.gameSelectSearch': 'Search (player, event, date…)',
-  'parties.gameSelectMax': 'Maximum 10 games per import.',
+  'parties.gameSelectMax': 'Maximum {{count}} games per import.',
   'parties.gameSelectEmpty': 'No matching games.',
   'parties.gameSelectIndexed': 'Indexed {{count}} games in {{ms}} ms',
   'parties.importSelectedCount': 'Import {{count}} games',

@@ -102,6 +102,12 @@ function commentByPly(pgn: string): Map<number, string> {
   return map;
 }
 
+function mainLineComments(pgn: string): string {
+  const parsed = parseReaderPgn(pgn);
+  assert.ok(parsed.ok);
+  return parsed.ok ? parsed.game.moves.map(move => move.comment ?? '').join(' ') : '';
+}
+
 function commentOnSan(pgn: string, san: string, occurrence = 0): string | undefined {
   const parsed = parseReaderPgn(pgn);
   assert.equal(parsed.ok, true, parsed.ok ? '' : parsed.error);
@@ -185,9 +191,12 @@ describe('Test 2 — several branches keep their own comments', () => {
     assert.match(commentOnSan(exported, 'c5') ?? '', /Sicilian/);
     assert.match(commentOnSan(exported, 'Nf3') ?? '', /Open Sicilian prep/);
     assert.match(commentOnSan(exported, 'd6') ?? '', /Najdorf structure/);
-    assert.doesNotMatch(exported, /Open games/);
-    assert.doesNotMatch(exported, /Spanish/);
-    assert.doesNotMatch(exported, /Develop against e5/);
+    assert.doesNotMatch(mainLineComments(exported), /Open games/);
+    assert.match(exported, /Open games/); // Retained in its own variation, never attached to the played line.
+    assert.doesNotMatch(mainLineComments(exported), /Spanish/);
+    assert.match(exported, /Spanish/); // Retained in its own variation, never attached to the played line.
+    assert.doesNotMatch(mainLineComments(exported), /Develop against e5/);
+    assert.match(exported, /Develop against e5/); // Retained in its own variation, never attached to the played line.
   });
 
   it('Open-games branch does not leak Sicilian comments', () => {
@@ -201,9 +210,12 @@ describe('Test 2 — several branches keep their own comments', () => {
     assert.match(commentOnSan(exported, 'e5') ?? '', /Open games/);
     assert.match(commentOnSan(exported, 'Nf3') ?? '', /Develop against e5/);
     assert.match(commentOnSan(exported, 'Bb5') ?? '', /Spanish/);
-    assert.doesNotMatch(exported, /Sicilian/);
-    assert.doesNotMatch(exported, /Najdorf structure/);
-    assert.doesNotMatch(exported, /Open Sicilian prep/);
+    assert.doesNotMatch(mainLineComments(exported), /Sicilian/);
+    assert.match(exported, /Sicilian/); // Retained in its own variation, never attached to the played line.
+    assert.doesNotMatch(mainLineComments(exported), /Najdorf structure/);
+    assert.match(exported, /Najdorf structure/); // Retained in its own variation, never attached to the played line.
+    assert.doesNotMatch(mainLineComments(exported), /Open Sicilian prep/);
+    assert.match(exported, /Open Sicilian prep/); // Retained in its own variation, never attached to the played line.
   });
 });
 
@@ -369,7 +381,9 @@ describe('NAGs and theory-exit comments', () => {
     assert.match(commentOnSan(exported, 'e4') ?? '', /White occupies the centre/);
     assert.match(commentOnSan(exported, 'Nf3') ?? '', /Development and preparation for d4/);
     assert.equal(commentOnSan(exported, 'a6'), undefined);
-    assert.doesNotMatch(exported, /Open Sicilian begins/);
-    assert.doesNotMatch(exported, /Accelerated Dragon/);
+    assert.doesNotMatch(mainLineComments(exported), /Open Sicilian begins/);
+    assert.match(exported, /Open Sicilian begins/); // Retained in its own variation, never attached to the played line.
+    assert.doesNotMatch(mainLineComments(exported), /Accelerated Dragon/);
+    assert.match(exported, /Accelerated Dragon/); // Retained in its own variation, never attached to the played line.
   });
 });

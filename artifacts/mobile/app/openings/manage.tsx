@@ -1,3 +1,4 @@
+import { parseReaderPgn } from '@/lib/gameReader/parseReaderPgn';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -181,6 +182,7 @@ export default function OpeningsManageScreen() {
       const items = selectedPgnImports(sourceText, entries, selectedIndices, filename);
       const item = items[0];
       if (!item) return;
+      if (!parseReaderPgn(item.pgnText, { allowEmptyMoves: true }).ok) { setStatusMsg(t('files.invalidPgn')); return; }
       parkExternalOpeningPgn({
         pgnText: item.pgnText,
         displayName: item.displayName || displayNameFromFilename(filename),
@@ -188,7 +190,7 @@ export default function OpeningsManageScreen() {
       clearImportFlow();
       router.push('/openings/annotate?external=1' as Href);
     },
-    [clearImportFlow, router],
+    [clearImportFlow, router, t],
   );
 
   const pickOpeningPgn = useCallback(
@@ -242,8 +244,9 @@ export default function OpeningsManageScreen() {
         setGameCandidates(candidates);
         setGameSelected(new Set());
         setGameSelectOpen(true);
-      } catch {
-        setStatusMsg(t('openings.fileReadError'));
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : '';
+        setStatusMsg(t(reason === 'empty' ? 'files.empty' : reason === 'tooLarge' ? 'files.tooLarge' : 'files.unreadable'));
         setPgnPickMode(null);
       }
     },

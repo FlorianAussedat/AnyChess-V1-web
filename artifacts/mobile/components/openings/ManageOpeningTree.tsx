@@ -9,7 +9,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { RepertoireSidePicker, sideLabel } from '@/components/RepertoireSidePicker';
-import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import {
   flattenOpeningTree,
   hasAssignedRepertoireSide,
@@ -168,7 +168,7 @@ export function ManageOpeningTree({
                   <Ionicons name="folder-outline" size={18} color={colors.mutedForeground} />
                 </Pressable>
                 <Pressable
-                  onPress={() => downloadPgnFile(file.filename, file.pgnText)}
+                  onPress={() => void requestPgnExport(file.filename, file.pgnText)}
                   hitSlop={8}
                   style={styles.iconHit}
                   testID={`export-pgn-${file.id}`}

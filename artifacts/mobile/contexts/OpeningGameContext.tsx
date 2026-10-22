@@ -1,3 +1,4 @@
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import React, {
   createContext,
@@ -19,7 +20,6 @@ import { OpeningOpponent, type TheoryExit, type OpeningTrainingState, type Openi
 import type { ParsedRepertoire } from '@/lib/repertoire';
 import {
   anyChessPgnFilename,
-  downloadPgnFile,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
 import { exportOpeningPlayedPgn } from '@/lib/repertoire/playedLineAnnotations';
@@ -110,7 +110,7 @@ interface OpeningGameContextValue {
   /** Start another line (new game — different random book branches). */
   nextLine: () => void;
   exportPgn: () => string;
-  downloadPgn: () => void;
+  downloadPgn: () => Promise<unknown>;
 }
 
 const OpeningGameContext = createContext<OpeningGameContextValue | null>(null);
@@ -827,7 +827,7 @@ export function OpeningGameProvider({
 
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
   const downloadPgn = useCallback(() => {
-    downloadPgnFile(anyChessPgnFilename(), buildPgn());
+    return requestPgnExport(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
 
   useEffect(() => {

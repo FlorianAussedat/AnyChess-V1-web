@@ -1,3 +1,4 @@
+import { splitGames } from '../repertoire/pgnParser.ts';
 /**
  * Serialize a ReaderGame tree to PGN and optionally enrich with evals.
  * Tree-based — never regex-match SAN across variations.
@@ -23,14 +24,6 @@ function evalComment(node: GameNodeAnalysis): string | null {
   return `[%eval ${pawns}]`;
 }
 
-function stripGeneratedAnnotations(comment: string): string {
-  return comment
-    .replace(/\[%eval\s+[^\]]+\]/g, '')
-    .replace(/\bBest:\s+\S+/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-}
-
 function commentForNode(
   game: ReaderGame,
   node: ReaderNode,
@@ -39,7 +32,12 @@ function commentForNode(
   includeEvals: boolean,
   includeBest: boolean,
 ): string | null {
-  const original = stripGeneratedAnnotations(node.comment ?? '');
+  let original = node.comment ?? '';
+  // Replace only annotations for which a new value exists; preserve authored content otherwise.
+  if (includeEvals && analysisAfter)
+    original = original.replace(/\[%eval\s+[^\]]+\]/g, '').trim();
+  if (includeBest && analysisBefore?.bestMove)
+    original = original.replace(/\bBest:\s+\S+/g, '').trim();
   const parts: string[] = [];
   if (original) parts.push(original);
   if (includeEvals && analysisAfter) {
@@ -77,11 +75,10 @@ function writeNode(
 
   if (node.color === 'white' || opts.forceNumber) {
     bits.push(
-      node.color === 'white'
-        ? `${node.moveNumber}.`
-        : `${node.moveNumber}...`,
+      node.color === 'white' ? `${node.moveNumber}.` : `${node.moveNumber}...`,
     );
   }
+  if (node.commentBefore) bits.push(`{ ${node.commentBefore} }`);
   // Keep +/# attached to SAN — never split.
   bits.push(node.san);
 
@@ -113,7 +110,12 @@ function writeNode(
   if (children[0]) {
     const mainId = children[0]!;
     const sideIds = children.slice(1);
-    const cont = writeNode(game, mainId, { ...opts, forceNumber: false }, sideIds);
+    const cont = writeNode(
+      game,
+      mainId,
+      { ...opts, forceNumber: false },
+      sideIds,
+    );
     if (cont) bits.push(cont);
   }
 
@@ -136,8 +138,21 @@ function writeLine(
 function headersBlock(game: ReaderGame): string {
   const h = game.headers;
   const tags: Array<[string, string]> = [];
+  let rawHeaders: Record<string, string> = {};
+  try {
+    rawHeaders =
+      splitGames(game.rawPgn ?? game.source?.rawPgn ?? '')[0]?.headers ?? {};
+  } catch {
+    /* The navigable tree remains exportable. */
+  }
+  const rawTags = new Map(Object.entries(rawHeaders));
+  rawTags.delete('SetUp');
+  rawTags.delete('FEN');
   const push = (key: string, value: string | undefined) => {
-    if (value != null && value !== '') tags.push([key, value]);
+    if (value != null && value !== '') {
+      tags.push([key, value]);
+      rawTags.delete(key);
+    }
   };
   push('Event', h.event ?? 'AnyChess');
   push('Site', h.site ?? 'AnyChess');
@@ -149,14 +164,14 @@ function headersBlock(game: ReaderGame): string {
   push('ECO', h.eco);
   const nonStandardStart =
     game.initialFen &&
-    !game.initialFen.startsWith(
-      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR',
-    );
+    game.initialFen !==
+      'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
   if (nonStandardStart) {
     push('SetUp', '1');
     push('FEN', game.initialFen);
   }
 
+  tags.push(...rawTags);
   return tags.map(([k, v]) => `[${k} "${escapeHeader(v)}"]`).join('\n');
 }
 
@@ -176,27 +191,20 @@ export function serializeReaderGamePgn(
   const includeBest = Boolean(options.includeBest);
   const nodes = options.nodes ?? {};
   const parts: string[] = [];
-  for (let i = 0; i < game.rootIds.length; i += 1) {
-    const rootId = game.rootIds[i]!;
-    if (i === 0) {
-      parts.push(
-        writeLine(game, rootId, {
+  if (game.rootIds[0])
+    parts.push(
+      writeNode(
+        game,
+        game.rootIds[0],
+        {
           nodes,
           includeEvals,
           includeBest,
           forceNumber: true,
-        }),
-      );
-    } else {
-      const varText = writeLine(game, rootId, {
-        nodes,
-        includeEvals,
-        includeBest,
-        forceNumber: true,
-      });
-      parts.push(`( ${varText.trim()} )`);
-    }
-  }
+        },
+        game.rootIds.slice(1),
+      ),
+    );
   const result = game.headers.result ?? game.result ?? '*';
   const movetext = `${parts.join(' ').replace(/\s+/g, ' ').trim()} ${result}`;
   return `${headersBlock(game)}\n\n${movetext}\n`;
@@ -204,7 +212,7 @@ export function serializeReaderGamePgn(
 
 /**
  * Enrich export — tree serialization with optional evals.
- * Preserves comments/variations; strips prior generated [%eval]/Best to avoid dupes.
+ * Preserves comments/variations; replaces generated tags only when a fresh value exists.
  */
 export function exportEnrichedPgn(options: {
   game: ReaderGame;

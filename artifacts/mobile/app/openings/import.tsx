@@ -1,3 +1,4 @@
+import { importPgnBatch } from '@/lib/pgnImport/importPgnBatch';
 /**
  * Opening PGN import — same panel as game analyses, without FEN.
  * Destination defaults to the system folder « À classer » and can be any
@@ -82,13 +83,11 @@ export default function OpeningsImportScreen() {
         throw new Error(t('parties.pgnInvalid'));
       }
       const folderId = destinationId ?? (await repertoireService.getUnfiledFolderId());
-      for (const game of payload.games) {
-        if (!game.pgnText.trim()) throw new Error(t('parties.pgnInvalid'));
-        const filename = game.filename?.trim() || 'opening.pgn';
-        await importPgn(folderId, filename, game.pgnText, game.displayName);
-      }
+      const result = await importPgnBatch(payload.games, game => importPgn(folderId, game.filename?.trim() || 'opening.pgn', game.pgnText, game.displayName));
+      if (!result.imported) throw new Error(t('parties.importFailed'));
       await revealFolder(folderId);
       router.replace('/openings/manage' as Href);
+      return { imported: result.imported, failed: result.failed, errors: result.failedFiles.map(filename => `${filename}: ${t('parties.importFailed')}`) };
     },
     [destinationId, importPgn, revealFolder, router, t],
   );
