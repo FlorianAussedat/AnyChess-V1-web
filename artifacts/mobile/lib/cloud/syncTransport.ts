@@ -46,8 +46,7 @@ export async function readSyncTransport(): Promise<SyncTransport> {
     const state = await Network.getNetworkStateAsync();
     return transportFromExpoState(state);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.warn(`[AnyChess] network type unavailable: ${message}`);
+    console.warn('[AnyChess] network type unavailable; transfer errors remain authoritative.');
     return 'unknown';
   }
 }
@@ -81,8 +80,7 @@ export function subscribeSyncTransport(onChange: (transport: SyncTransport) => v
         onChange(transportFromExpoState(state));
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[AnyChess] network watch failed: ${message}`);
+      console.warn('[AnyChess] network watch unavailable.');
     }
   })();
   return () => {

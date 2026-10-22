@@ -118,6 +118,11 @@ describe('avatar durability, account boundaries, and existing retries', () => {
       if (key === PENDING_AVATAR_KEY) throw Error('disk full');
       await write(key, value);
     };
+    const update = storage.updateItem.bind(storage);
+    storage.updateItem = async (key, change) => {
+      if (key === PENDING_AVATAR_KEY) throw Error('disk full');
+      await update(key, change);
+    };
     assert.equal(await commitAvatarChange(input(storage)), 'failed');
     assert.equal(await readAvatarCache(storage, 'account-a'), OLD);
     assert.equal(await readPendingAvatar(storage), null);

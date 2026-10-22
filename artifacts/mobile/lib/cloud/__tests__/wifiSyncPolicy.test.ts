@@ -84,7 +84,7 @@ describe('transfers on any Internet connection', () => {
     remote.upsertDocument = async () => { throw new Error('HTTP 503'); };
     await engine.sync();
     assert.equal(engine.getState().status, 'error');
-    assert.equal(engine.getState().lastError, 'HTTP 503');
+    assert.equal(engine.getState().lastError, 'sync_failed');
     assert.equal(await storage.getItem(StorageKeys.repertoires.key), payload);
     delete (remote as Partial<MemoryCloudRemote>).upsertDocument;
     await engine.sync();

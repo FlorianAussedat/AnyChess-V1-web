@@ -73,12 +73,12 @@ export function getActiveCloudEngine(): CloudSyncEngine {
   return engineForTests ?? cloudSyncEngine;
 }
 
-subscribeKeyValueWrites((key) => {
-  if (isSyncableStorageKey(key)) cloudSyncEngine.notifyLocalMutation();
+subscribeKeyValueWrites((key, source) => {
+  if (source !== 'cloud' && isSyncableStorageKey(key)) cloudSyncEngine.notifyLocalMutation(key);
 });
 
 subscribeKeyValueErrors((key) => {
-  if (isSyncableStorageKey(key)) cloudSyncEngine.noteLocalSaveFailure();
+  if (isSyncableStorageKey(key)) cloudSyncEngine.noteLocalSaveFailure(key);
 });
 
 export async function hydrateCloudSession(): Promise<void> {

@@ -155,15 +155,17 @@ export async function settleAccountLifecycle(engine: CloudSyncEngine): Promise<v
   const token = engine.getAccessToken();
   try {
     const avatarResult = await flushPendingAvatar({
+      isCurrent: engine.sessionGuard(),
       storage: engine.storageHandle(),
       userId: user.id,
       email: user.email,
       accessToken: token,
     });
+    if (engine.getState().user?.id !== user.id) return;
     if (avatarResult === 'offline') engine.markOffline();
     if (avatarResult === 'failed') engine.noteAvatarTransferFailure();
   } catch {
     // Keep the retry intent and expose the transfer failure.
-    engine.noteAvatarTransferFailure();
+    if (engine.getState().user?.id === user.id) engine.noteAvatarTransferFailure();
   }
 }

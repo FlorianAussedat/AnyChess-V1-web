@@ -52,6 +52,7 @@ function rewriteRelative(specifier, parentURL) {
 }
 
 export async function resolve(specifier, context, nextResolve) {
+  if (specifier === '@react-native-async-storage/async-storage') return { url: pathToFileURL(join(root, 'lib/storage/__tests__/asyncStorageShim.ts')).href, shortCircuit: true };
   if (useUiShims(context.parentURL) && shims.has(specifier)) {
     return {
       url: pathToFileURL(shims.get(specifier)).href,

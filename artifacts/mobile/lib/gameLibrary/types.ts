@@ -55,6 +55,7 @@ export type ImportedChessGame = {
   displayName?: string;
   /** Content fingerprint for duplicate detection (not filename). */
   fingerprint: string;
+  updatedAt?: number;
   headers: ImportedGameHeaders;
   /** Starting position FEN (standard start if omitted in PGN). */
   initialFen: string;

@@ -23,8 +23,16 @@ export async function rememberBackup(
   key: string,
   ownerId: string,
 ): Promise<void> {
+  if (storage.updateItem) {
+    await storage.updateItem(CLOUD_BACKUP_INDEX_KEY, raw => {
+      let list: BackupIndexEntry[] = [];
+      try { const parsed = JSON.parse(raw ?? '[]'); if (Array.isArray(parsed)) list = parsed; } catch { /* keep backup bytes */ }
+      if (!list.some(row => row.key === key)) list.push({ key, ownerId });
+      return JSON.stringify(list);
+    });
+    return;
+  }
   const list = await readBackupIndex(storage);
   list.push({ key, ownerId });
-  const trimmed = list.slice(-20);
-  await storage.setItem(CLOUD_BACKUP_INDEX_KEY, JSON.stringify(trimmed));
+  await storage.setItem(CLOUD_BACKUP_INDEX_KEY, JSON.stringify(list));
 }
