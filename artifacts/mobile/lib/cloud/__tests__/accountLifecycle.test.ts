@@ -7,6 +7,7 @@ import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../../storage/StorageKeys.ts';
 import { ProfileStore } from '../../profile/ProfileStore.ts';
 import { submitCreateAccount } from '../../profile/createAccount.ts';
+import { SIGNUP_PROFILE_KEY } from '../signupProfile.ts';
 import { PENDING_AVATAR_KEY } from '../../profile/avatarLocal.ts';
 import { centerCropRect, fittedEdge } from '../../profile/avatarImage.ts';
 import { initialsFromUsername } from '../../profile/avatarInitials.ts';
@@ -71,14 +72,15 @@ describe('create account', () => {
       },
       signUp: async (_email, password) => {
         seenPassword = password;
-        return { ok: false, error: 'confirm_email' };
+        return { ok: false, error: 'confirm_email', pendingUserId: 'new-ada' };
       },
     });
     assert.equal(result.error, 'confirm_email');
     assert.equal(seenPassword, 'secret1');
-    const raw = await storage.getItem(PROFILE);
+    assert.equal(await storage.getItem(PROFILE), null);
+    const raw = await storage.getItem(SIGNUP_PROFILE_KEY);
     assert.ok(raw);
-    assert.equal(JSON.parse(raw!).username, 'Ada');
+    assert.equal(JSON.parse(raw!)['new-ada'].username, 'Ada');
     assert.equal(raw!.includes('secret1'), false);
     const pending = JSON.parse((await storage.getItem(PENDING_AVATAR_KEY))!);
     assert.equal(pending.email, 'ada@example.com');
@@ -101,7 +103,7 @@ describe('create account', () => {
       signUp: async () => ({ ok: false, error: 'email_taken' }),
     });
     assert.equal(result.error, 'email_taken');
-    assert.equal((await profiles.ensureLoaded()).username, 'Ada');
+    assert.equal(await storage.getItem(PROFILE), null);
     assert.equal(await storage.getItem(PENDING_AVATAR_KEY), null);
   });
 });
@@ -153,17 +155,17 @@ describe('account deletion', () => {
     assert.equal(await storage.getItem('anychess.avatar.cache.' + userId), null);
   });
 
-  it('does not queue a deletion when the response never arrives', async () => {
+  it('keeps a durable verification marker when the deletion response never arrives', async () => {
     const { storage, engine, userId } = await signedInEngine();
     const lost = await performAccountDeletion(engine, 'secret1', {
       request: async () => 'network',
       probe: async () => 'unknown',
     });
     assert.equal(lost.ok, false);
-    if (!lost.ok) assert.equal(lost.error, 'offline');
+    if (!lost.ok) assert.equal(lost.error, 'uncertain');
     assert.equal(engine.getState().user?.id, userId);
     assert.match((await storage.getItem(PROFILE)) ?? '', /Ada/);
-    assert.equal(await readDeletionPending(storage), null);
+    assert.equal((await readDeletionPending(storage))?.userId, userId);
     assert.equal(await storage.getItem(cloudWorkspaceKey(userId)) != null, true);
   });
 
@@ -213,7 +215,7 @@ describe('account deletion', () => {
       },
       {
         http: { status: 500, body: JSON.stringify({ error: 'failed' }) },
-        error: 'offline',
+        error: 'uncertain',
       },
     ] as const;
     for (const item of cases) {
@@ -226,7 +228,7 @@ describe('account deletion', () => {
       if (!result.ok) assert.equal(result.error, item.error);
       assert.equal(engine.getState().user?.id, userId);
       assert.match((await storage.getItem(PROFILE)) ?? '', /Ada/);
-      assert.equal(await readDeletionPending(storage), null);
+      assert.equal(Boolean(await readDeletionPending(storage)), item.error === 'uncertain');
     }
   });
 

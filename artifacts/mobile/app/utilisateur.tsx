@@ -1,3 +1,4 @@
+import { consumeAccountFocus, subscribeAccountFocus } from '@/lib/cloud/accountFocus';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { GeneralMenu } from '@/components/navigation/GeneralMenu';
 /**
@@ -87,6 +88,12 @@ export default function UtilisateurScreen() {
   ownerRef.current = cloud.user?.id;
   const scrollRef = useRef<ScrollView>(null);
   const accountOffset = useRef(0);
+  const accountLaidOut = useRef(false);
+  const focusAccount = useCallback(() => {
+    if (accountLaidOut.current && consumeAccountFocus()) scrollRef.current?.scrollTo({ y: accountOffset.current, animated: true });
+  }, []);
+  useEffect(() => { focusAccount(); return subscribeAccountFocus(focusAccount); }, [focusAccount]);
+  useEffect(() => { if (cloud.sessionReady && !cloud.user) consumeAccountFocus(); }, [cloud.sessionReady, cloud.user]);
   const [editError, setEditError] = useState(false);
   const [editBusy, setEditBusy] = useState(false);
   const editBusyRef = useRef(false);
@@ -486,6 +493,8 @@ export default function UtilisateurScreen() {
         testID="profil-account-section"
         onLayout={(event) => {
           accountOffset.current = event.nativeEvent.layout.y;
+          accountLaidOut.current = true;
+          focusAccount();
         }}
       >
         <Text style={[styles.accountHint, { color: colors.mutedForeground }]}>

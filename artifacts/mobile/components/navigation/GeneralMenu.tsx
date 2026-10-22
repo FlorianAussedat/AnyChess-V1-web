@@ -1,3 +1,4 @@
+import { requestAccountFocus } from '@/lib/cloud/accountFocus';
 import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +24,7 @@ export function GeneralMenu() {
     actions: [
       {
         label: t(cloud.sessionReady ? (cloud.user ? 'nav.userAccount' : 'nav.userSignIn') : 'nav.utilisateur'),
-        onPress: () => navigateMainTab(router, pathname, '/utilisateur'),
+        onPress: () => { requestAccountFocus(); navigateMainTab(router, pathname, '/utilisateur'); },
         testID: 'general-menu-account',
       },
       {

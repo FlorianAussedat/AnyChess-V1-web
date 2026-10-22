@@ -295,6 +295,10 @@ export type MessageKey =
   | 'cloud.errorUnexpected'
   | 'cloud.signupAmbiguous'
   | 'cloud.signInBusy'
+  | 'cloud.errorService'
+  | 'cloud.errorSession'
+  | 'account.deleteUncertain'
+  | 'cloud.signOutPending'
   | 'cloud.signInTimeout'
   | 'cloud.rememberEmail'
   | 'cloud.rateLimitWait'
@@ -1674,7 +1678,7 @@ const fr: Dict = {
   'cloud.importGuestUnverified':
     'Supabase n’a pas confirmé ces études. Rien n’a été effacé sur cet appareil. Réessaie une fois en ligne.',
   'cloud.recover': 'Mot de passe oublié',
-  'cloud.recoverSent': 'E-mail de récupération envoyé.',
+  'cloud.recoverSent': 'Si cette adresse correspond à un compte, tu recevras un lien pour choisir un nouveau mot de passe.',
   'cloud.lastSyncedAt': 'Dernière synchronisation réussie : {{date}}',
   'cloud.statusSynced': 'Synchronisé',
   'cloud.statusPending': 'En attente',
@@ -1707,6 +1711,10 @@ const fr: Dict = {
   'cloud.signupAmbiguous':
     'Si une confirmation est nécessaire, tu recevras un e-mail. Si tu as déjà un compte, connecte-toi ou utilise « Mot de passe oublié ».',
   'cloud.signInBusy': 'Connexion en cours…',
+  'cloud.errorService': 'Le service est temporairement indisponible. Réessaie plus tard.',
+  'cloud.errorSession': 'La session doit être renouvelée. Tes données locales sont conservées ; reconnecte-toi si nécessaire.',
+  'account.deleteUncertain': 'Le serveur n’a pas confirmé le résultat de la suppression. Les données locales sont conservées pendant la vérification. Réessaie une fois en ligne.',
+  'cloud.signOutPending': 'Des modifications ne sont pas encore synchronisées. Elles resteront enregistrées pour ce compte sur cet appareil. Reconnecte-toi à ce compte pour reprendre leur transfert.',
   'cloud.signInTimeout': 'La connexion prend trop de temps. Vérifie le réseau, puis réessaie.',
   'cloud.rememberEmail': 'Mémoriser mon adresse e-mail',
   'cloud.rateLimitWait': 'Trop de tentatives. Réessaie dans {{seconds}} s.',
@@ -1714,7 +1722,7 @@ const fr: Dict = {
     'Un e-mail de confirmation t’a été envoyé. Ouvre-le pour activer ton compte, puis reviens te connecter.',
   'cloud.resendEmail': 'Renvoyer l’e-mail',
   'cloud.resendWait': 'Renvoyer l’e-mail ({{seconds}} s)',
-  'cloud.resendSent': 'E-mail renvoyé.',
+  'cloud.resendSent': 'Si une confirmation est en attente pour cette adresse, un nouveau message sera envoyé.',
   'cloud.backToSignIn': 'Revenir à la connexion',
   'cloud.backupLabel': 'SAUVEGARDE',
   'account.createTitle': 'Créer mon compte',
@@ -3214,7 +3222,7 @@ const en: Dict = {
   'cloud.importGuestUnverified':
     'Supabase did not confirm these studies. Nothing was deleted on this device. Try again once you are online.',
   'cloud.recover': 'Forgot password',
-  'cloud.recoverSent': 'Recovery email sent.',
+  'cloud.recoverSent': 'If this address matches an account, you will receive a link to choose a new password.',
   'cloud.lastSyncedAt': 'Last successful sync: {{date}}',
   'cloud.statusSynced': 'Synced',
   'cloud.statusPending': 'Pending',
@@ -3247,6 +3255,10 @@ const en: Dict = {
   'cloud.signupAmbiguous':
     'If a confirmation is required, you will receive an email. If you already have an account, sign in or use “Forgot password”.',
   'cloud.signInBusy': 'Signing in…',
+  'cloud.errorService': 'The service is temporarily unavailable. Try again later.',
+  'cloud.errorSession': 'The session needs renewing. Your local data is kept; sign in again if needed.',
+  'account.deleteUncertain': 'The server has not confirmed the deletion outcome. Local data is kept while it is checked. Try again once online.',
+  'cloud.signOutPending': 'Some changes have not synced yet. They will remain saved for this account on this device. Sign in to this account again to resume their transfer.',
   'cloud.signInTimeout': 'Sign-in is taking too long. Check the network, then try again.',
   'cloud.rememberEmail': 'Remember my email address',
   'cloud.rateLimitWait': 'Too many attempts. Try again in {{seconds}} s.',
@@ -3254,7 +3266,7 @@ const en: Dict = {
     'A confirmation email was sent. Open it to activate your account, then come back and sign in.',
   'cloud.resendEmail': 'Resend email',
   'cloud.resendWait': 'Resend email ({{seconds}} s)',
-  'cloud.resendSent': 'Email sent again.',
+  'cloud.resendSent': 'If confirmation is pending for this address, another email will be sent.',
   'cloud.backToSignIn': 'Back to sign in',
   'cloud.backupLabel': 'BACKUP',
   'account.createTitle': 'Create my account',

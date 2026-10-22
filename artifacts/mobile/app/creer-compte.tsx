@@ -2,7 +2,7 @@
  * Dedicated account creation. Pseudo, email, password, optional avatar.
  * Level, rating and years of practice stay on the profile screen.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -26,6 +26,7 @@ import { AUTH_ERROR_KEYS } from '@/components/cloud/CloudAccountSection';
 import { confirmationResendWaitSeconds } from '@/lib/cloud';
 import { setAuthDraftEmail, peekAuthDraftEmail } from '@/lib/cloud/authDraft';
 import { submitCreateAccount } from '@/lib/profile/createAccount';
+import { consumeAuthReturn } from '@/lib/cloud/authReturn';
 import { defaultKeyValueStorage } from '@/lib/storage';
 import type { CloudAuthError } from '@/lib/cloud';
 
@@ -36,6 +37,16 @@ export default function CreerCompteScreen() {
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { profile, updateProfile } = useUserProfile();
   const cloud = useCloudAccount();
+  const alive = useRef(true);
+  const attempt = useRef(0);
+  const busyRef = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      attempt.current++;
+    };
+  }, []);
   const [pseudo, setPseudo] = useState(profile.username ?? '');
   const [pseudoEdited, setPseudoEdited] = useState(false);
   const [email, setEmail] = useState(() => peekAuthDraftEmail());
@@ -55,75 +66,134 @@ export default function CreerCompteScreen() {
 
   const goSignIn = () => {
     setAuthDraftEmail(email);
-    router.replace('/utilisateur');
+    if (router.canGoBack()) router.back();
+    else router.replace('/utilisateur');
   };
 
   const submit = async () => {
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    setInfo(null);
-    const result = await submitCreateAccount({
-      username: pseudo,
-      email,
-      password,
-      avatarDataUrl: avatar,
-      mascotId,
-      storage: defaultKeyValueStorage,
-      updateUsername: async (username) => {
-        await updateProfile({ username });
-      },
-      signUp: (nextEmail, nextPassword) => cloud.signUp(nextEmail, nextPassword),
-    });
-    setBusy(false);
-    if (result.ok) {
-      router.replace('/utilisateur');
-      return;
+    if (busyRef.current) return;
+    busyRef.current = true;
+    const id = ++attempt.current;
+    const abandoned = () => !alive.current || attempt.current !== id;
+    const timeout = setTimeout(() => {
+      if (abandoned()) return;
+      attempt.current++;
+      busyRef.current = false;
+      setBusy(false);
+      setError(t('cloud.signInTimeout'));
+    }, 20_000);
+    try {
+      setBusy(true);
+      setError(null);
+      setNotice(null);
+      setInfo(null);
+      const result = await submitCreateAccount({
+        username: pseudo,
+        email,
+        password,
+        avatarDataUrl: avatar,
+        mascotId,
+        storage: defaultKeyValueStorage,
+        abandoned,
+        updateUsername: async (username) => {
+          await updateProfile({ username });
+        },
+        signUp: (nextEmail, nextPassword) => cloud.signUp(nextEmail, nextPassword, { abandoned }),
+      });
+      if (abandoned()) return;
+      setBusy(false);
+      if (result.ok) {
+        setPassword('');
+        setAuthDraftEmail('');
+        router.replace((consumeAuthReturn() ?? '/utilisateur') as never);
+        return;
+      }
+      if (result.error === 'username_required') {
+        setError(t('account.usernameRequired'));
+        return;
+      }
+      if (result.error === 'email_taken') {
+        setNotice('taken');
+        return;
+      }
+      if (result.error === 'signup_ambiguous') {
+        setNotice('ambiguous');
+        return;
+      }
+      if (result.error === 'confirm_email') {
+        setPassword('');
+        setNotice('sent');
+        return;
+      }
+      if (
+        result.error === 'rate_limited' &&
+        result.retryAfterSeconds &&
+        result.retryAfterSeconds > 0
+      ) {
+        setError(t('cloud.rateLimitWait', { seconds: result.retryAfterSeconds }));
+        return;
+      }
+      const key =
+        AUTH_ERROR_KEYS[(result.error as CloudAuthError) ?? 'unexpected'] ??
+        'cloud.errorUnexpected';
+      setError(t(key));
+    } catch {
+      if (!abandoned()) setError(t('cloud.errorUnexpected'));
+    } finally {
+      clearTimeout(timeout);
+      if (!abandoned()) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
-    if (result.error === 'username_required') {
-      setError(t('account.usernameRequired'));
-      return;
-    }
-    if (result.error === 'email_taken') {
-      setNotice('taken');
-      return;
-    }
-    if (result.error === 'signup_ambiguous') {
-      setNotice('ambiguous');
-      return;
-    }
-    if (result.error === 'confirm_email') {
-      setNotice('sent');
-      return;
-    }
-    if (result.error === 'rate_limited' && result.retryAfterSeconds && result.retryAfterSeconds > 0) {
-      setError(t('cloud.rateLimitWait', { seconds: result.retryAfterSeconds }));
-      return;
-    }
-    const key = AUTH_ERROR_KEYS[(result.error as CloudAuthError) ?? 'unexpected'] ?? 'cloud.errorUnexpected';
-    setError(t(key));
   };
 
   const recover = async () => {
-    setError(null);
-    setInfo(null);
-    const result = await cloud.recoverPassword(email.trim());
-    if (result.ok) setInfo(t('cloud.recoverSent'));
-    else if (result.error === 'rate_limited') {
-      const wait = confirmationResendWaitSeconds();
-      setError(wait > 0 ? t('cloud.rateLimitWait', { seconds: wait }) : t('cloud.errorRateLimit'));
-    } else setError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      setError(null);
+      setInfo(null);
+      const result = await cloud.recoverPassword(email.trim());
+      if (!alive.current) return;
+      if (result.ok) setInfo(t('cloud.recoverSent'));
+      else if (result.error === 'rate_limited') {
+        const wait = confirmationResendWaitSeconds();
+        setError(
+          wait > 0 ? t('cloud.rateLimitWait', { seconds: wait }) : t('cloud.errorRateLimit'),
+        );
+      } else setError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+    } catch {
+      if (alive.current) setError(t('cloud.errorUnexpected'));
+    } finally {
+      busyRef.current = false;
+      if (alive.current) setBusy(false);
+    }
   };
 
   const resend = async () => {
-    setError(null);
-    setInfo(null);
-    const result = await cloud.resendSignupConfirmation(email.trim());
-    if (result.ok) setInfo(t('cloud.resendSent'));
-    else if (result.error === 'rate_limited') {
-      const wait = confirmationResendWaitSeconds();
-      setError(wait > 0 ? t('cloud.rateLimitWait', { seconds: wait }) : t('cloud.errorRateLimit'));
-    } else setError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      setError(null);
+      setInfo(null);
+      const result = await cloud.resendSignupConfirmation(email.trim());
+      if (!alive.current) return;
+      if (result.ok) setInfo(t('cloud.resendSent'));
+      else if (result.error === 'rate_limited') {
+        const wait = confirmationResendWaitSeconds();
+        setError(
+          wait > 0 ? t('cloud.rateLimitWait', { seconds: wait }) : t('cloud.errorRateLimit'),
+        );
+      } else setError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
+    } catch {
+      if (alive.current) setError(t('cloud.errorUnexpected'));
+    } finally {
+      busyRef.current = false;
+      if (alive.current) setBusy(false);
+    }
   };
 
   return (
@@ -134,9 +204,14 @@ export default function CreerCompteScreen() {
         { paddingTop: topPad + DesignTokens.spacing.md, paddingBottom: bottomPad + 24 },
       ]}
       keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
       testID="create-account-screen"
     >
-      <ScreenHeader onBack={goSignIn} title={t('account.createTitle')} backTestID="create-account-back" />
+      <ScreenHeader
+        onBack={goSignIn}
+        title={t('account.createTitle')}
+        backTestID="create-account-back"
+      />
       <AvatarField
         username={pseudo}
         imageUri={mascotId ? null : avatar}
@@ -166,7 +241,10 @@ export default function CreerCompteScreen() {
         placeholder={t('profil.usernamePlaceholder')}
         placeholderTextColor={colors.mutedForeground}
         maxLength={40}
-        style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input }]}
+        style={[
+          styles.input,
+          { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input },
+        ]}
       />
       <TextInput
         testID="create-account-email"
@@ -181,9 +259,13 @@ export default function CreerCompteScreen() {
         textContentType="emailAddress"
         autoComplete="email"
         importantForAutofill="yes"
+        accessibilityLabel={t('cloud.email')}
         placeholder={t('cloud.email')}
         placeholderTextColor={colors.mutedForeground}
-        style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input }]}
+        style={[
+          styles.input,
+          { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input },
+        ]}
       />
       <PasswordField
         testID="create-account-password"
@@ -195,6 +277,9 @@ export default function CreerCompteScreen() {
       <Pressable
         testID="create-account-submit"
         disabled={busy}
+        accessibilityRole="button"
+        accessibilityState={{ busy, disabled: busy }}
+        accessibilityLabel={t('account.createSubmit')}
         onPress={() => {
           void submit();
         }}
