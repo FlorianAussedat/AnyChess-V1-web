@@ -1,6 +1,7 @@
-import type { AppDialogAction } from './appDialogStore.ts';
+import type { AppDialogAction, AppDialogVariant } from './appDialogStore.ts';
 
 type BuildArgs = {
+  variant?: AppDialogVariant;
   actions?: AppDialogAction[];
   cancelLabel?: string;
   confirmLabel?: string;
@@ -28,17 +29,14 @@ export function buildDialogActions(args: BuildArgs): AppDialogAction[] {
     list.push({
       label: args.confirmLabel,
       onPress: args.onConfirm,
-      variant: 'primary',
+      variant: args.variant === 'destructive' ? 'destructive' : 'primary',
       testID: 'app-dialog-confirm',
     });
   }
   return list;
 }
 
-export function layoutDialogActions(
-  actions: AppDialogAction[],
-  row: boolean,
-): AppDialogAction[] {
+export function layoutDialogActions(actions: AppDialogAction[], row: boolean): AppDialogAction[] {
   if (!row) return actions;
   return [...actions].sort((a, b) => rankDialogAction(a) - rankDialogAction(b));
 }

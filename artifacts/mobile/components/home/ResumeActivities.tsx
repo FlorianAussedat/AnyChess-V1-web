@@ -24,10 +24,7 @@ export function ResumeActivities() {
         <View
           key={item.id}
           testID={`resume-activity-${item.id}`}
-          style={[
-            styles.row,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
+          style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}
         >
           <View style={styles.text}>
             <Text style={[styles.title, { color: colors.foreground }]}>{item.title}</Text>
@@ -37,26 +34,28 @@ export function ResumeActivities() {
               </Text>
             ) : null}
           </View>
-          <Pressable
-            testID={`resume-activity-quit-${item.id}`}
-            accessibilityRole="button"
-            accessibilityLabel={t('activity.quitCta')}
-            onPress={() => confirmQuitFromHome(item.kind, item.id)}
-            style={({ pressed }) => [styles.action, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Text style={[styles.quit, { color: colors.mutedForeground }]}>
-              {t('activity.quitCta')}
-            </Text>
-          </Pressable>
-          <Pressable
-            testID={`resume-activity-resume-${item.id}`}
-            accessibilityRole="button"
-            accessibilityLabel={t('activity.resumeCta')}
-            onPress={() => router.push(item.route as Href)}
-            style={({ pressed }) => [styles.action, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Text style={[styles.cta, { color: colors.primary }]}>{t('activity.resumeCta')}</Text>
-          </Pressable>
+          <View style={styles.actions}>
+            <Pressable
+              testID={`resume-activity-quit-${item.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={t('activity.quitCta')}
+              onPress={() => confirmQuitFromHome(item.kind, item.id)}
+              style={({ pressed }) => [styles.action, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={[styles.quit, { color: colors.mutedForeground }]}>
+                {t('activity.quitCta')}
+              </Text>
+            </Pressable>
+            <Pressable
+              testID={`resume-activity-resume-${item.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={t('activity.resumeCta')}
+              onPress={() => router.push(item.route as Href)}
+              style={({ pressed }) => [styles.action, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Text style={[styles.cta, { color: colors.primary }]}>{t('activity.resumeCta')}</Text>
+            </Pressable>
+          </View>
         </View>
       ))}
     </View>
@@ -74,8 +73,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 8,
     borderWidth: 1,
     borderRadius: DesignTokens.radius.md,
@@ -83,7 +81,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   text: {
-    flex: 1,
     gap: 2,
     minWidth: 0,
   },
@@ -96,9 +93,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     lineHeight: 18,
   },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: DesignTokens.spacing.sm,
+  },
   action: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
+    minHeight: DesignTokens.minTouchTarget,
+    minWidth: DesignTokens.minTouchTarget,
+    justifyContent: 'center',
+    paddingVertical: DesignTokens.spacing.sm,
+    paddingHorizontal: DesignTokens.spacing.sm,
   },
   quit: {
     fontSize: 13,
