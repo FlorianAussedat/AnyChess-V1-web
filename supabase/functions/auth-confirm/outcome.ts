@@ -128,7 +128,8 @@ export function languageFromAccept(header: string | null | undefined): ConfirmLa
  * App links open the Utilisateur screen of the installed variant:
  * `client=dev` opens AnyChess Dev (`exp+anychessdev://utilisateur`, package
  * `com.anychess.dev`); `client=app` opens AnyChess Stable (`mobile://utilisateur`,
- * package `com.anychess.app`); every other value opens the historical standalone
+ * package `com.anychess.app`); `client=preview` opens `anychesspreview` exclusively
+ * in `com.anychess.preview`; every other value opens the historical standalone
  * app (`anychess://utilisateur`, package `com.anychess.standalone`). A scheme or
  * URL supplied in the query is ignored. Tokens are never copied into the app link.
  */
@@ -176,7 +177,7 @@ function pageLanguage(search, navigatorLanguage) {
 function pageClient(search) {
   var query = new URLSearchParams(search.charAt(0) === '?' ? search.slice(1) : search);
   var value = (query.get('client') || '').toLowerCase();
-  if (value === 'dev' || value === 'app' || value === 'standalone') return value;
+  if (value === 'dev' || value === 'app' || value === 'preview' || value === 'standalone') return value;
   return 'standalone';
 }
 function appOpenHref(client, userAgent) {
@@ -185,6 +186,11 @@ function appOpenHref(client, userAgent) {
     return android
       ? 'intent://utilisateur#Intent;scheme=exp+anychessdev;package=com.anychess.dev;end'
       : 'exp+anychessdev://utilisateur';
+  }
+  if (client === 'preview') {
+    return android
+      ? 'intent://utilisateur#Intent;scheme=anychesspreview;package=com.anychess.preview;end'
+      : 'anychesspreview://utilisateur';
   }
   if (client === 'app') {
     return android
