@@ -4,6 +4,6 @@ const { resolveAndroidVariant } = require('./lib/app/androidVariants.cjs');
 module.exports = () => {
   const requested = process.env.ANYCHESS_VARIANT;
   const variant =
-    requested === 'standalone' || requested === 'stable' ? requested : 'development';
+    requested === 'standalone' || requested === 'stable' || requested === 'preview' ? requested : 'development';
   return resolveAndroidVariant(variant);
 };

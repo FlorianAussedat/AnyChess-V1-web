@@ -44,6 +44,22 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       }
+    },
+    "preview": {
+      "developmentClient": false,
+      "environment": "preview",
+      "distribution": "internal",
+      "channel": "preview",
+      "credentialsSource": "remote",
+      "env": {
+        "ANYCHESS_VARIANT": "preview",
+        "EXPO_PUBLIC_APP_CLIENT": "preview",
+        "EXPO_PUBLIC_AUTH_CONFIRM_URL": "https://sparkly-paprenjak-65f499.netlify.app/auth/confirm"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
+      }
     }
   }
 }

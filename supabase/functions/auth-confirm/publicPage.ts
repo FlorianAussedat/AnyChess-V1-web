@@ -40,7 +40,7 @@ export function allowedConfirmOrigin(origin: string | null | undefined): string 
 
 /**
  * Where a browser that still lands on the edge function should go.
- * Only `client=dev` is kept; every other value becomes the standalone app.
+ * Preview and Dev are kept explicitly; historical default behavior remains app.
  * Tokens are never copied onto this URL.
  */
 export function confirmPageRedirect(requestUrl: string, pageUrl = PUBLIC_CONFIRM_PAGE_URL): string {
@@ -50,7 +50,7 @@ export function confirmPageRedirect(requestUrl: string, pageUrl = PUBLIC_CONFIRM
   const lang = (incoming.searchParams.get('lang') || '').toLowerCase();
   target.search = '';
   target.hash = '';
-  target.searchParams.set('client', client === 'dev' ? 'dev' : 'app');
+  target.searchParams.set('client', client === 'preview' ? 'preview' : client === 'dev' ? 'dev' : 'app');
   if (lang === 'en' || lang === 'fr') target.searchParams.set('lang', lang);
   return target.toString();
 }

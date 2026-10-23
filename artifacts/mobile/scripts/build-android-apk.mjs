@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const MOBILE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const variant = process.argv[2];
 if (variant !== 'stable' && variant !== 'development') {
-  console.error('[anychess] usage: node scripts/build-android-apk.mjs stable|development');
+  console.error('[anychess] usage: node scripts/build-android-apk.mjs stable|development. Preview uses the independent EAS preview profile; see docs/0.0.7-preview.md.');
   process.exit(1);
 }
 
