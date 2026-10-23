@@ -16,6 +16,8 @@ const { expo: base } = require('../../app.json');
 const STABLE_PACKAGE = 'com.anychess.app';
 const DEV_PACKAGE = 'com.anychess.dev';
 const PREVIEW_PACKAGE = 'com.anychess.preview';
+const PREVIEW_EAS_OWNER = 'anychess';
+const PREVIEW_EAS_PROJECT_ID = 'f42b44f4-73ce-4752-82d9-38d12f094d55';
 const STANDALONE_PACKAGE = 'com.anychess.standalone';
 const DEV_CLIENT_MODULES = [
   'expo-dev-client',
@@ -39,8 +41,8 @@ function resolveAndroidVariant(variant, env = process.env) {
   const development = variant === 'development';
   const stable = variant === 'stable';
   const preview = variant === 'preview';
-  const projectId = env.ANYCHESS_PREVIEW_EAS_PROJECT_ID?.trim();
-  const owner = env.ANYCHESS_PREVIEW_EAS_OWNER?.trim();
+  const projectId = preview ? (env.ANYCHESS_PREVIEW_EAS_PROJECT_ID?.trim() || PREVIEW_EAS_PROJECT_ID) : undefined;
+  const owner = preview ? (env.ANYCHESS_PREVIEW_EAS_OWNER?.trim() || PREVIEW_EAS_OWNER) : undefined;
   if (preview && projectId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
     throw new Error('Invalid ANYCHESS_PREVIEW_EAS_PROJECT_ID');
   }
@@ -50,7 +52,7 @@ function resolveAndroidVariant(variant, env = process.env) {
       ...base,
       name: development ? 'AnyChess Dev' : preview ? 'AnyChess Preview' : 'AnyChess',
       ...(preview && owner ? { owner } : {}),
-      slug: development ? 'anychessdev' : base.slug,
+      slug: development ? 'anychessdev' : preview ? 'anychess' : base.slug,
       scheme: development ? 'anychessdev' : preview ? 'anychesspreview' : stable ? 'mobile' : 'anychess',
       icon: development ? './assets/icon/android-dev-icon.png' : base.icon,
       splash: base.splash,

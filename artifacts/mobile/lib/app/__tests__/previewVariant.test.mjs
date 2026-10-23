@@ -40,7 +40,12 @@ it('adds a Preview EAS APK Release profile with remote credentials and no automa
   assert.equal(c.developmentClient,false);assert.equal(c.distribution,'internal');assert.equal(c.environment,'preview');assert.equal(c.credentialsSource,'remote');assert.equal(c.channel,'preview');
   assert.equal(c.android.buildType,'apk');assert.match(c.android.gradleCommand,/:app:assembleRelease/);assert.match(c.android.gradleCommand,/arm64-v8a/);assert.equal(c.env.EXPO_PUBLIC_APP_CLIENT,'preview');
   delete process.env.ANYCHESS_PREVIEW_EAS_PROJECT_ID;delete process.env.ANYCHESS_PREVIEW_EAS_OWNER;
-  assert.equal(resolveAndroidVariant('preview').expo.extra.eas,undefined);
+  const linked = resolveAndroidVariant('preview').expo;
+  assert.equal(linked.owner,'anychess');
+  assert.equal(linked.slug,'anychess');
+  assert.equal(linked.extra.eas.projectId,'f42b44f4-73ce-4752-82d9-38d12f094d55');
+  assert.equal(c.env.ANYCHESS_PREVIEW_EAS_OWNER,linked.owner);
+  assert.equal(c.env.ANYCHESS_PREVIEW_EAS_PROJECT_ID,linked.extra.eas.projectId);
   process.env.ANYCHESS_PREVIEW_EAS_PROJECT_ID='11111111-1111-4111-8111-111111111111';process.env.ANYCHESS_PREVIEW_EAS_OWNER='fixture-owner';
   const expo=resolveAndroidVariant('preview').expo;
   assert.equal(expo.extra.eas.projectId,process.env.ANYCHESS_PREVIEW_EAS_PROJECT_ID);assert.equal(expo.owner,'fixture-owner');
@@ -55,7 +60,8 @@ it('accepts only the shared public project and rejects secret/foreign/expired ke
 it('the EAS hook validates Preview association and ignores historical profiles without touching their signing', () => {
   const base={...publicEnv(),ANYCHESS_PREVIEW_EAS_OWNER:'fixture-owner',ANYCHESS_PREVIEW_EAS_PROJECT_ID:'11111111-1111-4111-8111-111111111111',EAS_BUILD_PROFILE:'preview'};
   assert.deepEqual(checkPreviewBuild({env:base,hook:true}),{skipped:false,associated:true});
-  assert.throws(()=>checkPreviewBuild({env:{...base,ANYCHESS_PREVIEW_EAS_PROJECT_ID:''},hook:true}),/Configure ANYCHESS_PREVIEW/);
+  assert.deepEqual(checkPreviewBuild({env:{...publicEnv(),EAS_BUILD_PROFILE:'preview'},hook:true}),{skipped:false,associated:true});
+  assert.throws(()=>checkPreviewBuild({env:{...base,ANYCHESS_PREVIEW_EAS_PROJECT_ID:'invalid'},hook:true}),/Invalid ANYCHESS_PREVIEW/);
   for(const v of ['development','stable','standalone']) assert.deepEqual(checkPreviewBuild({env:{EAS_BUILD_PROFILE:v},hook:true}),{skipped:true});
 });
 it('inserts an idempotent task-time release signing guard without loading private existing credentials', () => {

@@ -54,7 +54,9 @@
       "env": {
         "ANYCHESS_VARIANT": "preview",
         "EXPO_PUBLIC_APP_CLIENT": "preview",
-        "EXPO_PUBLIC_AUTH_CONFIRM_URL": "https://sparkly-paprenjak-65f499.netlify.app/auth/confirm"
+        "EXPO_PUBLIC_AUTH_CONFIRM_URL": "https://sparkly-paprenjak-65f499.netlify.app/auth/confirm",
+        "ANYCHESS_PREVIEW_EAS_OWNER": "anychess",
+        "ANYCHESS_PREVIEW_EAS_PROJECT_ID": "f42b44f4-73ce-4752-82d9-38d12f094d55"
       },
       "android": {
         "buildType": "apk",
