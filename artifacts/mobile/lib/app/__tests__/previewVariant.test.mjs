@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { checkPreviewBuild } from '../../../scripts/check-preview-build.mjs';
 const require = createRequire(import.meta.url);
 const { resolveAndroidVariant, DEV_CLIENT_MODULES } = require('../androidVariants.cjs');
-const { validatePreviewPublicEnv, PUBLIC_PROJECT_URL, CONFIRM_PAGE_URL } = require('../previewBuild.cjs');
+const { validatePreviewPublicEnv, assertPreviewWithoutOta, PUBLIC_PROJECT_URL, CONFIRM_PAGE_URL } = require('../previewBuild.cjs');
 const { injectPreviewSigningGuard } = require('../../../plugins/previewSigning.cjs');
 const read = p => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
 const oldEnv = { ...process.env };
@@ -37,7 +37,7 @@ it('resolves four distinct Android identities and an autonomous Preview without 
 });
 it('adds a Preview EAS APK Release profile with remote credentials and no automatic remote initialization', () => {
   const c=read('../../../eas.json').build.preview;
-  assert.equal(c.developmentClient,false);assert.equal(c.distribution,'internal');assert.equal(c.environment,'preview');assert.equal(c.credentialsSource,'remote');assert.equal(c.channel,'preview');
+  assert.equal(c.developmentClient,false);assert.equal(c.distribution,'internal');assert.equal(c.environment,'preview');assert.equal(c.credentialsSource,'remote');assert.equal(Object.hasOwn(c,'channel'),false);assert.equal(c.pnpm,'10.26.0');
   assert.equal(c.android.buildType,'apk');assert.match(c.android.gradleCommand,/:app:assembleRelease/);assert.match(c.android.gradleCommand,/arm64-v8a/);assert.equal(c.env.EXPO_PUBLIC_APP_CLIENT,'preview');
   delete process.env.ANYCHESS_PREVIEW_EAS_PROJECT_ID;delete process.env.ANYCHESS_PREVIEW_EAS_OWNER;
   const linked = resolveAndroidVariant('preview').expo;
@@ -75,4 +75,38 @@ it('inserts an idempotent task-time release signing guard without loading privat
   const {stripDevClientSchemes}=require('../../../plugins/standaloneSchemes.cjs');
   const manifest={application:[{activity:[{'intent-filter':[{data:[{$:{'android:scheme':'exp+mobile'}},{$:{'android:scheme':'anychesspreview'}}]}]}]}]};
   stripDevClientSchemes(manifest);assert.deepEqual(manifest.application[0].activity[0]['intent-filter'][0].data,[{$:{'android:scheme':'anychesspreview'}}]);
+});
+
+it('rejects OTA channels, inherited profiles, plugins and dependencies for Preview', () => {
+  const profile = read('../../../eas.json').build.preview;
+  const config = resolveAndroidVariant('preview').expo;
+  const manifest = read('../../../package.json');
+  assert.doesNotThrow(() => assertPreviewWithoutOta(profile, config, manifest));
+  for (const bad of [
+    () => assertPreviewWithoutOta({ ...profile, channel: 'preview' }, config, manifest),
+    () => assertPreviewWithoutOta({ ...profile, extends: 'stable' }, config, manifest),
+    () => assertPreviewWithoutOta(profile, { ...config, updates: { enabled: true } }, manifest),
+    () => assertPreviewWithoutOta(profile, { ...config, updates: { enabled: false, url: 'https://u.expo.dev/fixture' } }, manifest),
+    () => assertPreviewWithoutOta(profile, { ...config, runtimeVersion: '0.0.7' }, manifest),
+    () => assertPreviewWithoutOta(profile, { ...config, extra: { ...config.extra, easUpdateChannel: 'preview' } }, manifest),
+    () => assertPreviewWithoutOta(profile, { ...config, plugins: [...config.plugins, ['expo-updates', {}]] }, manifest),
+    ...['dependencies', 'devDependencies', 'optionalDependencies'].map(section =>
+      () => assertPreviewWithoutOta(profile, config, { ...manifest, [section]: { ...manifest[section], 'expo-updates': '~29.0.20' } })),
+  ]) assert.throws(bad, /Preview/);
+});
+it('keeps the shared pnpm build approvals and the SDK 54 lockfile without installing OTA', () => {
+  const workspace = readFileSync(new URL('../../../../../pnpm-workspace.yaml', import.meta.url), 'utf8');
+  assert.match(workspace, /^allowBuilds:/m);
+  assert.doesNotMatch(workspace, /^onlyBuiltDependencies:/m);
+  for (const name of ['esbuild', 'stockfish', 'msw', 'unrs-resolver']) assert.match(workspace, new RegExp('^  ' + name + ': true$', 'm'));
+  assert.match(workspace, /^  '@swc\/core': true$/m);
+  const manifest = read('../../../package.json');
+  assert.equal(manifest.devDependencies.expo, '~54.0.27');
+  assert.equal(manifest.devDependencies['react-native'], '0.81.5');
+  const lock = readFileSync(new URL('../../../../../pnpm-lock.yaml', import.meta.url), 'utf8');
+  assert.match(lock, /^lockfileVersion: '9.0'$/m);
+  assert.doesNotMatch(lock, /^  expo-updates@/m);
+  // expo-updates-interface belongs to the existing Dev Client; it is not expo-updates.
+  assert.match(lock, /^  expo-updates-interface@2\.0\.0:/m);
+  assert.match(lock, /^  expo@54\.0\.35:/m);
 });

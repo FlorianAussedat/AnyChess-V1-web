@@ -31,4 +31,20 @@ function validatePreviewPublicEnv(env, nowMs = Date.now()) {
   if (errors.length) throw new Error(`[anychess preview] ${errors.join('; ')}. Values omitted.`);
   return { projectMatches: true, anonRole: true };
 }
-module.exports = { validatePreviewPublicEnv, PUBLIC_PROJECT_URL, CONFIRM_PAGE_URL };
+/** Preview is a bundled release, not an EAS Update client. No filesystem or native work. */
+function assertPreviewWithoutOta(profile, config, manifest) {
+  if (Object.hasOwn(profile, 'channel') || profile.extends) {
+    throw new Error('Preview must not configure an EAS Update channel or inherit one');
+  }
+  if (config.updates?.enabled !== false || config.updates?.url || config.runtimeVersion ||
+      config.extra?.easUpdateChannel) {
+    throw new Error('Preview must disable OTA and omit update URL, runtimeVersion and channel metadata');
+  }
+  for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+    if (manifest[section]?.['expo-updates']) throw new Error('Preview must not install expo-updates');
+  }
+  if ((config.plugins || []).some(plugin => (Array.isArray(plugin) ? plugin[0] : plugin) === 'expo-updates')) {
+    throw new Error('Preview must not configure the expo-updates plugin');
+  }
+}
+module.exports = { validatePreviewPublicEnv, assertPreviewWithoutOta, PUBLIC_PROJECT_URL, CONFIRM_PAGE_URL };

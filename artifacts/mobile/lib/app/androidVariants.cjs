@@ -56,6 +56,7 @@ function resolveAndroidVariant(variant, env = process.env) {
       scheme: development ? 'anychessdev' : preview ? 'anychesspreview' : stable ? 'mobile' : 'anychess',
       icon: development ? './assets/icon/android-dev-icon.png' : base.icon,
       splash: base.splash,
+      ...(preview ? { updates: { enabled: false } } : {}),
       android: {
         ...base.android,
         package: development ? DEV_PACKAGE : preview ? PREVIEW_PACKAGE : stable ? STABLE_PACKAGE : STANDALONE_PACKAGE,
@@ -80,7 +81,7 @@ function resolveAndroidVariant(variant, env = process.env) {
         ...(base.extra || {}),
         ...(preview && projectId ? { eas: { projectId } } : {}),
         anychessVariant: variant,
-        easUpdateChannel: variant,
+        ...(preview ? {} : { easUpdateChannel: variant }),
       },
     },
   };

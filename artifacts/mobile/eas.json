@@ -49,7 +49,6 @@
       "developmentClient": false,
       "environment": "preview",
       "distribution": "internal",
-      "channel": "preview",
       "credentialsSource": "remote",
       "env": {
         "ANYCHESS_VARIANT": "preview",
@@ -61,7 +60,8 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
-      }
+      },
+      "pnpm": "10.26.0"
     }
   }
 }

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { validatePreviewPublicEnv } = require('../lib/app/previewBuild.cjs');
+const { validatePreviewPublicEnv, assertPreviewWithoutOta } = require('../lib/app/previewBuild.cjs');
 const { resolveAndroidVariant } = require('../lib/app/androidVariants.cjs');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function checkPreviewBuild({ env = process.env, local = false, requireEas = false, hook = false } = {}) {
@@ -27,6 +27,8 @@ export function checkPreviewBuild({ env = process.env, local = false, requireEas
     throw Error('Invalid Preview EAS profile');
   }
   const config = resolveAndroidVariant('preview', selected).expo;
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  assertPreviewWithoutOta(profile, config, manifest);
   const associated = Boolean(config.extra.eas?.projectId && config.owner);
   if ((hook || requireEas) && !associated) throw Error('Configure ANYCHESS_PREVIEW_EAS_PROJECT_ID and ANYCHESS_PREVIEW_EAS_OWNER before EAS Build');
   return { skipped: false, associated };
