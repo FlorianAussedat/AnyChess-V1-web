@@ -6,7 +6,7 @@ const { stripDevClientSchemes } = require('./standaloneSchemes.cjs');
  * scheme. AnyChess Dev keeps exp+anychessdev for Metro.
  */
 function withStandaloneSchemes(config) {
-  if (process.env.ANYCHESS_VARIANT !== 'standalone' && process.env.ANYCHESS_VARIANT !== 'stable') {
+  if (process.env.ANYCHESS_VARIANT !== 'standalone' && process.env.ANYCHESS_VARIANT !== 'stable' && process.env.ANYCHESS_VARIANT !== 'preview') {
     return config;
   }
   return withAndroidManifest(config, (cfg) => {

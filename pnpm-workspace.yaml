@@ -68,11 +68,14 @@ catalog:
 
 autoInstallPeers: false
 
-onlyBuiltDependencies:
-  - '@swc/core'
-  - esbuild
-  - msw
-  - unrs-resolver
+# pnpm >=10.26: preserve existing approvals and the explicit Stockfish approval.
+# Do not combine allowBuilds with the legacy onlyBuiltDependencies setting.
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  msw: true
+  stockfish: true
+  unrs-resolver: true
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms

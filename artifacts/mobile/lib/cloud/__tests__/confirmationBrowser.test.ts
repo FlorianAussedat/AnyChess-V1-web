@@ -214,3 +214,42 @@ it('keeps the published Netlify artifact in exact agreement with the tested rend
   assert.match(html, /requestWithTimeout/);
   assert.doesNotMatch(html, /localStorage|sessionStorage|console\.log/);
 });
+
+for (const lang of ['fr', 'en']) {
+  it(`Preview ${lang}: verified confirmation retains only client/language and opens Preview exclusively`, async () => {
+    const page = browser(`?client=preview&lang=${lang}&package=com.anychess.app`, '#access_token=preview-secret&refresh_token=refresh-secret&type=signup', async () => Response.json({email_confirmed_at:'2026-01-01'}), lang);
+    await flush();
+    assert.equal(page.nodes.get('open').href, 'intent://utilisateur#Intent;scheme=anychesspreview;package=com.anychess.preview;end');
+    assert.equal(page.location.search, `?client=preview&lang=${lang}`);
+    assert.equal(page.location.hash, '');
+    assert.doesNotMatch(page.nodes.get('open').href, /preview-secret|refresh-secret|token=/);
+    assert.equal(page.nodes.get('title').textContent, lang === 'en' ? 'Email address confirmed!' : 'Adresse e-mail confirmée !');
+  });
+  it(`Preview ${lang}: expired and invalid links never claim success or open another app`, async () => {
+    for (const fragment of ['#error=access_denied&error_code=otp_expired', '#access_token=bad&type=signup']) {
+      const page = browser(`?client=preview&lang=${lang}`, fragment, async () => Response.json({}, {status:401}), lang);
+      await flush();
+      assert.equal(page.nodes.get('title').textContent, lang === 'en' ? 'This link is no longer valid' : 'Ce lien n’est plus valable');
+      assert.match(page.nodes.get('open').href, /package=com\.anychess\.preview;end$/);
+      assert.equal(page.location.hash, '');
+    }
+  });
+  it(`Preview ${lang}: recovery acknowledges the server, clears credentials, and keeps its exclusive return`, async () => {
+    let calls=0;
+    const page = browser(`?client=preview&lang=${lang}`, '#access_token=recovery-preview&type=recovery', async (_url,init)=>{calls++;assert.equal(init?.method,'PUT');return Response.json({id:'demo'});}, lang);
+    page.nodes.get('password').value='new-secret';page.nodes.get('password2').value='new-secret';page.submit();page.submit();
+    await flush();
+    assert.equal(calls,1);
+    assert.equal(page.nodes.get('recover').hidden,true);
+    assert.equal(page.nodes.get('password').value,'');
+    assert.match(page.nodes.get('open').href,/scheme=anychesspreview;package=com\.anychess\.preview;end$/);
+    assert.equal(page.location.search,`?client=preview&lang=${lang}`);
+  });
+}
+it('keeps the generic historical app link inaccessible until the client has been selected',()=>{
+  const html=renderConfirmationPage({supabaseUrl:'https://example.supabase.co',anonKey:'public-fixture'});
+  assert.match(html,/<a id="open"[^>]* hidden>/);
+  const page=browser('?client=preview','',async()=>Response.json({}));
+  assert.equal(page.nodes.get('open').hidden,false);
+  assert.match(page.nodes.get('open').href,/com\.anychess\.preview/);
+});

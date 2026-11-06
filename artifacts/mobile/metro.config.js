@@ -53,7 +53,12 @@ function ensurePublicSupabaseEnv(root) {
   applyPublicSupabaseEnv(root);
 }
 
-ensurePublicSupabaseEnv(__dirname);
+if (process.env.ANYCHESS_VARIANT === 'preview') {
+  // Preview must never silently fall back to another project or Auth client.
+  require('./lib/app/previewBuild.cjs').validatePreviewPublicEnv(process.env);
+} else {
+  ensurePublicSupabaseEnv(__dirname);
+}
 
 /**
  * AnyChess Dev Metro bundle. Production export (standalone) is left alone:

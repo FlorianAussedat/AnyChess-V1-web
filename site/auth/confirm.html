@@ -83,7 +83,7 @@
       <img class="logo" src="/brand/anychess-logo.png" alt="AnyChess" width="280" height="97" />
       <h1 id="title">AnyChess</h1>
       <p id="message">Vérification du lien…</p>
-      <a id="open" class="open" href="intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end">Ouvrir AnyChess</a>
+      <a id="open" class="open" href="intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end" hidden>Ouvrir AnyChess</a>
       <p id="alt" class="alt">Tu peux aussi fermer cette page et ouvrir l’application.</p>
       <form id="recover" hidden="hidden">
         <label id="label-password" for="password">Nouveau mot de passe</label>
@@ -151,7 +151,7 @@ function pageLanguage(search, navigatorLanguage) {
 function pageClient(search) {
   var query = new URLSearchParams(search.charAt(0) === '?' ? search.slice(1) : search);
   var value = (query.get('client') || '').toLowerCase();
-  if (value === 'dev' || value === 'app' || value === 'standalone') return value;
+  if (value === 'dev' || value === 'app' || value === 'preview' || value === 'standalone') return value;
   return 'standalone';
 }
 function appOpenHref(client, userAgent) {
@@ -160,6 +160,11 @@ function appOpenHref(client, userAgent) {
     return android
       ? 'intent://utilisateur#Intent;scheme=exp+anychessdev;package=com.anychess.dev;end'
       : 'exp+anychessdev://utilisateur';
+  }
+  if (client === 'preview') {
+    return android
+      ? 'intent://utilisateur#Intent;scheme=anychesspreview;package=com.anychess.preview;end'
+      : 'anychesspreview://utilisateur';
   }
   if (client === 'app') {
     return android
@@ -182,7 +187,10 @@ function appOpenHref(client, userAgent) {
   var client = pageClient(location.search);
   var text = copy[lang] || copy.fr;
   document.documentElement.lang = lang;
-  if (open) open.href = appOpenHref(client, navigator.userAgent || '');
+  if (open) {
+    open.href = appOpenHref(client, navigator.userAgent || '');
+    open.hidden = false;
+  }
   if (open) open.textContent = text.open;
   if (alt) alt.textContent = text.alt;
   function show(key, headingKey) {
@@ -255,7 +263,7 @@ function appOpenHref(client, userAgent) {
   }
   function stripTokens() {
     var keep = new URLSearchParams();
-    if (client === 'dev' || client === 'app' || client === 'standalone') keep.set('client', client);
+    if (client === 'dev' || client === 'app' || client === 'preview' || client === 'standalone') keep.set('client', client);
     var params = new URLSearchParams(location.search.charAt(0) === '?' ? location.search.slice(1) : location.search);
     var requested = (params.get('lang') || '').toLowerCase();
     if (requested === 'fr' || requested === 'en') keep.set('lang', requested);

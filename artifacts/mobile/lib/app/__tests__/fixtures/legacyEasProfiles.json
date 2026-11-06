@@ -1,0 +1,49 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "ANYCHESS_VARIANT": "development",
+        "EXPO_PUBLIC_APP_CLIENT": "dev",
+        "EXPO_PUBLIC_AUTH_CONFIRM_URL": "https://sparkly-paprenjak-65f499.netlify.app/auth/confirm"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug",
+        "withoutCredentials": true
+      }
+    },
+    "stable": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "channel": "stable",
+      "env": {
+        "ANYCHESS_VARIANT": "stable",
+        "EXPO_PUBLIC_APP_CLIENT": "app",
+        "EXPO_PUBLIC_AUTH_CONFIRM_URL": "https://sparkly-paprenjak-65f499.netlify.app/auth/confirm"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
+    "standalone": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "channel": "standalone",
+      "env": {
+        "ANYCHESS_VARIANT": "standalone"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
+    }
+  }
+}

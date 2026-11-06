@@ -42,7 +42,7 @@ export function deleteAccountFunctionUrl(): string | null {
   return `${url.replace(/\/$/, '')}/functions/v1/delete-account`;
 }
 
-export type AuthClientVariant = 'app' | 'dev';
+export type AuthClientVariant = 'app' | 'dev' | 'preview';
 export type AuthMailLanguage = 'fr' | 'en';
 
 /**
@@ -54,12 +54,13 @@ export const DEV_AUTH_CONFIRM_PAGE_URL = 'https://sparkly-paprenjak-65f499.netli
 
 /**
  * `dev` is AnyChess Dev (`com.anychess.dev`, scheme `anychessdev` / `exp+anychessdev`).
+ * `preview` is autonomous AnyChess Preview (`com.anychess.preview`, `anychesspreview`).
  * `app` is AnyChess Stable (`com.anychess.app`, scheme `mobile`).
  * The historical package `com.anychess.standalone` stays on `client=standalone`.
  */
 export function authClientVariant(): AuthClientVariant {
   const raw = readPublic(process.env.EXPO_PUBLIC_APP_CLIENT)?.toLowerCase();
-  if (raw === 'dev' || raw === 'app') return raw;
+  if (raw === 'dev' || raw === 'app' || raw === 'preview') return raw;
   const dev = typeof __DEV__ !== 'undefined' && __DEV__ === true;
   return dev ? 'dev' : 'app';
 }
@@ -87,7 +88,10 @@ export function authMailLanguage(value: string | null | undefined): AuthMailLang
  */
 export function authConfirmRedirectUrl(language?: string | null): string | null {
   const configured = readPublic(process.env.EXPO_PUBLIC_AUTH_CONFIRM_URL);
-  const page = configured ?? (authClientVariant() === 'dev' ? DEV_AUTH_CONFIRM_PAGE_URL : null);
+  const client = authClientVariant();
+  // Preview stays on the shared page, including when a stale override is invalid.
+  const page = client === 'preview' ? DEV_AUTH_CONFIRM_PAGE_URL
+    : configured ?? (client === 'dev' ? DEV_AUTH_CONFIRM_PAGE_URL : null);
   if (page && /^https:\/\//i.test(page)) {
     try {
       const url = new URL(page);

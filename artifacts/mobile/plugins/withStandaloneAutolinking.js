@@ -8,7 +8,7 @@ const {
 
 /** Standalone builds must not link the Metro development client. */
 function withStandaloneAutolinking(config) {
-  if (process.env.ANYCHESS_VARIANT !== 'standalone' && process.env.ANYCHESS_VARIANT !== 'stable') {
+  if (process.env.ANYCHESS_VARIANT !== 'standalone' && process.env.ANYCHESS_VARIANT !== 'stable' && process.env.ANYCHESS_VARIANT !== 'preview') {
     return config;
   }
   config = withSettingsGradle(config, (cfg) => {
