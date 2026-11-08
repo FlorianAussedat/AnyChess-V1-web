@@ -1,6 +1,22 @@
+import {
+  readSharedDocument,
+  sharedReferences,
+  isSharedBlock,
+  usesSharedStorage,
+} from './sharedDocuments.ts';
+import type { CloudErrorKind } from '../cloud/diagnostics.ts';
+export type StorageFailure = {
+  stage: string;
+  kind: CloudErrorKind;
+  category: number | null;
+  requestedBytes: number;
+};
 import type { KeyValueStorage } from './KeyValueStorage.ts';
 import { isSnapshotKey, snapshotReferences } from './snapshotStorage.ts';
-import { SYNCABLE_STORAGE_KEYS, CLOUD_SESSION_KEY } from '../cloud/syncableKeys.ts';
+import {
+  SYNCABLE_STORAGE_KEYS,
+  CLOUD_SESSION_KEY,
+} from '../cloud/syncableKeys.ts';
 /** UTF-8 payload estimate; excludes SQLite pages, indexes, WAL, native caches and framing overhead. */
 export function approximateBytes(value: string): number {
   let n = 0;
@@ -42,7 +58,10 @@ const labels = [
   'continueLine',
 ];
 /** Read-only sequential scan; retains root values and numeric counters, never a durable copy. The report has no keys or IDs. */
-export async function inspectStorage(storage: KeyValueStorage, stable: () => boolean = () => true) {
+export async function inspectStorage(
+  storage: KeyValueStorage,
+  stable: () => boolean = () => true,
+) {
   const keys = [...((await storage.getAllKeys?.()) ?? [])];
   const bytes = new Map<string, number>(),
     roots = new Map<string, string | null>();
@@ -56,40 +75,35 @@ export async function inspectStorage(storage: KeyValueStorage, stable: () => boo
     try {
       const value = await storage.getItem(key);
       bytes.set(key, value == null ? 0 : approximateBytes(value));
-      if (isSnapshotKey(key)) roots.set(key, value);
+      if (usesSharedStorage(key)) roots.set(key, value);
     } catch {
       unreadable++;
     }
   }
   const referenced = new Set<string>();
+  const logical = new Map<string, number>();
+  const rootReferences = new Map<string, string[]>();
   let invalidRoots = 0,
     logicalSnapshotBytes = 0;
   for (const [key, raw] of roots) {
     try {
-      const frame = snapshotReferences(key, raw);
-      if (!frame) {
-        logicalSnapshotBytes += bytes.get(key) ?? 0;
-        continue;
-      }
-      let length = 0,
-        hash = 2166136261,
-        volume = 0;
-      for (const part of frame.keys) {
-        const text = await storage.getItem(part);
-        if (text == null) throw new Error('incomplete');
-        length += text.length;
-        volume += approximateBytes(text);
-        for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
-      }
-      if (length !== frame.length || hash >>> 0 !== frame.hash) throw new Error('integrity');
-      for (const part of frame.keys) referenced.add(part);
-      logicalSnapshotBytes += volume;
+      const parts =
+        sharedReferences(raw) ?? snapshotReferences(key, raw)?.keys ?? [];
+      const value = await readSharedDocument(storage, key);
+      const size = value === null ? 0 : approximateBytes(value);
+      logical.set(key, size);
+      rootReferences.set(key, parts);
+      for (const part of parts) referenced.add(part);
+      if (isSnapshotKey(key)) logicalSnapshotBytes += size;
     } catch {
       invalidRoots++;
     }
   }
   const after = [...((await storage.getAllKeys?.()) ?? [])];
-  let unchanged = keys.length === after.length && keys.every((k) => after.includes(k)) && stable();
+  let unchanged =
+    keys.length === after.length &&
+    keys.every((k) => after.includes(k)) &&
+    stable();
   for (const [key, value] of roots) {
     try {
       if ((await storage.getItem(key)) !== value) unchanged = false;
@@ -102,7 +116,8 @@ export async function inspectStorage(storage: KeyValueStorage, stable: () => boo
   const generations = (list: string[]) =>
     new Set(list.map((k) => k.slice(0, k.lastIndexOf('.')))).size;
   const candidates = chunks.filter((k) => !referenced.has(k));
-  const sum = (list: string[]) => list.reduce((n, k) => n + (bytes.get(k) ?? 0), 0);
+  const sum = (list: string[]) =>
+    list.reduce((n, k) => n + (bytes.get(k) ?? 0), 0);
   const backupRoots = keys.filter(
     (k) => isSnapshotKey(k) && k.startsWith('anychess.cloud.backup.'),
   );
@@ -117,10 +132,12 @@ export async function inspectStorage(storage: KeyValueStorage, stable: () => boo
     cleanupAllowed: false,
     categories: SYNCABLE_STORAGE_KEYS.map((key, i) => ({
       category: labels[i],
-      bytes: bytes.get(key) ?? 0,
+      bytes: logical.get(key) ?? bytes.get(key) ?? 0,
+      physicalBytes: (bytes.get(key) ?? 0) + sum(rootReferences.get(key) ?? []),
       unreadable: keys.includes(key) && !bytes.has(key),
     })),
     measuredPhysicalValueBytes: sum(keys),
+    lastFailure: null as StorageFailure | null,
     unreadableRows: unreadable,
     skippedSensitiveRows: skippedSensitive,
     snapshots: {
@@ -129,16 +146,23 @@ export async function inspectStorage(storage: KeyValueStorage, stable: () => boo
       backups: backupRoots.length,
       backupRootBytes: sum(backupRoots),
       backupPhysicalBytes: sum(
-        keys.filter((k) => k.startsWith('anychess.cloud.backup.') && !k.endsWith('.index.v1')),
+        keys.filter(
+          (k) =>
+            k.startsWith('anychess.cloud.backup.') && !k.endsWith('.index.v1'),
+        ),
       ),
-      workspacePhysicalBytes: sum(keys.filter((k) => k.startsWith('anychess.cloud.workspace.'))),
+      workspacePhysicalBytes: sum(
+        keys.filter((k) => k.startsWith('anychess.cloud.workspace.')),
+      ),
       logicalBytes: logicalSnapshotBytes,
       invalidOrUnreadableRoots:
-        invalidRoots + keys.filter((k) => isSnapshotKey(k) && !roots.has(k)).length,
+        invalidRoots +
+        keys.filter((k) => isSnapshotKey(k) && !roots.has(k)).length,
     },
     blocks: {
       count: chunks.length,
       bytes: sum(chunks),
+      sharedPoolBytes: sum(keys.filter(isSharedBlock)),
       referencedCount: referenced.size,
       referencedBytes: sum([...referenced]),
       referencedGenerations: generations([...referenced]),
@@ -158,7 +182,7 @@ export async function inspectStorage(storage: KeyValueStorage, stable: () => boo
       avatarBytes: sum(keys.filter((k) => k.startsWith('anychess.avatar.'))),
     },
     limits:
-      'Payload estimates only; native capacity/free space cannot be determined. Unreferenced blocks may be interrupted recovery copies. No cleanup is authorized.',
+      'Payload estimates only; native capacity/free space cannot be determined. Logical categories are decompressed; shared physical blocks must not be added multiple times. Unreferenced blocks may be interrupted recovery copies. No cleanup is authorized.',
   };
 }
 

@@ -118,7 +118,7 @@ it('resumes identical incomplete blocks after restart without creating generatio
   const raw = new LimitedRows(),
     storage = new AsyncKeyValueStorage(raw),
     k = cloudWorkspaceKey('owner'),
-    value = 'X'.repeat(300000);
+    value = (()=>{let seed=12345,out='';for(let i=0;i<300000;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;out+='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'[(seed>>>16)%64];}return out;})();
   raw.limit = 120000;
   await assert.rejects(() => storage.setItem(k, value), /local_quota/);
   const first = [...raw.values.keys()].sort(),
@@ -138,7 +138,7 @@ it('resumes identical incomplete blocks after restart without creating generatio
 it('pauses timers, mutation and lifecycle requests after quota while keeping data and allowing an explicit retry', async () => {
   const p = await phone();
   p.fail();
-  p.raw.limit = p.raw.size() + 10000;
+  p.raw.limit = p.raw.size(); // No room even for the verified backup root/index.
   const before = await p.storage.getItem(key);
   await p.engine.sync();
   assert.equal(p.engine.getState().lastError, 'local_quota');
@@ -169,12 +169,14 @@ it('keeps account and guest data when logout cannot fit, then reuses a verified 
   await p.storage.setItem(key, study('pending'));
   const guest = await p.storage.getItem(cloudWorkspaceKey('guest'));
   p.raw.limit = p.raw.size();
+  p.raw.failAfter = 1; // Refuse publication even when blocks already exist.
   assert.equal((await p.engine.signOut()).ok, false);
   assert.equal(p.engine.getState().user?.id, 'owner');
   assert.match((await p.storage.getItem(key))!, /pending/);
   assert.equal(await p.storage.getItem(cloudWorkspaceKey('owner')), workspace);
   assert.equal(await p.storage.getItem(cloudWorkspaceKey('guest')), guest);
   p.raw.limit = 6 * 1024 * 1024;
+  p.raw.failAfter = Infinity;
   assert.equal((await p.engine.signOut()).ok, true);
 });
 it('reuses an unindexed complete backup after an interrupted index write and isolates owners', async () => {

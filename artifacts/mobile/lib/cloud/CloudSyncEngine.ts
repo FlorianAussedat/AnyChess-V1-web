@@ -55,6 +55,8 @@ import type {
 
 export type CloudEngineState = {
   quotaPaused?: boolean;
+  /** Changes after a durable repertoire update, including a partially failed sync. */
+  libraryRevision?: number;
   status: CloudSyncStatus;
   user: CloudUser | null;
   lastError: string | null;
@@ -978,9 +980,11 @@ export class CloudSyncEngine {
       }
       for (const key of SYNCABLE_STORAGE_KEYS) {
         if (stale()) return this.getState();
+        let repertoireChanged=false;
         const apply = (onDisk: string | null) => {
           if (stale()) return onDisk;
           const safe = mergeDocumentPayload(key, onDisk, merged[key] ?? null);
+          if(key===StorageKeys.repertoires.key && safe!==onDisk)repertoireChanged=true;
           if (safe !== merged[key]) this.followUpSync = true;
           return safe;
         };
@@ -989,6 +993,10 @@ export class CloudSyncEngine {
           const value = apply(await cloudStep('sync.apply_read', 'local', () => this.storage.getItem(key)));
           if (stale()) return this.getState();
           if (value != null) await cloudStep('sync.apply_write', 'local', () => this.storage.setItem(key, value));
+        }
+        if(repertoireChanged && !stale()) {
+          await this.discardRepertoireCache();
+          if(!stale())this.setState({libraryRevision:(this.state.libraryRevision??0)+1});
         }
       }
       await cloudStep('workspace.mirror_preferences', 'local', () => this.mirrorPreferences());
@@ -1102,9 +1110,7 @@ export async function restoreBackup(
     if ((parsed.ownerId ?? GUEST_OWNER_ID) !== owner || !parsed.docs || typeof parsed.docs !== 'object' || Array.isArray(parsed.docs)) return false;
     if (SYNCABLE_STORAGE_KEYS.some(key => parsed.docs![key] != null && typeof parsed.docs![key] !== 'string')) return false;
     const before = await readDocs(storage);
-    const recoveryKey = cloudBackupKey('before-restore-' + Date.now() + '-' + Math.random().toString(36).slice(2));
-    await storage.setItem(recoveryKey, JSON.stringify({ version: 2, ownerId: owner, createdAt: new Date().toISOString(), docs: before }));
-    await rememberBackup(storage, recoveryKey, owner);
+    await verifiedBackup(storage, owner, before);
     for (const key of SYNCABLE_STORAGE_KEYS) {
       if (((await storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID) !== owner) return false;
       const backup = parsed.docs[key] ?? null;

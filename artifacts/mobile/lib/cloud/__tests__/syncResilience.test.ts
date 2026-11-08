@@ -266,9 +266,11 @@ describe('owner-bound recovery and avatars', () => {
     await a.storage.setItem(key, doc(pgn('new'))); assert.equal(await restoreBackup(a.storage, backup), true);
     assert.deepEqual((await read(a.storage)).files.map((f:{id:string}) => f.id).sort(), ['new','old']);
     const index = await readBackupIndex(a.storage);
-    const recovery = index.find(row => row.key.includes('before-restore'))!;
+    const copies = await Promise.all(index.map(async row=>({key:row.key,value:JSON.parse((await a.storage.getItem(row.key))!)})));
+    const recovery = copies.find(row=>row.value.docs?.[key]===doc(pgn('new')))!;
+    assert.ok(recovery, 'the exact pre-restore document must remain recoverable');
     assert.match((await a.storage.getItem(recovery.key))!, /new/);
-    const contents = JSON.parse((await a.storage.getItem(recovery.key))!);
+    const contents = recovery.value;
     assert.deepEqual(Object.keys(contents.docs).sort(), [...SYNCABLE_STORAGE_KEYS].sort());
     assert.equal(contents.docs['anychess.cloud.session.v1'], undefined);
   });

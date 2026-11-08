@@ -19,6 +19,9 @@ import {
 import { defaultKeyValueStorage } from '@/lib/storage';
 import { validAuthEmail } from '@/lib/cloud/authRequest';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
+import { AppDialog } from '@/components/ui/AppDialog';
+import { storageReportText } from '@/lib/storage/storageReportText';
+import { authClientVariant } from '@/lib/cloud/supabaseConfig';
 import type { MessageKey } from '@/lib/i18n/messages';
 
 const SIGN_IN_TIMEOUT_MS = 20_000;
@@ -89,6 +92,10 @@ export function CloudAccountSection() {
   const [info, setInfo] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [guestImportReady, setGuestImportReady] = useState(false);
+  const [auditText,setAuditText]=useState<string|null>(null);
+  const [auditBusy,setAuditBusy]=useState(false);
+  const auditAttempt=useRef(0);
+  useEffect(()=>{auditAttempt.current++;setAuditText(null);setAuditBusy(false);},[cloud.user?.id]);
 
   const pending = cloud.pendingConfirmationEmail;
 
@@ -552,10 +559,22 @@ export function CloudAccountSection() {
         </Text>
       ) : null}
       {(cloud.lastError==='local_quota'||cloud.quotaPaused) ? <Text accessibilityLiveRegion="polite" style={[styles.hint,{color:colors.destructive}]} testID="cloud-quota-paused">{t('cloud.quotaPaused')}</Text> : null}
-      {typeof __DEV__!=='undefined' && __DEV__ ? (
-        <Pressable testID="cloud-storage-diagnostics" accessibilityRole="button" accessibilityLabel={t('cloud.storageDiagnostics')} style={[styles.btn,{borderColor:colors.border}]} onPress={()=>{
-          void (async()=>{try {const report=await cloud.diagnoseStorage();if(report)console.info('[AnyChess storage audit]',report);else setFormError(t('cloud.storageDiagnosticsUnavailable'));}catch(error){cloud.noteBackgroundFailure('storage.audit',error);setFormError(t('cloud.storageDiagnosticsUnavailable'));}})();
-        }}><Text style={{color:colors.foreground}}>{t('cloud.storageDiagnostics')}</Text></Pressable>
+      {(authClientVariant()==='preview'||(typeof __DEV__!=='undefined' && __DEV__)) ? (
+        <>
+          <Pressable testID="cloud-storage-diagnostics" accessibilityRole="button" accessibilityLabel={t('cloud.storageDiagnostics')} accessibilityState={{busy:auditBusy}} disabled={auditBusy} style={[styles.btn,{borderColor:colors.border}]} onPress={()=>{
+            const attempt=++auditAttempt.current;
+            setAuditBusy(true);
+            void (async()=>{
+              try {
+                const report=await cloud.diagnoseStorage();
+                if(!aliveRef.current||attempt!==auditAttempt.current)return;
+                if(report)setAuditText(storageReportText(report,t));else setFormError(t('cloud.storageDiagnosticsUnavailable'));
+              } catch {if(aliveRef.current&&attempt===auditAttempt.current)setFormError(t('cloud.storageDiagnosticsUnavailable'));}
+              finally {if(aliveRef.current&&attempt===auditAttempt.current)setAuditBusy(false);}
+            })();
+          }}><Text style={{color:colors.foreground}}>{t('cloud.storageDiagnostics')}</Text></Pressable>
+          <AppDialog visible={auditText!==null} title={t('storage.title')} message={auditText??undefined} variant="info" confirmLabel={t('common.close')} onConfirm={()=>setAuditText(null)} onCancel={()=>setAuditText(null)} testID="cloud-storage-report" />
+        </>
       ):null}
       {cloud.lastError === 'local_save_failed' ? (
         <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-local-save-error">
