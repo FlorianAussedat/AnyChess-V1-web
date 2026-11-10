@@ -26,7 +26,7 @@ it('resolves four distinct Android identities and an autonomous Preview without 
   const configs = ['development','stable','standalone','preview'].map(v=>resolveAndroidVariant(v).expo);
   assert.equal(new Set(configs.map(c=>c.android.package)).size,4);
   assert.equal(new Set(configs.map(c=>c.scheme)).size,4);
-  const c=configs[3]; assert.equal(c.name,'AnyChess Preview');assert.equal(c.version,'0.0.7');assert.equal(c.android.package,'com.anychess.preview');assert.equal(c.scheme,'anychesspreview');assert.equal(c.android.versionCode,1);
+  const c=configs[3]; assert.equal(c.name,'AnyChess Preview');assert.equal(c.version,'0.0.7');assert.equal(c.android.package,'com.anychess.preview');assert.equal(c.scheme,'anychesspreview');assert.equal(c.android.versionCode,2);
   assert.deepEqual(c.autolinking.exclude,DEV_CLIENT_MODULES);
   assert.ok(c.plugins.includes('./plugins/withPreviewSigning.js'));
   assert.ok(c.plugins.includes('./modules/stockfish-uci/app.plugin.js'));
@@ -38,7 +38,7 @@ it('resolves four distinct Android identities and an autonomous Preview without 
 it('adds a Preview EAS APK Release profile with remote credentials and no automatic remote initialization', () => {
   const c=read('../../../eas.json').build.preview;
   assert.equal(c.developmentClient,false);assert.equal(c.distribution,'internal');assert.equal(c.environment,'preview');assert.equal(c.credentialsSource,'remote');assert.equal(Object.hasOwn(c,'channel'),false);assert.equal(c.pnpm,'10.26.0');
-  assert.equal(c.android.buildType,'apk');assert.match(c.android.gradleCommand,/:app:assembleRelease/);assert.match(c.android.gradleCommand,/arm64-v8a/);assert.equal(c.env.EXPO_PUBLIC_APP_CLIENT,'preview');
+  assert.equal(c.android.image,'latest');assert.equal(c.android.buildType,'apk');assert.match(c.android.gradleCommand,/:app:assembleRelease/);assert.match(c.android.gradleCommand,/arm64-v8a/);assert.equal(c.env.EXPO_PUBLIC_APP_CLIENT,'preview');
   delete process.env.ANYCHESS_PREVIEW_EAS_PROJECT_ID;delete process.env.ANYCHESS_PREVIEW_EAS_OWNER;
   const linked = resolveAndroidVariant('preview').expo;
   assert.equal(linked.owner,'anychess');
