@@ -166,7 +166,9 @@ describe('single-flight, interruptions and local durability', () => {
     const a = await device(remote); await a.storage.setItem(key, doc(pgn('old')));
     block = true; const syncing = a.engine.sync(); await entered.promise;
     await a.storage.setItem(key, doc(pgn('old'), pgn('during'))); a.engine.notifyLocalMutation();
-    resume.release(); await syncing; await a.engine.sync();
+    resume.release(); await syncing;
+    assert.ok(a.engine.getState().syncAudit?.pending.some(row=>row.reason==='local_mutation'));
+    await a.engine.sync();
     assert.match((await a.storage.getItem(key))!, /during/);
     assert.match(inner.peek('shared-owner', key)!.payload!, /during/);
   });
@@ -176,6 +178,7 @@ describe('single-flight, interruptions and local durability', () => {
     const a = await device(remote); await a.storage.setItem(key, doc(pgn('pending')));
     discard = true; await a.engine.sync();
     assert.equal(a.engine.getState().status, 'pending'); assert.match((await a.storage.getItem(key))!, /pending/);
+    assert.ok(a.engine.getState().syncAudit?.pending.some(row=>row.reason==='remote_differs' && row.category===0));
     discard = false; await a.engine.sync(); assert.equal(a.engine.getState().status, 'synced');
   });
   it('survives a transfer error and a new engine without replacing its durable document', async () => {
