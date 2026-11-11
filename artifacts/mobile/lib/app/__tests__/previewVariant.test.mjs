@@ -33,7 +33,7 @@ it('resolves four distinct Android identities and an autonomous Preview without 
   const configs = ['development','stable','standalone','preview'].map(v=>resolveAndroidVariant(v).expo);
   assert.equal(new Set(configs.map(c=>c.android.package)).size,4);
   assert.equal(new Set(configs.map(c=>c.scheme)).size,4);
-  const c=configs[3]; assert.equal(c.name,'AnyChess Preview');assert.equal(c.version,'0.0.7');assert.equal(c.android.package,'com.anychess.preview');assert.equal(c.scheme,'anychesspreview');assert.equal(c.android.versionCode,3);
+  const c=configs[3]; assert.equal(c.name,'AnyChess Preview');assert.equal(c.version,'0.0.7');assert.equal(c.android.package,'com.anychess.preview');assert.equal(c.scheme,'anychesspreview');assert.equal(c.android.versionCode,4);
   assert.deepEqual(c.autolinking.exclude,DEV_CLIENT_MODULES);
   assert.ok(c.plugins.includes('./plugins/withPreviewSigning.js'));
   assert.ok(c.plugins.includes('./modules/stockfish-uci/app.plugin.js'));
