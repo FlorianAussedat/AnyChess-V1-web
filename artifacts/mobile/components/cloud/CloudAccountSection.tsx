@@ -20,7 +20,7 @@ import { defaultKeyValueStorage } from '@/lib/storage';
 import { validAuthEmail } from '@/lib/cloud/authRequest';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
 import { AppDialog } from '@/components/ui/AppDialog';
-import { storageReportText } from '@/lib/storage/storageReportText';
+import { storageReportText, syncReportText } from '@/lib/storage/storageReportText';
 import { authClientVariant } from '@/lib/cloud/supabaseConfig';
 import type { MessageKey } from '@/lib/i18n/messages';
 
@@ -568,7 +568,7 @@ export function CloudAccountSection() {
               try {
                 const report=await cloud.diagnoseStorage();
                 if(!aliveRef.current||attempt!==auditAttempt.current)return;
-                if(report)setAuditText(storageReportText(report,t));else setFormError(t('cloud.storageDiagnosticsUnavailable'));
+                if(report)setAuditText(storageReportText(report,t)+'\n\n'+syncReportText(cloud.syncAudit,t));else setFormError(t('cloud.storageDiagnosticsUnavailable'));
               } catch {if(aliveRef.current&&attempt===auditAttempt.current)setFormError(t('cloud.storageDiagnosticsUnavailable'));}
               finally {if(aliveRef.current&&attempt===auditAttempt.current)setAuditBusy(false);}
             })();

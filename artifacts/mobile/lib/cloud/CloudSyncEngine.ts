@@ -1,3 +1,4 @@
+import { documentPayloadsEqual } from './documentEquality.ts';
 import { verifiedBackup } from './verifiedBackup.ts';
 import { cloudStep, reportCloudError, type CloudErrorKind } from './diagnostics.ts';
 import { setAuthDraftEmail } from './authDraft.ts';
@@ -53,7 +54,12 @@ import type {
   PendingConfirmationReason,
 } from './types.ts';
 
+export type SyncAudit = {
+  passes: number; reads: number; pushes: number; applies: number;
+  pending: { category: number | null; reason: 'local_mutation' | 'remote_differs' | 'local_differs' }[];
+};
 export type CloudEngineState = {
+  syncAudit?: SyncAudit;
   quotaPaused?: boolean;
   /** Changes after a durable repertoire update, including a partially failed sync. */
   libraryRevision?: number;
@@ -111,6 +117,14 @@ export class CloudSyncEngine {
   /** Bumped on each local change so an in-flight sync can re-read before it writes. */
   private mutationEpoch = 0;
   private followUpSync = false;
+  private syncAudit: SyncAudit = { passes: 0, reads: 0, pushes: 0, applies: 0, pending: [] };
+  private requireFollowUp(reason: SyncAudit['pending'][number]['reason'], key?: string): void {
+    this.followUpSync = true;
+    const index = key ? (SYNCABLE_STORAGE_KEYS as readonly string[]).indexOf(key) : -1;
+    const category = index < 0 ? null : index;
+    if (!this.syncAudit.pending.some(row => row.category === category && row.reason === reason))
+      this.syncAudit.pending.push({ category, reason });
+  }
   private readonly storage: KeyValueStorage;
   private readonly auth: CloudAuth;
   private readonly remote: CloudRemote;
@@ -138,7 +152,7 @@ export class CloudSyncEngine {
   }
 
   getState(): CloudEngineState {
-    return { ...this.state, quotaPaused: this.quotaBlocked };
+    return { ...this.state, quotaPaused: this.quotaBlocked, syncAudit: { ...this.syncAudit, pending: this.syncAudit.pending.map(row => ({ ...row })) } };
   }
 
   /** User access token only — never the public anon key. */
@@ -183,6 +197,7 @@ export class CloudSyncEngine {
   private bumpSession(): number {
     this.quotaBlocked=false;
     this.sessionEpoch += 1;
+    this.syncAudit = { passes: 0, reads: 0, pushes: 0, applies: 0, pending: [] };
     this.failedLocalKeys.clear();
     this.retryAttempt = 0;
     this.followUpSync = false;
@@ -868,6 +883,7 @@ export class CloudSyncEngine {
     this.syncing = true;
     this.flightEpoch = this.sessionEpoch;
     this.followUpSync = false;
+    this.syncAudit = { passes: this.syncAudit.passes + 1, reads: 0, pushes: 0, applies: 0, pending: [] };
     const epoch = this.sessionEpoch;
     const flight = Promise.resolve().then(() => this.sessionIsCurrent(epoch) ? this.performSync(options) : this.getState()).catch(error => {
       const diagnostic = reportCloudError('sync.prepare', 'local', error);
@@ -926,12 +942,13 @@ export class CloudSyncEngine {
     }
     this.setState({ user, status: 'syncing', lastError: null });
     try {
+      this.syncAudit.reads++;
       const remoteDocs = await cloudStep('sync.list_documents', 'remote', () => this.remote.listDocuments(user.id));
       if (stale()) return this.getState();
       const remoteMap = new Map(remoteDocs.map((doc) => [doc.docKey, doc]));
       const localDocs = await cloudStep('sync.read_documents', 'local', () => readDocs(this.storage));
       if (stale()) return this.getState();
-      if (SYNCABLE_STORAGE_KEYS.some(key => remoteMap.get(key)?.payload != null && remoteMap.get(key)?.payload !== localDocs[key])) {
+      if (SYNCABLE_STORAGE_KEYS.some(key => remoteMap.get(key)?.payload != null && !documentPayloadsEqual(remoteMap.get(key)?.payload, localDocs[key]))) {
         await cloudStep('sync.backup', 'local', () => this.backupLocal(false));
       }
       const merged: Record<string, string | null> = { ...localDocs };
@@ -945,6 +962,8 @@ export class CloudSyncEngine {
           deletedAt: null,
           revision: (remoteMap.get(key)?.revision ?? 0) + 1,
         }));
+        if (stale()) return false;
+        this.syncAudit.pushes++;
         const previous = remoteMap.get(key);
         remoteMap.set(key, { docKey: key, payload, updatedAt: new Date().toISOString(), deletedAt: null, revision: (previous?.revision ?? 0) + 1 });
         return true;
@@ -955,7 +974,7 @@ export class CloudSyncEngine {
         const remote = remoteMap.get(key)?.payload ?? null;
         const next = mergeDocumentPayload(key, local, remote);
         merged[key] = next;
-        if (next == null || next === remoteMap.get(key)?.payload) continue;
+        if (next == null || documentPayloadsEqual(next, remoteMap.get(key)?.payload)) continue;
         if (!(await push(key, next))) return this.getState();
       }
       if (stale()) return this.getState();
@@ -963,19 +982,20 @@ export class CloudSyncEngine {
       const fresh = await cloudStep('sync.reread_documents', 'local', () => readDocs(this.storage));
       for (const key of SYNCABLE_STORAGE_KEYS) {
         if (stale()) return this.getState();
-        if ((fresh[key] ?? null) === (localDocs[key] ?? null)) continue;
+        if (documentPayloadsEqual(fresh[key], localDocs[key])) continue;
         const next = mergeDocumentPayload(key, fresh[key] ?? null, merged[key] ?? null);
         merged[key] = next;
-        if (next == null || next === remoteMap.get(key)?.payload) continue;
+        if (next == null || documentPayloadsEqual(next, remoteMap.get(key)?.payload)) continue;
         if (!(await push(key, next))) return this.getState();
       }
-      if (this.mutationEpoch !== seen) this.followUpSync = true;
+      if (this.mutationEpoch !== seen) this.requireFollowUp('local_mutation');
       if (stale()) return this.getState();
+      this.syncAudit.reads++;
       const confirmed = new Map((await cloudStep('sync.verify_remote', 'remote', () => this.remote.listDocuments(ownerId))).map(doc => [doc.docKey, doc.payload]));
       if (stale()) return this.getState();
       for (const key of SYNCABLE_STORAGE_KEYS) {
         const combined = mergeDocumentPayload(key, merged[key] ?? null, confirmed.get(key) ?? null);
-        if (combined !== (confirmed.get(key) ?? null)) this.followUpSync = true;
+        if (!documentPayloadsEqual(combined, confirmed.get(key))) this.requireFollowUp('remote_differs', key);
         merged[key] = combined;
       }
       for (const key of SYNCABLE_STORAGE_KEYS) {
@@ -984,9 +1004,10 @@ export class CloudSyncEngine {
         const apply = (onDisk: string | null) => {
           if (stale()) return onDisk;
           const safe = mergeDocumentPayload(key, onDisk, merged[key] ?? null);
-          if(key===StorageKeys.repertoires.key && safe!==onDisk)repertoireChanged=true;
-          if (safe !== merged[key]) this.followUpSync = true;
-          return safe;
+          if(key===StorageKeys.repertoires.key && !documentPayloadsEqual(safe,onDisk))repertoireChanged=true;
+          if (!documentPayloadsEqual(safe, merged[key])) this.requireFollowUp('local_differs', key);
+          if (!documentPayloadsEqual(safe, onDisk)) this.syncAudit.applies++;
+          return documentPayloadsEqual(safe, onDisk) ? onDisk : safe;
         };
         if (this.storage.updateItem) await cloudStep('sync.apply_local', 'local', () => this.storage.updateItem!(key, apply, 'cloud'));
         else {
@@ -1065,7 +1086,7 @@ export class CloudSyncEngine {
     if (this.deletionLocked || !this.state.user) return;
     if(this.quotaBlocked)return;
     if (this.syncing) {
-      this.followUpSync = true;
+      this.requireFollowUp('local_mutation', key);
       if (this.state.status !== 'offline' && this.state.status !== 'waiting_wifi') {
         this.setState({ status: 'pending', lastError: null });
       }

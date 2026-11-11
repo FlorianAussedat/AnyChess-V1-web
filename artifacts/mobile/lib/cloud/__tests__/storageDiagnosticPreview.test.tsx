@@ -9,7 +9,7 @@ import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
 import { setCloudEngineForTests } from '../cloudStore.ts';
 import { CloudAccountSection } from '../../../components/cloud/CloudAccountSection.tsx';
 import { StorageKeys } from '../../storage/StorageKeys.ts';
-import { storageReportText } from '../../storage/storageReportText.ts';
+import { storageReportText, syncReportText } from '../../storage/storageReportText.ts';
 import { translate } from '../../i18n/messages.ts';
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const oldClient = process.env.EXPO_PUBLIC_APP_CLIENT,
@@ -84,5 +84,13 @@ it('formats safe numbers and fixed failure stages in both French and English', a
     assert.match(text, /storage\.pool\.block_write/);
     assert.match(text, /121/);
     assert.doesNotMatch(text, /PRIVATE_CONTENT|anychess\.repertoire|\{size\}/);
+  }
+});
+
+it('formats session-only sync counts and fixed follow-up reasons in FR/EN without leaking documents',()=>{
+  for (const language of ['fr','en'] as const) {
+    const text=syncReportText({passes:3,reads:2,pushes:0,applies:0,pending:[{category:0,reason:'remote_differs'},{category:null,reason:'local_mutation'}]},(key,vars)=>translate(language,key,vars));
+    assert.match(text,/3/);assert.match(text,/2/);assert.match(text,/0/);
+    assert.doesNotMatch(text,/sync\.reason|sync\.allCategories|\{passes\}|anychess\.repertoire/);
   }
 });

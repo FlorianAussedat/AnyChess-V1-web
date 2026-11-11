@@ -1,3 +1,4 @@
+import { documentPayloadsEqual, stableJson } from './documentEquality.ts';
 import { migrateOpeningHierarchy } from '../repertoire/folderTree.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
 import { mergeEndgameTrainingDocuments } from '../endgameTraining/persistence/defendDrawReview.ts';
@@ -8,7 +9,7 @@ import { mergeRecordDocument } from '../records/scoreDocument.ts';
 function compareText(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
 
 function newerIso(a?: string, b?: string): string {
-  if (!a) return b ?? new Date().toISOString();
+  if (!a) return b ?? '';
   if (!b) return a;
   return a >= b ? a : b;
 }
@@ -59,7 +60,7 @@ function contentHash(text: string): string {
 }
 function mergeStudies<T extends { id: string }>(left: T[], right: T[], deleted: Set<string>, content: (item: T) => string): T[] {
   const map = new Map<string, T>();
-  for (const item of [...left, ...right].sort((a, b) => compareText(JSON.stringify(a), JSON.stringify(b)))) {
+  for (const item of [...left, ...right].sort((a, b) => compareText(stableJson(a), stableJson(b)))) {
     if (!item?.id || deleted.has(item.id)) continue;
     const previous = map.get(item.id);
     if (!previous) { map.set(item.id, item); continue; }
@@ -137,7 +138,7 @@ function mergeGameLibrary(local: unknown, remote: unknown): unknown {
   );
   const left = (Array.isArray(a.games) ? a.games : []) as { id: string; source?: { rawPgn?: string }; moves?: unknown }[];
   const right = (Array.isArray(b.games) ? b.games : []) as typeof left;
-  const deduped = mergeStudies(left, right, deleted, game => game.source?.rawPgn ?? JSON.stringify(game.moves ?? []));
+  const deduped = mergeStudies(left, right, deleted, game => game.source?.rawPgn ?? stableJson(game.moves ?? []));
   return { ...a, ...b, folders, games: deduped, syncDeletedIds: [...deleted] };
 }
 
@@ -171,7 +172,7 @@ function mergeEntries(left: unknown, right: unknown): Record<string, unknown> {
     const x = asRecord(a[key]), y = asRecord(b[key]);
     if (!x || !y) { out[key] = a[key] ?? b[key]; continue; }
     const at = String(x.lastRevisionAt ?? x.updatedAt ?? ''), bt = String(y.lastRevisionAt ?? y.updatedAt ?? '');
-    const winner = at > bt || (at === bt && JSON.stringify(x) >= JSON.stringify(y)) ? x : y;
+    const winner = at > bt || (at === bt && stableJson(x) >= stableJson(y)) ? x : y;
     const merged = { ...winner };
     for (const field of ['totalAttempts', 'totalSuccesses']) {
       if (typeof x[field] === 'number' && typeof y[field] === 'number') merged[field] = Math.max(x[field] as number, y[field] as number);
@@ -266,7 +267,9 @@ function lastWriteWins(local: unknown, remote: unknown): unknown {
   if (!b) return a;
   const aAt = typeof a.updatedAt === 'string' ? a.updatedAt : '';
   const bAt = typeof b.updatedAt === 'string' ? b.updatedAt : '';
-  return (aAt > bAt || (aAt === bAt && JSON.stringify(a) >= JSON.stringify(b))) ? { ...b, ...a, updatedAt: newerIso(aAt, bAt) } : { ...a, ...b, updatedAt: newerIso(aAt, bAt) };
+  const winner = aAt > bAt || (aAt === bAt && stableJson(a) >= stableJson(b));
+  return { ...(winner ? b : a), ...(winner ? a : b),
+    ...(aAt || bAt ? { updatedAt: newerIso(aAt, bAt) } : {}) };
 }
 
 function isRecordDocumentKey(docKey: string): boolean {
@@ -296,7 +299,7 @@ export function mergeDocumentPayload(
 ): string | null {
   if (!localRaw) return remoteRaw;
   if (!remoteRaw) return localRaw;
-  if (localRaw === remoteRaw) return localRaw;
+  if (documentPayloadsEqual(localRaw, remoteRaw)) return localRaw;
   const local = parseJson(localRaw);
   const remote = parseJson(remoteRaw);
   let merged: unknown;
@@ -304,7 +307,7 @@ export function mergeDocumentPayload(
     const history = new Map<string, Record<string, unknown>>();
     for (const entry of [...local, ...remote]) {
       if (!entry || typeof entry !== 'object') continue;
-      history.set(JSON.stringify(entry), entry);
+      history.set(stableJson(entry), entry);
     }
     merged = [...history.values()].sort((a, b) => compareText(String(b.playedAt), String(a.playedAt))).slice(0, 200);
   } else if (docKey === StorageKeys.continueLineRecent.key) {

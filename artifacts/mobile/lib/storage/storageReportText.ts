@@ -1,3 +1,4 @@
+import type { SyncAudit } from '../cloud/CloudSyncEngine.ts';
 import type { StorageReport } from './storageDiagnostics.ts';
 import type { MessageKey } from '../i18n/messages.ts';
 const categories: MessageKey[] = [
@@ -76,4 +77,14 @@ export function storageReportText(report: StorageReport, t: Translate): string {
   );
   lines.push('', t('storage.limits'));
   return lines.join('\n');
+}
+
+/** Session-only operation counts and allowlisted category/reason labels. */
+export function syncReportText(audit: SyncAudit | undefined, t: Translate): string {
+  if (!audit) return '';
+  return [t('sync.audit', { passes: audit.passes, reads: audit.reads, pushes: audit.pushes, applies: audit.applies }),
+    ...audit.pending.map(row => t('sync.auditReason', {
+      category: row.category !== null && categories[row.category] ? t(categories[row.category]) : t('sync.allCategories'),
+      reason: t(`sync.reason.${row.reason}` as MessageKey),
+    }))].join('\n');
 }
