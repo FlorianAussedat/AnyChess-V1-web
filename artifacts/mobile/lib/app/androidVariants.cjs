@@ -60,7 +60,7 @@ function resolveAndroidVariant(variant, env = process.env) {
       android: {
         ...base.android,
         package: development ? DEV_PACKAGE : preview ? PREVIEW_PACKAGE : stable ? STABLE_PACKAGE : STANDALONE_PACKAGE,
-        versionCode: development ? 1 : preview ? 2 : stable ? 8 : 2,
+        versionCode: development ? 1 : preview ? 3 : stable ? 8 : 2,
         adaptiveIcon: {
           ...base.android.adaptiveIcon,
           foregroundImage: development
@@ -69,9 +69,10 @@ function resolveAndroidVariant(variant, env = process.env) {
         },
       },
       plugins: development
-        ? plugins
+        ? [...plugins, './plugins/withAsyncStorageCapacity.js']
         : [
             ...plugins,
+            ...(preview ? ['./plugins/withAsyncStorageCapacity.js'] : []),
             './plugins/withStandaloneAutolinking.js',
             preview ? './plugins/withPreviewSigning.js' : './plugins/withReleaseSigning.js',
             './plugins/withStandaloneSchemes.js',
