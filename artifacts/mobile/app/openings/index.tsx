@@ -42,7 +42,7 @@ export default function OpeningsHub() {
         },
       ]}
     >
-      <ScreenHeader onBack={() => router.back()} backTestID="openings-back" />
+      <ScreenHeader backTestID="openings-back" />
       <HubIntro title={t('openings.title')} subtitle={t('openings.hubLead')} />
 
       {!access.ready || !ready ? (

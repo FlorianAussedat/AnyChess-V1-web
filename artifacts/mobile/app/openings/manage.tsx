@@ -579,8 +579,7 @@ export default function OpeningsManageScreen() {
         ]}
       >
         <ScreenHeader
-          onBack={() => router.back()}
-          title={t('openings.manageTitle')}
+            title={t('openings.manageTitle')}
           titleNumberOfLines={2}
         />
         <GuestLibraryLock />
@@ -600,7 +599,6 @@ export default function OpeningsManageScreen() {
       ]}
     >
       <ScreenHeader
-        onBack={() => router.back()}
         title={t('openings.manageTitle')}
         titleNumberOfLines={2}
       />

@@ -17,7 +17,7 @@ export function PuzzleHubPhase() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
-  const back = useSmartBack('/puzzles' as Href);
+  const back = useSmartBack();
   const { selectSubmode } = usePuzzle();
 
   return (

@@ -6,10 +6,9 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AnyChessSplashScreen } from '@/components/AnyChessSplashScreen';
-import { BottomNavigation } from '@/components/navigation/BottomNavigation';
+import { NavigationShell } from '@/components/navigation/NavigationShell';
 import { AppDialogHost } from '@/components/ui/AppDialogHost';
 import { OfflineModelBanner } from '@/components/speech/OfflineModelBanner';
-import { DesignTokens } from '@/constants/designTokens';
 import { ANYCHESS_NAVY } from '@/lib/brand/splashTiming';
 import {
   Inter_400Regular,
@@ -48,9 +47,8 @@ const queryClient = new QueryClient();
  * logic/state (GameProvider is scoped per-mode, not global), so modes never
  * accidentally share state.
  *
- * Persistent bottom navigation is rendered by the app shell (not a second
- * router). Content is inset by `bottomNavContentHeight` so boards/controls
- * are never hidden under the bar; per-screen safe-area padding is unchanged.
+ * Main navigation is rendered in normal flow by NavigationShell, only on
+ * the four main routes after the launch intro. Activity providers stay isolated.
  *
  * Launch intro (`AnyChessSplashScreen`) is mounted once here — never on the
  * Home route — so Accueil / Back / bottom-nav Home do not replay it.
@@ -140,21 +138,15 @@ export default function RootLayout() {
               <View style={styles.root}>
                 <StatusBar style="light" backgroundColor={ANYCHESS_NAVY} />
                 {appReady ? (
-                  <View
-                    style={[
-                      styles.content,
-                      { paddingBottom: DesignTokens.bottomNavContentHeight },
-                    ]}
-                  >
+                  <NavigationShell introDone={introDone}>
                     <RootLayoutNav />
-                  </View>
+                  </NavigationShell>
                 ) : (
                   <View style={styles.bootBridge} testID="anychess-boot-bridge" />
                 )}
 
-                {/* Prepare home + nav under the fading overlay so they do not pop in. */}
+                {/* The shell shows navigation only after the intro finishes. */}
                 {appReady ? <OfflineModelBanner /> : null}
-                {appReady ? <BottomNavigation /> : null}
                 {appReady ? <AppDialogHost /> : null}
 
                 {!introDone ? (

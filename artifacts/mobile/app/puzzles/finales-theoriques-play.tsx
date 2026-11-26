@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Play / result — Finales théoriques (shared Classic UI + overlays).
  */
@@ -127,6 +128,7 @@ export default function TheoreticalEndgamePlayScreen() {
   const colors = useColors();
   const { t, language } = useTranslation();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
@@ -348,10 +350,7 @@ export default function TheoreticalEndgamePlayScreen() {
     };
   }, [snap.result, engineReady, gradeStored]);
 
-  const goHub = useCallback(
-    () => router.replace('/puzzles/finales-theoriques' as Href),
-    [router],
-  );
+  const goHub = goBack;
   const confirmExit = useActiveSessionBack({
     sessionActive:
       snap.phase === 'playing' ||
@@ -565,7 +564,7 @@ export default function TheoreticalEndgamePlayScreen() {
           </Text>
           <AppButton
             label={t('quiz.stockfishBack')}
-            onPress={() => router.back()}
+            onPress={() => goBack()}
             variant="secondary"
             testID="theoretical-position-missing-back"
           />

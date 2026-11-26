@@ -1,3 +1,4 @@
+import { GeneralMenu } from '@/components/navigation/GeneralMenu';
 /**
  * AnyChess main home / menu — premium dark redesign (Major Update 0.0.4).
  * Layout/styling only; routes and modes unchanged.
@@ -44,7 +45,7 @@ export default function MainMenu() {
   const logoArtH = artHeight(HORIZONTAL_LOGO_ART);
   const logoVisibleWidth = Math.min(
     290,
-    Math.max(240, width - DesignTokens.spacing.screenX * 2),
+    Math.max(120, width - DesignTokens.spacing.screenX * 2 - DesignTokens.minTouchTarget - 8),
   );
   const logoVisibleHeight = Math.round(logoVisibleWidth * (logoArtH / logoArtW));
   const logoImgWidth = Math.round(logoVisibleWidth / logoArtW);
@@ -94,6 +95,7 @@ export default function MainMenu() {
               />
             </View>
           </View>
+          <GeneralMenu />
         </View>
       </View>
 

@@ -36,11 +36,11 @@ describe('AnyChessRecords catalog', () => {
     assert.equal(ids.includes('quiz' as never), false);
   });
 
-  it('Records hub reuses ScreenHeader + router.back()', () => {
+  it('Records hub uses the shared header history and fallback', () => {
     const src = readFileSync(join(here, '../../../app/records.tsx'), 'utf8');
     assert.match(src, /ScreenHeader/);
     assert.match(src, /records-back/);
-    assert.match(src, /router\.back\(\)/);
+    assert.doesNotMatch(src, /onBack=\{/);
     assert.match(src, /records\.title/);
   });
 });

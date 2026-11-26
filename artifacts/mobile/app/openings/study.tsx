@@ -324,7 +324,7 @@ export default function OpeningStudyScreen() {
   if (error || !state) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title={t('openings.learn')} />
+        <ScreenHeader title={t('openings.learn')} />
         <Text style={{ color: colors.destructive, paddingHorizontal: 16 }}>{error}</Text>
       </View>
     );
@@ -343,7 +343,6 @@ export default function OpeningStudyScreen() {
       ]}
     >
       <ScreenHeader
-        onBack={() => router.back()}
         title={title}
         trailing={
           <Pressable

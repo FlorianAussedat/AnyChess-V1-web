@@ -1,5 +1,4 @@
 import React from 'react';
-import { useRouter } from 'expo-router';
 import { useTranslation } from '@/hooks/useTranslation';
 import { BrandAssets } from '@/constants/BrandAssets';
 import { HubScreen } from '@/components/HubScreen';
@@ -9,10 +8,9 @@ import { useBlindSequence } from '@/contexts/BlindSequenceContext';
 export function BlindHubPhase() {
   const { t } = useTranslation();
   const { selectSubmode } = useBlindSequence();
-  const router = useRouter();
 
   return (
-    <HubScreen title={t('blind.title')} subtitle={t('blind.hubLead')} onBack={() => router.back()}>
+    <HubScreen title={t('blind.title')} subtitle={t('blind.hubLead')}>
       <HubModeCard
         title={t('blind.listenReconstruct')}
         description={t('blind.listenReconstructDesc')}

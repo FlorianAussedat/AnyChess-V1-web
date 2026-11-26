@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Unified game workspace — Partie + Analyse tabs on one ReaderGame state.
  * Old Lecteur route `/parties/[gameId]` redirects here.
@@ -85,6 +86,7 @@ type TabId = 'game' | 'analysis';
 
 export default function GameWorkspaceScreen() {
   const router = useRouter();
+  const goBack = useSmartBack();
   const params = useLocalSearchParams<{
     gameId?: string;
     nodeId?: string;
@@ -463,8 +465,8 @@ export default function GameWorkspaceScreen() {
 
   const returnToOpeningEditor = useCallback(() => {
     persistPosition();
-    router.back();
-  }, [persistPosition, router]);
+    goBack();
+  }, [persistPosition, goBack]);
 
   const addAnalyzedLineToPgn = useCallback(() => {
     if (!reader) return;
@@ -474,8 +476,8 @@ export default function GameWorkspaceScreen() {
       reader.currentNodeId,
     );
     persistPosition();
-    router.back();
-  }, [persistPosition, reader, router]);
+    goBack();
+  }, [persistPosition, reader, goBack]);
 
   const onLoad = () => {
     const draft = pgnDraft.trim();
@@ -784,8 +786,7 @@ export default function GameWorkspaceScreen() {
       subtitle={t('parties.workspaceSubtitle')}
       onBack={() => {
         persistPosition();
-        if (fromOpeningEditor) router.back();
-        else router.navigate('/parties');
+        goBack();
       }}
       trailing={
         game && !fromOpeningEditor ? (

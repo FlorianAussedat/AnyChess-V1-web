@@ -80,7 +80,6 @@ export default function OpeningsReviewScreen() {
       ]}
     >
       <ScreenHeader
-        onBack={() => router.back()}
         title={t('openings.review')}
         subtitle={t('openings.hubReviewHint')}
       />

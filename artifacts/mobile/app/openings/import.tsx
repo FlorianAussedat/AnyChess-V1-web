@@ -126,8 +126,7 @@ export default function OpeningsImportScreen() {
         testID="openings-import-screen"
       >
         <ScreenHeader
-          onBack={() => router.back()}
-          title={t('openings.importTitle')}
+            title={t('openings.importTitle')}
           titleNumberOfLines={2}
           backTestID="openings-import-back"
         />
@@ -149,7 +148,6 @@ export default function OpeningsImportScreen() {
       testID="openings-import-screen"
     >
       <ScreenHeader
-        onBack={() => router.back()}
         title={t('openings.importTitle')}
         titleNumberOfLines={2}
         backTestID="openings-import-back"

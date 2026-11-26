@@ -1,3 +1,5 @@
+import { useWebNavigationGuard } from '@/hooks/useWebNavigationGuard';
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -92,6 +94,7 @@ export default function OpeningAnnotateScreen() {
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { showCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
   const params = useLocalSearchParams<{
@@ -296,16 +299,25 @@ export default function OpeningAnnotateScreen() {
     });
   }, [chessNotation, node, session, t]);
 
+  const allowEditorRemoval = useWebNavigationGuard(
+    Boolean(session && (session.dirty || commentDraft !== editorNodeComment(session))),
+    () => requestLeave(),
+  );
+  const leaveEditor = useCallback(() => {
+    allowEditorRemoval();
+    goBack();
+  }, [allowEditorRemoval, goBack]);
+
   const finishSaveIntent = useCallback(
     (ok: boolean) => {
       const intent = saveIntent;
       setSaveIntent(null);
       if (ok && intent === 'save-and-leave') {
         setLeaveOpen(false);
-        router.back();
+        leaveEditor();
       }
     },
-    [router, saveIntent],
+    [leaveEditor, saveIntent],
   );
 
   const saveToLibrary = useCallback(
@@ -427,7 +439,7 @@ export default function OpeningAnnotateScreen() {
 
   const requestLeave = useCallback(() => {
     if (!session) {
-      router.back();
+      leaveEditor();
       return;
     }
     const flushed = flushComment(session);
@@ -436,13 +448,13 @@ export default function OpeningAnnotateScreen() {
       setLeaveOpen(true);
       return;
     }
-    router.back();
-  }, [applySession, flushComment, router, session]);
+    leaveEditor();
+  }, [applySession, flushComment, leaveEditor, session]);
 
   if (access.ready && access.locked) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title={t('openings.annotatePgn')} />
+        <ScreenHeader title={t('openings.annotatePgn')} />
         <GuestLibraryLock />
       </View>
     );
@@ -459,7 +471,7 @@ export default function OpeningAnnotateScreen() {
   if (error || !session) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title={t('openings.annotatePgn')} />
+        <ScreenHeader title={t('openings.annotatePgn')} />
         <Text style={{ color: colors.destructive, paddingHorizontal: 16 }}>{error}</Text>
       </View>
     );
@@ -760,7 +772,7 @@ export default function OpeningAnnotateScreen() {
                 const ok = await saveToLibrary();
                 if (ok) {
                   setLeaveOpen(false);
-                  router.back();
+                  leaveEditor();
                 }
               })();
             },
@@ -771,7 +783,7 @@ export default function OpeningAnnotateScreen() {
             destructive: true,
             onPress: () => {
               setLeaveOpen(false);
-              router.back();
+              leaveEditor();
             },
           },
           {

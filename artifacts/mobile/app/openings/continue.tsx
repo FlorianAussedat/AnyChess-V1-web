@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Continue la ligne — recite repertoire continuations.
  * Query: /openings/continue?folderId=…
@@ -72,6 +73,7 @@ export default function ContinueLineScreen() {
   const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { soundEnabled } = useAudioSettings();
   const { chessNotation } = usePreferences();
 
@@ -499,8 +501,8 @@ export default function ContinueLineScreen() {
 
   const leaveContinue = useCallback(() => {
     leaveEphemeralOpeningExercise();
-    router.back();
-  }, [router]);
+    goBack();
+  }, [goBack]);
   const onBack = useActiveSessionBack({
     sessionActive: !loading && snap.phase === 'reciting',
     kind: 'exercice',
@@ -555,7 +557,7 @@ export default function ContinueLineScreen() {
         <Pressable
           onPress={() => {
             leaveEphemeralOpeningExercise();
-            router.back();
+            goBack();
           }}
           style={[styles.btn, { backgroundColor: colors.primary, marginTop: 20 }]}
         >

@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Game analysis library — folders + saved analyses.
  */
@@ -90,6 +91,7 @@ export default function PartiesLibraryScreen() {
   const { t } = useTranslation();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const router = useRouter();
+  const goBack = useSmartBack();
 
   const [folderId, setFolderId] = useState<string | null>(null);
   const [folderStack, setFolderStack] = useState<GameLibraryFolder[]>([]);
@@ -302,7 +304,7 @@ export default function PartiesLibraryScreen() {
       <ScreenHeader
         onBack={() => {
           if (folderStack.length > 0) goUp();
-          else router.back();
+          else goBack();
         }}
         title={title}
         titleNumberOfLines={2}

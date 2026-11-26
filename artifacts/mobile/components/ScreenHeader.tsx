@@ -1,12 +1,14 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
+import { useHeaderHardwareBack } from '@/hooks/useHeaderHardwareBack';
 import { BackButton } from '@/components/BackButton';
 import { SoundToggle } from '@/components/SoundToggle';
 import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
 
 type Props = {
-  onBack: () => void;
+  onBack?: () => void;
   title?: string;
   subtitle?: string;
   showSound?: boolean;
@@ -31,10 +33,13 @@ export function ScreenHeader({
   titleNumberOfLines = 1,
 }: Props) {
   const colors = useColors();
+  const defaultBack = useSmartBack();
+  const goBack = onBack ?? defaultBack;
+  useHeaderHardwareBack(goBack);
   const showTrailing = Boolean(trailing) || showSound;
   return (
     <View style={[styles.header, titleNumberOfLines > 1 ? styles.headerWrap : null]}>
-      <BackButton onPress={onBack} testID={backTestID} />
+      <BackButton onPress={goBack} testID={backTestID} />
       <View style={styles.titleBlock}>
         {title ? (
           <Text

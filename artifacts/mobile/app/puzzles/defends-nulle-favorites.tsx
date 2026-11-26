@@ -59,7 +59,6 @@ export default function DefendDrawFavoritesScreen() {
   return (
     <ChessScreenScaffold
       title={t('quiz.ddReviewFinales')}
-      onBack={() => router.back()}
       testID="endgame-favorites"
     >
       {favorites.length === 0 ? (

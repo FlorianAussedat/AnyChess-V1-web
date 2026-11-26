@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Play / result screen for Entraînement aux Finales — shared Classic UI + overlays.
  */
@@ -105,6 +106,7 @@ export default function EndgameTrainingPlayScreen() {
   const { t } = useTranslation();
   const { chessNotation } = usePreferences();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { showCoordinates, toggleCoordinates } = useBoardCoordinates();
@@ -462,10 +464,7 @@ export default function EndgameTrainingPlayScreen() {
     );
   };
 
-  const leaveToHub = useCallback(
-    () => router.replace('/puzzles/defends-nulle' as Href),
-    [router],
-  );
+  const leaveToHub = goBack;
   const abandonAndLeave = useCallback(() => {
     const next = sessionRef.current.abandon();
     if (next.result?.outcome === 'abandoned' && !recordedRef.current) {
@@ -502,7 +501,7 @@ export default function EndgameTrainingPlayScreen() {
           </Text>
           <AppButton
             label={t('quiz.stockfishBack')}
-            onPress={() => router.back()}
+            onPress={() => goBack()}
             variant="secondary"
             testID="endgame-position-missing-back"
           />
