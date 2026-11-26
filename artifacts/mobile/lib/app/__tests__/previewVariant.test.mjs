@@ -13,11 +13,18 @@ afterEach(() => { for (const k of Object.keys(process.env)) if (!(k in oldEnv)) 
 const jwt = (extra = {}) => ['eyJ0eXAiOiJKV1QifQ', Buffer.from(JSON.stringify({role:'anon',ref:'zqfxnzwtptepulmgpxhb',exp:4102444800,...extra})).toString('base64url'), 'fixture'].join('.');
 const publicEnv = () => ({ANYCHESS_VARIANT:'preview',EXPO_PUBLIC_APP_CLIENT:'preview',EXPO_PUBLIC_AUTH_CONFIRM_URL:CONFIRM_PAGE_URL,EXPO_PUBLIC_SUPABASE_URL:PUBLIC_PROJECT_URL,EXPO_PUBLIC_SUPABASE_ANON_KEY:jwt()});
 
-it('preserves all three historical Expo configurations and EAS profiles exactly at PR 128', () => {
+it('preserves historical identities and EAS profiles with only the explicit Dev capacity plugin added', () => {
   const snapshots = read('./fixtures/legacyAndroidConfigs.json');
   process.env.ANYCHESS_PREVIEW_EAS_PROJECT_ID = '11111111-1111-4111-8111-111111111111';
   process.env.ANYCHESS_PREVIEW_EAS_OWNER = 'fixture-owner';
-  for (const v of ['development','stable','standalone']) assert.deepEqual(JSON.parse(JSON.stringify(resolveAndroidVariant(v))),snapshots[v]);
+  for (const v of ['development','stable','standalone']) {
+    const config = JSON.parse(JSON.stringify(resolveAndroidVariant(v)));
+    if (v === 'development') {
+      assert.ok(config.expo.plugins.includes('./plugins/withAsyncStorageCapacity.js'));
+      config.expo.plugins = config.expo.plugins.filter(p => p !== './plugins/withAsyncStorageCapacity.js');
+    }
+    assert.deepEqual(config,snapshots[v]);
+  }
   const eas = read('../../../eas.json');
   const old = read('./fixtures/legacyEasProfiles.json');
   for (const v of Object.keys(old.build)) assert.deepEqual(eas.build[v],old.build[v]);
@@ -26,7 +33,7 @@ it('resolves four distinct Android identities and an autonomous Preview without 
   const configs = ['development','stable','standalone','preview'].map(v=>resolveAndroidVariant(v).expo);
   assert.equal(new Set(configs.map(c=>c.android.package)).size,4);
   assert.equal(new Set(configs.map(c=>c.scheme)).size,4);
-  const c=configs[3]; assert.equal(c.name,'AnyChess Preview');assert.equal(c.version,'0.0.7');assert.equal(c.android.package,'com.anychess.preview');assert.equal(c.scheme,'anychesspreview');assert.equal(c.android.versionCode,2);
+  const c=configs[3]; assert.equal(c.name,'AnyChess Preview');assert.equal(c.version,'0.0.7');assert.equal(c.android.package,'com.anychess.preview');assert.equal(c.scheme,'anychesspreview');assert.equal(c.android.versionCode,3);
   assert.deepEqual(c.autolinking.exclude,DEV_CLIENT_MODULES);
   assert.ok(c.plugins.includes('./plugins/withPreviewSigning.js'));
   assert.ok(c.plugins.includes('./modules/stockfish-uci/app.plugin.js'));
@@ -109,4 +116,23 @@ it('keeps the shared pnpm build approvals and the SDK 54 lockfile without instal
   // expo-updates-interface belongs to the existing Dev Client; it is not expo-updates.
   assert.match(lock, /^  expo-updates-interface@2\.0\.0:/m);
   assert.match(lock, /^  expo@54\.0\.35:/m);
+});
+
+it('applies the 32 MiB native capacity mod idempotently to Dev and Preview only', async () => {
+  const plugin = require('../../../plugins/withAsyncStorageCapacity.js');
+  for (const variant of ['development', 'preview']) {
+    const config = plugin(resolveAndroidVariant(variant).expo);
+    const apply = config.mods.android.gradleProperties;
+    const old = [{type:'comment',value:'keep'}, {type:'property',key:'AsyncStorage_db_size_in_MB',value:'6'}, {type:'property',key:'other',value:'unchanged'}, {type:'property',key:'AsyncStorage_db_size_in_MB',value:'8'}];
+    const first = await apply({...config,modRequest:{},modResults:old});
+    const second = await apply({...config,modRequest:{},modResults:first.modResults});
+    assert.deepEqual(second.modResults, first.modResults);
+    assert.deepEqual(first.modResults.filter(p=>p.key==='AsyncStorage_db_size_in_MB'),[{type:'property',key:'AsyncStorage_db_size_in_MB',value:'32'}]);
+    assert.ok(first.modResults.some(p=>p.key==='other' && p.value==='unchanged'));
+  }
+  for (const variant of ['stable','standalone']) {
+    const expo=resolveAndroidVariant(variant).expo;
+    assert.ok(!expo.plugins.includes('./plugins/withAsyncStorageCapacity.js'));
+    assert.equal(plugin(expo).mods?.android?.gradleProperties,undefined);
+  }
 });

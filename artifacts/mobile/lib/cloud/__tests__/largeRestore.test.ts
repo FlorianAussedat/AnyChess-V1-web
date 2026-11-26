@@ -597,3 +597,89 @@ it('preserves Unicode and literal codec prefixes across block boundaries', async
     assert.equal(await new AsyncKeyValueStorage(raw).getItem(key), text);
   }
 });
+
+/** Pixel-shaped values, not a copy of the user's data. SQLite page overhead is
+ * intentionally excluded: real native capacity can be exhausted even earlier. */
+async function legacyPixel() {
+  const { writeSnapshot } = await import('../../storage/snapshotStorage.ts');
+  const raw = new AndroidQuotaRows();
+  const backups = new Map<string,string>();
+  for (let i=0;i<11;i++) {
+    const key=`anychess.cloud.backup.pixel-demo-${i}.v1`;
+    const value=JSON.stringify({version:2,ownerId:'owner',docs:{[StorageKeys.pgnCommentTranslations.key]:JSON.stringify({state:i,text:'legacy '.repeat(72000)})}});
+    await writeSnapshot(raw,key,value);
+    backups.set(key,value);
+  }
+  // Exactly 5,475 KiB for the eleven complete historical roots and chunks.
+  const delta=5475*1024-raw.used();
+  const [lastKey]=[...backups].at(-1)!;
+  const each=Math.floor(delta/11)-64;
+  for (const [key,value] of backups) {
+    const parsed=JSON.parse(value);
+    parsed.docs[StorageKeys.pgnCommentTranslations.key]+=' '.repeat(each);
+    backups.set(key,JSON.stringify(parsed));
+  }
+  // Rebuild only this synthetic fixture before the actual test starts.
+  raw.values.clear();
+  for(const [k,v] of backups) await writeSnapshot(raw,k,v);
+  const rootPadding=5475*1024-raw.used();
+  assert.ok(rootPadding>=0 && rootPadding<1500);
+  raw.values.set(lastKey,raw.values.get(lastKey)!+' '.repeat(rootPadding));
+  const backupBytes=raw.used();
+  assert.equal(backupBytes,5475*1024);
+  await writeSnapshot(raw,'anychess.cloud.workspace.pixel-demo.v1',JSON.stringify({version:2,ownerId:'owner',docs:{pad:'w'.repeat(70000)}}));
+  for(let i=0;i<4;i++) raw.values.set(`anychess.cloud.backup.interrupted.v1.chunks.old.${i}`,'candidate');
+  raw.values.set('demo.local.cache','c'.repeat(6046*1024-raw.used()));
+  assert.equal(raw.used(),6046*1024);
+  return {raw,backups};
+}
+it('reproduces a pool block quota at 6046 KiB with 11 readable backups and recovers at 32 MiB without deleting them',async()=>{
+  const {raw,backups}=await legacyPixel();
+  const storage=new AsyncKeyValueStorage(raw);
+  const initial=await storage.diagnoseStorage();
+  assert.equal(initial.snapshots.backups,11);
+  assert.equal(initial.blocks.count,94);
+  assert.equal(initial.blocks.referencedCount,90);
+  assert.equal(initial.blocks.unreferencedCandidateCount,4);
+  assert.equal(initial.blocks.sharedPoolBytes,0);
+  let seed=291;
+  let entropy='';
+  for(let i=0;i<213*1024;i++) {seed=(Math.imul(seed,1664525)+1013904223)>>>0;entropy+=String.fromCharCode(33+(seed>>>16)%90);}
+  await assert.rejects(storage.setItem(StorageKeys.pgnTranslationQueue.key,entropy));
+  assert.equal((await storage.diagnoseStorage()).lastFailure?.kind,'local_quota');
+  assert.equal((await storage.diagnoseStorage()).lastFailure?.stage,'storage.pool.block_write');
+  for(const [k,v] of backups) assert.equal(await storage.getItem(k),v);
+  // Models a native upgrade opening the SAME database, with no reset.
+  raw.limit=32*1024*1024;
+  await storage.setItem(StorageKeys.pgnTranslationQueue.key,entropy);
+  assert.equal(await storage.getItem(StorageKeys.pgnTranslationQueue.key),entropy);
+  const p=await phone(raw);
+  await p.engine.signIn('demo@example.com','secret1');
+  await p.engine.sync();
+  assert.equal(p.engine.getState().status,'synced');
+  assert.equal((await new AsyncStorageRepertoireStorage(p.storage).load()).files.length,14);
+  for(const [k,v] of backups) assert.equal(await p.storage.getItem(k),v);
+  const used=raw.used();
+  for(let i=0;i<3;i++) await p.engine.sync();
+  assert.equal(raw.used(),used);
+  const restarted=new AsyncKeyValueStorage(raw);
+  for(const [k,v] of backups) assert.equal(await restarted.getItem(k),v);
+});
+it('can progressively compact all eleven legacy states after capacity recovery while retaining each unique logical recovery state',async()=>{
+  const {raw,backups}=await legacyPixel();raw.limit=32*1024*1024;
+  let storage=new AsyncKeyValueStorage(raw);
+  for(const [key,value] of backups) {
+    await storage.compactItem(key);
+    storage=new AsyncKeyValueStorage(raw); // Restart between individual publications.
+    assert.equal(await storage.getItem(key),value);
+    for(const [k,v] of backups) assert.equal(await storage.getItem(k),v);
+  }
+  const report=await storage.diagnoseStorage();
+  assert.equal(report.snapshots.backups,11);
+  assert.ok(raw.used()<6046*1024);
+  assert.ok(report.blocks.sharedPoolBytes>0);
+  const used=raw.used();
+  for(const key of backups.keys()) await storage.compactItem(key);
+  assert.equal(raw.used(),used);
+  for(let i=0;i<4;i++) assert.equal(await raw.getItem(`anychess.cloud.backup.interrupted.v1.chunks.old.${i}`),'candidate');
+});
