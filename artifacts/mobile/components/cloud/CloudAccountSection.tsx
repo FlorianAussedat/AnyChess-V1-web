@@ -142,7 +142,7 @@ export function CloudAccountSection() {
     let cancelled = false;
     void cloud.guestDataAvailable().then((ready) => {
       if (!cancelled) setGuestImportReady(ready);
-    });
+    }).catch(error=>{ if(!cancelled) cloud.noteBackgroundFailure('account.guest_availability',error); });
     return () => {
       cancelled = true;
     };
@@ -473,6 +473,7 @@ export function CloudAccountSection() {
               () => {
                 void (async () => {
                   setFormError(null);
+                  try {
                   const result = await cloud.importGuestData();
                   if (!result.ok) {
                     setFormError(
@@ -481,6 +482,7 @@ export function CloudAccountSection() {
                         : t('cloud.errorUnexpected'),
                     );
                   } else setGuestImportReady(false);
+                  } catch(error) { cloud.noteBackgroundFailure('account.import_guest',error);setFormError(t('cloud.localSaveFailed')); }
                 })();
               },
               { confirmLabel: t('cloud.importGuest') },
@@ -549,6 +551,12 @@ export function CloudAccountSection() {
             : 'cloud.errorRemoteService')}
         </Text>
       ) : null}
+      {(cloud.lastError==='local_quota'||cloud.quotaPaused) ? <Text accessibilityLiveRegion="polite" style={[styles.hint,{color:colors.destructive}]} testID="cloud-quota-paused">{t('cloud.quotaPaused')}</Text> : null}
+      {typeof __DEV__!=='undefined' && __DEV__ ? (
+        <Pressable testID="cloud-storage-diagnostics" accessibilityRole="button" accessibilityLabel={t('cloud.storageDiagnostics')} style={[styles.btn,{borderColor:colors.border}]} onPress={()=>{
+          void (async()=>{try {const report=await cloud.diagnoseStorage();if(report)console.info('[AnyChess storage audit]',report);else setFormError(t('cloud.storageDiagnosticsUnavailable'));}catch(error){cloud.noteBackgroundFailure('storage.audit',error);setFormError(t('cloud.storageDiagnosticsUnavailable'));}})();
+        }}><Text style={{color:colors.foreground}}>{t('cloud.storageDiagnostics')}</Text></Pressable>
+      ):null}
       {cloud.lastError === 'local_save_failed' ? (
         <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-local-save-error">
           {t('cloud.localSaveFailed')}

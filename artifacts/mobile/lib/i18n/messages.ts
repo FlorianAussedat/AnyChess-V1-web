@@ -5,6 +5,10 @@
 import type { AppLanguage } from '../preferences/types.ts';
 
 export type MessageKey =
+  | "cloud.quotaPaused"
+  | "cloud.storageDiagnostics"
+  | "cloud.storageDiagnosticsUnavailable"
+
   | "cloud.errorLocalSize"
   | "cloud.errorLocalQuota"
   | "cloud.errorLocalStorage"
@@ -1406,6 +1410,9 @@ export type MessageKey =
 type Dict = Record<MessageKey, string>;
 
 const fr: Dict = {
+  "cloud.quotaPaused": "Stockage local saturé : les reprises automatiques sont suspendues. Les données sont conservées. Ne les efface pas ; après une récupération vérifiée, utilise Synchroniser pour réessayer.",
+  "cloud.storageDiagnostics": "Diagnostic du stockage (lecture seule)",
+  "cloud.storageDiagnosticsUnavailable": "Le diagnostic du stockage est incomplet ou indisponible. Aucune donnée n’a été effacée.",
   "cloud.errorLocalSize": "Le stockage Android ne peut pas lire un document local trop volumineux. Vos données sont conservées. La déconnexion reste bloquée tant que la copie locale ne peut pas être vérifiée.",
   "cloud.errorLocalQuota": "Le stockage local est plein ou sa limite est atteinte. Vos données sont conservées. Libère de l’espace sans effacer les données AnyChess, puis réessaie.",
   "cloud.errorLocalStorage": "Impossible de vérifier la sauvegarde locale. Vos données sont conservées. Réessaie ; ne réinitialise pas les données de l’application.",
@@ -2957,6 +2964,9 @@ const fr: Dict = {
 };
 
 const en: Dict = {
+  "cloud.quotaPaused": "Local storage is full: automatic retries are paused. Data is retained. Do not clear it; after verified recovery, use Sync now to retry.",
+  "cloud.storageDiagnostics": "Storage diagnostics (read only)",
+  "cloud.storageDiagnosticsUnavailable": "Storage diagnostics are incomplete or unavailable. No data was deleted.",
   "cloud.errorLocalSize": "Android storage cannot read an oversized local document. Your data is retained. Sign-out stays blocked until the local copy can be verified.",
   "cloud.errorLocalQuota": "Local storage is full or its limit has been reached. Your data is retained. Free space without clearing AnyChess data, then retry.",
   "cloud.errorLocalStorage": "The local save could not be verified. Your data is retained. Retry; do not reset app data.",

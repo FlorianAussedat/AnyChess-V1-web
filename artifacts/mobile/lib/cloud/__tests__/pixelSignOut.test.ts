@@ -61,6 +61,8 @@ it('blocks logout on quota failure with the old snapshot, live data and session 
     key = cloudWorkspaceKey('owner');
   await engine.parkWorkspace('owner');
   const previous = await storage.getItem(key);
+  docs[SYNCABLE_STORAGE_KEYS[0]] = JSON.stringify({ pending: 'new change', data: 'x'.repeat(128*1024) });
+  await storage.setItem(SYNCABLE_STORAGE_KEYS[0],docs[SYNCABLE_STORAGE_KEYS[0]]);
   raw.fail = true;
   assert.equal((await engine.signOut()).ok, false);
   assert.equal(engine.getState().lastError, 'local_quota');
