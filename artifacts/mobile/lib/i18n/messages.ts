@@ -1426,18 +1426,25 @@ export type MessageKey =
   | 'speech.dictationActive'
   | 'speech.offlineDownloadTitle'
   | 'speech.offlineDownloadBody'
+  | 'speech.offlineRepairBody'
   | 'speech.offlineCellularTitle'
   | 'speech.offlineCellularBody'
   | 'speech.offlineWaitWifi'
   | 'speech.offlineWaiting'
   | 'speech.offlineDownload'
+  | 'speech.offlineRepair'
   | 'speech.offlineCancel'
   | 'speech.offlineRetry'
   | 'speech.offlineProgress'
+  | 'speech.offlineProgressIndeterminate'
+  | 'speech.offlineVerifying'
   | 'speech.offlineInstalling'
+  | 'speech.offlinePreparing'
+  | 'speech.offlineReady'
   | 'speech.offlineFailedNetwork'
   | 'speech.offlineFailedSpace'
   | 'speech.offlineFailedIntegrity'
+  | 'speech.offlineFailedLoad'
   | 'speech.offlineFailedOffline'
   | 'vision.answerUnrecognized'
   | 'errors.folderParentMissing'
@@ -3019,21 +3026,30 @@ const fr: Dict = {
   'speech.dictationActive': 'Dictée en {{lang}}',
   'speech.offlineDownloadTitle': 'Dictée hors connexion',
   'speech.offlineDownloadBody':
-    'Le modèle {{lang}} permet de dicter les coups sans réseau. Taille : {{size}}. Environ {{installed}} une fois installé. Rien ne démarre sans ton accord.',
+    'Le modèle {{lang}} permet de dicter les coups sans réseau. Téléchargement : {{size}}. Environ {{installed}} une fois installé. Rien ne démarre sans ton accord.',
+  'speech.offlineRepairBody':
+    'Le modèle {{lang}} est déjà sur l’appareil mais pas encore prêt. Une préparation locale suffit — aucun nouveau téléchargement.',
   'speech.offlineCellularTitle': 'Télécharger avec les données mobiles ?',
   'speech.offlineCellularBody':
     'Modèle {{lang}}, {{size}}. Cet accord ne vaut que pour ce téléchargement.',
   'speech.offlineWaitWifi': 'Attendre le Wi-Fi',
   'speech.offlineWaiting': 'En attente du Wi-Fi. Le modèle {{lang}} ({{size}}) reprendra tout seul.',
   'speech.offlineDownload': 'Télécharger',
+  'speech.offlineRepair': 'Préparer',
   'speech.offlineCancel': 'Annuler',
   'speech.offlineRetry': 'Réessayer',
-  'speech.offlineProgress': 'Téléchargement {{progress}}',
-  'speech.offlineInstalling': 'Vérification du modèle…',
+  'speech.offlineProgress': 'Téléchargement {{progress}} ({{percent}} %)',
+  'speech.offlineProgressIndeterminate': 'En cours…',
+  'speech.offlineVerifying': 'Vérification de l’intégrité…',
+  'speech.offlineInstalling': 'Installation du modèle…',
+  'speech.offlinePreparing': 'Préparation du moteur de dictée…',
+  'speech.offlineReady': 'Modèle {{lang}} prêt. La dictée hors connexion est disponible.',
   'speech.offlineFailedNetwork': 'Le téléchargement a échoué. Le clavier reste disponible.',
   'speech.offlineFailedSpace': 'Espace insuffisant pour le modèle. Le clavier reste disponible.',
   'speech.offlineFailedIntegrity':
     'Le modèle téléchargé n’est pas utilisable. Le clavier reste disponible.',
+  'speech.offlineFailedLoad':
+    'Le modèle est présent mais le moteur n’a pas pu le charger. Réessaie la préparation. Le clavier reste disponible.',
   'speech.offlineFailedOffline':
     'Internet est nécessaire pour télécharger le modèle. Le clavier reste disponible.',
   'vision.answerUnrecognized': 'Non reconnu — réessaie (non compté).',
@@ -4608,21 +4624,30 @@ const en: Dict = {
   'speech.dictationActive': 'Dictation in {{lang}}',
   'speech.offlineDownloadTitle': 'Offline dictation',
   'speech.offlineDownloadBody':
-    'The {{lang}} model lets you dictate moves without a network. Size: {{size}}. About {{installed}} once installed. Nothing starts without your agreement.',
+    'The {{lang}} model lets you dictate moves without a network. Download: {{size}}. About {{installed}} once installed. Nothing starts without your agreement.',
+  'speech.offlineRepairBody':
+    'The {{lang}} model is already on this device but not ready yet. A local preparation is enough — no new download.',
   'speech.offlineCellularTitle': 'Download using mobile data?',
   'speech.offlineCellularBody':
     '{{lang}} model, {{size}}. This agreement applies only to this download.',
   'speech.offlineWaitWifi': 'Wait for Wi-Fi',
   'speech.offlineWaiting': 'Waiting for Wi-Fi. The {{lang}} model ({{size}}) will resume on its own.',
   'speech.offlineDownload': 'Download',
+  'speech.offlineRepair': 'Prepare',
   'speech.offlineCancel': 'Cancel',
   'speech.offlineRetry': 'Try again',
-  'speech.offlineProgress': 'Downloading {{progress}}',
-  'speech.offlineInstalling': 'Checking the model…',
+  'speech.offlineProgress': 'Downloading {{progress}} ({{percent}}%)',
+  'speech.offlineProgressIndeterminate': 'In progress…',
+  'speech.offlineVerifying': 'Checking integrity…',
+  'speech.offlineInstalling': 'Installing the model…',
+  'speech.offlinePreparing': 'Preparing the dictation engine…',
+  'speech.offlineReady': '{{lang}} model ready. Offline dictation is available.',
   'speech.offlineFailedNetwork': 'The download failed. The keyboard stays available.',
   'speech.offlineFailedSpace': 'Not enough space for the model. The keyboard stays available.',
   'speech.offlineFailedIntegrity':
     'The downloaded model cannot be used. The keyboard stays available.',
+  'speech.offlineFailedLoad':
+    'The model is present but the engine could not load it. Try preparing again. The keyboard stays available.',
   'speech.offlineFailedOffline':
     'Internet is required to download the model. The keyboard stays available.',
   'vision.answerUnrecognized': 'Not recognized — try again (not counted).',

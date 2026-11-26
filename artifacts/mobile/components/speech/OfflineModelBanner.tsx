@@ -4,9 +4,11 @@
  * Closing the mobile-data dialog, or the Android back key, does not start the transfer.
  */
 import React, { useEffect, useSyncExternalStore } from 'react';
-import { BackHandler, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Modal, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useColors } from '@/hooks/useColors';
 import { DesignTokens } from '@/constants/designTokens';
+import { AppButton } from '@/components/ui/AppButton';
 import {
   cancelOfflineModel,
   dismissOfflineModel,
@@ -18,9 +20,9 @@ import {
   subscribeOfflineModel,
   waitOfflineForWifi,
 } from '@/lib/speech/offlineModelSession';
-import { formatDownloadSize, VOSK_MODELS } from '@/lib/speech/voskModels';
+import { VOSK_MODELS } from '@/lib/speech/voskModels';
+import { formatMegabytesOnly, networkKindFromState, type NetworkKind } from '@/lib/speech/offlineModelFlow';
 import * as Network from 'expo-network';
-import { networkKindFromState, type NetworkKind } from '@/lib/speech/offlineModelFlow';
 
 async function currentNetwork(): Promise<NetworkKind> {
   try {
@@ -30,14 +32,15 @@ async function currentNetwork(): Promise<NetworkKind> {
   }
 }
 
-function megabytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0';
-  return (bytes / 1_000_000).toFixed(1);
+function progressPercent(received: number, total: number): number {
+  if (!Number.isFinite(received) || !Number.isFinite(total) || total <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((received / total) * 100)));
 }
 
 export function OfflineModelBanner() {
   const view = useSyncExternalStore(subscribeOfflineModel, getOfflineModelView, getOfflineModelView);
   const { t, language } = useTranslation();
+  const colors = useColors();
 
   useEffect(() => {
     if (!view) return;
@@ -58,8 +61,24 @@ export function OfflineModelBanner() {
 
   useEffect(() => {
     if (!view) return;
+    if (view.phase === 'ready') {
+      const id = setTimeout(() => dismissOfflineModel(), 1600);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [view?.phase]);
+
+  useEffect(() => {
+    if (!view) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (view.phase === 'installing') return true;
+      if (
+        view.phase === 'installing' ||
+        view.phase === 'verifying' ||
+        view.phase === 'preparing' ||
+        view.phase === 'ready'
+      ) {
+        return true;
+      }
       if (view.phase === 'downloading') {
         cancelOfflineModel();
         return true;
@@ -72,32 +91,50 @@ export function OfflineModelBanner() {
 
   if (!view) return null;
   const spec = VOSK_MODELS[view.language];
-  const size = formatDownloadSize(spec.downloadBytes, language === 'en' ? 'en' : 'fr');
-  const installed = formatDownloadSize(spec.installedBytes, language === 'en' ? 'en' : 'fr');
+  const uiLang = language === 'en' ? 'en' : 'fr';
+  const size = formatMegabytesOnly(spec.downloadBytes, uiLang);
+  const installed = formatMegabytesOnly(spec.installedBytes, uiLang);
   const langName = view.language === 'en'
-    ? (language === 'en' ? 'English' : 'anglais')
+    ? (language === 'en' ? 'English' : 'Anglais')
     : (language === 'en' ? 'French' : 'français');
 
-  let body = t('speech.offlineDownloadBody', { lang: langName, size, installed });
+  let body = view.repairOnly
+    ? t('speech.offlineRepairBody', { lang: langName })
+    : t('speech.offlineDownloadBody', { lang: langName, size, installed });
   if (view.phase === 'waiting-wifi') {
     body = t('speech.offlineWaiting', { lang: langName, size });
   } else if (view.phase === 'downloading') {
-    const progress = view.total > 0
-      ? `${megabytes(view.received)} / ${megabytes(view.total)}`
-      : megabytes(view.received);
-    body = t('speech.offlineProgress', { progress });
+    const percent = progressPercent(view.received, view.total);
+    body = t('speech.offlineProgress', {
+      progress: `${formatMegabytesOnly(view.received, uiLang)} / ${formatMegabytesOnly(view.total, uiLang)}`,
+      percent: String(percent),
+    });
+  } else if (view.phase === 'verifying') {
+    body = t('speech.offlineVerifying');
   } else if (view.phase === 'installing') {
     body = t('speech.offlineInstalling');
+  } else if (view.phase === 'preparing') {
+    body = t('speech.offlinePreparing');
+  } else if (view.phase === 'ready') {
+    body = t('speech.offlineReady', { lang: langName });
   } else if (view.phase === 'error') {
     if (view.reason === 'space') body = t('speech.offlineFailedSpace');
     else if (view.reason === 'integrity' || view.reason === 'incompatible') {
       body = t('speech.offlineFailedIntegrity');
-    } else if (view.reason === 'offline') body = t('speech.offlineFailedOffline');
+    } else if (view.reason === 'load') body = t('speech.offlineFailedLoad');
+    else if (view.reason === 'offline') body = t('speech.offlineFailedOffline');
     else if (view.reason === 'cancelled') body = t('speech.offlineCancel');
     else body = t('speech.offlineFailedNetwork');
   }
 
   const cellular = view.phase === 'cellular-ask';
+  const percent = progressPercent(view.received, view.total);
+  const busy =
+    view.phase === 'downloading' ||
+    view.phase === 'verifying' ||
+    view.phase === 'installing' ||
+    view.phase === 'preparing';
+  const showProgress = view.phase === 'downloading' || view.phase === 'verifying' || view.phase === 'installing' || view.phase === 'preparing';
 
   return (
     <View>
@@ -108,70 +145,97 @@ export function OfflineModelBanner() {
         onRequestClose={() => dismissOfflineModel()}
       >
         <View style={styles.backdrop}>
-          <View style={styles.dialog} testID="offline-model-cellular">
-            <Text style={styles.title}>{t('speech.offlineCellularTitle')}</Text>
-            <Text style={styles.body}>
+          <View style={[styles.dialog, { backgroundColor: colors.card, borderColor: colors.border }]} testID="offline-model-cellular">
+            <Text style={[styles.title, { color: colors.foreground }]}>
+              {t('speech.offlineCellularTitle')}
+            </Text>
+            <Text style={[styles.body, { color: colors.mutedForeground }]}>
               {t('speech.offlineCellularBody', { lang: langName, size })}
             </Text>
             <View style={styles.row}>
-              <Pressable
-                style={styles.secondary}
+              <AppButton
+                label={t('speech.offlineWaitWifi')}
+                variant="secondary"
                 testID="offline-model-wait-wifi"
                 onPress={() => waitOfflineForWifi()}
-              >
-                <Text style={styles.secondaryText}>{t('speech.offlineWaitWifi')}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.primary}
+                style={styles.flexBtn}
+              />
+              <AppButton
+                label={t('speech.offlineDownload')}
+                variant="primary"
                 testID="offline-model-download-mobile"
                 onPress={() => {
                   void currentNetwork().then((network) => requestOfflineMobileDownload(network));
                 }}
-              >
-                <Text style={styles.primaryText}>{t('speech.offlineDownload')}</Text>
-              </Pressable>
+                style={styles.flexBtn}
+              />
             </View>
           </View>
         </View>
       </Modal>
       {cellular ? null : (
-        <View style={styles.wrap} testID="offline-model-banner">
-          <Text style={styles.title}>{t('speech.offlineDownloadTitle')}</Text>
-          <Text style={styles.body}>{body}</Text>
+        <View
+          style={[styles.wrap, { backgroundColor: colors.card, borderColor: colors.border }]}
+          testID="offline-model-banner"
+        >
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {t('speech.offlineDownloadTitle')}
+          </Text>
+          <Text style={[styles.body, { color: colors.mutedForeground }]}>{body}</Text>
+          {showProgress ? (
+            <View style={styles.progressBlock} testID="offline-model-progress">
+              <View style={[styles.progressTrack, { backgroundColor: colors.secondary }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: colors.primary,
+                      width: `${view.phase === 'downloading' ? percent : 100}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.percent, { color: colors.primary }]}>
+                {view.phase === 'downloading' ? `${percent} %` : t('speech.offlineProgressIndeterminate')}
+              </Text>
+            </View>
+          ) : null}
           <View style={styles.row}>
             {view.phase === 'ask' ? (
-              <Pressable
-                style={styles.primary}
+              <AppButton
+                label={view.repairOnly ? t('speech.offlineRepair') : t('speech.offlineDownload')}
+                variant="primary"
                 testID="offline-model-download"
                 onPress={() => {
                   void currentNetwork().then((network) => requestOfflineDownload(network));
                 }}
-              >
-                <Text style={styles.primaryText}>{t('speech.offlineDownload')}</Text>
-              </Pressable>
+                style={styles.flexBtn}
+              />
             ) : null}
             {view.phase === 'error' ? (
-              <Pressable
-                style={styles.primary}
+              <AppButton
+                label={t('speech.offlineRetry')}
+                variant="primary"
                 testID="offline-model-retry"
                 onPress={() => {
                   void currentNetwork().then((network) => retryOfflineModel(network));
                 }}
-              >
-                <Text style={styles.primaryText}>{t('speech.offlineRetry')}</Text>
-              </Pressable>
+                style={styles.flexBtn}
+              />
             ) : null}
-            <Pressable
-              style={styles.secondary}
-              testID="offline-model-cancel"
-              disabled={view.phase === 'installing'}
-              onPress={() => {
-                if (view.phase === 'downloading') cancelOfflineModel();
-                else if (view.phase !== 'installing') dismissOfflineModel();
-              }}
-            >
-              <Text style={styles.secondaryText}>{t('speech.offlineCancel')}</Text>
-            </Pressable>
+            {view.phase === 'ready' ? null : (
+              <AppButton
+                label={t('speech.offlineCancel')}
+                variant="secondary"
+                testID="offline-model-cancel"
+                disabled={busy && view.phase !== 'downloading'}
+                onPress={() => {
+                  if (view.phase === 'downloading') cancelOfflineModel();
+                  else if (!busy) dismissOfflineModel();
+                }}
+                style={styles.flexBtn}
+              />
+            )}
           </View>
         </View>
       )}
@@ -185,8 +249,8 @@ const styles = StyleSheet.create({
     marginBottom: DesignTokens.spacing.sm,
     padding: DesignTokens.spacing.md,
     borderRadius: DesignTokens.radius.md,
-    backgroundColor: '#13283F',
-    gap: 8,
+    borderWidth: 1,
+    gap: 10,
   },
   backdrop: {
     flex: 1,
@@ -195,41 +259,43 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   dialog: {
-    backgroundColor: '#102040',
     borderRadius: DesignTokens.radius.md,
+    borderWidth: 1,
     padding: DesignTokens.spacing.md,
     gap: 12,
   },
   title: {
-    color: '#F4F7FB',
-    fontWeight: '700',
+    fontFamily: DesignTokens.typography.weightBold,
     fontSize: 16,
   },
   body: {
-    color: '#D5DEE8',
+    fontFamily: DesignTokens.typography.weightRegular,
     fontSize: 14,
     lineHeight: 20,
+  },
+  progressBlock: {
+    gap: 6,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  percent: {
+    fontFamily: DesignTokens.typography.weightSemiBold,
+    fontSize: 13,
   },
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  primary: {
-    backgroundColor: '#3DDC97',
-    borderRadius: DesignTokens.radius.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  primaryText: {
-    color: '#062015',
-    fontWeight: '700',
-  },
-  secondary: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  secondaryText: {
-    color: '#F4F7FB',
+  flexBtn: {
+    flexGrow: 1,
+    flexBasis: 140,
   },
 });
