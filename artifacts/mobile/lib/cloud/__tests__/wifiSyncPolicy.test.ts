@@ -1,119 +1,121 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../../storage/StorageKeys.ts';
+import { cloudSyncEngine } from '../cloudStore.ts';
+import { onSyncTransportChange } from '../lifecycle.ts';
+import { savePendingAvatar, readPendingAvatar } from '../../profile/avatarLocal.ts';
 import { CloudSyncEngine } from '../CloudSyncEngine.ts';
 import { MemoryCloudAuth, MemoryCloudRemote } from '../MemoryCloud.ts';
-import { setCloudTransferReadersForTests } from '../syncTransport.ts';
+import { decideCloudTransfer, setCloudTransferReadersForTests } from '../syncTransport.ts';
 import { shouldDeferCloudTransfer, transportFromExpoState } from '../wifiSyncPolicy.ts';
 import { PreferencesStore, defaultUserPreferences } from '../../preferences/PreferencesStore.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const mobileRoot = join(here, '../../..');
-
-function read(rel: string): string {
-  return readFileSync(join(mobileRoot, rel), 'utf8');
+const engines: CloudSyncEngine[] = [];
+afterEach(async () => {
+  for (const engine of engines.splice(0)) await engine.signOut();
+  setCloudTransferReadersForTests({ transport: null, wifiOnly: null });
+});
+async function connected() {
+  const storage = new MemoryKeyValueStorage();
+  const remote = new MemoryCloudRemote();
+  const engine = new CloudSyncEngine(storage, new MemoryCloudAuth(), remote);
+  engines.push(engine);
+  const result = await engine.signUp('alice@example.com', 'secret1');
+  assert.ok(result.ok);
+  return { storage, remote, engine, user: result.user };
 }
 
-describe('Wi-Fi only sync policy', () => {
-  afterEach(() => {
-    setCloudTransferReadersForTests({ transport: null, wifiOnly: null });
-  });
-
-  it('defers only a known cellular link when the setting is on', () => {
-    assert.equal(shouldDeferCloudTransfer({ wifiOnly: true, transport: 'cellular' }), true);
-    assert.equal(shouldDeferCloudTransfer({ wifiOnly: true, transport: 'wifi' }), false);
-    assert.equal(shouldDeferCloudTransfer({ wifiOnly: false, transport: 'cellular' }), false);
-    assert.equal(
-      shouldDeferCloudTransfer({ wifiOnly: true, transport: 'cellular', allowCellular: true }),
-      false,
-    );
-    assert.equal(shouldDeferCloudTransfer({ wifiOnly: true, transport: 'unknown' }), false);
-    assert.equal(shouldDeferCloudTransfer({ wifiOnly: true, transport: 'offline' }), false);
+describe('transfers on any Internet connection', () => {
+  it('never defers cellular data because of legacy preferences or overrides', async () => {
+    for (const transport of ['wifi', 'cellular', 'unknown', 'offline'] as const) {
+      for (const wifiOnly of [true, false]) {
+        assert.equal(shouldDeferCloudTransfer({ wifiOnly, transport }), false);
+        setCloudTransferReadersForTests({ transport: async () => transport, wifiOnly: async () => wifiOnly });
+        const decision = await decideCloudTransfer();
+        assert.equal(decision.defer, false);
+        assert.equal(decision.wifiOnly, false);
+        assert.equal(decision.offline, transport === 'offline');
+      }
+    }
     assert.equal(transportFromExpoState({ type: 'CELLULAR', isConnected: true }), 'cellular');
-    assert.equal(transportFromExpoState({ type: 'WIMAX', isConnected: true }), 'cellular');
-    assert.equal(transportFromExpoState({ type: 'WIFI', isConnected: true }), 'wifi');
     assert.equal(transportFromExpoState({ type: 'ETHERNET', isConnected: true }), 'wifi');
-    assert.equal(transportFromExpoState({ type: 'NONE', isConnected: true }), 'offline');
+    assert.equal(transportFromExpoState({ type: 'NONE' }), 'offline');
     assert.equal(transportFromExpoState({ type: 'WIFI', isConnected: false }), 'offline');
-    assert.equal(transportFromExpoState({ type: 'VPN', isConnected: true }), 'unknown');
   });
 
-  it('defaults the setting on and keeps an explicit off choice', async () => {
-    assert.equal(defaultUserPreferences().syncOnWifiOnly, true);
-    const storage = new MemoryKeyValueStorage();
-    const store = new PreferencesStore(storage);
-    await store.ensureLoaded();
-    assert.equal(store.getPreferences().syncOnWifiOnly, true);
-    await storage.setItem(
-      StorageKeys.userPreferences.key,
-      JSON.stringify({ version: 1, language: 'fr', updatedAt: '2026-01-01T00:00:00.000Z' }),
-    );
-    const legacy = new PreferencesStore(storage);
-    await legacy.ensureLoaded();
-    assert.equal(legacy.getPreferences().syncOnWifiOnly, true);
-    await legacy.update({ syncOnWifiOnly: false });
-    const again = new PreferencesStore(storage);
-    await again.ensureLoaded();
-    assert.equal(again.getPreferences().syncOnWifiOnly, false);
+  it('normalizes missing and old true values to false, including reset and restart', async () => {
+    assert.equal(defaultUserPreferences().syncOnWifiOnly, false);
+    for (const legacy of [{}, { syncOnWifiOnly: true }, { syncOnWifiOnly: false }]) {
+      const storage = new MemoryKeyValueStorage();
+      await storage.setItem(StorageKeys.userPreferences.key, JSON.stringify({ language: 'en', ...legacy }));
+      const store = new PreferencesStore(storage);
+      assert.equal((await store.ensureLoaded()).syncOnWifiOnly, false);
+      await store.update({ syncOnWifiOnly: true });
+      assert.equal((await store.resetPreferences()).syncOnWifiOnly, false);
+      assert.equal((await new PreferencesStore(storage).ensureLoaded()).syncOnWifiOnly, false);
+    }
   });
 
-  it('signs in on mobile data, keeps the session, and syncs when Wi-Fi returns', async () => {
-    setCloudTransferReadersForTests({
-      transport: async () => 'cellular',
-      wifiOnly: async () => true,
-    });
-    const storage = new MemoryKeyValueStorage();
-    const auth = new MemoryCloudAuth();
-    const remote = new MemoryCloudRemote();
-    const engine = new CloudSyncEngine(storage, auth, remote);
-    const created = await engine.signUp('alice@example.com', 'secret1');
-    assert.equal(created.ok, true);
-    if (!created.ok) return;
-    await storage.setItem(
-      StorageKeys.repertoires.key,
-      JSON.stringify({ version: 2, folders: [], files: [{ id: 'local-line' }] }),
-    );
-    assert.equal(engine.getState().user?.email, 'alice@example.com');
-    assert.equal(engine.getState().status, 'waiting_wifi');
-    assert.equal(remote.peek(created.user.id, StorageKeys.repertoires.key), undefined);
-
-    await engine.sync({ allowCellular: true });
+  it('uploads documents and queues local changes on cellular with an old true preference', async () => {
+    setCloudTransferReadersForTests({ transport: async () => 'cellular', wifiOnly: async () => true });
+    const { storage, remote, engine, user } = await connected();
     assert.equal(engine.getState().status, 'synced');
-    assert.match(
-      remote.peek(created.user.id, StorageKeys.repertoires.key)?.payload ?? '',
-      /local-line/,
-    );
-
-    setCloudTransferReadersForTests({
-      transport: async () => 'cellular',
-      wifiOnly: async () => true,
-    });
+    await storage.setItem(StorageKeys.repertoires.key, JSON.stringify({ version: 2, folders: [], files: [{ id: 'local-line' }] }));
     engine.notifyLocalMutation();
     await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.equal(engine.getState().status, 'waiting_wifi');
-
-    setCloudTransferReadersForTests({
-      transport: async () => 'wifi',
-      wifiOnly: async () => true,
-    });
+    assert.equal(engine.getState().status, 'pending');
     await engine.sync();
     assert.equal(engine.getState().status, 'synced');
-    assert.equal(engine.getState().user?.id, created.user.id);
+    assert.match(remote.peek(user.id, StorageKeys.repertoires.key)?.payload ?? '', /local-line/);
   });
 
-  it('exposes the setting and the waiting status without blocking sign-in copy', () => {
-    const settings = read('app/parametres.tsx');
-    const account = read('components/cloud/CloudAccountSection.tsx');
-    assert.match(settings, /parametres-sync-wifi-only/);
-    assert.match(settings, /settings\.syncWifiOnly/);
-    assert.match(account, /cloud\.statusWaitingWifi/);
-    assert.match(account, /allowCellular: true/);
-    assert.match(account, /cloud\.signIn/);
-    assert.match(read('lib/cloud/lifecycle.ts'), /onSyncTransportChange/);
-    assert.doesNotMatch(read('lib/cloud/lifecycle.ts'), /markWaitingForWifi/);
+  it('keeps offline data local until cellular returns and exposes transfer errors', async () => {
+    setCloudTransferReadersForTests({ transport: async () => 'offline', wifiOnly: async () => true });
+    const { storage, remote, engine, user } = await connected();
+    const payload = JSON.stringify({ version: 2, folders: [], files: [{ id: 'offline-line' }] });
+    await storage.setItem(StorageKeys.repertoires.key, payload);
+    engine.notifyLocalMutation();
+    await engine.sync();
+    assert.equal(engine.getState().status, 'offline');
+    assert.equal(remote.peek(user.id, StorageKeys.repertoires.key), undefined);
+    assert.equal(await storage.getItem(StorageKeys.repertoires.key), payload);
+    setCloudTransferReadersForTests({ transport: async () => 'cellular' });
+    remote.upsertDocument = async () => { throw new Error('HTTP 503'); };
+    await engine.sync();
+    assert.equal(engine.getState().status, 'error');
+    assert.equal(engine.getState().lastError, 'HTTP 503');
+    assert.equal(await storage.getItem(StorageKeys.repertoires.key), payload);
+    delete (remote as Partial<MemoryCloudRemote>).upsertDocument;
+    await engine.sync();
+    assert.equal(engine.getState().status, 'synced');
+    assert.match(remote.peek(user.id, StorageKeys.repertoires.key)?.payload ?? '', /offline-line/);
   });
+  it('resumes pending work on cellular as well as Wi-Fi, never on offline notifications', () => {
+    const getState = cloudSyncEngine.getState, sync = cloudSyncEngine.sync;
+    let calls = 0;
+    cloudSyncEngine.getState = () => ({ ...getState.call(cloudSyncEngine), status: 'offline', user: { id: 'a', email: 'a@example.com' } });
+    cloudSyncEngine.sync = async () => { calls++; return cloudSyncEngine.getState(); };
+    try {
+      onSyncTransportChange('offline');
+      assert.equal(calls, 0);
+      onSyncTransportChange('cellular');
+      onSyncTransportChange('wifi');
+      assert.equal(calls, 2);
+    } finally {
+      cloudSyncEngine.getState = getState;
+      cloudSyncEngine.sync = sync;
+    }
+  });
+
+  it('retains pending avatar transfers and exposes failure instead of reporting synced', async () => {
+    setCloudTransferReadersForTests({ transport: async () => 'cellular', wifiOnly: async () => true });
+    const { engine, storage, user } = await connected();
+    await savePendingAvatar(storage, user.email, 'data:image/png;base64,bmV3', 'upload');
+    await engine.sync(); // Memory auth has no owner token: transfer must fail, never clear intent.
+    assert.equal(engine.getState().status, 'error');
+    assert.equal(engine.getState().lastError, 'avatar_transfer_failed');
+    assert.equal((await readPendingAvatar(storage))?.intent, 'upload');
+  });
+
 });

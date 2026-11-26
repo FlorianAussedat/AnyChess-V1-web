@@ -21,9 +21,9 @@ export function onCloudNetworkOnline(): void {
   resumeCloudSync();
 }
 
-/** Resume only when the link is known to be Wi-Fi. Offline stays offline. */
+/** Any available link can resume pending work, including mobile data. */
 export function onSyncTransportChange(transport: SyncTransport): void {
-  if (transport !== 'wifi') return;
+  if (transport === 'offline') return;
   resumeCloudSync();
 }
 

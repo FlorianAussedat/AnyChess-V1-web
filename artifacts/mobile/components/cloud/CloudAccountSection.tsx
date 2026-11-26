@@ -8,7 +8,6 @@ import { DesignTokens } from '@/constants/designTokens';
 import { DeleteAccountControl } from '@/components/cloud/DeleteAccountControl';
 import { PasswordField } from '@/components/cloud/PasswordField';
 import { confirmationResendWaitSeconds } from '@/lib/cloud';
-import { decideCloudTransfer } from '@/lib/cloud/syncTransport';
 import { confirmAction } from '@/lib/openings/confirmAction';
 import { consumeAuthReturn } from '@/lib/cloud/authReturn';
 import { setAuthDraftEmail, peekAuthDraftEmail } from '@/lib/cloud/authDraft';
@@ -61,7 +60,7 @@ function backupStatusKey(
   if (status === 'syncing') return 'cloud.statusSyncing';
   if (status === 'error') return 'cloud.statusError';
   if (status === 'offline') return 'cloud.statusOffline';
-  if (status === 'waiting_wifi') return 'cloud.statusWaitingWifi';
+  if (status === 'waiting_wifi') return 'cloud.statusPending';
   return 'cloud.statusPending';
 }
 
@@ -419,21 +418,7 @@ export function CloudAccountSection() {
             testID="cloud-sync"
             disabled={busy}
             onPress={() => {
-              void (async () => {
-                const decision = await decideCloudTransfer(false);
-                if (decision.defer) {
-                  confirmAction(
-                    t('cloud.syncOnCellularTitle'),
-                    t('cloud.syncOnCellularBody'),
-                    () => {
-                      void cloud.sync({ allowCellular: true });
-                    },
-                    { confirmLabel: t('cloud.syncOnCellularConfirm') },
-                  );
-                  return;
-                }
-                void cloud.sync();
-              })();
+              void cloud.sync();
             }}
             style={[styles.btn, { borderColor: colors.border }]}
           >

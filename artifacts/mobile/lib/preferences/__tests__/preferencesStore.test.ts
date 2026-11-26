@@ -26,7 +26,7 @@ describe('mergePreferencesDocument', () => {
     });
     assert.ok(merged);
     assert.equal(merged!.language, 'en');
-    assert.equal(merged!.chessNotation, 'fr');
+    assert.equal(merged!.chessNotation, 'en');
     assert.equal(merged!.voiceEnabled, false);
     assert.equal(merged!.coordinatesEnabled, true); // default
     assert.equal(merged!.voiceSpeed, 9);
@@ -34,7 +34,7 @@ describe('mergePreferencesDocument', () => {
 });
 
 describe('PreferencesStore', () => {
-  it('defaults and persists language / notation independently', async () => {
+  it('persists a single language even if an old caller passes divergent notation', async () => {
     const storage = new MemoryKeyValueStorage();
     const store = new PreferencesStore(storage, { deviceLanguage: () => 'fr' });
     await store.ensureLoaded();
@@ -46,7 +46,7 @@ describe('PreferencesStore', () => {
     const again = new PreferencesStore(storage);
     await again.ensureLoaded();
     assert.equal(again.getPreferences().language, 'en');
-    assert.equal(again.getPreferences().chessNotation, 'fr');
+    assert.equal(again.getPreferences().chessNotation, 'en');
   });
 
   it('migrates legacy voice / coords / speed keys', async () => {
@@ -199,11 +199,11 @@ describe('device language', () => {
     const store = new PreferencesStore(storage, { deviceLanguage: () => 'en' });
     await store.ensureLoaded();
     assert.equal(store.getPreferences().language, 'fr');
-    assert.equal(store.getPreferences().chessNotation, 'en');
+    assert.equal(store.getPreferences().chessNotation, 'fr');
     assert.equal(store.getPreferences().preferencesOrigin, undefined);
-    assert.equal(
-      await storage.getItem(StorageKeys.userPreferences.key),
-      saved,
-    );
+    const migrated = JSON.parse((await storage.getItem(StorageKeys.userPreferences.key))!);
+    assert.equal(migrated.chessNotation, 'fr');
+    assert.equal(migrated.dictationLanguage, 'fr');
+    assert.equal(migrated.updatedAt, JSON.parse(saved).updatedAt);
   });
 });

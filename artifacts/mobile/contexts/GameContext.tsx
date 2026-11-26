@@ -164,7 +164,7 @@ export function GameProvider({
       setStrengthBandIdState(normalized);
       const engine = engineRef.current;
       void engine?.applyStrength?.(engineOptionsForBand(normalized));
-      void preferencesStore.update({ stockfishStrengthBandId: normalized });
+      // Session choice only. Global defaults are edited in Settings.
     },
     [engineOptionsForBand],
   );
@@ -530,6 +530,7 @@ export function GameProvider({
       const band = getStrengthBand(snap.strengthBandId || strengthBandIdRef.current).id;
       strengthBandIdRef.current = band;
       setStrengthBandIdState(band);
+      void engineRef.current?.applyStrength?.(engineOptionsForBand(band));
       setLastMove(lastMoveFromGame(restored));
       setHeardText('');
       setIsOpponentThinking(false);
@@ -550,6 +551,7 @@ export function GameProvider({
       }
     },
     [
+      engineOptionsForBand,
       cancelPending,
       gameRef,
       playerColorRef,

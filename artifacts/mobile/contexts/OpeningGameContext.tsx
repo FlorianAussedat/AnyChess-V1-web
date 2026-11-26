@@ -81,6 +81,7 @@ interface OpeningGameContextValue {
   repertoireName: string;
   openingLabel: string | null;
   strengthBandId: string;
+  setStrengthBandId: (id: string) => void;
   strengthBandLabel: string;
   ready: boolean;
   loadError: string | null;
@@ -147,7 +148,7 @@ export function OpeningGameProvider({
   repertoire,
   repertoireName,
   loadError = null,
-  strengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
+  strengthBandId: initialStrengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
     DEFAULT_STRENGTH_BAND_ID,
   sourcePgn = null,
   lineLabel = null,
@@ -156,6 +157,9 @@ export function OpeningGameProvider({
   onPersistReviewResult,
   onRequestNextLine,
 }: ProviderProps) {
+  // Seed once per exercise; session changes never update the user's default.
+  const [strengthBandId, setBand] = React.useState(() => getStrengthBand(initialStrengthBandId).id);
+  const setStrengthBandId = useCallback((id: string) => setBand(getStrengthBand(id).id), []);
   const opponentRef = useRef<OpeningOpponent | null>(null);
   const [phase, setPhase] = React.useState<OpeningPhase>('book');
   const [trainingState, setTrainingState] =
@@ -854,6 +858,7 @@ export function OpeningGameProvider({
         repertoireName,
         openingLabel,
         strengthBandId,
+        setStrengthBandId,
         strengthBandLabel,
         ready,
         loadError,

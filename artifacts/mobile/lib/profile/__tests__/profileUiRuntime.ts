@@ -60,7 +60,7 @@ export async function countActiveRecordCategories() {
 export async function resetAllCatalogRecords() {}
 export const cloudSyncEngine = {
   getAccessToken: () => null,
-  markWaitingForWifi() {},
+  markOffline() {},
 };
 export function Ionicons(props: object) {
   return React.createElement('Icon', props);

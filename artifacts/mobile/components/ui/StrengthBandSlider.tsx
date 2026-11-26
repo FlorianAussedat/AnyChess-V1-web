@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DiscreteSlider } from '@/components/ui/DiscreteSlider';
 import {
   STOCKFISH_STRENGTH_BANDS,
@@ -18,9 +19,11 @@ type Props = {
 export function StrengthBandSlider({
   bandId,
   onBandIdChange,
-  label = 'Niveau adversaire',
+  label,
   testID = 'strength-band-slider',
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t('settings.stockfishStrength');
   const index = useMemo(() => {
     const i = STOCKFISH_STRENGTH_BANDS.findIndex((b) => b.id === bandId);
     if (i >= 0) return i;
@@ -33,7 +36,7 @@ export function StrengthBandSlider({
   return (
     <DiscreteSlider
       testID={testID}
-      label={label}
+      label={resolvedLabel}
       valueLabel={band.label}
       minimumValue={0}
       maximumValue={STOCKFISH_STRENGTH_BANDS.length - 1}
@@ -43,7 +46,7 @@ export function StrengthBandSlider({
         const picked = STOCKFISH_STRENGTH_BANDS[next];
         if (picked) onBandIdChange(picked.id);
       }}
-      accessibilityLabel={`${label} : ${band.label}`}
+      accessibilityLabel={`${resolvedLabel} : ${band.label}`}
     />
   );
 }

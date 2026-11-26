@@ -193,7 +193,7 @@ export default function UtilisateurScreen() {
     if (result === 'failed') return 'failed' as const;
     setAvatarOwner(user.id);
     setAvatarUri(context?.mascotId ? null : dataUrl);
-    if (result === 'waiting_wifi') cloudSyncEngine.markWaitingForWifi();
+    if (result === 'offline') cloudSyncEngine.markOffline();
     if (result === 'sync_failed') return 'sync_failed' as const;
   };
 

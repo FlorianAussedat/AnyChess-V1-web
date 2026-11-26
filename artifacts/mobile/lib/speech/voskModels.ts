@@ -63,14 +63,11 @@ export function dictationLanguage(language: string | null | undefined): Dictatio
   return language === 'en' ? 'en' : 'fr';
 }
 
-/** Stored dictation language wins. Otherwise the app language is used. */
+/** A single app language controls recognition, dictation and display notation. */
 export function activeDictationLanguage(prefs: {
   language?: string | null;
   dictationLanguage?: string | null;
 }): DictationLanguage {
-  if (prefs.dictationLanguage === 'fr' || prefs.dictationLanguage === 'en') {
-    return prefs.dictationLanguage;
-  }
   return dictationLanguage(prefs.language);
 }
 

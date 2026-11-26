@@ -144,7 +144,7 @@ export async function prepareSpeechRecognition(): Promise<MicStatus> {
 }
 
 export function startSpeechRecognition(): void {
-  // Locale follows app language preference (independent of chess notation).
+  // The single app language also controls display notation and dictation.
   const lang = speechLocaleForLanguage(
     preferencesStore.getPreferences().language,
   );

@@ -38,13 +38,16 @@ export function usePreferences() {
   }, []);
 
   const updatePreferences = useCallback(async (patch: UserPreferencesPatch) => {
+    const previousLanguage = preferencesStore.getPreferences().language;
     const next = await preferencesStore.update(patch);
-    if (patch.voiceEnabled === false) speechService.stop();
+    if (patch.voiceEnabled === false || next.language !== previousLanguage) speechService.stop();
     return next;
   }, []);
 
   const resetPreferences = useCallback(async () => {
+    const previousLanguage = preferencesStore.getPreferences().language;
     const next = await preferencesStore.resetPreferences();
+    if (next.language !== previousLanguage) speechService.stop();
     void applyPgnTranslationPreferences();
     return next;
   }, []);

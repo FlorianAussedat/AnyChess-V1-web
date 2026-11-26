@@ -144,7 +144,7 @@ describe('i18n dictionaries', () => {
   });
 });
 
-describe('language vs chessNotation independence', () => {
+describe('notation display and unified preference', () => {
   it('formatter ignores app language — only chessNotation matters', () => {
     // FR UI + EN notation
     assert.equal(formatSanForDisplay('Nf3', 'en'), 'Nf3');
@@ -152,15 +152,15 @@ describe('language vs chessNotation independence', () => {
     assert.equal(formatSanForDisplay('Nf3', 'fr'), 'Cf3');
   });
 
-  it('preferences can mix language=en with chessNotation=fr', async () => {
+  it('language=en aligns notation despite a legacy divergent patch', async () => {
     const store = new PreferencesStore(new MemoryKeyValueStorage());
     await store.ensureLoaded();
     await store.update({ language: 'en', chessNotation: 'fr' });
     const p = store.getPreferences();
     assert.equal(p.language, 'en');
-    assert.equal(p.chessNotation, 'fr');
+    assert.equal(p.chessNotation, 'en');
     assert.equal(translate(p.language, 'game.yourTurn'), 'Your move.');
-    assert.equal(formatSanForDisplay('Qxd8+', p.chessNotation), 'Dxd8+');
+    assert.equal(formatSanForDisplay('Qxd8+', p.chessNotation), 'Qxd8+');
   });
 });
 
@@ -202,6 +202,6 @@ describe('language preference persistence', () => {
     const b = new PreferencesStore(kv);
     await b.ensureLoaded();
     assert.equal(b.getPreferences().language, 'en');
-    assert.equal(b.getPreferences().chessNotation, 'fr');
+    assert.equal(b.getPreferences().chessNotation, 'en');
   });
 });

@@ -130,7 +130,7 @@ describe('avatar durability, account boundaries, and existing retries', () => {
       transport: async () => 'offline',
       wifiOnly: async () => true,
     });
-    assert.equal(await commitAvatarChange(input(storage)), 'stored');
+    assert.equal(await commitAvatarChange(input(storage)), 'offline');
     assert.equal(await readAvatarCache(storage, 'account-a'), NEXT);
     assert.equal(await readAvatarCache(storage, 'account-b'), OLD);
     assert.equal((await readPendingAvatar(storage))?.email, 'a@example.com');
@@ -204,7 +204,7 @@ describe('avatar durability, account boundaries, and existing retries', () => {
     });
     assert.equal(
       await commitAvatarChange({ ...input(storage), dataUrl: null }),
-      'stored',
+      'offline',
     );
     assert.equal(await readAvatarCache(storage, 'account-a'), null);
     assert.equal((await readPendingAvatar(storage))?.intent, 'remove');
