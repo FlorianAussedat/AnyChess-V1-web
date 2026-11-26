@@ -36,6 +36,7 @@ export const CONFIRM_COPY = {
     recoverSubmit: 'Enregistrer le mot de passe',
     recoverMismatch: 'Les deux mots de passe ne correspondent pas.',
     recoverShort: 'Le mot de passe doit contenir au moins 6 caractères.',
+    recoverRejected: 'Ce mot de passe est refusé. Choisis-en un autre en respectant les règles du compte.',
     recoverFailedTitle: 'Ce lien n’est plus valable',
     recoverFailed:
       'Ce lien ne permet plus de changer le mot de passe. Retourne dans AnyChess et redemande un e-mail.',
@@ -69,6 +70,7 @@ export const CONFIRM_COPY = {
     recoverSubmit: 'Save password',
     recoverMismatch: 'The two passwords do not match.',
     recoverShort: 'The password must contain at least 6 characters.',
+    recoverRejected: 'This password was rejected. Choose another one that meets the account requirements.',
     recoverFailedTitle: 'This link is no longer valid',
     recoverFailed: 'This link can no longer change the password. Go back to AnyChess and request a new email.',
     recoverNetwork: 'We can’t save the password from this page. Try again, or return to AnyChess.',

@@ -1,3 +1,4 @@
+import { SIGNUP_PROFILE_KEY } from './signupProfile.ts';
 import { clearAvatarCache, clearPendingAvatar } from '../profile/avatarLocal.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { readBackupIndex } from './backupIndex.ts';
@@ -23,6 +24,9 @@ export async function purgeAccountOwnedKeys(
   email?: string,
 ): Promise<void> {
   await storage.removeItem(cloudWorkspaceKey(userId));
+  const removeDraft = (raw: string | null) => { const all = raw ? JSON.parse(raw) : {}; delete all[userId]; return JSON.stringify(all); };
+  if (storage.updateItem) await storage.updateItem(SIGNUP_PROFILE_KEY, removeDraft);
+  else await storage.setItem(SIGNUP_PROFILE_KEY, removeDraft(await storage.getItem(SIGNUP_PROFILE_KEY)));
   await clearAvatarCache(storage, userId);
   const pendingDeletion = await readDeletionPending(storage);
   const ownerEmail = email ?? (pendingDeletion?.userId === userId ? pendingDeletion.email : undefined);

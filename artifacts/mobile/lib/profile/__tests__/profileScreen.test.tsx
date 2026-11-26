@@ -28,6 +28,7 @@ function node(view: ReturnType<typeof create>, testID: string) {
   return view.root.findByProps({ testID });
 }
 
+const { requestAccountFocus, consumeAccountFocus } = await import('../../cloud/accountFocus.ts');
 describe('personal profile screen and existing account access', () => {
   it('orders identity, chess information, data links, and the existing account without duplicating the username', async () => {
     let view!: ReturnType<typeof create>;
@@ -78,6 +79,20 @@ describe('personal profile screen and existing account access', () => {
     await act(async () => {
       view.unmount();
     });
+  });
+
+  it('focuses the existing account section when requested from the general menu, including after layout', async () => {
+    consumeAccountFocus(); state.scroll = null;
+    requestAccountFocus();
+    let view!: ReturnType<typeof create>;
+    await act(async () => { view = create(<UserScreen />); });
+    assert.equal(state.scroll, null);
+    await act(async () => { node(view, 'profil-account-section').props.onLayout({ nativeEvent: { layout: { y: 720 } } }); });
+    assert.deepEqual(state.scroll, { y: 720, animated: true });
+    state.scroll = null;
+    await act(async () => { requestAccountFocus(); });
+    assert.deepEqual(state.scroll, { y: 720, animated: true });
+    await act(async () => { view.unmount(); });
   });
 
   it('edits and persists the username, each independent rating, and years of practice', async () => {

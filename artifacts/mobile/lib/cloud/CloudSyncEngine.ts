@@ -1,3 +1,8 @@
+import { setAuthDraftEmail } from './authDraft.ts';
+import { readDeletionPending } from './purgeAccountLocal.ts';
+import { authRequest } from './authRequest.ts';
+import { applySignupProfile } from './signupProfile.ts';
+import { validAuthEmail } from './authRequest.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
 import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
@@ -37,6 +42,8 @@ import {
 import { decideCloudTransfer } from './syncTransport.ts';
 import type {
   CloudAuth,
+  CloudAuthResult,
+  AuthAttemptOptions,
   CloudRemote,
   CloudSyncStatus,
   CloudUser,
@@ -83,6 +90,10 @@ export class CloudSyncEngine {
   private readonly failedLocalKeys = new Set<string>();
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private syncing = false;
+  private authFlight: Promise<CloudAuthResult> | null = null;
+  private authFlightEpoch = 0;
+  private authFlightKey = '';
+  private authAbandoned?: () => boolean;
   private syncFlight: Promise<CloudEngineState> | null = null;
   private retryAttempt = 0;
   private flightEpoch = 0;
@@ -123,7 +134,7 @@ export class CloudSyncEngine {
 
   sessionGuard(): () => boolean {
     const epoch = this.sessionEpoch;
-    return () => this.sessionIsCurrent(epoch);
+    return () => this.sessionEpoch === epoch;
   }
 
   storageHandle(): KeyValueStorage {
@@ -137,6 +148,17 @@ export class CloudSyncEngine {
   beginAccountDeletion(): void {
     this.deletionLocked = true;
     this.bumpSession();
+    if (this.state.user) this.setState({ status: 'pending' });
+  }
+
+  async quiesceForAccountDeletion(): Promise<void> {
+    const inFlight = this.syncFlight;
+    this.beginAccountDeletion();
+    if (inFlight) await authRequest(() => inFlight);
+  }
+
+  noteDeletionUncertain(): void {
+    if (this.state.user) this.setState({ status: 'error', lastError: 'deletion_pending' });
   }
 
   releaseAccountDeletion(): void {
@@ -166,6 +188,7 @@ export class CloudSyncEngine {
    * A stuck logout request must not keep the account on screen.
    */
   private endAuthSession(): Promise<void> {
+    if (this.auth.localSignOutOnly) return this.auth.signOut();
     return new Promise((resolve) => {
       let settled = false;
       const finish = () => {
@@ -177,6 +200,10 @@ export class CloudSyncEngine {
       const timer = setTimeout(finish, 800);
       void this.auth.signOut().then(finish, finish);
     });
+  }
+
+  async probeAuthAccount(): Promise<'exists' | 'gone' | 'unknown'> {
+    return this.auth.probeAccount?.() ?? 'unknown';
   }
 
   async readRefreshToken(): Promise<string | null> {
@@ -478,7 +505,11 @@ export class CloudSyncEngine {
   private async invalidateDeferredWork(): Promise<void> {
     try {
       const { pgnTranslationQueue } = await import('../pgnComments/PgnTranslationQueue.ts');
-      if (pgnTranslationQueue.matchesStorage(this.storage)) pgnTranslationQueue.invalidateSession();
+      if (pgnTranslationQueue.matchesStorage(this.storage)) {
+        pgnTranslationQueue.discardHeldWork();
+        const { pgnCommentTranslationStore } = await import('../pgnComments/PgnCommentTranslationStore.ts');
+        pgnCommentTranslationStore.discardCachedSnapshot();
+      }
     } catch {
       // Translation work is also stored in the account workspace.
     }
@@ -527,13 +558,17 @@ export class CloudSyncEngine {
   }
 
   async hydrate(): Promise<CloudEngineState> {
+    const epoch = this.sessionEpoch;
+    const current = () => this.sessionEpoch === epoch;
     try {
       if (!this.auth.configured) {
         this.setState({ status: 'unconfigured', user: null });
       } else {
         if (this.auth.hydrate) await this.auth.hydrate();
+        if (!current()) return this.getState();
         const user = await this.auth.getUser();
         const backup = await this.storage.getItem(CLOUD_LAST_BACKUP_KEY);
+        if (!current()) return this.getState();
         if (!user) {
           this.setState({ status: 'signed_out', user: null, lastBackupKey: backup });
           await quarantineLegacyGuest(this.storage);
@@ -547,23 +582,27 @@ export class CloudSyncEngine {
           }
         } else {
           const active = await this.activeOwnerId();
+          if (!current()) return this.getState();
           if (active !== user.id && active !== GUEST_OWNER_ID) {
             await this.parkWorkspace(active);
+            if (!current()) return this.getState();
             await this.showOwner(user.id);
           } else {
             await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, user.id);
           }
+          if (!current()) return this.getState();
           this.setState({ user, lastBackupKey: backup, status: 'pending' });
           await this.sync();
           await this.settleAccountLifecycle();
         }
       }
     } catch (error) {
+      if (!current()) return this.getState();
       if (this.state.user) {
         const offline = error instanceof Error && /network|fetch|offline/i.test(error.message);
         this.setState({
           status: offline ? 'offline' : 'error',
-          lastError: this.state.lastError === 'local_save_failed' ? 'local_save_failed' : error instanceof Error && error.message === 'schema_missing' ? 'schema_missing' : 'sync_failed',
+          lastError: this.state.lastError === 'local_save_failed' ? 'local_save_failed' : error instanceof Error && ['schema_missing', 'session_expired'].includes(error.message) ? error.message : 'sync_failed',
         });
       }
     } finally {
@@ -572,8 +611,8 @@ export class CloudSyncEngine {
     return this.getState();
   }
 
-  async signUp(email: string, password: string) {
-    return this.authenticate(email, () => this.auth.signUp(email, password), 'signup');
+  async signUp(email: string, password: string, options?: AuthAttemptOptions) {
+    return this.authenticate(email, () => this.auth.signUp(email, password, options), 'signup', options);
   }
 
   async signIn(
@@ -581,10 +620,11 @@ export class CloudSyncEngine {
     password: string,
     options?: { abandoned?: () => boolean },
   ) {
-    return this.authenticate(email, () => this.auth.signIn(email, password), 'signin', options);
+    return this.authenticate(email, () => this.auth.signIn(email, password, options), 'signin', options);
   }
 
   async resendSignupConfirmation(email: string) {
+    if (!validAuthEmail(email)) return { ok: false, error: 'email_invalid' as const };
     if (!this.auth.configured) return { ok: false as const, error: 'unconfigured' as const };
     if (confirmationResendWaitSeconds() > 0) {
       return { ok: false as const, error: 'rate_limited' as const };
@@ -599,10 +639,12 @@ export class CloudSyncEngine {
   }
 
   async recoverPassword(email: string) {
+    if (!validAuthEmail(email)) return { ok: false, error: 'email_invalid' as const };
     return this.auth.recoverPassword(email);
   }
 
   async signOut(): Promise<{ ok: true } | { ok: false; error: 'unexpected' }> {
+    this.releaseAccountDeletion();
     const epoch = this.bumpSession();
     const accountId = this.state.user?.id ?? null;
     try {
@@ -615,6 +657,7 @@ export class CloudSyncEngine {
       this.setState({ lastError: 'sign_out_failed', sessionReady: true });
       return { ok: false, error: 'unexpected' };
     }
+    setAuthDraftEmail('');
     const signedOut = {
       user: null,
       lastSyncedAt: null,
@@ -652,7 +695,28 @@ export class CloudSyncEngine {
     return Boolean(this.auth.token()?.trim());
   }
 
-  private async authenticate(
+  private authenticate(
+    email: string,
+    action: () => ReturnType<CloudAuth['signIn']>,
+    source: 'signup' | 'signin',
+    options?: AuthAttemptOptions,
+  ): Promise<CloudAuthResult> {
+    if (this.deletionLocked) return Promise.resolve({ ok: false, error: 'unexpected' });
+    if (!validAuthEmail(email)) return Promise.resolve({ ok: false, error: 'email_invalid' });
+    const requestKey = `${source}:${email.trim().toLowerCase()}`;
+    if (this.authFlight && this.authFlightEpoch === this.sessionEpoch && !this.authAbandoned?.()) {
+      return this.authFlightKey === requestKey ? this.authFlight : Promise.resolve({ ok: false, error: 'unexpected' });
+    }
+    const flight = this.authenticateOnce(email, action, source, options).catch((): CloudAuthResult => ({ ok: false, error: 'local_save_failed' }));
+    this.authFlightEpoch = this.sessionEpoch;
+    this.authFlightKey = requestKey;
+    this.authAbandoned = options?.abandoned;
+    const wrapped = flight.finally(() => { if (this.authFlight === wrapped) this.authFlight = null; });
+    this.authFlight = wrapped;
+    return wrapped;
+  }
+
+  private async authenticateOnce(
     email: string,
     action: () => ReturnType<CloudAuth['signIn']>,
     source: 'signup' | 'signin',
@@ -668,7 +732,9 @@ export class CloudSyncEngine {
       return { ok: false as const, error: 'unexpected' as const };
     }
     await this.parkCurrentOwner();
+    if (!this.sessionIsCurrent(epoch) || options?.abandoned?.()) return { ok: false as const, error: 'unexpected' as const };
     const result = await action();
+    if (!this.sessionIsCurrent(epoch)) return { ok: false as const, error: 'unexpected' as const };
     if (options?.abandoned?.()) {
       await this.endAuthSession();
       await this.storage.removeItem(CLOUD_SESSION_KEY);
@@ -716,6 +782,7 @@ export class CloudSyncEngine {
     if (!this.sessionIsCurrent(epoch)) {
       return { ok: false as const, error: 'unexpected' as const };
     }
+    setAuthDraftEmail('');
     this.setState({
       user: result.user,
       lastSyncedAt: null,
@@ -725,8 +792,11 @@ export class CloudSyncEngine {
       pendingConfirmationReason: null,
       sessionReady: true,
     });
-    await this.sync();
-    await this.settleAccountLifecycle();
+    await applySignupProfile(this.storage, result.user, () => this.sessionIsCurrent(epoch));
+    await this.mirrorProfile();
+    if (!this.sessionIsCurrent(epoch)) return { ok: false as const, error: 'unexpected' as const };
+    await authRequest(() => this.sync(), 2000).catch(() => undefined);
+    if (this.state.user?.id !== result.user.id) return { ok: false as const, error: 'session_expired' as const };
     return result;
   }
 
@@ -736,6 +806,9 @@ export class CloudSyncEngine {
   }
 
   sync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
+    // A manual/network request replaces a scheduled retry, rather than leaving
+    // another transfer to fire after this one has completed.
+    if (this.syncTimer) { clearTimeout(this.syncTimer); this.syncTimer = null; }
     if (this.syncFlight) {
       return this.flightEpoch === this.sessionEpoch ? this.syncFlight : this.syncFlight.then(() => this.sync(options));
     }
@@ -760,6 +833,13 @@ export class CloudSyncEngine {
 
   private async performSync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
     if (this.deletionLocked) return this.getState();
+    const deletion = await readDeletionPending(this.storage);
+    if (deletion && deletion.userId === this.state.user?.id) {
+      const { resumePendingAccountDeletion } = await import('./accountLifecycle.ts');
+      await resumePendingAccountDeletion(this);
+      if (await readDeletionPending(this.storage)) { this.noteDeletionUncertain(); return this.getState(); }
+      if (!this.state.user) return this.getState();
+    }
     const epoch = this.sessionEpoch;
     if (this.failedLocalKeys.size || this.state.lastError === 'local_save_failed') {
       this.setState({ status: 'error', lastError: 'local_save_failed' });
@@ -882,7 +962,7 @@ export class CloudSyncEngine {
       const offline = error instanceof Error && /network|fetch|offline/i.test(error.message);
       this.setState({
         status: offline ? 'offline' : 'error',
-        lastError: this.state.lastError === 'local_save_failed' ? 'local_save_failed' : error instanceof Error && error.message === 'schema_missing' ? 'schema_missing' : 'sync_failed',
+        lastError: this.state.lastError === 'local_save_failed' ? 'local_save_failed' : error instanceof Error && ['schema_missing', 'session_expired'].includes(error.message) ? error.message : 'sync_failed',
       });
     } finally {
       if (!stale() && this.followUpSync && !this.deletionLocked && this.state.user) {

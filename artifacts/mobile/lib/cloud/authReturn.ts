@@ -6,7 +6,7 @@ let pendingReturn: string | null = null;
 
 export function setAuthReturn(href: string): void {
   const next = href.trim();
-  pendingReturn = !next || next === '/utilisateur' || next.startsWith('/profil') ? null : next;
+  pendingReturn = !/^\/(?!\/)[a-zA-Z0-9/_-]+$/.test(next) || next === '/utilisateur' || next === '/creer-compte' || next.startsWith('/profil') ? null : next;
 }
 
 export function consumeAuthReturn(): string | null {
