@@ -1,3 +1,4 @@
+import { serializedUpdate } from './serializedUpdate.ts';
 /**
  * Platform-independent key–value storage.
  * Business logic should depend on this interface; AsyncStorage is one backend.
@@ -5,6 +6,7 @@
  */
 export interface KeyValueStorage {
   getItem(key: string): Promise<string | null>;
+  updateItem?(key: string, update: (current: string | null) => string | null, source?: 'cloud'): Promise<void>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
   multiRemove?(keys: string[]): Promise<void>;
@@ -21,15 +23,23 @@ export class MemoryKeyValueStorage implements KeyValueStorage {
   }
 
   async setItem(key: string, value: string): Promise<void> {
-    this.map.set(key, value);
+    await this.updateItem(key, () => value);
   }
 
   async removeItem(key: string): Promise<void> {
-    this.map.delete(key);
+    await this.updateItem(key, () => null);
+  }
+
+  async updateItem(key: string, update: (current: string | null) => string | null): Promise<void> {
+    await serializedUpdate(this, key, async () => {
+      const value = update(await this.getItem(key));
+      if (value === null) this.map.delete(key);
+      else this.map.set(key, value);
+    });
   }
 
   async multiRemove(keys: string[]): Promise<void> {
-    for (const k of keys) this.map.delete(k);
+    for (const key of keys) await this.removeItem(key);
   }
 
   async getAllKeys(): Promise<readonly string[]> {

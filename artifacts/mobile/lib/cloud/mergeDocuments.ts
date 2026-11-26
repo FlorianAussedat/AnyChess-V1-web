@@ -5,6 +5,8 @@ import { mergeTheoreticalDocuments } from '../theoreticalEndgame/persistence/The
 import { getPositionById } from '../endgameTraining/selection/selectors.ts';
 import { mergeRecordDocument } from '../records/scoreDocument.ts';
 
+function compareText(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
+
 function newerIso(a?: string, b?: string): string {
   if (!a) return b ?? new Date().toISOString();
   if (!b) return a;
@@ -40,8 +42,42 @@ function mergeById<T extends { id: string }>(
   return [...map.values()];
 }
 
-function timestampOf(item: { updatedAt?: string; importedAt?: string; createdAt?: string }): string {
-  return item.updatedAt || item.importedAt || item.createdAt || '';
+function timestampOf(item: object): string {
+  const row = item as { updatedAt?: string | number; importedAt?: string | number; createdAt?: string | number; source?: { importedAt?: number } };
+  const at = row.updatedAt || row.importedAt || row.createdAt || row.source?.importedAt || '';
+  return typeof at === 'number' ? new Date(at).toISOString() : at;
+}
+
+/** Stable recovery IDs keep PGN versions without generating a new copy on every sync. */
+function contentHash(text: string): string {
+  let a = 2166136261, b = 5381;
+  for (let i = 0; i < text.length; i++) {
+    a = Math.imul(a ^ text.charCodeAt(i), 16777619);
+    b = Math.imul(b, 33) ^ text.charCodeAt(i);
+  }
+  return (a >>> 0).toString(16) + (b >>> 0).toString(16);
+}
+function mergeStudies<T extends { id: string }>(left: T[], right: T[], deleted: Set<string>, content: (item: T) => string): T[] {
+  const map = new Map<string, T>();
+  for (const item of [...left, ...right].sort((a, b) => compareText(JSON.stringify(a), JSON.stringify(b)))) {
+    if (!item?.id || deleted.has(item.id)) continue;
+    const previous = map.get(item.id);
+    if (!previous) { map.set(item.id, item); continue; }
+    const older = timestampOf(previous) > timestampOf(item) ? item : previous;
+    const newer = older === item ? previous : item;
+    if (content(previous) !== content(item)) {
+      const id = `${item.id}~recovery-${contentHash(content(older))}`;
+      if (!deleted.has(id)) {
+        const recovery = { ...older, id } as T & { filename?: string; displayName?: string; fingerprint?: string };
+        if (typeof recovery.filename === 'string') recovery.filename = recovery.filename.replace(/\.pgn$/i, '') + ` [${id.slice(-8)}].pgn`;
+        if ('displayName' in recovery) recovery.displayName = `${recovery.displayName ?? 'PGN'} [${id.slice(-8)}]`;
+        if (recovery.fingerprint) recovery.fingerprint += `:${id}`;
+        map.set(id, recovery);
+      }
+    }
+    map.set(item.id, newer);
+  }
+  return [...map.values()].sort((a, b) => compareText(a.id, b.id));
 }
 
 function mergeRepertoire(local: unknown, remote: unknown): unknown {
@@ -66,16 +102,7 @@ function mergeRepertoire(local: unknown, remote: unknown): unknown {
     importedAt?: string;
   }[];
   const filesRight = (Array.isArray(b.files) ? b.files : []) as typeof filesLeft;
-  const files = mergeById(filesLeft, filesRight, deleted, (x, y) =>
-    timestampOf(x) >= timestampOf(y) ? x : y,
-  );
-  const seen = new Set<string>();
-  const deduped = files.filter((file) => {
-    const fingerprint = `${file.filename ?? ''}\n${file.pgnText ?? ''}`;
-    if (seen.has(fingerprint)) return false;
-    seen.add(fingerprint);
-    return true;
-  });
+  const deduped = mergeStudies(filesLeft, filesRight, deleted, file => file.pgnText ?? '');
   const merged = migrateOpeningHierarchy({
     version: 2 as const,
     folders: folders as { id: string; name: string; parentId?: string | null }[],
@@ -108,29 +135,9 @@ function mergeGameLibrary(local: unknown, remote: unknown): unknown {
     deleted,
     (x, y) => (timestampOf(x) >= timestampOf(y) ? x : y),
   );
-  const games = mergeById(
-    (Array.isArray(a.games) ? a.games : []) as {
-      id: string;
-      fingerprint?: string;
-      updatedAt?: string;
-      importedAt?: string;
-    }[],
-    (Array.isArray(b.games) ? b.games : []) as {
-      id: string;
-      fingerprint?: string;
-      updatedAt?: string;
-      importedAt?: string;
-    }[],
-    deleted,
-    (x, y) => (timestampOf(x) >= timestampOf(y) ? x : y),
-  );
-  const seen = new Set<string>();
-  const deduped = games.filter((game) => {
-    const mark = game.fingerprint || game.id;
-    if (seen.has(mark)) return false;
-    seen.add(mark);
-    return true;
-  });
+  const left = (Array.isArray(a.games) ? a.games : []) as { id: string; source?: { rawPgn?: string }; moves?: unknown }[];
+  const right = (Array.isArray(b.games) ? b.games : []) as typeof left;
+  const deduped = mergeStudies(left, right, deleted, game => game.source?.rawPgn ?? JSON.stringify(game.moves ?? []));
   return { ...a, ...b, folders, games: deduped, syncDeletedIds: [...deleted] };
 }
 
@@ -157,6 +164,23 @@ function dropDeletedKeys(
   return next;
 }
 
+function mergeEntries(left: unknown, right: unknown): Record<string, unknown> {
+  const a = asRecord(left) ?? {}, b = asRecord(right) ?? {};
+  const out: Record<string, unknown> = {};
+  for (const key of [...new Set([...Object.keys(a), ...Object.keys(b)])].sort()) {
+    const x = asRecord(a[key]), y = asRecord(b[key]);
+    if (!x || !y) { out[key] = a[key] ?? b[key]; continue; }
+    const at = String(x.lastRevisionAt ?? x.updatedAt ?? ''), bt = String(y.lastRevisionAt ?? y.updatedAt ?? '');
+    const winner = at > bt || (at === bt && JSON.stringify(x) >= JSON.stringify(y)) ? x : y;
+    const merged = { ...winner };
+    for (const field of ['totalAttempts', 'totalSuccesses']) {
+      if (typeof x[field] === 'number' && typeof y[field] === 'number') merged[field] = Math.max(x[field] as number, y[field] as number);
+    }
+    out[key] = merged;
+  }
+  return out;
+}
+
 function mergeKeyedRecords(local: unknown, remote: unknown): unknown {
   const a = asRecord(local);
   const b = asRecord(remote);
@@ -164,40 +188,28 @@ function mergeKeyedRecords(local: unknown, remote: unknown): unknown {
   if (!b) return a;
   const deleted = deletedIdSet(a, b);
   const records = dropDeletedKeys(
-    {
-      ...((a.records as Record<string, unknown>) ?? {}),
-      ...((b.records as Record<string, unknown>) ?? {}),
-    },
+    mergeEntries(a.records, b.records),
     deleted,
   );
   if (a.records || b.records) {
     return { ...a, ...b, records, syncDeletedIds: [...deleted] };
   }
   const lines = dropDeletedKeys(
-    {
-      ...((a.lines as Record<string, unknown>) ?? {}),
-      ...((b.lines as Record<string, unknown>) ?? {}),
-    },
+    mergeEntries(a.lines, b.lines),
     deleted,
   );
   if (a.lines || b.lines) {
     return { ...a, ...b, lines, syncDeletedIds: [...deleted] };
   }
   const jobs = dropDeletedKeys(
-    {
-      ...((a.jobs as Record<string, unknown>) ?? {}),
-      ...((b.jobs as Record<string, unknown>) ?? {}),
-    },
+    mergeEntries(a.jobs, b.jobs),
     deleted,
   );
   if (a.jobs || b.jobs) {
     return { ...a, ...b, jobs, syncDeletedIds: [...deleted] };
   }
   const questions = dropDeletedKeys(
-    {
-      ...((a.questions as Record<string, unknown>) ?? {}),
-      ...((b.questions as Record<string, unknown>) ?? {}),
-    },
+    mergeEntries(a.questions, b.questions),
     deleted,
   );
   if (a.questions || b.questions) {
@@ -254,7 +266,7 @@ function lastWriteWins(local: unknown, remote: unknown): unknown {
   if (!b) return a;
   const aAt = typeof a.updatedAt === 'string' ? a.updatedAt : '';
   const bAt = typeof b.updatedAt === 'string' ? b.updatedAt : '';
-  return aAt >= bAt ? { ...b, ...a, updatedAt: newerIso(aAt, bAt) } : { ...a, ...b, updatedAt: newerIso(aAt, bAt) };
+  return (aAt > bAt || (aAt === bAt && JSON.stringify(a) >= JSON.stringify(b))) ? { ...b, ...a, updatedAt: newerIso(aAt, bAt) } : { ...a, ...b, updatedAt: newerIso(aAt, bAt) };
 }
 
 function isRecordDocumentKey(docKey: string): boolean {
@@ -288,7 +300,17 @@ export function mergeDocumentPayload(
   const local = parseJson(localRaw);
   const remote = parseJson(remoteRaw);
   let merged: unknown;
-  if (docKey === StorageKeys.repertoires.key) merged = mergeRepertoire(local, remote);
+  if (docKey === StorageKeys.puzzleHistory.key && Array.isArray(local) && Array.isArray(remote)) {
+    const history = new Map<string, Record<string, unknown>>();
+    for (const entry of [...local, ...remote]) {
+      if (!entry || typeof entry !== 'object') continue;
+      history.set(JSON.stringify(entry), entry);
+    }
+    merged = [...history.values()].sort((a, b) => compareText(String(b.playedAt), String(a.playedAt))).slice(0, 200);
+  } else if (docKey === StorageKeys.continueLineRecent.key) {
+    const a = asRecord(local) ?? {}, b = asRecord(remote) ?? {};
+    merged = Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].sort().map(key => [key, [...new Set([...(Array.isArray(a[key]) ? a[key] : []), ...(Array.isArray(b[key]) ? b[key] : [])])].sort().slice(-200)]));
+  } else if (docKey === StorageKeys.repertoires.key) merged = mergeRepertoire(local, remote);
   else if (docKey === StorageKeys.gameLibrary.key) merged = mergeGameLibrary(local, remote);
   else if (
     docKey === StorageKeys.pgnCommentTranslations.key ||

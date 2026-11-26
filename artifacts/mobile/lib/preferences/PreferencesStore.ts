@@ -177,6 +177,8 @@ type PrefsListener = (prefs: UserPreferences) => void;
 export class PreferencesStore {
   private prefs: UserPreferences = defaultUserPreferences();
   private loaded = false;
+  private loadFailed = false;
+  private writes: Promise<unknown> = Promise.resolve();
   private hydrated = false;
   private loadPromise: Promise<UserPreferences> | null = null;
   private listeners = new Set<PrefsListener>();
@@ -210,10 +212,11 @@ export class PreferencesStore {
         try {
           const migrated = await this.loadOrMigrate();
           this.prefs = migrated;
+          this.loadFailed = false;
         } catch {
-          this.prefs = defaultUserPreferences();
+          this.loadFailed = true;
         } finally {
-          this.loaded = true;
+          this.loaded = !this.loadFailed;
           this.hydrated = true;
           this.loadPromise = null;
           this.listeners.forEach((l) => l(this.prefs));
@@ -258,8 +261,8 @@ export class PreferencesStore {
           fromDoc = null;
         }
       }
-    } catch {
-      fromDoc = null;
+    } catch (error) {
+      throw error;
     }
 
     const legacy = await this.readLegacyFragments();
@@ -344,14 +347,7 @@ export class PreferencesStore {
   }
 
   private async writeDocument(prefs: UserPreferences): Promise<void> {
-    try {
-      await this.storage.setItem(
-        StorageKeys.userPreferences.key,
-        JSON.stringify(prefs),
-      );
-    } catch {
-      /* non-critical */
-    }
+    await this.storage.setItem(StorageKeys.userPreferences.key, JSON.stringify(prefs));
   }
 
   /** Keep legacy keys in sync for older helpers / tests during transition. */
@@ -374,8 +370,15 @@ export class PreferencesStore {
     }
   }
 
-  async update(patch: UserPreferencesPatch): Promise<UserPreferences> {
+  update(patch: UserPreferencesPatch): Promise<UserPreferences> {
+    const work = this.writes.catch(() => {}).then(() => this.applyUpdate(patch));
+    this.writes = work;
+    return work;
+  }
+
+  private async applyUpdate(patch: UserPreferencesPatch): Promise<UserPreferences> {
     await this.ensureLoaded();
+    if (this.loadFailed) throw new Error('preferences_read_failed');
     const current = this.prefs;
     const next: UserPreferences = {
       ...current,
@@ -456,22 +459,29 @@ export class PreferencesStore {
       delete next.manualFields;
     }
 
+    await this.writeDocument(next);
     this.prefs = next;
     this.listeners.forEach((l) => l(next));
-    await this.writeDocument(next);
     await this.writeLegacyMirrors(next);
     return next;
   }
 
-  async resetPreferences(): Promise<UserPreferences> {
+  resetPreferences(): Promise<UserPreferences> {
+    const work = this.writes.catch(() => {}).then(() => this.applyReset());
+    this.writes = work;
+    return work;
+  }
+
+  private async applyReset(): Promise<UserPreferences> {
     await this.ensureLoaded();
+    if (this.loadFailed) throw new Error('preferences_read_failed');
     const next: UserPreferences = {
       ...defaultUserPreferences(),
       preferencesOrigin: 'user',
     };
+    await this.writeDocument(next);
     this.prefs = next;
     this.listeners.forEach((l) => l(next));
-    await this.writeDocument(next);
     await this.writeLegacyMirrors(next);
     return next;
   }

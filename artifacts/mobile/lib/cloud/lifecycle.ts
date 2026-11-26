@@ -17,13 +17,17 @@ export function onCloudAppState(state: string): void {
   resumeCloudSync();
 }
 
+export function onCloudNetworkOffline(): void {
+  cloudSyncEngine.markOffline();
+}
+
 export function onCloudNetworkOnline(): void {
   resumeCloudSync();
 }
 
 /** Any available link can resume pending work, including mobile data. */
 export function onSyncTransportChange(transport: SyncTransport): void {
-  if (transport === 'offline') return;
+  if (transport === 'offline') { cloudSyncEngine.markOffline(); return; }
   resumeCloudSync();
 }
 
@@ -59,8 +63,10 @@ export function bindCloudLifecycle(): () => void {
     .removeEventListener;
   if (typeof onlineTarget === 'function') {
     onlineTarget.call(globalThis, 'online', onCloudNetworkOnline);
+    onlineTarget.call(globalThis, 'offline', onCloudNetworkOffline);
     cleanups.push(() => {
       offlineRemove?.call(globalThis, 'online', onCloudNetworkOnline);
+      offlineRemove?.call(globalThis, 'offline', onCloudNetworkOffline);
     });
   }
   cleanups.push(subscribeSyncTransport(onSyncTransportChange));

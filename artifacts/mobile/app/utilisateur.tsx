@@ -119,7 +119,7 @@ export default function UtilisateurScreen() {
       avatarAccountRef.current = user.id;
     }
     void (async () => {
-      const pending = await readPendingAvatar(defaultKeyValueStorage);
+      const pending = await readPendingAvatar(defaultKeyValueStorage, cloud.user?.email);
       if (cancelled) return;
       if (
         pending?.intent === 'remove' &&

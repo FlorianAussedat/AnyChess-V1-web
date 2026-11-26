@@ -2,6 +2,7 @@
  * Persistent Game Library store (dedicated versioned key).
  * v2 adds folders/subfolders; v1 snapshots migrate automatically.
  */
+import { mergeDocumentPayload } from '../cloud/mergeDocuments.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
 import { StorageKeys } from '../storage/StorageKeys.ts';
@@ -79,6 +80,7 @@ export function validateGameLibrarySnapshot(
 
 export class GameLibraryStore {
   private cache: GameLibrarySnapshot | null = null;
+  private baseline: string | null = null;
   /** Set when a read is invalid; never treat that as a durable empty snapshot. */
   private loadError: GameLibraryUnreadableError | null = null;
   private readonly storage: KeyValueStorage;
@@ -96,11 +98,12 @@ export class GameLibraryStore {
   }
 
   async getSnapshot(): Promise<GameLibrarySnapshot> {
-    if (this.cache && !this.loadError) return this.cache;
+    if (this.cache && !this.loadError && (await this.storage.getItem(GAME_LIBRARY_STORAGE_KEY)) === this.baseline) return this.cache;
 
     let raw: string | null;
     try {
       raw = await this.storage.getItem(GAME_LIBRARY_STORAGE_KEY);
+      this.baseline = raw;
     } catch (cause) {
       this.cache = null;
       this.loadError = new GameLibraryUnreadableError('read_failed', { cause });
@@ -160,7 +163,15 @@ export class GameLibraryStore {
     if (this.loadError) {
       throw this.loadError;
     }
-    await this.storage.setItem(GAME_LIBRARY_STORAGE_KEY, JSON.stringify(next));
+    let written = JSON.stringify(next);
+    const update = (live: string | null) => {
+      written = live !== this.baseline ? mergeDocumentPayload(GAME_LIBRARY_STORAGE_KEY, written, live)! : written;
+      return written;
+    };
+    if (this.storage.updateItem) await this.storage.updateItem(GAME_LIBRARY_STORAGE_KEY, update);
+    else await this.storage.setItem(GAME_LIBRARY_STORAGE_KEY, update(await this.storage.getItem(GAME_LIBRARY_STORAGE_KEY)));
+    this.baseline = written;
+    next = JSON.parse(written) as GameLibrarySnapshot;
     this.cache = next;
     return next;
   }
@@ -316,7 +327,7 @@ export class GameLibraryStore {
     }
     const index = snap.games.findIndex((g) => g.id === gameId);
     if (index < 0) return null;
-    const updated = { ...snap.games[index]!, folderId: targetId };
+    const updated = { ...snap.games[index]!, folderId: targetId, updatedAt: Date.now() };
     const games = [...snap.games];
     games[index] = updated;
     await this.persist({ ...snap, games });
@@ -334,6 +345,7 @@ export class GameLibraryStore {
     const updated: ImportedChessGame = {
       ...snap.games[index]!,
       displayName: name.length > 0 ? name : undefined,
+      updatedAt: Date.now(),
     };
     const games = [...snap.games];
     games[index] = updated;

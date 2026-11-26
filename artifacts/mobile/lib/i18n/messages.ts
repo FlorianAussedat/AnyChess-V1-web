@@ -267,6 +267,7 @@ export type MessageKey =
   | 'cloud.importGuestBody'
   | 'cloud.recover'
   | 'cloud.recoverSent'
+  | 'cloud.lastSyncedAt'
   | 'cloud.statusSynced'
   | 'cloud.statusPending'
   | 'cloud.statusSyncing'
@@ -1674,6 +1675,7 @@ const fr: Dict = {
     'Supabase n’a pas confirmé ces études. Rien n’a été effacé sur cet appareil. Réessaie une fois en ligne.',
   'cloud.recover': 'Mot de passe oublié',
   'cloud.recoverSent': 'E-mail de récupération envoyé.',
+  'cloud.lastSyncedAt': 'Dernière synchronisation réussie : {{date}}',
   'cloud.statusSynced': 'Synchronisé',
   'cloud.statusPending': 'En attente',
   'cloud.statusSyncing': 'Synchronisation en cours',
@@ -3213,6 +3215,7 @@ const en: Dict = {
     'Supabase did not confirm these studies. Nothing was deleted on this device. Try again once you are online.',
   'cloud.recover': 'Forgot password',
   'cloud.recoverSent': 'Recovery email sent.',
+  'cloud.lastSyncedAt': 'Last successful sync: {{date}}',
   'cloud.statusSynced': 'Synced',
   'cloud.statusPending': 'Pending',
   'cloud.statusSyncing': 'Syncing',

@@ -237,10 +237,12 @@ export function CloudAccountSection() {
                     : colors.mutedForeground,
               },
             ]}
+            accessibilityLiveRegion="polite"
             testID="cloud-backup-status"
           >
             {t(backupStatusKey(cloud.status))}
           </Text>
+          {cloud.lastSyncedAt ? <Text style={[styles.hint, { color: colors.mutedForeground }]} testID="cloud-last-synced">{t('cloud.lastSyncedAt', { date: new Date(cloud.lastSyncedAt).toLocaleString() })}</Text> : null}
         </View>
       ) : null}
       {pending && !cloud.user ? (
@@ -416,7 +418,9 @@ export function CloudAccountSection() {
         <View style={styles.row}>
           <Pressable
             testID="cloud-sync"
-            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={t('cloud.syncNow')}
+            disabled={busy || cloud.status === 'syncing'}
             onPress={() => {
               void cloud.sync();
             }}

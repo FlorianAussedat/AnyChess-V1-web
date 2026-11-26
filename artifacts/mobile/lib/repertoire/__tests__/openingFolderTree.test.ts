@@ -267,7 +267,7 @@ describe('opening folder tree', () => {
     assert.equal(counts.get(leafFile.id), entries.find((entry) => entry.file.id === leafFile.id)!.paths.length);
   });
 
-  it('syncs and restores parent links without duplicating studies', () => {
+  it('syncs parent links and preserves divergent PGN as a stable recovery study', () => {
     const file = {
       id: 'pgn_keep',
       folderId: 'child',
@@ -294,8 +294,9 @@ describe('opening folder tree', () => {
     const merged = JSON.parse(mergeDocumentPayload(StorageKeys.repertoires.key, local, remote) ?? '{}') as RepertoireStoreSnapshot;
     const child = merged.folders.find((folder) => folder.id === 'child');
     assert.equal(child?.parentId, 'root');
-    assert.equal(merged.files.length, 1);
-    const kept = merged.files.find((item) => item.id === 'pgn_keep');
+    assert.equal(merged.files.length, 2);
+    assert.ok(merged.files.some(item => item.id === 'pgn_keep'));
+    const kept = merged.files.find((item) => item.pgnText === PGN_A);
     assert.ok(kept);
     assert.equal(kept!.pgnText, PGN_A);
     assert.equal(kept!.folderId, 'child');

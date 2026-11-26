@@ -172,6 +172,8 @@ export class SupabaseCloudAuth implements CloudAuth {
   async refreshSession(): Promise<boolean> {
     const url = resolveSupabaseUrl();
     if (!url || !this.refreshToken) return false;
+    const originalToken = this.accessToken;
+    const originalRefresh = this.refreshToken;
     try {
       const response = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
         method: 'POST',
@@ -183,6 +185,7 @@ export class SupabaseCloudAuth implements CloudAuth {
         refresh_token?: string;
         user?: { id?: string; email?: string };
       };
+      if (this.accessToken !== originalToken || this.refreshToken !== originalRefresh) return false;
       if (!response.ok || !json.access_token || !json.user?.id) return false;
       const user = { id: json.user.id, email: json.user.email ?? this.user?.email ?? '' };
       this.accessToken = json.access_token;
@@ -283,7 +286,7 @@ export class SupabaseCloudRemote implements CloudRemote {
       ...init,
       headers: { ...headers(token), ...(init.headers as Record<string, string> | undefined) },
     });
-    if (response.status === 401 && !retried && (await this.auth.refreshSession())) {
+    if (response.status === 401 && !retried && this.auth.token() === token && (await this.auth.refreshSession())) {
       return this.authorizedFetch(url, init, true);
     }
     return response;
@@ -325,11 +328,13 @@ export class SupabaseCloudRemote implements CloudRemote {
     const url = resolveSupabaseUrl();
     if (!url) throw new Error('unconfigured');
     const response = await this.authorizedFetch(
-      `${url}/rest/v1/user_documents?on_conflict=user_id,doc_key`,
+      doc.revision <= 1
+        ? `${url}/rest/v1/user_documents?on_conflict=user_id,doc_key`
+        : `${url}/rest/v1/user_documents?user_id=eq.${encodeURIComponent(userId)}&doc_key=eq.${encodeURIComponent(doc.docKey)}&revision=eq.${doc.revision - 1}`,
       {
-        method: 'POST',
+        method: doc.revision <= 1 ? 'POST' : 'PATCH',
         headers: {
-          Prefer: 'resolution=merge-duplicates',
+          Prefer: doc.revision <= 1 ? 'resolution=ignore-duplicates,return=representation' : 'return=representation',
         },
         body: JSON.stringify({
           user_id: userId,
@@ -348,5 +353,7 @@ export class SupabaseCloudRemote implements CloudRemote {
       }
       throw new Error(`upsert ${response.status}`);
     }
+    const rows = await response.json() as unknown[];
+    if (!Array.isArray(rows) || rows.length !== 1) throw new Error('sync_conflict');
   }
 }

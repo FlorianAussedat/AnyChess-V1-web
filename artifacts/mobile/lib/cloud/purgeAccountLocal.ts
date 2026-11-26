@@ -20,10 +20,13 @@ export type DeletionPending = {
 export async function purgeAccountOwnedKeys(
   storage: KeyValueStorage,
   userId: string,
+  email?: string,
 ): Promise<void> {
   await storage.removeItem(cloudWorkspaceKey(userId));
   await clearAvatarCache(storage, userId);
-  await clearPendingAvatar(storage);
+  const pendingDeletion = await readDeletionPending(storage);
+  const ownerEmail = email ?? (pendingDeletion?.userId === userId ? pendingDeletion.email : undefined);
+  if (ownerEmail) await clearPendingAvatar(storage, ownerEmail);
 
   const index = await readBackupIndex(storage);
   const kept: typeof index = [];
