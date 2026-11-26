@@ -4,6 +4,8 @@ import { CloudSyncEngine } from '../CloudSyncEngine.ts';
 import { SupabaseCloudRemote } from '../SupabaseCloud.ts';
 import type { SupabaseCloudAuth } from '../SupabaseCloud.ts';
 import { MemoryCloudAuth } from '../MemoryCloud.ts';
+import { AsyncKeyValueStorage, subscribeKeyValueWrites } from '../../storage/AsyncKeyValueStorage.ts';
+import type { KeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { MemoryKeyValueStorage } from '../../storage/KeyValueStorage.ts';
 import { StorageKeys } from '../../storage/StorageKeys.ts';
 import { authClientVariant } from '../supabaseConfig.ts';
@@ -35,15 +37,16 @@ afterEach(()=>{
   globalThis.fetch=oldFetch;setCloudTransferReadersForTests({transport:null});
   for(const k of Object.keys(process.env))if(!(k in env))delete process.env[k];Object.assign(process.env,env);
 });
-async function phone(client:'dev'|'preview'){
+async function phone(client:'dev'|'preview', storage:KeyValueStorage=new MemoryKeyValueStorage(), observeWrites=false){
   process.env.EXPO_PUBLIC_APP_CLIENT=client;assert.equal(authClientVariant(),client);
   const auth=new MemoryCloudAuth();auth.seed('demo@example.com','secret1','shared-owner');
-  const storage=new MemoryKeyValueStorage();
   const remoteAuth={token:()=>`${client}-fixture-jwt`,refreshSession:async()=>false} as unknown as SupabaseCloudAuth;
   const remote=new SupabaseCloudRemote(remoteAuth);
   const engine=new CloudSyncEngine(storage,auth,remote);engines.add(engine);
+  let localNotifications=0;
+  const unsubscribe=observeWrites ? subscribeKeyValueWrites((k,source)=>{if(source!=='cloud' && SYNCABLE_STORAGE_KEYS.includes(k as any)){localNotifications++;engine.notifyLocalMutation(k);}}) : ()=>{};
   await engine.signIn('demo@example.com','secret1');
-  return{storage,engine,auth,remote,client};
+  return{storage,engine,auth,remote,client,unsubscribe,get localNotifications(){return localNotifications;}};
 }
 const files=async(p:Awaited<ReturnType<typeof phone>>)=>JSON.parse((await p.storage.getItem(key))!).files;
 it('Dev and Preview exchange PGNs and edits with stable recovery copies and no duplication on repeated sync',async()=>{
@@ -103,4 +106,74 @@ it('demonstrates why an old unconditional writer is unsafe even on a table with 
   const remoteLibrary=remote.find(row=>row.docKey===key)!;
   assert.doesNotMatch(remoteLibrary.payload!,/new-client/);assert.match(remoteLibrary.payload!,/old-client/);
   assert.match((await dev.storage.getItem(key))!,/new-client/);
+});
+
+function jsonbOrder(value:any):any {
+  if(Array.isArray(value))return value.map(jsonbOrder);
+  if(value && typeof value==='object')return Object.fromEntries(Object.keys(value).sort((a,b)=>a.length-b.length || a.localeCompare(b)).map(k=>[k,jsonbOrder(value[k])]));
+  return value;
+}
+it('converges through the real REST adapter with JSONB key reordering, then makes zero writes or recovery copies on three unchanged syncs',async()=>{
+  const fetch=globalThis.fetch; let writes=0;
+  globalThis.fetch=async(input,init)=>{
+    if(init?.method!=='GET')writes++;
+    const response=await fetch(input,init);
+    if(init?.method==='GET')return Response.json(jsonbOrder(await response.json()));
+    return response;
+  };
+  const initial={
+    [key]:JSON.parse(library(file('original'))),
+    [StorageKeys.userPreferences.key]:{language:'fr',chessNotation:'fr',version:1},
+    [StorageKeys.pgnCommentTranslations.key]:{version:1,records:{anchor:{text:'PRIVATE_TRANSLATION_'.repeat(1000),status:'ready'}}},
+    [StorageKeys.pgnTranslationQueue.key]:{version:1,jobs:{job:{text:'demo',status:'pending'}}},
+    [StorageKeys.chessCultureHistory.key]:{seen:['a','b'],version:1},
+    [StorageKeys.userProfile.key]:{username:'Demo',mascotId:'knight'},
+  };
+  for(const [doc_key,payload] of Object.entries(initial))rows.set(`shared-owner:${doc_key}`,{user_id:'shared-owner',doc_key,payload,revision:1,updated_at:'2026-01-01',deleted_at:null});
+  rows.set('other-owner:private',{user_id:'other-owner',doc_key:key,payload:{files:[{id:'OTHER_ACCOUNT'}]},revision:3});
+  const other=JSON.stringify(rows.get('other-owner:private'));
+  const raw=new MemoryKeyValueStorage(),storage=new AsyncKeyValueStorage(raw);
+  const p=await phone('preview',storage,true);
+  // Existing local JSON has the same values but the application's insertion order.
+  for(const [k,v] of Object.entries(initial))await storage.updateItem(k,()=>JSON.stringify(v),'cloud');
+  const unsubscribe=p.unsubscribe;
+  try {
+    await p.engine.sync();
+    assert.equal(p.engine.getState().status,'synced');
+    const before=new Map(await Promise.all((await raw.getAllKeys()).map(async k=>[k,await raw.getItem(k)] as const)));
+    const count=writes;
+    for(let i=0;i<3;i++){await p.engine.sync();assert.equal(p.engine.getState().status,'synced');}
+    assert.equal(writes,count,'no unnecessary Supabase writes after convergence');
+    assert.equal(p.localNotifications,0,'cloud restoration is not a user mutation');
+    assert.equal(p.engine.getState().syncAudit?.pushes,0);
+    assert.equal(p.engine.getState().syncAudit?.applies,0);
+    assert.deepEqual(p.engine.getState().syncAudit?.pending,[]);
+    assert.deepEqual(new Map(await Promise.all((await raw.getAllKeys()).map(async k=>[k,await raw.getItem(k)] as const))),before,'no backup/block growth after convergence');
+    setCloudTransferReadersForTests({transport:async()=>'offline'});
+    const edit=JSON.parse((await storage.getItem(key))!);edit.files[0].pgnText='1. e4 {offline edit} (1. c4 e5) e5 $3 *';
+    await storage.setItem(key,JSON.stringify(edit));await p.engine.sync();assert.equal(p.engine.getState().status,'offline');
+    setCloudTransferReadersForTests({transport:async()=>'cellular'});
+    await p.engine.sync();assert.equal(p.engine.getState().status,'synced');assert.ok(writes>count);
+    assert.match(JSON.stringify(rows.get(`shared-owner:${key}`)),/offline edit/);
+    assert.match((await storage.getItem(key))!,/\(1\. c4 e5\)|\$3/);
+    assert.match((await storage.getItem(StorageKeys.pgnCommentTranslations.key))!,/PRIVATE_TRANSLATION/);
+    assert.equal(JSON.stringify(rows.get('other-owner:private')),other);
+  } finally {unsubscribe();}
+});
+
+it('keeps merge fixed points across JSONB ordering for all 18 categories and never invents timestamps',async()=>{
+  const { mergeDocumentPayload }=await import('../mergeDocuments.ts');
+  const { documentPayloadsEqual }=await import('../documentEquality.ts');
+  const source={version:1,z:'PGN {comment} (variation)',a:{second:2,first:1},list:[{b:2,a:1},'second']};
+  for(const key of SYNCABLE_STORAGE_KEYS) {
+    const local=JSON.stringify(source),remote=JSON.stringify(jsonbOrder(source));
+    assert.equal(documentPayloadsEqual(local,remote),true);
+    assert.equal(mergeDocumentPayload(key,local,remote),local);
+  }
+  const first=mergeDocumentPayload(StorageKeys.userPreferences.key,'{"language":"fr"}','{"voiceEnabled":true}')!;
+  assert.equal('updatedAt' in JSON.parse(first),false);
+  for(let i=0;i<3;i++)assert.equal(mergeDocumentPayload(StorageKeys.userPreferences.key,first,JSON.stringify(jsonbOrder(JSON.parse(first)))),first);
+  assert.equal(documentPayloadsEqual('[1,2]','[2,1]'),false);
+  assert.equal(documentPayloadsEqual('{"pgn":"1. e4 {A}"}','{"pgn":"1. e4 {B}"}'),false);
+  assert.equal(documentPayloadsEqual('broken','{}'),false);
 });

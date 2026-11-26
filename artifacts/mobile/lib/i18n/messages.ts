@@ -5,6 +5,12 @@
 import type { AppLanguage } from '../preferences/types.ts';
 
 export type MessageKey =
+  | "sync.allCategories"
+  | "sync.audit"
+  | "sync.auditReason"
+  | "sync.reason.local_mutation"
+  | "sync.reason.remote_differs"
+  | "sync.reason.local_differs"
   | "storage.incomplete"
   | "storage.openings"
   | "storage.games"
@@ -1446,6 +1452,12 @@ export type MessageKey =
 type Dict = Record<MessageKey, string>;
 
 const fr: Dict = {
+  "sync.allCategories": "Plusieurs catégories",
+  "sync.audit": "Synchronisation : {{passes}} passes ; dernière passe : {{reads}} lectures distantes, {{pushes}} écritures distantes réussies, {{applies}} applications locales tentées.",
+  "sync.auditReason": "Nouvelle passe — {{category}} : {{reason}}.",
+  "sync.reason.local_mutation": "modification locale signalée pendant le transfert",
+  "sync.reason.remote_differs": "contenu distant confirmé encore différent",
+  "sync.reason.local_differs": "contenu local modifié avant application",
   "storage.incomplete": "Mesure partielle ou modifiée pendant la lecture ; attendre la fin des écritures puis relancer le diagnostic.",
   "storage.openings": "Répertoires PGN",
   "storage.games": "Analyses et parties",
@@ -3036,6 +3048,12 @@ const fr: Dict = {
 };
 
 const en: Dict = {
+  "sync.allCategories": "Multiple categories",
+  "sync.audit": "Sync: {{passes}} passes; last pass: {{reads}} remote reads, {{pushes}} successful remote writes, {{applies}} attempted local applications.",
+  "sync.auditReason": "Follow-up pass — {{category}}: {{reason}}.",
+  "sync.reason.local_mutation": "local change reported during transfer",
+  "sync.reason.remote_differs": "confirmed remote content still differs",
+  "sync.reason.local_differs": "local content changed before application",
   "storage.incomplete": "Partial measurement or values changed during the scan; wait for writes to finish and run the diagnostic again.",
   "storage.openings": "Opening PGNs",
   "storage.games": "Analyses and games",
