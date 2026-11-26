@@ -1,3 +1,5 @@
+import { buildReaderGameFromPgnTree } from '../gameReader/parseReaderPgn.ts';
+import { serializeOpeningPgn } from '../openingStudy/serializeOpeningPgn.ts';
 /**
  * Recover PGN comments / NAGs for the line actually played in Opening Mode.
  *
@@ -128,11 +130,59 @@ export function exportOpeningPlayedPgn(options: {
   commentAfterPly?: { ply: number; text: string };
 }): string {
   const sans = options.moves.map((m) => m.san);
-  return exportGamePgn({
+  const playedPgn = exportGamePgn({
     headers: options.headers,
     moves: options.moves,
     plyAnnotations: annotationsForPlayedLine(options.sourcePgn, sans),
     commentAfterPly: options.commentAfterPly,
   });
+  // Retain source alternatives at positions actually reached, without appending
+  // unplayed main-line moves or mixing annotations from another game.
+  try {
+    const played = parsePgn(playedPgn)[0];
+    const initial = options.moves[0]?.before;
+    let best: ReturnType<typeof parsePgn>[number] | undefined;
+    let length = 0,
+      bestWeight = -1;
+    for (const candidate of parsePgn(options.sourcePgn ?? '')) {
+      if (candidate.headers.FEN && candidate.headers.FEN !== initial) continue;
+      const matched = matchPlayedLine(candidate.root, sans);
+      if (!matched.length) continue;
+      const weight = annotationWeight(matched);
+      if (
+        matched.length > length ||
+        (matched.length === length && weight > bestWeight)
+      ) {
+        best = candidate;
+        length = matched.length;
+        bestWeight = weight;
+      }
+    }
+    if (!played || !best || !played.root) return playedPgn;
+    const graft = (target: PgnMoveNode | null, source: PgnMoveNode | null) => {
+      if (!target || !source) return;
+      const choices = [source, ...source.variations];
+      const match = choices.find(
+        (node) => normalizeSan(node.san) === normalizeSan(target.san),
+      );
+      target.variations.push(
+        ...choices
+          .filter((node) => node !== match)
+          .map((node) => ({ ...node, variations: [] })),
+      );
+      if (match) {
+        target.commentBefore = match.commentBefore;
+        graft(target.next, match.next);
+      }
+    };
+    graft(played.root, best.root);
+    const headers = { ...best.headers, ...played.headers };
+    const reader = buildReaderGameFromPgnTree(headers, played.root, {
+      allowEmptyMoves: true,
+    });
+    if (reader.ok) return serializeOpeningPgn(headers, reader.game);
+  } catch {
+    /* The played game remains exportable even when the source is malformed. */
+  }
+  return playedPgn;
 }
-

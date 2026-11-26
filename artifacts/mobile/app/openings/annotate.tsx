@@ -31,7 +31,7 @@ import { GameReaderNavControls } from '@/components/gameReader/GameReaderNavCont
 import { OpeningStudyNotation } from '@/components/openings/OpeningStudyNotation';
 import { OpeningChoiceModal } from '@/components/openings/OpeningChoiceModal';
 import { repertoireService, pgnFileDisplayName, type RepertoireFolder, type RepertoireSide } from '@/lib/repertoire';
-import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import {
@@ -414,7 +414,7 @@ export default function OpeningAnnotateScreen() {
     const flushed = flushComment(session);
     applySession(flushed);
     const name = flushed.snapshot.displayName.trim() || 'opening';
-    downloadPgnFile(name.endsWith('.pgn') ? name : `${name}.pgn`, editorExportPgn(flushed));
+    void requestPgnExport(name.endsWith('.pgn') ? name : `${name}.pgn`, editorExportPgn(flushed));
   }, [applySession, flushComment, session]);
 
   const analyzePosition = useCallback(async () => {

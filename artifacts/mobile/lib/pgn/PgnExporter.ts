@@ -79,6 +79,10 @@ export function exportGamePgn(options: PgnExportOptions): string {
     ...options.headers,
   };
 
+  const initialFen = options.moves[0]?.before;
+  if (initialFen && initialFen !== 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
+    headers.SetUp = '1'; headers.FEN = initialFen;
+  }
   const lines: string[] = [];
   const order = ['Event', 'Site', 'Date', 'White', 'Black', 'Result', 'Opening', 'Eco'];
   const seen = new Set<string>();
@@ -101,9 +105,10 @@ export function exportGamePgn(options: PgnExportOptions): string {
     byPly.set(ann.ply, ann);
   }
   options.moves.forEach((move, ply) => {
-    if (ply % 2 === 0) {
-      parts.push(`${Math.floor(ply / 2) + 1}.`);
-    }
+    const fields = move.before.split(' ');
+    const number = Number(fields[5]) || 1;
+    if (move.color === 'w') parts.push(`${number}.`);
+    else if (ply === 0) parts.push(`${number}...`);
     parts.push(move.san);
     const ann = byPly.get(ply);
     if (ann?.nags) {
@@ -149,19 +154,12 @@ export function resultFromGame(opts: {
   return '*';
 }
 
-/**
- * Trigger a .pgn download in the browser, or return the text for the caller
- * to share/copy on native.
- */
-export function downloadPgnFile(filename: string, pgn: string): void {
-  if (typeof document === 'undefined') return;
-  const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename.endsWith('.pgn') ? filename : `${filename}.pgn`;
-  a.click();
-  URL.revokeObjectURL(url);
+/** Explicit file result on every platform; native cancellation is not success. */
+export async function downloadPgnFile(filename: string, pgn: string) {
+  return (await import('../files/chessFileTransfer.ts')).transferChessText('file', filename, pgn, 'pgn');
+}
+export async function downloadFenFile(filename: string, fen: string) {
+  return (await import('../files/chessFileTransfer.ts')).transferChessText('file', filename, fen, 'fen');
 }
 
 /** Example: AnyChess_2026-07-13_1430.pgn */

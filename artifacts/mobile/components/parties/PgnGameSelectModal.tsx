@@ -168,6 +168,9 @@ export function PgnGameSelectModal({
               return (
                 <Pressable
                   testID={`parties-game-row-${item.id}`}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isOn }}
+                  accessibilityLabel={`${item.sourceLabel ?? ''} ${formatPgnGameIndexTitle(item)}`}
                   onPress={() => {
                     const next = new Set(selected);
                     if (next.has(item.id)) {
@@ -177,7 +180,7 @@ export function PgnGameSelectModal({
                       return;
                     }
                     if (next.size >= maxSelection) {
-                      setCapHint(t('parties.gameSelectMax'));
+                      setCapHint(t('parties.gameSelectMax', { count: String(maxSelection) }));
                       onChangeSelected(next, true);
                       return;
                     }

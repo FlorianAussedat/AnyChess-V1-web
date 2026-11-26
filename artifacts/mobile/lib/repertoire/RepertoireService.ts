@@ -440,10 +440,20 @@ export class RepertoireService {
       enabled: true,
     };
 
+    const previousUpdatedAt = folder.updatedAt;
+    const mutationAt = nowIso();
     this.snapshot!.files.push(file);
-    folder.updatedAt = nowIso();
+    folder.updatedAt = mutationAt;
     invalidateFolderRepertoireCache(folderId);
-    await this.persist();
+    try { await this.persist(); }
+    catch (error) {
+      // Roll back only this import; never discard a different concurrent file.
+      const index = this.snapshot?.files.indexOf(file) ?? -1;
+      if (index >= 0) this.snapshot!.files.splice(index, 1);
+      if (folder.updatedAt === mutationAt) folder.updatedAt = previousUpdatedAt;
+      invalidateFolderRepertoireCache(folderId);
+      throw error;
+    }
     void scheduleImportedPgnComments(file.pgnText, 'repertoire', file.id);
     return file;
   }
@@ -458,16 +468,25 @@ export class RepertoireService {
     const text = pgnText.trim();
     if (!text) throw new Error(tMsg('errors.pgnEmpty'));
 
+    const previousFile = { ...file };
+    const mutationAt = nowIso();
     file.pgnText = text;
-    file.importedAt = nowIso();
+    file.importedAt = mutationAt;
     file.summary = summariseParse(text);
     if (filename) file.filename = normaliseFilename(filename);
 
     const folder = this.snapshot!.folders.find((f) => f.id === file.folderId);
-    if (folder) folder.updatedAt = nowIso();
+    const previousUpdatedAt = folder?.updatedAt;
+    if (folder) folder.updatedAt = mutationAt;
 
     invalidateFolderRepertoireCache(file.folderId);
-    await this.persist();
+    try { await this.persist(); }
+    catch (error) {
+      if (file.pgnText === text && file.importedAt === mutationAt) Object.assign(file, previousFile);
+      if (folder && folder.updatedAt === mutationAt && previousUpdatedAt) folder.updatedAt = previousUpdatedAt;
+      invalidateFolderRepertoireCache(file.folderId);
+      throw error;
+    }
     const liveIds = buildRepertoire(file.pgnText).trainingPaths?.map((p) => p.id) ?? [];
     await openingMasteryStore.pruneOrphans(file.id, liveIds);
     void scheduleImportedPgnComments(file.pgnText, 'repertoire', file.id);
