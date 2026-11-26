@@ -5,6 +5,14 @@
 import type { AppLanguage } from '../preferences/types.ts';
 
 export type MessageKey =
+  | "cloud.errorLocalSize"
+  | "cloud.errorLocalQuota"
+  | "cloud.errorLocalStorage"
+  | "cloud.errorRevisionSchema"
+  | "cloud.errorRevisionConflict"
+  | "cloud.errorRemotePermission"
+  | "cloud.errorRemoteService"
+
   // Nav / common
   | 'nav.generalMenu'
   | 'nav.userSignIn'
@@ -1398,6 +1406,13 @@ export type MessageKey =
 type Dict = Record<MessageKey, string>;
 
 const fr: Dict = {
+  "cloud.errorLocalSize": "Le stockage Android ne peut pas lire un document local trop volumineux. Vos données sont conservées. La déconnexion reste bloquée tant que la copie locale ne peut pas être vérifiée.",
+  "cloud.errorLocalQuota": "Le stockage local est plein ou sa limite est atteinte. Vos données sont conservées. Libère de l’espace sans effacer les données AnyChess, puis réessaie.",
+  "cloud.errorLocalStorage": "Impossible de vérifier la sauvegarde locale. Vos données sont conservées. Réessaie ; ne réinitialise pas les données de l’application.",
+  "cloud.errorRevisionSchema": "Le serveur de synchronisation ne possède pas encore la colonne de révision requise. Vos modifications restent locales. Une vérification du schéma serveur est nécessaire.",
+  "cloud.errorRevisionConflict": "Les données ont changé sur le serveur pendant le transfert. Vos modifications locales sont conservées. Réessaie la synchronisation.",
+  "cloud.errorRemotePermission": "Le serveur refuse l’accès aux documents de ce compte. Les données locales sont conservées. Vérifie la session et la configuration des droits.",
+  "cloud.errorRemoteService": "Le service de synchronisation a échoué ou a renvoyé une réponse inattendue. Les données locales sont conservées. Réessaie plus tard.",
   'account.avatarChoose': 'Choisir un avatar',
   'account.avatarDragHint': 'Faites glisser la photo pour ajuster le cadrage, puis réglez le zoom.',
   'account.avatarResetCrop': 'Recentrer et réinitialiser le zoom',
@@ -2942,6 +2957,13 @@ const fr: Dict = {
 };
 
 const en: Dict = {
+  "cloud.errorLocalSize": "Android storage cannot read an oversized local document. Your data is retained. Sign-out stays blocked until the local copy can be verified.",
+  "cloud.errorLocalQuota": "Local storage is full or its limit has been reached. Your data is retained. Free space without clearing AnyChess data, then retry.",
+  "cloud.errorLocalStorage": "The local save could not be verified. Your data is retained. Retry; do not reset app data.",
+  "cloud.errorRevisionSchema": "The sync server is missing the required revision column. Your changes stay local. The server schema needs checking.",
+  "cloud.errorRevisionConflict": "Server data changed during transfer. Your local changes are retained. Retry sync.",
+  "cloud.errorRemotePermission": "The server denied access to this account’s documents. Local data is retained. Check the session and access configuration.",
+  "cloud.errorRemoteService": "The sync service failed or returned an unexpected response. Local data is retained. Retry later.",
   'account.avatarChoose': 'Choose an avatar',
   'account.avatarDragHint': 'Drag the photo to frame it, then adjust the zoom.',
   'account.avatarResetCrop': 'Center and reset zoom',

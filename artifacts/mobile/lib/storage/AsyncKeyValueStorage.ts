@@ -2,6 +2,8 @@
  * AsyncStorage implementation of KeyValueStorage (React Native / Expo).
  * Keep AsyncStorage imports here — not in mode business logic.
  */
+import { cloudStep, reportCloudError } from '../cloud/diagnostics.ts';
+import { isSnapshotKey, readSnapshot, writeSnapshot, removeSnapshot } from './snapshotStorage.ts';
 import { serializedUpdate } from './serializedUpdate.ts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { KeyValueStorage } from './KeyValueStorage.ts';
@@ -44,29 +46,73 @@ function notifyError(key: string): void {
   }
 }
 
+const backendLocks = new WeakMap<object, object>();
 export class AsyncKeyValueStorage implements KeyValueStorage {
+  private readonly lock: object;
+  private readonly backend: KeyValueStorage;
+  constructor(backend: KeyValueStorage = AsyncStorage) {
+    this.backend = backend;
+    let lock = backendLocks.get(backend);
+    if (!lock) {
+      lock = {};
+      backendLocks.set(backend, lock);
+    }
+    this.lock = lock;
+  }
   async getItem(key: string): Promise<string | null> {
-    try { return await AsyncStorage.getItem(key); } catch (error) { notifyError(key); throw error; }
+    try {
+      return await cloudStep('storage.read', 'local', () =>
+        isSnapshotKey(key)
+          ? serializedUpdate(this.lock, key, () => readSnapshot(this.backend, key))
+          : this.backend.getItem(key),
+      );
+    } catch (error) {
+      notifyError(key);
+      throw error;
+    }
   }
 
-  async updateItem(key: string, update: (current: string | null) => string | null, source?: 'cloud'): Promise<void> {
-    await serializedUpdate(this, key, async () => {
+  async updateItem(
+    key: string,
+    update: (current: string | null) => string | null,
+    source?: 'cloud',
+  ): Promise<void> {
+    await serializedUpdate(this.lock, key, async () => {
       try {
-        const current = await AsyncStorage.getItem(key);
+        const current = await (isSnapshotKey(key)
+          ? readSnapshot(this.backend, key)
+          : this.backend.getItem(key));
         const next = update(current);
         if (next === current) return;
-        if (next == null) await AsyncStorage.removeItem(key);
-        else await AsyncStorage.setItem(key, next);
+        if (next == null)
+          await (isSnapshotKey(key)
+            ? removeSnapshot(this.backend, key)
+            : this.backend.removeItem(key));
+        else
+          await (isSnapshotKey(key)
+            ? writeSnapshot(this.backend, key, next)
+            : this.backend.setItem(key, next));
       } catch (error) {
         notifyError(key);
-        throw error;
+        throw reportCloudError('storage.update', 'local', error);
       }
       notifyWrite(key, source);
     });
   }
 
   async setItem(key: string, value: string): Promise<void> {
-    await this.updateItem(key, () => value);
+    if (!isSnapshotKey(key)) return this.updateItem(key, () => value);
+    await serializedUpdate(this.lock, key, async () => {
+      try {
+        await cloudStep('storage.snapshot.write', 'local', () =>
+          writeSnapshot(this.backend, key, value),
+        );
+      } catch (error) {
+        notifyError(key);
+        throw error;
+      }
+      notifyWrite(key);
+    });
   }
 
   async removeItem(key: string): Promise<void> {
@@ -78,7 +124,7 @@ export class AsyncKeyValueStorage implements KeyValueStorage {
   }
 
   async getAllKeys(): Promise<readonly string[]> {
-    return AsyncStorage.getAllKeys();
+    return (await this.backend.getAllKeys?.()) ?? [];
   }
 }
 

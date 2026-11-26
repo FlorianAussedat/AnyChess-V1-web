@@ -242,3 +242,67 @@ describe('sign-in form', () => {
     });
   });
 });
+
+it('shows a local storage warning after a refused sign-out and keeps the connected account', async () => {
+  const engine = getActiveCloudEngine();
+  await engine.signUp('demo@example.com', 'secret1');
+  const storage = engine.storageHandle(),
+    originalSet = storage.setItem.bind(storage);
+  storage.setItem = async (key, value) => {
+    if (key.includes('.workspace.')) throw new Error('SQLITE_FULL PRIVATE');
+    await originalSet(key, value);
+  };
+  let renderer!: ReturnType<typeof create>;
+  await act(async () => {
+    renderer = create(React.createElement(CloudAccountSection));
+  });
+  await act(async () => {
+    renderer.root.findByProps({ testID: 'cloud-signout' }).props.onPress();
+  });
+  await act(async () => {
+    getAppDialogRequest()!.onConfirm!();
+    dismissAppDialog();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  assert.equal(engine.getState().lastError, 'local_quota');
+  assert.ok(engine.getState().user);
+  const warning = renderer.root.findByProps({ testID: 'cloud-operation-error' });
+  assert.match(JSON.stringify(warning.props.children), /stockage local/i);
+  assert.doesNotMatch(JSON.stringify(warning.props.children), /PRIVATE|SQLITE_FULL/);
+  assert.equal(renderer.root.findAllByProps({ testID: 'cloud-form-error' }).length, 0);
+  storage.setItem = originalSet;
+  await act(async () => renderer.unmount());
+});
+
+it('distinguishes the missing server revision column from local storage failure in the account UI', async () => {
+  const { CloudOperationError } = await import('../../../lib/cloud/diagnostics.ts');
+  const auth = new MemoryCloudAuth();
+  auth.seed('demo@example.com', 'secret1', 'owner');
+  const engine = new CloudSyncEngine(new MemoryKeyValueStorage(), auth, {
+    async listDocuments() {
+      throw new CloudOperationError(
+        'schema_revision_missing',
+        'remote.list',
+        'remote',
+        400,
+        '42703',
+      );
+    },
+    async upsertDocument() {
+      assert.fail('must not upload to incompatible schema');
+    },
+  });
+  await engine.signIn('demo@example.com', 'secret1');
+  setCloudEngineForTests(engine);
+  let renderer!: ReturnType<typeof create>;
+  await act(async () => {
+    renderer = create(React.createElement(CloudAccountSection));
+  });
+  const warning = renderer.root.findByProps({ testID: 'cloud-operation-error' });
+  assert.match(JSON.stringify(warning.props.children), /colonne de révision/);
+  assert.equal(renderer.root.findAllByProps({ testID: 'cloud-local-save-error' }).length, 0);
+  await act(async () => {
+    renderer.unmount();
+    await engine.signOut();
+  });
+});

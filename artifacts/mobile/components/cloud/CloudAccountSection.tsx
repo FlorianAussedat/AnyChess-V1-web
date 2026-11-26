@@ -520,7 +520,7 @@ export function CloudAccountSection() {
                     setInfo(null);
                     try {
                       const result = await cloud.signOut();
-                      if (!result.ok) setFormError(t('cloud.signOutFailed'));
+                      if (!result.ok && !result.reason) setFormError(t('cloud.signOutFailed'));
                     } catch {
                       setFormError(t('cloud.signOutFailed'));
                     } finally {
@@ -538,6 +538,17 @@ export function CloudAccountSection() {
         </View>
       ) : null}
       {cloud.user ? <DeleteAccountControl /> : null}
+      {cloud.lastError && ['local_size_limit', 'local_quota', 'local_storage', 'schema_revision_missing', 'sync_conflict', 'remote_permission', 'remote_service'].includes(cloud.lastError) ? (
+        <Text style={[styles.hint, { color: colors.destructive }]} accessibilityLiveRegion="polite" testID="cloud-operation-error">
+          {t(cloud.lastError === 'local_size_limit' ? 'cloud.errorLocalSize'
+            : cloud.lastError === 'local_quota' ? 'cloud.errorLocalQuota'
+            : cloud.lastError === 'local_storage' ? 'cloud.errorLocalStorage'
+            : cloud.lastError === 'schema_revision_missing' ? 'cloud.errorRevisionSchema'
+            : cloud.lastError === 'sync_conflict' ? 'cloud.errorRevisionConflict'
+            : cloud.lastError === 'remote_permission' ? 'cloud.errorRemotePermission'
+            : 'cloud.errorRemoteService')}
+        </Text>
+      ) : null}
       {cloud.lastError === 'local_save_failed' ? (
         <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-local-save-error">
           {t('cloud.localSaveFailed')}
