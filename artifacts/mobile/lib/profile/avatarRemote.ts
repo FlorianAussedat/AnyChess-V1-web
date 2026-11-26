@@ -1,7 +1,13 @@
+import { isMascotId } from './mascotCatalog.ts';
 import { decideCloudTransfer } from '../cloud/syncTransport.ts';
-import { resolveSupabaseAnonKey, resolveSupabaseUrl } from '../cloud/supabaseConfig.ts';
+import {
+  resolveSupabaseAnonKey,
+  resolveSupabaseUrl,
+} from '../cloud/supabaseConfig.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import {
+  PENDING_AVATAR_KEY,
+  avatarCacheKey,
   clearAvatarCache,
   clearPendingAvatar,
   normalizeAvatarEmail,
@@ -23,7 +29,10 @@ export function avatarObjectUrl(userId: string): string | null {
   return `${url.replace(/\/$/, '')}/storage/v1/object/avatars/${avatarObjectPath(userId)}`;
 }
 
-function storageHeaders(accessToken: string, extra?: Record<string, string>): Record<string, string> {
+function storageHeaders(
+  accessToken: string,
+  extra?: Record<string, string>,
+): Record<string, string> {
   const anon = resolveSupabaseAnonKey() ?? '';
   return {
     apikey: anon,
@@ -89,7 +98,9 @@ export async function downloadAvatarObject(
       headers: storageHeaders(accessToken),
     });
     if (!response.ok) return null;
-    const mime = response.headers.get('content-type')?.split(';')[0]?.trim() || 'image/png';
+    const mime =
+      response.headers.get('content-type')?.split(';')[0]?.trim() ||
+      'image/png';
     const buffer = await response.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     let bin = '';
@@ -129,7 +140,11 @@ export async function flushPendingAvatar(input: {
   if (decision.defer || decision.offline) return 'waiting_wifi';
   if (!input.accessToken) return 'failed';
   if (pending.intent === 'remove') {
-    const removed = await deleteAvatarObject(input.userId, input.accessToken, input.fetchImpl);
+    const removed = await deleteAvatarObject(
+      input.userId,
+      input.accessToken,
+      input.fetchImpl,
+    );
     if (!removed) return 'failed';
     await clearPendingAvatar(input.storage);
     if (input.markHasAvatar) await input.markHasAvatar(false);
@@ -161,7 +176,11 @@ export async function cacheRemoteAvatar(input: {
   fetchImpl?: typeof fetch;
 }): Promise<string | null> {
   if (!input.accessToken) return null;
-  const dataUrl = await downloadAvatarObject(input.userId, input.accessToken, input.fetchImpl);
+  const dataUrl = await downloadAvatarObject(
+    input.userId,
+    input.accessToken,
+    input.fetchImpl,
+  );
   if (!dataUrl) return null;
   await writeAvatarCache(input.storage, input.userId, dataUrl);
   return dataUrl;
@@ -191,90 +210,191 @@ export type AvatarCommitResult =
   | 'cancelled'
   | 'failed';
 
-async function markAvatarFlag(storage: KeyValueStorage, hasAvatar: boolean): Promise<void> {
-  if (profileStore.usesStorage(storage)) {
-    await profileStore.update({ hasAvatar });
-  }
-}
-
-async function restoreAvatarCache(
-  storage: KeyValueStorage,
-  userId: string,
-  previous: string | null,
-): Promise<void> {
-  if (previous) await writeAvatarCache(storage, userId, previous);
-  else await clearAvatarCache(storage, userId);
-}
-
-/**
- * Upload or remove the profile photo.
- * The previous photo is replaced only after the new one is stored on the device.
- * A failed upload keeps that local photo and retries later.
- * Cellular + Wi-Fi-only stores the change locally and waits for Wi-Fi.
- */
-export async function commitAvatarChange(input: {
+type AvatarChangeInput = {
   storage: KeyValueStorage;
   userId: string;
   email: string;
   accessToken: string | null;
   dataUrl: string | null;
+  mascotId?: string;
   fetchImpl?: typeof fetch;
-  /** When this becomes true, a late result must not keep the new photo. */
   cancelled?: () => boolean;
-}): Promise<AvatarCommitResult> {
-  const decision = await decideCloudTransfer(false);
-  if (!input.dataUrl) {
-    if (decision.defer || decision.offline || !input.accessToken) {
-      await clearAvatarCache(input.storage, input.userId);
-      await markAvatarFlag(input.storage, false);
-      await savePendingAvatar(input.storage, input.email, '', 'remove');
-      return decision.defer ? 'waiting_wifi' : 'stored';
-    }
-    const removed = await deleteAvatarObject(
-      input.userId,
-      input.accessToken,
-      input.fetchImpl,
-    );
-    if (!removed) return 'failed';
-    await clearAvatarCache(input.storage, input.userId);
-    await clearPendingAvatar(input.storage);
-    await markAvatarFlag(input.storage, false);
-    return 'removed';
-  }
-  if (input.cancelled?.()) return 'cancelled';
-  const previous = await readAvatarCache(input.storage, input.userId);
+};
+
+// Avatar edits share the existing cache/pending documents; serialize writes on this device.
+const avatarWrites = new WeakMap<KeyValueStorage, Promise<unknown>>();
+export async function commitAvatarChange(
+  input: AvatarChangeInput,
+): Promise<AvatarCommitResult> {
+  const previous = avatarWrites.get(input.storage) ?? Promise.resolve();
+  const work = previous
+    .catch(() => {})
+    .then(() => commitAvatarChangeSerial(input));
+  avatarWrites.set(input.storage, work);
   try {
-    await writeAvatarCache(input.storage, input.userId, input.dataUrl);
+    return await work;
+  } finally {
+    if (avatarWrites.get(input.storage) === work)
+      avatarWrites.delete(input.storage);
+  }
+}
+
+async function commitAvatarChangeSerial(
+  input: AvatarChangeInput,
+): Promise<AvatarCommitResult> {
+  const { storage, userId } = input;
+  if (input.cancelled?.()) return 'cancelled';
+  if (input.mascotId && !isMascotId(input.mascotId)) return 'failed';
+  const cacheKey = avatarCacheKey(userId);
+  let beforeCache: string | null;
+  let beforePending: string | null;
+  try {
+    beforeCache = await storage.getItem(cacheKey);
+    beforePending = await storage.getItem(PENDING_AVATAR_KEY);
   } catch {
     return 'failed';
   }
-  if (input.cancelled?.()) {
-    await restoreAvatarCache(input.storage, input.userId, previous);
-    return 'cancelled';
-  }
-  await markAvatarFlag(input.storage, true);
-  if (decision.defer || decision.offline || !input.accessToken) {
-    await savePendingAvatar(input.storage, input.email, input.dataUrl, 'upload');
-    return decision.defer ? 'waiting_wifi' : 'stored';
-  }
-  const uploaded = await uploadAvatarObject(
-    input.userId,
-    input.accessToken,
-    input.dataUrl,
-    input.fetchImpl,
-  );
-  if (input.cancelled?.()) {
-    await restoreAvatarCache(input.storage, input.userId, previous);
-    await markAvatarFlag(input.storage, previous != null);
-    if (uploaded) {
-      await deleteAvatarObject(input.userId, input.accessToken, input.fetchImpl);
+  const restore = async () => {
+    let failure: unknown;
+    try {
+      if ((await storage.getItem(cacheKey)) !== beforeCache) {
+        if (beforeCache == null) await storage.removeItem(cacheKey);
+        else await storage.setItem(cacheKey, beforeCache);
+      }
+    } catch (error) {
+      failure = error;
     }
-    return 'cancelled';
+    try {
+      if ((await storage.getItem(PENDING_AVATAR_KEY)) !== beforePending) {
+        if (beforePending == null) await storage.removeItem(PENDING_AVATAR_KEY);
+        else await storage.setItem(PENDING_AVATAR_KEY, beforePending);
+      }
+    } catch (error) {
+      failure ??= error;
+    }
+    if (failure) throw failure;
+  };
+  const ownsProfile = profileStore.usesStorage(storage);
+  const previousProfile = ownsProfile ? profileStore.getProfile() : null;
+  let remoteChanged = false;
+  let remotePrevious = beforeCache;
+  const restoreRemote = async () => {
+    if (!remoteChanged || !input.accessToken) return true;
+    return remotePrevious
+      ? uploadAvatarObject(
+          userId,
+          input.accessToken,
+          remotePrevious,
+          input.fetchImpl,
+        )
+      : deleteAvatarObject(userId, input.accessToken, input.fetchImpl);
+  };
+  const rollback = async () => {
+    const remoteRestored = await restoreRemote();
+    await restore();
+    if (!remoteRestored) {
+      // Compensation is also a normal retry intent, scoped to the original account.
+      await savePendingAvatar(
+        storage,
+        input.email,
+        remotePrevious ?? '',
+        remotePrevious ? 'upload' : 'remove',
+      );
+    }
+    return remoteRestored;
+  };
+  try {
+    const decision = await decideCloudTransfer(false);
+    if (input.cancelled?.()) return 'cancelled';
+    const intent = input.mascotId
+      ? 'mascot'
+      : input.dataUrl
+        ? 'upload'
+        : 'remove';
+    // Keep a durable retry intent before replacing the cache. Failure restores both documents.
+    await savePendingAvatar(
+      storage,
+      input.email,
+      input.dataUrl ?? '',
+      intent,
+      input.mascotId,
+    );
+    if (input.dataUrl && !input.mascotId)
+      await writeAvatarCache(storage, userId, input.dataUrl);
+    else await clearAvatarCache(storage, userId);
+    if (input.cancelled?.()) {
+      await restore();
+      return 'cancelled';
+    }
+    let result: AvatarCommitResult = decision.defer ? 'waiting_wifi' : 'stored';
+    if (
+      intent !== 'mascot' &&
+      !decision.defer &&
+      !decision.offline &&
+      input.accessToken
+    ) {
+      // If a previous remote photo was not cached, obtain it before any destructive replacement.
+      if (!remotePrevious && previousProfile?.hasAvatar) {
+        remotePrevious = await downloadAvatarObject(
+          userId,
+          input.accessToken,
+          input.fetchImpl,
+        );
+        if (!remotePrevious) {
+          await restore();
+          return 'failed';
+        }
+      }
+      if (input.cancelled?.()) {
+        await restore();
+        return 'cancelled';
+      }
+      const ok =
+        intent === 'upload'
+          ? await uploadAvatarObject(
+              userId,
+              input.accessToken,
+              input.dataUrl!,
+              input.fetchImpl,
+            )
+          : await deleteAvatarObject(
+              userId,
+              input.accessToken,
+              input.fetchImpl,
+            );
+      remoteChanged = ok;
+      if (input.cancelled?.()) {
+        const restored = await rollback();
+        return restored ? 'cancelled' : 'failed';
+      }
+      if (!ok && intent === 'remove') {
+        await restore();
+        return 'failed';
+      }
+      result = ok
+        ? intent === 'upload'
+          ? 'uploaded'
+          : 'removed'
+        : 'sync_failed';
+      if (ok) await clearPendingAvatar(storage);
+    }
+    if (input.cancelled?.()) {
+      const restored = await rollback();
+      return restored ? 'cancelled' : 'failed';
+    }
+    // One metadata update, after durable cache/pending writes; never clear a mascot in advance.
+    if (ownsProfile)
+      await profileStore.update({
+        hasAvatar: Boolean(input.dataUrl && !input.mascotId),
+        mascotId: input.mascotId ?? null,
+      });
+    return result;
+  } catch {
+    try {
+      await rollback();
+    } catch {
+      /* The caller displays a failure and keeps its previous avatar. */
+    }
+    return 'failed';
   }
-  if (!uploaded) {
-    await savePendingAvatar(input.storage, input.email, input.dataUrl, 'upload');
-    return 'sync_failed';
-  }
-  await clearPendingAvatar(input.storage);
-  return 'uploaded';
 }
