@@ -103,7 +103,7 @@ export function renderConfirmationPage(config: {
       <img class="logo" src="${logo}" alt="AnyChess" width="280" height="97" />
       <h1 id="title">AnyChess</h1>
       <p id="message">${CONFIRM_COPY.fr.checking}</p>
-      <a id="open" class="open" href="${open}">${CONFIRM_COPY.fr.open}</a>
+      <a id="open" class="open" href="${open}" hidden>${CONFIRM_COPY.fr.open}</a>
       <p id="alt" class="alt">${CONFIRM_COPY.fr.alt}</p>
       <form id="recover" hidden="hidden">
         <label id="label-password" for="password">${CONFIRM_COPY.fr.recoverLabel}</label>
@@ -139,7 +139,10 @@ ${INTERPRET_SOURCE}
   var client = pageClient(location.search);
   var text = copy[lang] || copy.fr;
   document.documentElement.lang = lang;
-  if (open) open.href = appOpenHref(client, navigator.userAgent || '');
+  if (open) {
+    open.href = appOpenHref(client, navigator.userAgent || '');
+    open.hidden = false;
+  }
   if (open) open.textContent = text.open;
   if (alt) alt.textContent = text.alt;
   function show(key, headingKey) {
@@ -212,7 +215,7 @@ ${INTERPRET_SOURCE}
   }
   function stripTokens() {
     var keep = new URLSearchParams();
-    if (client === 'dev' || client === 'app' || client === 'standalone') keep.set('client', client);
+    if (client === 'dev' || client === 'app' || client === 'preview' || client === 'standalone') keep.set('client', client);
     var params = new URLSearchParams(location.search.charAt(0) === '?' ? location.search.slice(1) : location.search);
     var requested = (params.get('lang') || '').toLowerCase();
     if (requested === 'fr' || requested === 'en') keep.set('lang', requested);

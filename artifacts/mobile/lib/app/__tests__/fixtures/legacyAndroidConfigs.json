@@ -1,0 +1,205 @@
+{
+  "development": {
+    "expo": {
+      "name": "AnyChess Dev",
+      "slug": "anychessdev",
+      "version": "0.0.7",
+      "orientation": "portrait",
+      "icon": "./assets/icon/android-dev-icon.png",
+      "scheme": "anychessdev",
+      "userInterfaceStyle": "dark",
+      "newArchEnabled": true,
+      "splash": {
+        "image": "./assets/images/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0B1728"
+      },
+      "ios": {
+        "supportsTablet": false
+      },
+      "android": {
+        "package": "com.anychess.dev",
+        "userInterfaceStyle": "dark",
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/icon/android-dev-foreground.png",
+          "backgroundColor": "#0B1728",
+          "monochromeImage": "./assets/icon/android-adaptive-monochrome.png"
+        },
+        "versionCode": 1
+      },
+      "web": {
+        "favicon": "./assets/images/icon.png"
+      },
+      "plugins": [
+        [
+          "expo-router",
+          {
+            "origin": "https://replit.com/"
+          }
+        ],
+        "expo-font",
+        "expo-web-browser",
+        "expo-dev-client",
+        "./plugins/withAndroidSingleTask.js",
+        [
+          "expo-speech-recognition",
+          {
+            "microphonePermission": "AnyChess a besoin du microphone pour reconnaître vos coups d'échecs.",
+            "speechRecognitionPermission": "AnyChess a besoin de la reconnaissance vocale pour jouer aux échecs."
+          }
+        ],
+        "./modules/stockfish-uci/app.plugin.js"
+      ],
+      "experiments": {
+        "typedRoutes": true,
+        "reactCompiler": true
+      },
+      "extra": {
+        "anychessVariant": "development",
+        "easUpdateChannel": "development"
+      }
+    }
+  },
+  "stable": {
+    "expo": {
+      "name": "AnyChess",
+      "slug": "mobile",
+      "version": "0.0.7",
+      "orientation": "portrait",
+      "icon": "./assets/images/icon.png",
+      "scheme": "mobile",
+      "userInterfaceStyle": "dark",
+      "newArchEnabled": true,
+      "splash": {
+        "image": "./assets/images/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0B1728"
+      },
+      "ios": {
+        "supportsTablet": false
+      },
+      "android": {
+        "package": "com.anychess.app",
+        "userInterfaceStyle": "dark",
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/icon/android-adaptive-foreground.png",
+          "backgroundColor": "#0B1728",
+          "monochromeImage": "./assets/icon/android-adaptive-monochrome.png"
+        },
+        "versionCode": 8
+      },
+      "web": {
+        "favicon": "./assets/images/icon.png"
+      },
+      "plugins": [
+        [
+          "expo-router",
+          {
+            "origin": "https://replit.com/"
+          }
+        ],
+        "expo-font",
+        "expo-web-browser",
+        "./plugins/withAndroidSingleTask.js",
+        [
+          "expo-speech-recognition",
+          {
+            "microphonePermission": "AnyChess a besoin du microphone pour reconnaître vos coups d'échecs.",
+            "speechRecognitionPermission": "AnyChess a besoin de la reconnaissance vocale pour jouer aux échecs."
+          }
+        ],
+        "./modules/stockfish-uci/app.plugin.js",
+        "./plugins/withStandaloneAutolinking.js",
+        "./plugins/withReleaseSigning.js",
+        "./plugins/withStandaloneSchemes.js"
+      ],
+      "experiments": {
+        "typedRoutes": true,
+        "reactCompiler": true
+      },
+      "autolinking": {
+        "exclude": [
+          "expo-dev-client",
+          "expo-dev-launcher",
+          "expo-dev-menu",
+          "expo-dev-menu-interface"
+        ]
+      },
+      "extra": {
+        "anychessVariant": "stable",
+        "easUpdateChannel": "stable"
+      }
+    }
+  },
+  "standalone": {
+    "expo": {
+      "name": "AnyChess",
+      "slug": "mobile",
+      "version": "0.0.7",
+      "orientation": "portrait",
+      "icon": "./assets/images/icon.png",
+      "scheme": "anychess",
+      "userInterfaceStyle": "dark",
+      "newArchEnabled": true,
+      "splash": {
+        "image": "./assets/images/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0B1728"
+      },
+      "ios": {
+        "supportsTablet": false
+      },
+      "android": {
+        "package": "com.anychess.standalone",
+        "userInterfaceStyle": "dark",
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/icon/android-adaptive-foreground.png",
+          "backgroundColor": "#0B1728",
+          "monochromeImage": "./assets/icon/android-adaptive-monochrome.png"
+        },
+        "versionCode": 2
+      },
+      "web": {
+        "favicon": "./assets/images/icon.png"
+      },
+      "plugins": [
+        [
+          "expo-router",
+          {
+            "origin": "https://replit.com/"
+          }
+        ],
+        "expo-font",
+        "expo-web-browser",
+        "./plugins/withAndroidSingleTask.js",
+        [
+          "expo-speech-recognition",
+          {
+            "microphonePermission": "AnyChess a besoin du microphone pour reconnaître vos coups d'échecs.",
+            "speechRecognitionPermission": "AnyChess a besoin de la reconnaissance vocale pour jouer aux échecs."
+          }
+        ],
+        "./modules/stockfish-uci/app.plugin.js",
+        "./plugins/withStandaloneAutolinking.js",
+        "./plugins/withReleaseSigning.js",
+        "./plugins/withStandaloneSchemes.js"
+      ],
+      "experiments": {
+        "typedRoutes": true,
+        "reactCompiler": true
+      },
+      "autolinking": {
+        "exclude": [
+          "expo-dev-client",
+          "expo-dev-launcher",
+          "expo-dev-menu",
+          "expo-dev-menu-interface"
+        ]
+      },
+      "extra": {
+        "anychessVariant": "standalone",
+        "easUpdateChannel": "standalone"
+      }
+    }
+  }
+}
