@@ -18,7 +18,9 @@ export function verifiedBackup(
           .filter((row) => row.ownerId === ownerId)
           .map((row) => row.key),
         ...roots.filter(
-          (key) => /^anychess\.cloud\.backup\..+\.v1$/.test(key) && !key.endsWith('.index.v1'),
+          (key) =>
+            /^anychess\.cloud\.backup\..+\.v1$/.test(key) &&
+            !key.endsWith('.index.v1'),
         ),
       ]),
     ];
@@ -31,7 +33,9 @@ export function verifiedBackup(
           copy.docs &&
           typeof copy.docs === 'object' &&
           !Array.isArray(copy.docs) &&
-          Object.values(copy.docs).every((value) => value === null || typeof value === 'string') &&
+          Object.values(copy.docs).every(
+            (value) => value === null || typeof value === 'string',
+          ) &&
           docsEqual(copy.docs, docs)
         );
       } catch {
@@ -46,6 +50,9 @@ export function verifiedBackup(
         continue;
       } // Keep unreadable copies; never trust them for recovery.
       if (same(raw)) {
+        await storage.compactItem?.(key);
+        if (!same(await storage.getItem(key)))
+          throw new Error('backup_verify_failed');
         await rememberBackup(storage, key, ownerId);
         return key;
       }
@@ -63,17 +70,92 @@ export function verifiedBackup(
           await storage.updateItem(
             key,
             (current) => {
-              if (current && !same(current)) throw new Error('backup_collision');
+              if (current && !same(current))
+                throw new Error('backup_collision');
               return current ?? payload;
             },
             'cloud',
           );
         else await storage.setItem(key, payload);
       }
-      if (!same(await storage.getItem(key))) throw new Error('backup_verify_failed');
+      if (!same(await storage.getItem(key)))
+        throw new Error('backup_verify_failed');
       await rememberBackup(storage, key, ownerId);
       return key;
     }
     throw new Error('backup_collision');
   });
+}
+
+/** Read-only retention proposal. A hard cap must never discard a unique recovery
+ * state merely because it is old. Exposes counts only; there is no cleanup API. */
+export async function backupRetentionPlan(
+  storage: KeyValueStorage,
+  ownerId: string,
+  target = 2,
+) {
+  const keys = [
+    ...new Set([
+      ...(await readBackupIndex(storage))
+        .filter((r) => r.ownerId === ownerId)
+        .map((r) => r.key),
+      ...((await storage.getAllKeys?.()) ?? []).filter(
+        (k) =>
+          /^anychess\.cloud\.backup\..+\.v1$/.test(k) &&
+          !k.endsWith('.index.v1'),
+      ),
+    ]),
+  ];
+  const representatives: string[] = [];
+  let identicalCopies = 0,
+    protectedCopies = 0,
+    owned = 0;
+  for (const key of keys) {
+    let copy;
+    try {
+      copy = JSON.parse((await storage.getItem(key)) ?? 'null');
+    } catch {
+      protectedCopies++;
+      continue;
+    }
+    if (!copy || copy.ownerId !== ownerId) continue;
+    owned++;
+    if (
+      !copy.docs ||
+      typeof copy.docs !== 'object' ||
+      Array.isArray(copy.docs) ||
+      Object.values(copy.docs).some((v) => v !== null && typeof v !== 'string')
+    ) {
+      protectedCopies++;
+      continue;
+    }
+    let same = false;
+    for (const other of representatives) {
+      const candidate = JSON.parse((await storage.getItem(other))!);
+      const keys = new Set([
+        ...Object.keys(copy.docs),
+        ...Object.keys(candidate.docs),
+      ]);
+      if (
+        [...keys].every(
+          (k) => (copy.docs[k] ?? null) === (candidate.docs[k] ?? null),
+        )
+      ) {
+        same = true;
+        break;
+      }
+    }
+    if (same) identicalCopies++;
+    else representatives.push(key);
+  }
+  return {
+    readOnly: true,
+    target,
+    owned,
+    distinct: representatives.length,
+    identicalCopies,
+    protectedCopies,
+    uniqueBeyondTarget: Math.max(0, representatives.length - target),
+    deletionAuthorized: false,
+  };
 }

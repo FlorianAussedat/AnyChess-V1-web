@@ -5,6 +5,8 @@ import { serializedUpdate } from './serializedUpdate.ts';
  * Future Android native storage can implement the same contract.
  */
 export interface KeyValueStorage {
+  /** Optional verified representation compaction; preserves the logical value. */
+  compactItem?(key:string):Promise<void>;
   diagnoseStorage?(): Promise<import('./storageDiagnostics.ts').StorageReport>;
   getItem(key: string): Promise<string | null>;
   updateItem?(key: string, update: (current: string | null) => string | null, source?: 'cloud'): Promise<void>;

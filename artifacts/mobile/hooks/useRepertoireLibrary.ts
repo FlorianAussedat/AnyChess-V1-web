@@ -36,11 +36,14 @@ export function useRepertoireLibrary() {
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
   const accountId = useRef<string | null>(getActiveCloudEngine().getState().user?.id ?? null);
+  const libraryRevision = useRef(getActiveCloudEngine().getState().libraryRevision ?? 0);
   useEffect(() => {
     const engine = getActiveCloudEngine();
     return engine.subscribe(() => {
       const next = engine.getState().user?.id ?? null;
-      if (next === accountId.current) return;
+      const revision = engine.getState().libraryRevision ?? 0;
+      if (next === accountId.current && revision === libraryRevision.current) return;
+      libraryRevision.current = revision;
       accountId.current = next;
       repertoireService.discardCachedSnapshot();
       bump();

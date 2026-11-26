@@ -5,6 +5,42 @@
 import type { AppLanguage } from '../preferences/types.ts';
 
 export type MessageKey =
+  | "storage.incomplete"
+  | "storage.openings"
+  | "storage.games"
+  | "storage.translations"
+  | "storage.queue"
+  | "storage.mastery"
+  | "storage.preferences"
+  | "storage.profile"
+  | "storage.openingQuiz"
+  | "storage.moveNaming"
+  | "storage.playMove"
+  | "storage.blind"
+  | "storage.puzzleHistory"
+  | "storage.puzzleStreaks"
+  | "storage.cultureHistory"
+  | "storage.cultureFeedback"
+  | "storage.endgames"
+  | "storage.theoretical"
+  | "storage.continueLine"
+  | "storage.size"
+  | "storage.total"
+  | "storage.shared"
+  | "storage.backups"
+  | "storage.workspaces"
+  | "storage.blocks"
+  | "storage.integrity"
+  | "storage.categories"
+  | "storage.unreadable"
+  | "storage.avatars"
+  | "storage.guest"
+  | "storage.failure"
+  | "storage.noFailure"
+  | "storage.recovery"
+  | "storage.limits"
+  | "storage.title"
+
   | "cloud.quotaPaused"
   | "cloud.storageDiagnostics"
   | "cloud.storageDiagnosticsUnavailable"
@@ -1410,6 +1446,42 @@ export type MessageKey =
 type Dict = Record<MessageKey, string>;
 
 const fr: Dict = {
+  "storage.incomplete": "Mesure partielle ou modifiée pendant la lecture ; attendre la fin des écritures puis relancer le diagnostic.",
+  "storage.openings": "Répertoires PGN",
+  "storage.games": "Analyses et parties",
+  "storage.translations": "Traductions PGN",
+  "storage.queue": "File de traduction",
+  "storage.mastery": "Apprentissage des ouvertures",
+  "storage.preferences": "Préférences",
+  "storage.profile": "Profil",
+  "storage.openingQuiz": "Quiz d’ouvertures",
+  "storage.moveNaming": "Nommage des coups",
+  "storage.playMove": "Jeu des coups",
+  "storage.blind": "Mémoire à l’aveugle",
+  "storage.puzzleHistory": "Historique tactique",
+  "storage.puzzleStreaks": "Séries tactiques",
+  "storage.cultureHistory": "Historique culture",
+  "storage.cultureFeedback": "Retours culture",
+  "storage.endgames": "Entraînement finales",
+  "storage.theoretical": "Finales théoriques",
+  "storage.continueLine": "Continuer la ligne",
+  "storage.size": "{{value}} Kio",
+  "storage.total": "Volume physique mesuré (approximatif) : {{size}}",
+  "storage.shared": "Blocs compressés partagés : {{size}}",
+  "storage.backups": "Sauvegardes : {{count}} ; métadonnées et anciens blocs dédiés : {{size}}",
+  "storage.workspaces": "Espaces : {{count}} ; métadonnées et anciens blocs dédiés : {{size}}",
+  "storage.blocks": "Blocs : {{count}} ; référencés : {{referenced}} ; candidats non référencés : {{candidates}}",
+  "storage.integrity": "Lignes illisibles : {{unreadable}} ; racines invalides : {{invalid}}",
+  "storage.categories": "Volumes logiques par catégorie (avant compression)",
+  "storage.unreadable": "lecture impossible",
+  "storage.avatars": "Caches et intentions avatar : {{size}}",
+  "storage.guest": "Copie de récupération invitée : {{size}}",
+  "storage.failure": "Dernière écriture refusée : {{stage}} ; {{kind}} ; {{category}} ; volume logique demandé : {{size}}",
+  "storage.noFailure": "Aucune écriture refusée enregistrée depuis ce démarrage.",
+  "storage.recovery": "sauvegarde ou espace",
+  "storage.limits": "Lecture seule. Les volumes excluent les pages SQLite, index et journaux natifs ; la capacité libre réelle est inconnue. Les blocs sont partagés : ne pas les additionner plusieurs fois. Les candidats peuvent servir à une récupération interrompue : rien ne sera supprimé. L’étape d’échec est conservée en mémoire jusqu’au redémarrage.",
+  "storage.title": "Diagnostic du stockage local",
+
   "cloud.quotaPaused": "Stockage local saturé : les reprises automatiques sont suspendues. Les données sont conservées. Ne les efface pas ; après une récupération vérifiée, utilise Synchroniser pour réessayer.",
   "cloud.storageDiagnostics": "Diagnostic du stockage (lecture seule)",
   "cloud.storageDiagnosticsUnavailable": "Le diagnostic du stockage est incomplet ou indisponible. Aucune donnée n’a été effacée.",
@@ -2964,6 +3036,42 @@ const fr: Dict = {
 };
 
 const en: Dict = {
+  "storage.incomplete": "Partial measurement or values changed during the scan; wait for writes to finish and run the diagnostic again.",
+  "storage.openings": "Opening PGNs",
+  "storage.games": "Analyses and games",
+  "storage.translations": "PGN translations",
+  "storage.queue": "Translation queue",
+  "storage.mastery": "Opening learning",
+  "storage.preferences": "Preferences",
+  "storage.profile": "Profile",
+  "storage.openingQuiz": "Opening quizzes",
+  "storage.moveNaming": "Move naming",
+  "storage.playMove": "Play moves",
+  "storage.blind": "Blind memory",
+  "storage.puzzleHistory": "Puzzle history",
+  "storage.puzzleStreaks": "Puzzle streaks",
+  "storage.cultureHistory": "Culture history",
+  "storage.cultureFeedback": "Culture feedback",
+  "storage.endgames": "Endgame training",
+  "storage.theoretical": "Theoretical endgames",
+  "storage.continueLine": "Continue the line",
+  "storage.size": "{{value}} KiB",
+  "storage.total": "Measured physical values (approximate): {{size}}",
+  "storage.shared": "Shared compressed blocks: {{size}}",
+  "storage.backups": "Backups: {{count}}; metadata and legacy dedicated blocks: {{size}}",
+  "storage.workspaces": "Workspaces: {{count}}; metadata and legacy dedicated blocks: {{size}}",
+  "storage.blocks": "Blocks: {{count}}; referenced: {{referenced}}; unreferenced candidates: {{candidates}}",
+  "storage.integrity": "Unreadable rows: {{unreadable}}; invalid roots: {{invalid}}",
+  "storage.categories": "Logical category sizes (before compression)",
+  "storage.unreadable": "cannot read",
+  "storage.avatars": "Avatar caches and pending changes: {{size}}",
+  "storage.guest": "Guest recovery copy: {{size}}",
+  "storage.failure": "Last refused write: {{stage}}; {{kind}}; {{category}}; requested logical size: {{size}}",
+  "storage.noFailure": "No refused write recorded since this startup.",
+  "storage.recovery": "backup or workspace",
+  "storage.limits": "Read only. Values exclude native SQLite pages, indexes and journals; actual free capacity is unknown. Blocks are shared: do not count them multiple times. Candidates may belong to interrupted recovery attempts: nothing will be deleted. The failure stage remains in memory until restart.",
+  "storage.title": "Local storage diagnostic",
+
   "cloud.quotaPaused": "Local storage is full: automatic retries are paused. Data is retained. Do not clear it; after verified recovery, use Sync now to retry.",
   "cloud.storageDiagnostics": "Storage diagnostics (read only)",
   "cloud.storageDiagnosticsUnavailable": "Storage diagnostics are incomplete or unavailable. No data was deleted.",

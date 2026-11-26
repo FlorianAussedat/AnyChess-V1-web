@@ -16,7 +16,7 @@ class AndroidRows {
     return this.corrupt && k.includes('.chunks.') && v ? v.slice(1) : v;
   }
   async setItem(k: string, v: string) {
-    if (this.fail && k.includes('.chunks.')) throw new Error('database or disk is full PRIVATE');
+    if (this.fail && (k.includes('.chunks.') || k.startsWith('anychess.cloud.workspace.'))) throw new Error('database or disk is full PRIVATE');
     this.values.set(k, v);
   }
   async removeItem(k: string) {
@@ -181,7 +181,7 @@ it('refuses to finish logout when an active document changes while its snapshot 
   let changed = false;
   raw.setItem = async (k, v) => {
     await write(k, v);
-    if (!changed && k.includes('.chunks.')) {
+    if (!changed && k === cloudWorkspaceKey('owner')) {
       changed = true;
       await storage.setItem(key, '{"pending":"new edit"}');
       engine.notifyLocalMutation(key);
