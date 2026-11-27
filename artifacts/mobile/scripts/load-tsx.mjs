@@ -53,6 +53,17 @@ function rewriteRelative(specifier, parentURL) {
 
 export async function resolve(specifier, context, nextResolve) {
   if (specifier === '@react-native-async-storage/async-storage') return { url: pathToFileURL(join(root, 'lib/storage/__tests__/asyncStorageShim.ts')).href, shortCircuit: true };
+  // Speech bridge imports Expo; unit tests inject a fake native module instead.
+  if (
+    specifier === 'expo' &&
+    typeof context.parentURL === 'string' &&
+    context.parentURL.includes('/lib/speech/androidDictation')
+  ) {
+    return {
+      url: pathToFileURL(join(root, 'lib/speech/__tests__/shims/expo.ts')).href,
+      shortCircuit: true,
+    };
+  }
   if (useUiShims(context.parentURL) && shims.has(specifier)) {
     return {
       url: pathToFileURL(shims.get(specifier)).href,
