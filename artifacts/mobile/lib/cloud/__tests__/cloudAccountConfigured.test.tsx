@@ -41,6 +41,9 @@ function findByTestId(node: Tree | Tree[] | null, testID: string): Tree | null {
 const { create, act } = await import('react-test-renderer');
 const { CloudAccountSection } = await import('../../../components/cloud/CloudAccountSection.tsx');
 
+const { cloudSyncEngine } = await import('../cloudStore.ts');
+await cloudSyncEngine.hydrate();
+
 describe('configured cloud account form', () => {
   it('shows the sign-in form and not the missing-config message', async () => {
     let renderer!: ReturnType<typeof create>;

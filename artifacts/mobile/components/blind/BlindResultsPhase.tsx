@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ChessBoard } from '@/components/ChessBoard';
@@ -35,7 +35,6 @@ export function BlindResultsPhase() {
     backToHub,
     isGenerating,
   } = useBlindSequence();
-  const router = useRouter();
 
   if (!score) {
     return (
@@ -58,7 +57,7 @@ export function BlindResultsPhase() {
       : t('blind.withError');
 
   return (
-    <ModeScreenShell title={t('blind.result')} onBack={() => router.push('/' as Href)}>
+    <ModeScreenShell title={t('blind.result')} onBack={backToSettings}>
       <ScrollView contentContainerStyle={blindStyles.settingsBody}>
         <Text
           style={[blindStyles.scoreHero, { color: colors.primary }]}

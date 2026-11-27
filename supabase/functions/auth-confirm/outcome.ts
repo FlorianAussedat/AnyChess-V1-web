@@ -36,6 +36,7 @@ export const CONFIRM_COPY = {
     recoverSubmit: 'Enregistrer le mot de passe',
     recoverMismatch: 'Les deux mots de passe ne correspondent pas.',
     recoverShort: 'Le mot de passe doit contenir au moins 6 caractères.',
+    recoverRejected: 'Ce mot de passe est refusé. Choisis-en un autre en respectant les règles du compte.',
     recoverFailedTitle: 'Ce lien n’est plus valable',
     recoverFailed:
       'Ce lien ne permet plus de changer le mot de passe. Retourne dans AnyChess et redemande un e-mail.',
@@ -69,6 +70,7 @@ export const CONFIRM_COPY = {
     recoverSubmit: 'Save password',
     recoverMismatch: 'The two passwords do not match.',
     recoverShort: 'The password must contain at least 6 characters.',
+    recoverRejected: 'This password was rejected. Choose another one that meets the account requirements.',
     recoverFailedTitle: 'This link is no longer valid',
     recoverFailed: 'This link can no longer change the password. Go back to AnyChess and request a new email.',
     recoverNetwork: 'We can’t save the password from this page. Try again, or return to AnyChess.',
@@ -124,11 +126,12 @@ export function languageFromAccept(header: string | null | undefined): ConfirmLa
  * The only success path is a signup token whose user has `email_confirmed_at`.
  *
  * App links open the Utilisateur screen of the installed variant:
- * `client=dev` opens AnyChess Dev (`exp+mobile://utilisateur`, package
- * `com.anychess.app`); every other value opens standalone AnyChess
- * (`anychess://utilisateur`, package `com.anychess.standalone`). The Android
- * package disambiguates when both are installed. A scheme or URL supplied
- * in the query is ignored. Tokens are never copied into the app link.
+ * `client=dev` opens AnyChess Dev (`exp+anychessdev://utilisateur`, package
+ * `com.anychess.dev`); `client=app` opens AnyChess Stable (`mobile://utilisateur`,
+ * package `com.anychess.app`); `client=preview` opens `anychesspreview` exclusively
+ * in `com.anychess.preview`; every other value opens the historical standalone
+ * app (`anychess://utilisateur`, package `com.anychess.standalone`). A scheme or
+ * URL supplied in the query is ignored. Tokens are never copied into the app link.
  */
 export const INTERPRET_SOURCE = `
 function interpretConfirmationLocation(search, hash) {
@@ -174,15 +177,25 @@ function pageLanguage(search, navigatorLanguage) {
 function pageClient(search) {
   var query = new URLSearchParams(search.charAt(0) === '?' ? search.slice(1) : search);
   var value = (query.get('client') || '').toLowerCase();
-  if (value === 'dev') return 'dev';
-  return 'app';
+  if (value === 'dev' || value === 'app' || value === 'preview' || value === 'standalone') return value;
+  return 'standalone';
 }
 function appOpenHref(client, userAgent) {
   var android = /Android/i.test(userAgent || '');
   if (client === 'dev') {
     return android
-      ? 'intent://utilisateur#Intent;scheme=exp+mobile;package=com.anychess.app;end'
-      : 'exp+mobile://utilisateur';
+      ? 'intent://utilisateur#Intent;scheme=exp+anychessdev;package=com.anychess.dev;end'
+      : 'exp+anychessdev://utilisateur';
+  }
+  if (client === 'preview') {
+    return android
+      ? 'intent://utilisateur#Intent;scheme=anychesspreview;package=com.anychess.preview;end'
+      : 'anychesspreview://utilisateur';
+  }
+  if (client === 'app') {
+    return android
+      ? 'intent://utilisateur#Intent;scheme=mobile;package=com.anychess.app;end'
+      : 'mobile://utilisateur';
   }
   return android
     ? 'intent://utilisateur#Intent;scheme=anychess;package=com.anychess.standalone;end'

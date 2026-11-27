@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -43,6 +44,7 @@ export default function JouerLeCoupScreen() {
   const colors = useColors();
   const { t } = useTranslation();
   const router = useRouter();
+  const goBack = useSmartBack();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const resumeSessionId =
     typeof params.sessionId === 'string' ? params.sessionId : undefined;
@@ -106,7 +108,7 @@ export default function JouerLeCoupScreen() {
     onNavigateBack: () => {
       speechService.cancel('play-move-leave');
       returnJouerToIdle();
-      router.navigate('/');
+      goBack();
     },
     captureHardwareBack: true,
   });
@@ -290,7 +292,7 @@ export default function JouerLeCoupScreen() {
           onBack={() => {
             sessionRef.current.returnToIdle();
             sync();
-            router.navigate('/');
+            goBack();
           }}
         />
       )}

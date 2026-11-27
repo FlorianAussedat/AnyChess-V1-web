@@ -8,16 +8,28 @@ export type DeletionHttp = { status: number; body: string } | 'network';
  * A bare 401 is not proof the account is gone (expired token, wrong password).
  * Only an explicit "user does not exist" body is.
  */
-export function classifyAuthProbe(status: number, body: string, networkError: boolean): AccountProbe {
+export function classifyAuthProbe(
+  status: number,
+  body: string,
+  networkError: boolean,
+): AccountProbe {
   if (networkError) return 'unknown';
-  const text = body.toLowerCase();
-  if (
-    text.includes('user from sub claim in jwt does not exist') ||
-    text.includes('user_not_found') ||
-    text.includes('user not found')
-  ) {
-    return 'gone';
+  if (status >= 500 || status === 0) return 'unknown';
+  let code = '',
+    message = '';
+  try {
+    const parsed = JSON.parse(body);
+    code = String(parsed.error_code ?? parsed.code ?? '').toLowerCase();
+    message = String(parsed.msg ?? parsed.message ?? '').toLowerCase();
+  } catch {
+    return 'unknown';
   }
+  if (
+    status >= 400 &&
+    status < 500 &&
+    (code === 'user_not_found' || message === 'user from sub claim in jwt does not exist')
+  )
+    return 'gone';
   if (status >= 200 && status < 300) return 'exists';
   return 'unknown';
 }
@@ -36,10 +48,8 @@ export function decideDeletionOutcome(http: DeletionHttp, probe?: AccountProbe):
   }
   if (http.status >= 200 && http.status < 300 && parsed.ok === true) return 'wipe';
   if (parsed.error === 'reauth_failed' || parsed.error === 'reauth_required') return 'keep';
-  const bodyProbe = classifyAuthProbe(http.status, http.body, false);
-  if (bodyProbe === 'gone' || parsed.alreadyDeleted === true) return 'wipe';
+  if (probe === 'gone') return 'wipe';
   if (http.status >= 500 || http.status === 0) {
-    if (probe === 'gone') return 'wipe';
     if (probe === 'exists') return 'keep';
     return 'keep-pending';
   }
@@ -50,12 +60,16 @@ export function deletionErrorCode(decision: DeletionDecision, http: DeletionHttp
   if (decision === 'wipe') return null;
   if (http !== 'network') {
     const body = http.body.toLowerCase();
-    if (http.status === 404 && /requested function was not found|function was not found/.test(body)) {
+    if (
+      http.status === 404 &&
+      /requested function was not found|function was not found/.test(body)
+    ) {
       return 'unavailable';
     }
     try {
       const parsed = JSON.parse(http.body) as { error?: string; message?: string; msg?: string };
-      const code = `${parsed.error ?? ''} ${parsed.message ?? ''} ${parsed.msg ?? ''}`.toLowerCase();
+      const code =
+        `${parsed.error ?? ''} ${parsed.message ?? ''} ${parsed.msg ?? ''}`.toLowerCase();
       if (parsed.error === 'reauth_failed') return 'reauth_failed';
       if (
         http.status === 401 &&

@@ -1,3 +1,4 @@
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import React, {
   createContext,
@@ -19,7 +20,6 @@ import { OpeningOpponent, type TheoryExit, type OpeningTrainingState, type Openi
 import type { ParsedRepertoire } from '@/lib/repertoire';
 import {
   anyChessPgnFilename,
-  downloadPgnFile,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
 import { exportOpeningPlayedPgn } from '@/lib/repertoire/playedLineAnnotations';
@@ -81,6 +81,7 @@ interface OpeningGameContextValue {
   repertoireName: string;
   openingLabel: string | null;
   strengthBandId: string;
+  setStrengthBandId: (id: string) => void;
   strengthBandLabel: string;
   ready: boolean;
   loadError: string | null;
@@ -109,7 +110,7 @@ interface OpeningGameContextValue {
   /** Start another line (new game — different random book branches). */
   nextLine: () => void;
   exportPgn: () => string;
-  downloadPgn: () => void;
+  downloadPgn: () => Promise<unknown>;
 }
 
 const OpeningGameContext = createContext<OpeningGameContextValue | null>(null);
@@ -147,7 +148,7 @@ export function OpeningGameProvider({
   repertoire,
   repertoireName,
   loadError = null,
-  strengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
+  strengthBandId: initialStrengthBandId = preferencesStore.getPreferences().stockfishStrengthBandId ||
     DEFAULT_STRENGTH_BAND_ID,
   sourcePgn = null,
   lineLabel = null,
@@ -156,6 +157,9 @@ export function OpeningGameProvider({
   onPersistReviewResult,
   onRequestNextLine,
 }: ProviderProps) {
+  // Seed once per exercise; session changes never update the user's default.
+  const [strengthBandId, setBand] = React.useState(() => getStrengthBand(initialStrengthBandId).id);
+  const setStrengthBandId = useCallback((id: string) => setBand(getStrengthBand(id).id), []);
   const opponentRef = useRef<OpeningOpponent | null>(null);
   const [phase, setPhase] = React.useState<OpeningPhase>('book');
   const [trainingState, setTrainingState] =
@@ -823,7 +827,7 @@ export function OpeningGameProvider({
 
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
   const downloadPgn = useCallback(() => {
-    downloadPgnFile(anyChessPgnFilename(), buildPgn());
+    return requestPgnExport(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
 
   useEffect(() => {
@@ -854,6 +858,7 @@ export function OpeningGameProvider({
         repertoireName,
         openingLabel,
         strengthBandId,
+        setStrengthBandId,
         strengthBandLabel,
         ready,
         loadError,

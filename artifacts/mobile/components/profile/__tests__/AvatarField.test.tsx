@@ -3,7 +3,16 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import TestRenderer, { act } from 'react-test-renderer';
 import { BackHandler } from '../../../lib/theoreticalEndgame/__tests__/uiShims/reactNative.ts';
-import { AvatarField } from '../AvatarField.tsx';
+import { AvatarField as RealAvatarField } from '../AvatarField.tsx';
+import { avatarCropPreview } from '../../../lib/profile/avatarCrop.ts';
+function AvatarField(props: React.ComponentProps<typeof RealAvatarField>) {
+  return (
+    <RealAvatarField
+      prepareSource={async (uri) => ({ uri, width: 0, height: 0 })}
+      {...props}
+    />
+  );
+}
 import { avatarPreviewLayout } from '../../../lib/profile/avatarImage.ts';
 
 const PHOTO = 'file://portrait.jpg';
@@ -43,6 +52,199 @@ async function openCrop(
 }
 
 describe('avatar crop dialog', () => {
+  it('drags in both axes and exports the exact preview position after zooming', async () => {
+    let input:
+      | Parameters<
+          NonNullable<React.ComponentProps<typeof AvatarField>['prepareImage']>
+        >[0]
+      | undefined;
+    let root!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      root = TestRenderer.create(
+        <AvatarField
+          username="Ada"
+          imageUri="previous"
+          onChange={() => {}}
+          pickImage={async () => ({ uri: PHOTO, mime: 'image/jpeg' })}
+          prepareImage={async (next) => {
+            input = next;
+            return { dataUrl: 'data:image/png;base64,next' };
+          }}
+        />,
+      );
+    });
+    await openCrop(root, { width: 800, height: 600 });
+    await act(async () => {
+      byId(root, 'avatar-crop-zoom').props.onLayout({
+        nativeEvent: { layout: { width: 200 } },
+      });
+    });
+    await act(async () => {
+      byId(root, 'avatar-crop-zoom').props.onResponderGrant({
+        nativeEvent: { locationX: 100 },
+      });
+    });
+    await act(async () => {
+      byId(root, 'avatar-crop-frame').props.onResponderGrant({
+        nativeEvent: { pageX: 80, pageY: 60 },
+      });
+    });
+    assert.equal(
+      byId(root, 'avatar-crop-frame').props.onResponderTerminationRequest(),
+      false,
+    );
+    await act(async () => {
+      byId(root, 'avatar-crop-frame').props.onResponderMove({
+        nativeEvent: { pageX: 30, pageY: 85 },
+      });
+    });
+    const visible = byId(root, 'avatar-crop-preview').props.style;
+    await act(async () => {
+      await byId(root, 'avatar-crop-confirm').props.onPress();
+    });
+    assert.ok(input?.position);
+    assert.ok(input.position.x > 0.5 && input.position.y < 0.5);
+    const expected = avatarCropPreview(
+      800,
+      600,
+      220,
+      input.zoom!,
+      input.position,
+    );
+    assert.deepEqual(
+      [visible.width, visible.height, visible.left, visible.top],
+      [expected.width, expected.height, expected.left, expected.top],
+    );
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it('keeps the previous avatar on read errors and ignores a late import after cancel', async () => {
+    const pending = deferred<{ uri: string; width: number; height: number }>();
+    let saves = 0,
+      attempts = 0;
+    let root!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      root = TestRenderer.create(
+        <RealAvatarField
+          username="Ada"
+          imageUri="previous"
+          onChange={() => {
+            saves++;
+          }}
+          pickImage={async () => ({ uri: PHOTO, mime: 'image/jpeg' })}
+          prepareSource={async () => {
+            attempts++;
+            return attempts === 1 ? { error: 'failed' } : pending.promise;
+          }}
+        />,
+      );
+    });
+    await act(async () => {
+      byId(root, 'avatar-field-add').props.onPress();
+    });
+    await act(async () => {
+      await byId(root, 'avatar-choice-import').props.onPress();
+    });
+    assert.ok(byId(root, 'avatar-crop-error-modal'));
+    assert.equal(byId(root, 'avatar-field-image').props.source.uri, 'previous');
+    let importing!: Promise<void>;
+    await act(async () => {
+      importing = byId(root, 'avatar-choice-import').props.onPress();
+    });
+    await act(async () => {
+      byId(root, 'avatar-choice-cancel').props.onPress();
+    });
+    await act(async () => {
+      pending.resolve({ uri: 'late', width: 200, height: 100 });
+      await importing;
+    });
+    assert.equal(root.root.findByType('Modal').props.visible, false);
+    assert.equal(saves, 0);
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it('serializes mascot/removal saves, displays failures, and blocks cancellation during durable saving', async () => {
+    const pending = deferred<'failed'>();
+    let calls = 0;
+    let root!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      root = TestRenderer.create(
+        <AvatarField
+          username="Ada"
+          imageUri="previous"
+          onChange={async () => {
+            calls++;
+            return pending.promise;
+          }}
+          mascotSource={() => ({ uri: 'bundled' })}
+        />,
+      );
+    });
+    await act(async () => {
+      byId(root, 'avatar-field-add').props.onPress();
+    });
+    await act(async () => {
+      await byId(root, 'avatar-choice-mascot').props.onPress();
+    });
+    await act(async () => {
+      byId(root, 'avatar-mascot-player-knight-dj').props.onPress();
+    });
+    let saving!: Promise<void>;
+    await act(async () => {
+      saving = byId(root, 'avatar-mascot-confirm').props.onPress();
+    });
+    await act(async () => {
+      byId(root, 'avatar-mascot-confirm').props.onPress();
+      root.root.findByType('Modal').props.onRequestClose();
+    });
+    assert.equal(calls, 1);
+    assert.equal(root.root.findByType('Modal').props.visible, true);
+    assert.equal(byId(root, 'avatar-mascot-cancel').props.disabled, true);
+    await act(async () => {
+      pending.resolve('failed');
+      await saving;
+    });
+    assert.ok(byId(root, 'avatar-crop-error-modal'));
+    assert.equal(byId(root, 'avatar-field-image').props.source.uri, 'previous');
+    await act(async () => {
+      byId(root, 'avatar-mascot-cancel').props.onPress();
+    });
+    await act(async () => {
+      await byId(root, 'avatar-field-remove').props.onPress();
+    });
+    assert.ok(byId(root, 'avatar-save-error'));
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it('reports a deferred sync failure outside the closed dialog instead of claiming success', async () => {
+    let root!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      root = TestRenderer.create(
+        <AvatarField
+          username="Ada"
+          imageUri="previous"
+          onChange={async () => 'sync_failed'}
+          pickImage={async () => ({ uri: PHOTO, mime: 'image/jpeg' })}
+          prepareImage={async () => ({ dataUrl: 'data:image/png;base64,next' })}
+        />,
+      );
+    });
+    await openCrop(root, { width: 200, height: 200 });
+    await act(async () => {
+      await byId(root, 'avatar-crop-confirm').props.onPress();
+    });
+    assert.equal(root.root.findByType('Modal').props.visible, false);
+    assert.ok(byId(root, 'avatar-save-error').props.children);
+    await act(async () => {
+      root.unmount();
+    });
+  });
   it('opens after a photo is chosen and closes on cancel and Android back', async () => {
     let changes = 0;
     let root: TestRenderer.ReactTestRenderer;
@@ -74,7 +276,9 @@ describe('avatar crop dialog', () => {
     assert.equal(root!.root.findByType('Modal').props.visible, false);
 
     await openCrop(root!, { width: 300, height: 600 });
-    const listeners = [...(BackHandler as { listeners: Set<() => boolean> }).listeners];
+    const listeners = [
+      ...(BackHandler as { listeners: Set<() => boolean> }).listeners,
+    ];
     assert.equal(listeners.length, 1);
     await act(async () => {
       assert.equal(listeners[0]!(), true);
@@ -107,7 +311,9 @@ describe('avatar crop dialog', () => {
       await openCrop(root!, source);
       await act(async () => {
         const track = byId(root!, 'avatar-crop-zoom');
-        track.props.onLayout({ nativeEvent: { layout: { width: 200, height: 44 } } });
+        track.props.onLayout({
+          nativeEvent: { layout: { width: 200, height: 44 } },
+        });
       });
       await act(async () => {
         byId(root!, 'avatar-crop-zoom').props.onResponderGrant({
@@ -127,16 +333,21 @@ describe('avatar crop dialog', () => {
       assert.equal(frame.height, expected.frameHeight);
       assert.equal(frame.width, frame.height);
       assert.ok(frame.borderRadius > 0);
-      assert.equal(preview.width, expected.imageWidth);
-      assert.equal(preview.height, expected.imageHeight);
-      assert.equal(preview.transform[0].scale.current, 2);
+      const actual = avatarCropPreview(source.width, source.height, 220, 2);
+      assert.equal(preview.width, actual.width);
+      assert.equal(preview.height, actual.height);
+      assert.equal(preview.left, actual.left);
+      assert.equal(preview.top, actual.top);
       const side = Math.min(source.width, source.height) / 2;
       assert.equal(expected.crop.width, side);
       assert.equal(expected.crop.height, side);
       await act(async () => {
         byId(root!, 'avatar-use-full').props.onPress();
       });
-      assert.equal(byId(root!, 'avatar-crop-preview').props.style.transform[0].scale.current, 1);
+      assert.equal(
+        byId(root!, 'avatar-crop-preview').props.style.width,
+        expected.imageWidth,
+      );
       await act(async () => {
         root!.unmount();
       });
@@ -169,7 +380,10 @@ describe('avatar crop dialog', () => {
       await byId(root!, 'avatar-crop-confirm').props.onPress();
     });
     assert.equal(root!.root.findByType('Modal').props.visible, true);
-    assert.match(byId(root!, 'avatar-crop-error-modal').props.children, /réessayer/);
+    assert.match(
+      byId(root!, 'avatar-crop-error-modal').props.children,
+      /réessayer/,
+    );
     assert.equal(byId(root!, 'avatar-crop-confirm').props.disabled, false);
     assert.equal(saved.length, 0);
     await act(async () => {
@@ -203,7 +417,10 @@ describe('avatar crop dialog', () => {
       await byId(root!, 'avatar-crop-confirm').props.onPress();
     });
     assert.equal(changes, 0);
-    assert.match(byId(root!, 'avatar-crop-error-modal').props.children, /cette version/);
+    assert.match(
+      byId(root!, 'avatar-crop-error-modal').props.children,
+      /cette version/,
+    );
     await act(async () => {
       byId(root!, 'avatar-crop-cancel').props.onPress();
     });
@@ -293,7 +510,11 @@ describe('avatar crop dialog', () => {
     await act(async () => {
       byId(root!, 'avatar-mascot-classic-knight-soundwave').props.onPress();
     });
-    assert.equal(byId(root!, 'avatar-mascot-classic-knight-soundwave').props.accessibilityState.selected, true);
+    assert.equal(
+      byId(root!, 'avatar-mascot-classic-knight-soundwave').props
+        .accessibilityState.selected,
+      true,
+    );
     await act(async () => {
       byId(root!, 'avatar-mascot-cancel').props.onPress();
     });

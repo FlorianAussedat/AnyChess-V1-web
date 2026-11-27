@@ -20,7 +20,7 @@ export function useCloudAccount() {
       password: string,
       options?: { abandoned?: () => boolean },
     ) => getActiveCloudEngine().signIn(email, password, options),
-    signUp: (email: string, password: string) => getActiveCloudEngine().signUp(email, password),
+    signUp: (email: string, password: string, options?: { abandoned?: () => boolean }) => getActiveCloudEngine().signUp(email, password, options),
     signOut: () => getActiveCloudEngine().signOut(),
     recoverPassword: (email: string) => getActiveCloudEngine().recoverPassword(email),
     resendSignupConfirmation: (email: string) =>
@@ -28,6 +28,8 @@ export function useCloudAccount() {
     dismissPendingConfirmation: () => getActiveCloudEngine().dismissPendingConfirmation(),
     sync: (options?: { allowCellular?: boolean }) => getActiveCloudEngine().sync(options),
     guestDataAvailable: () => getActiveCloudEngine().guestDataAvailable(),
+    noteBackgroundFailure: (stage:string,error:unknown)=>getActiveCloudEngine().noteBackgroundFailure(stage,error),
+    diagnoseStorage: ()=>getActiveCloudEngine().storageHandle().diagnoseStorage?.(),
     importGuestData: () => getActiveCloudEngine().importGuestData(),
   };
 }

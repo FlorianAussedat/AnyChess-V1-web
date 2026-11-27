@@ -7,7 +7,8 @@ const path = require('node:path');
 /**
  * Expo reads .env once, before this file, and does not override variables
  * already present in the shell. Fill the public Supabase URL and anon key
- * from the gitignored .env, or from the management API when its token works.
+ * from the gitignored .env, the management API when its token works, or the
+ * public anon key recovered from the V0.0.6 standalone APK.
  * A refused management token is not a client key and is never written here.
  */
 function applyPublicSupabaseEnv(root) {
@@ -52,7 +53,12 @@ function ensurePublicSupabaseEnv(root) {
   applyPublicSupabaseEnv(root);
 }
 
-ensurePublicSupabaseEnv(__dirname);
+if (process.env.ANYCHESS_VARIANT === 'preview') {
+  // Preview must never silently fall back to another project or Auth client.
+  require('./lib/app/previewBuild.cjs').validatePreviewPublicEnv(process.env);
+} else {
+  ensurePublicSupabaseEnv(__dirname);
+}
 
 /**
  * AnyChess Dev Metro bundle. Production export (standalone) is left alone:

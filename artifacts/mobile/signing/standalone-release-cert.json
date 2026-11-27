@@ -1,0 +1,12 @@
+{
+  "package": "com.anychess.standalone",
+  "apkFileName": "AnyChess-standalone-release.apk",
+  "apkSha256": "3fd60686ecb51f75e58c7025a0ebf2637d103a35405028c593456b0f04cae4bd",
+  "versionName": "0.0.6",
+  "versionCode": 1,
+  "certSha256": "CB:DF:1C:90:EE:FA:B0:91:80:BE:47:73:90:F9:99:06:24:1A:AE:DE:1F:48:96:2A:B8:E9:41:6A:FD:4C:E7:AA",
+  "certSha1": "05:E8:E5:CC:40:5D:41:69:82:30:FC:7D:4E:63:72:3E:E9:EC:FB:55",
+  "subject": "CN=AnyChess, OU=AnyChess, O=AnyChess, L=Unknown, ST=Unknown, C=FR",
+  "signatureScheme": "APK v2",
+  "privateKey": "absent — the original .jks cannot be rebuilt from this certificate"
+}

@@ -8,7 +8,6 @@ import { DesignTokens } from '@/constants/designTokens';
 import { DeleteAccountControl } from '@/components/cloud/DeleteAccountControl';
 import { PasswordField } from '@/components/cloud/PasswordField';
 import { confirmationResendWaitSeconds } from '@/lib/cloud';
-import { decideCloudTransfer } from '@/lib/cloud/syncTransport';
 import { confirmAction } from '@/lib/openings/confirmAction';
 import { consumeAuthReturn } from '@/lib/cloud/authReturn';
 import { setAuthDraftEmail, peekAuthDraftEmail } from '@/lib/cloud/authDraft';
@@ -18,7 +17,11 @@ import {
   rememberEmailAfterSignIn,
 } from '@/lib/cloud/rememberedEmail';
 import { defaultKeyValueStorage } from '@/lib/storage';
+import { validAuthEmail } from '@/lib/cloud/authRequest';
 import type { CloudAuthError, CloudSyncStatus } from '@/lib/cloud';
+import { AppDialog } from '@/components/ui/AppDialog';
+import { storageReportText, syncReportText } from '@/lib/storage/storageReportText';
+import { authClientVariant } from '@/lib/cloud/supabaseConfig';
 import type { MessageKey } from '@/lib/i18n/messages';
 
 const SIGN_IN_TIMEOUT_MS = 20_000;
@@ -36,6 +39,10 @@ export const AUTH_ERROR_KEYS: Record<CloudAuthError, MessageKey> = {
   unexpected: 'cloud.errorUnexpected',
   unconfigured: 'cloud.errorUnexpected',
   signup_ambiguous: 'cloud.signupAmbiguous',
+  timeout: 'cloud.signInTimeout',
+  service_unavailable: 'cloud.errorService',
+  session_expired: 'cloud.errorSession',
+  local_save_failed: 'cloud.localSaveFailed',
 };
 
 function authFailureText(
@@ -61,7 +68,7 @@ function backupStatusKey(
   if (status === 'syncing') return 'cloud.statusSyncing';
   if (status === 'error') return 'cloud.statusError';
   if (status === 'offline') return 'cloud.statusOffline';
-  if (status === 'waiting_wifi') return 'cloud.statusWaitingWifi';
+  if (status === 'waiting_wifi') return 'cloud.statusPending';
   return 'cloud.statusPending';
 }
 
@@ -78,10 +85,17 @@ export function CloudAccountSection() {
   const attemptRef = useRef(0);
   const aliveRef = useRef(true);
   const signingRef = useRef(false);
+  const actionRef = useRef(false);
+  const emailEditedRef = useRef(false);
+  const ownerRef = useRef(cloud.user?.id ?? null);
   const [formError, setFormError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [guestImportReady, setGuestImportReady] = useState(false);
+  const [auditText,setAuditText]=useState<string|null>(null);
+  const [auditBusy,setAuditBusy]=useState(false);
+  const auditAttempt=useRef(0);
+  useEffect(()=>{auditAttempt.current++;setAuditText(null);setAuditBusy(false);},[cloud.user?.id]);
 
   const pending = cloud.pendingConfirmationEmail;
 
@@ -100,11 +114,22 @@ export function CloudAccountSection() {
       return;
     }
     let cancelled = false;
-    void readRememberedEmail(defaultKeyValueStorage).then((saved) => {
-      if (cancelled || !saved.enabled || !saved.email) return;
-      setEmail(saved.email);
-      setRemember(true);
-    });
+    void readRememberedEmail(defaultKeyValueStorage)
+      .then((saved) => {
+        if (
+          cancelled ||
+          emailEditedRef.current ||
+          ownerRef.current ||
+          !saved.enabled ||
+          !saved.email
+        )
+          return;
+        setEmail(saved.email);
+        setRemember(true);
+      })
+      .catch(() => {
+        if (!cancelled) setFormError(t('cloud.localSaveFailed'));
+      });
     return () => {
       cancelled = true;
     };
@@ -124,23 +149,35 @@ export function CloudAccountSection() {
     let cancelled = false;
     void cloud.guestDataAvailable().then((ready) => {
       if (!cancelled) setGuestImportReady(ready);
-    });
+    }).catch(error=>{ if(!cancelled) cloud.noteBackgroundFailure('account.guest_availability',error); });
     return () => {
       cancelled = true;
     };
   }, [cloud.user]);
 
   useEffect(() => {
-    if (!cloud.user) return;
-    const back = consumeAuthReturn();
-    if (!back) return;
-    router.replace(back as Href);
-  }, [cloud.user, router]);
+    const owner = cloud.user?.id ?? null;
+    if (owner === ownerRef.current) return;
+    ownerRef.current = owner;
+    setPassword('');
+    setEmail('');
+    setAuthDraftEmail('');
+    setFormError(null);
+    setInfo(null);
+  }, [cloud.user?.id]);
 
   const waitSeconds = confirmationResendWaitSeconds(now);
 
   const submitSignIn = () => {
-    if (busy || signingIn || signingRef.current) return;
+    if (busy || signingIn || signingRef.current || actionRef.current) return;
+    if (!validAuthEmail(email)) {
+      setFormError(t('cloud.errorEmailInvalid'));
+      return;
+    }
+    if (!password) {
+      setFormError(t('cloud.errorInvalid'));
+      return;
+    }
     signingRef.current = true;
     const attempt = attemptRef.current + 1;
     attemptRef.current = attempt;
@@ -167,6 +204,10 @@ export function CloudAccountSection() {
           } catch {
             setFormError(t('cloud.localSaveFailed'));
           }
+          setPassword('');
+          setAuthDraftEmail('');
+          const back = consumeAuthReturn();
+          if (back) router.replace(back as Href);
           return;
         }
         if (result.error !== 'confirm_email' && result.error !== 'email_not_confirmed') {
@@ -185,18 +226,34 @@ export function CloudAccountSection() {
     })();
   };
 
-  const run = async (action: () => Promise<{ ok: boolean; error?: CloudAuthError }>) => {
-    if (busy) return;
+  const runMail = async (
+    action: () => Promise<{ ok: boolean; error?: CloudAuthError }>,
+    message: MessageKey,
+  ) => {
+    if (busy || actionRef.current || signingRef.current) return;
+    if (!validAuthEmail(email || pending || '')) {
+      setFormError(t('cloud.errorEmailInvalid'));
+      return;
+    }
+    actionRef.current = true;
     setBusy(true);
     setFormError(null);
     setInfo(null);
+    const attempt = attemptRef.current;
+    const ownerAtStart = ownerRef.current;
     try {
       const result = await action();
-      if (!result.ok && result.error !== 'confirm_email' && result.error !== 'email_not_confirmed') {
-        setFormError(authFailureText(result, t));
-      }
+      if (!aliveRef.current || attemptRef.current !== attempt || ownerRef.current !== ownerAtStart) return;
+      if (result.ok) setInfo(t(message));
+      else setFormError(authFailureText(result, t));
+    } catch {
+      if (aliveRef.current) setFormError(t('cloud.errorUnexpected'));
     } finally {
-      setBusy(false);
+      actionRef.current = false;
+      if (aliveRef.current) {
+        setBusy(false);
+        setNow(Date.now());
+      }
     }
   };
 
@@ -238,10 +295,19 @@ export function CloudAccountSection() {
                     : colors.mutedForeground,
               },
             ]}
+            accessibilityLiveRegion="polite"
             testID="cloud-backup-status"
           >
             {t(backupStatusKey(cloud.status))}
           </Text>
+          {cloud.lastSyncedAt ? (
+            <Text
+              style={[styles.hint, { color: colors.mutedForeground }]}
+              testID="cloud-last-synced"
+            >
+              {t('cloud.lastSyncedAt', { date: new Date(cloud.lastSyncedAt).toLocaleString() })}
+            </Text>
+          ) : null}
         </View>
       ) : null}
       {pending && !cloud.user ? (
@@ -254,25 +320,18 @@ export function CloudAccountSection() {
               testID="cloud-resend"
               disabled={busy || waitSeconds > 0}
               onPress={() => {
-                void (async () => {
-                  if (busy || confirmationResendWaitSeconds() > 0) return;
-                  setBusy(true);
-                  setFormError(null);
-                  setInfo(null);
-                  try {
-                    const result = await cloud.resendSignupConfirmation(pending);
-                    if (result.ok) setInfo(t('cloud.resendSent'));
-                    else setFormError(t(AUTH_ERROR_KEYS[result.error ?? 'unexpected']));
-                  } finally {
-                    setNow(Date.now());
-                    setBusy(false);
-                  }
-                })();
+                if (confirmationResendWaitSeconds() > 0) return;
+                void runMail(() => cloud.resendSignupConfirmation(pending), 'cloud.resendSent');
               }}
-              style={[styles.btn, { borderColor: colors.border, opacity: waitSeconds > 0 ? 0.55 : 1 }]}
+              style={[
+                styles.btn,
+                { borderColor: colors.border, opacity: waitSeconds > 0 ? 0.55 : 1 },
+              ]}
             >
               <Text style={{ color: colors.primary }}>
-                {waitSeconds > 0 ? t('cloud.resendWait', { seconds: waitSeconds }) : t('cloud.resendEmail')}
+                {waitSeconds > 0
+                  ? t('cloud.resendWait', { seconds: waitSeconds })
+                  : t('cloud.resendEmail')}
               </Text>
             </Pressable>
             <Pressable
@@ -290,11 +349,15 @@ export function CloudAccountSection() {
           </View>
         </View>
       ) : null}
-      {!cloud.user && !pending && cloud.status !== 'unconfigured' ? (
+      {!cloud.user &&
+      !pending &&
+      cloud.sessionReady !== false &&
+      cloud.status !== 'unconfigured' ? (
         <View style={styles.form}>
           <TextInput
             value={email}
             onChangeText={(value) => {
+              emailEditedRef.current = true;
               setEmail(value);
               setAuthDraftEmail(value);
             }}
@@ -304,9 +367,17 @@ export function CloudAccountSection() {
             textContentType="emailAddress"
             autoComplete="email"
             importantForAutofill="yes"
+            accessibilityLabel={t('cloud.email')}
             placeholder={t('cloud.email')}
             placeholderTextColor={colors.mutedForeground}
-            style={[styles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.input }]}
+            style={[
+              styles.input,
+              {
+                color: colors.foreground,
+                borderColor: colors.border,
+                backgroundColor: colors.input,
+              },
+            ]}
             testID="cloud-email"
           />
           <PasswordField
@@ -324,7 +395,10 @@ export function CloudAccountSection() {
             accessibilityLabel={t('cloud.rememberEmail')}
             onPress={() => {
               setRemember((current) => {
-                if (current) void clearRememberedEmail(defaultKeyValueStorage);
+                if (current)
+                  void clearRememberedEmail(defaultKeyValueStorage).catch(() =>
+                    setFormError(t('cloud.localSaveFailed')),
+                  );
                 return !current;
               });
             }}
@@ -339,7 +413,9 @@ export function CloudAccountSection() {
                 },
               ]}
             />
-            <Text style={[styles.rememberText, { color: colors.foreground }]}>{t('cloud.rememberEmail')}</Text>
+            <Text style={[styles.rememberText, { color: colors.foreground }]}>
+              {t('cloud.rememberEmail')}
+            </Text>
           </Pressable>
           <Pressable
             testID="cloud-signin"
@@ -348,7 +424,10 @@ export function CloudAccountSection() {
             accessibilityState={{ disabled: busy || signingIn, busy: signingIn }}
             accessibilityLabel={signingIn ? t('cloud.signInBusy') : t('cloud.signIn')}
             onPress={submitSignIn}
-            style={[styles.primaryBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+            style={[
+              styles.primaryBtn,
+              { backgroundColor: colors.primary, borderColor: colors.primary },
+            ]}
           >
             {signingIn ? (
               <ActivityIndicator color={colors.primaryForeground} testID="cloud-signin-busy" />
@@ -364,15 +443,13 @@ export function CloudAccountSection() {
             testID="cloud-recover"
             disabled={busy || !email.trim()}
             onPress={() => {
-              void (async () => {
-                const result = await cloud.recoverPassword(email.trim());
-                if (result.ok) setInfo(t('cloud.recoverSent'));
-                else setFormError(authFailureText(result, t));
-              })();
+              void runMail(() => cloud.recoverPassword(email.trim()), 'cloud.recoverSent');
             }}
             style={styles.recover}
           >
-            <Text style={{ color: colors.mutedForeground, flexShrink: 1 }}>{t('cloud.recover')}</Text>
+            <Text style={{ color: colors.mutedForeground, flexShrink: 1 }}>
+              {t('cloud.recover')}
+            </Text>
           </Pressable>
           <Pressable
             testID="cloud-signup"
@@ -381,7 +458,10 @@ export function CloudAccountSection() {
               setAuthDraftEmail(email);
               router.push('/creer-compte' as Href);
             }}
-            style={[styles.secondaryBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+            style={[
+              styles.secondaryBtn,
+              { borderColor: colors.border, backgroundColor: colors.card },
+            ]}
           >
             <Text style={[styles.secondaryLabel, { color: colors.foreground }]} numberOfLines={2}>
               {t('cloud.signUp')}
@@ -394,14 +474,26 @@ export function CloudAccountSection() {
           testID="cloud-import-guest"
           disabled={busy}
           onPress={() => {
-            confirmAction(t('cloud.importGuestTitle'), t('cloud.importGuestBody'), () => {
-              void (async () => {
-                setFormError(null);
-                const result = await cloud.importGuestData();
-                if (!result.ok) setFormError(t('cloud.errorUnexpected'));
-                else setGuestImportReady(false);
-              })();
-            }, { confirmLabel: t('cloud.importGuest') });
+            confirmAction(
+              t('cloud.importGuestTitle'),
+              t('cloud.importGuestBody'),
+              () => {
+                void (async () => {
+                  setFormError(null);
+                  try {
+                  const result = await cloud.importGuestData();
+                  if (!result.ok) {
+                    setFormError(
+                      result.error === 'remote_unverified'
+                        ? t('cloud.importGuestUnverified')
+                        : t('cloud.errorUnexpected'),
+                    );
+                  } else setGuestImportReady(false);
+                  } catch(error) { cloud.noteBackgroundFailure('account.import_guest',error);setFormError(t('cloud.localSaveFailed')); }
+                })();
+              },
+              { confirmLabel: t('cloud.importGuest') },
+            );
           }}
           style={[styles.btn, { borderColor: colors.border }]}
         >
@@ -412,23 +504,11 @@ export function CloudAccountSection() {
         <View style={styles.row}>
           <Pressable
             testID="cloud-sync"
-            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={t('cloud.syncNow')}
+            disabled={busy || cloud.status === 'syncing'}
             onPress={() => {
-              void (async () => {
-                const decision = await decideCloudTransfer(false);
-                if (decision.defer) {
-                  confirmAction(
-                    t('cloud.syncOnCellularTitle'),
-                    t('cloud.syncOnCellularBody'),
-                    () => {
-                      void cloud.sync({ allowCellular: true });
-                    },
-                    { confirmLabel: t('cloud.syncOnCellularConfirm') },
-                  );
-                  return;
-                }
-                void cloud.sync();
-              })();
+              void cloud.sync();
             }}
             style={[styles.btn, { borderColor: colors.border }]}
           >
@@ -439,16 +519,21 @@ export function CloudAccountSection() {
             onPress={() => {
               confirmAction(
                 t('cloud.signOutTitle'),
-                t('cloud.signOutBody'),
+                t('cloud.signOutBody') +
+                  (cloud.status !== 'synced' ? '\n\n' + t('cloud.signOutPending') : ''),
                 () => {
                   void (async () => {
+                    if (actionRef.current) return;
+                    actionRef.current = true;
                     setFormError(null);
                     setInfo(null);
                     try {
                       const result = await cloud.signOut();
-                      if (!result.ok) setFormError(t('cloud.signOutFailed'));
+                      if (!result.ok && !result.reason) setFormError(t('cloud.signOutFailed'));
                     } catch {
                       setFormError(t('cloud.signOutFailed'));
+                    } finally {
+                      actionRef.current = false;
                     }
                   })();
                 },
@@ -462,9 +547,51 @@ export function CloudAccountSection() {
         </View>
       ) : null}
       {cloud.user ? <DeleteAccountControl /> : null}
+      {cloud.lastError && ['local_size_limit', 'local_quota', 'local_storage', 'schema_revision_missing', 'sync_conflict', 'remote_permission', 'remote_service'].includes(cloud.lastError) ? (
+        <Text style={[styles.hint, { color: colors.destructive }]} accessibilityLiveRegion="polite" testID="cloud-operation-error">
+          {t(cloud.lastError === 'local_size_limit' ? 'cloud.errorLocalSize'
+            : cloud.lastError === 'local_quota' ? 'cloud.errorLocalQuota'
+            : cloud.lastError === 'local_storage' ? 'cloud.errorLocalStorage'
+            : cloud.lastError === 'schema_revision_missing' ? 'cloud.errorRevisionSchema'
+            : cloud.lastError === 'sync_conflict' ? 'cloud.errorRevisionConflict'
+            : cloud.lastError === 'remote_permission' ? 'cloud.errorRemotePermission'
+            : 'cloud.errorRemoteService')}
+        </Text>
+      ) : null}
+      {(cloud.lastError==='local_quota'||cloud.quotaPaused) ? <Text accessibilityLiveRegion="polite" style={[styles.hint,{color:colors.destructive}]} testID="cloud-quota-paused">{t('cloud.quotaPaused')}</Text> : null}
+      {(authClientVariant()==='preview'||(typeof __DEV__!=='undefined' && __DEV__)) ? (
+        <>
+          <Pressable testID="cloud-storage-diagnostics" accessibilityRole="button" accessibilityLabel={t('cloud.storageDiagnostics')} accessibilityState={{busy:auditBusy}} disabled={auditBusy} style={[styles.btn,{borderColor:colors.border}]} onPress={()=>{
+            const attempt=++auditAttempt.current;
+            setAuditBusy(true);
+            void (async()=>{
+              try {
+                const report=await cloud.diagnoseStorage();
+                if(!aliveRef.current||attempt!==auditAttempt.current)return;
+                if(report)setAuditText(storageReportText(report,t)+'\n\n'+syncReportText(cloud.syncAudit,t));else setFormError(t('cloud.storageDiagnosticsUnavailable'));
+              } catch {if(aliveRef.current&&attempt===auditAttempt.current)setFormError(t('cloud.storageDiagnosticsUnavailable'));}
+              finally {if(aliveRef.current&&attempt===auditAttempt.current)setAuditBusy(false);}
+            })();
+          }}><Text style={{color:colors.foreground}}>{t('cloud.storageDiagnostics')}</Text></Pressable>
+          <AppDialog visible={auditText!==null} title={t('storage.title')} message={auditText??undefined} variant="info" confirmLabel={t('common.close')} onConfirm={()=>setAuditText(null)} onCancel={()=>setAuditText(null)} testID="cloud-storage-report" />
+        </>
+      ):null}
       {cloud.lastError === 'local_save_failed' ? (
         <Text style={[styles.hint, { color: colors.destructive }]} testID="cloud-local-save-error">
           {t('cloud.localSaveFailed')}
+        </Text>
+      ) : null}
+      {cloud.lastError === 'session_expired' || cloud.lastError === 'deletion_pending' ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={{ color: colors.destructive }}
+          testID="cloud-account-warning"
+        >
+          {t(
+            cloud.lastError === 'deletion_pending'
+              ? 'account.deleteUncertain'
+              : 'cloud.errorSession',
+          )}
         </Text>
       ) : null}
       {cloud.lastError === 'schema_missing' ? (

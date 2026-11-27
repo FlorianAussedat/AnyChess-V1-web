@@ -1,4 +1,14 @@
+import { documentPayloadsEqual } from './documentEquality.ts';
+import { verifiedBackup } from './verifiedBackup.ts';
+import { cloudStep, reportCloudError, type CloudErrorKind } from './diagnostics.ts';
+import { setAuthDraftEmail } from './authDraft.ts';
+import { readDeletionPending } from './purgeAccountLocal.ts';
+import { authRequest } from './authRequest.ts';
+import { applySignupProfile } from './signupProfile.ts';
+import { validAuthEmail } from './authRequest.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
+import { StorageKeys } from '../storage/StorageKeys.ts';
+import { defaultKeyValueStorage } from '../storage/AsyncKeyValueStorage.ts';
 import {
   activeDocsMatchAccount,
   docsAreEmpty,
@@ -7,6 +17,7 @@ import {
   quarantineLegacyGuest,
   readSyncableDocs,
   workspaceEnvelope,
+  docsEqual,
   writeSyncableDocs,
 } from './accountSpace.ts';
 import { rememberBackup } from './backupIndex.ts';
@@ -14,6 +25,15 @@ import { markConfirmationEmailSent, confirmationResendWaitSeconds } from './conf
 import { applyDevicePreferences, captureDevicePreferences } from './devicePreferences.ts';
 import { mergeDocumentPayload } from './mergeDocuments.ts';
 import { clearDeletionPending, purgeAccountOwnedKeys } from './purgeAccountLocal.ts';
+import {
+  GUEST_PGN_VAULT_KEY,
+  guestVaultHasStudies,
+  presentEmptyGuestLibrary,
+  preserveGuestRepertoire,
+  repertoireFileIds,
+  repertoirePayloadCovers,
+  writePgnPresenceAudit,
+} from './guestPgnVault.ts';
 import {
   CLOUD_ACTIVE_USER_KEY,
   CLOUD_LAST_BACKUP_KEY,
@@ -26,13 +46,23 @@ import {
 import { decideCloudTransfer } from './syncTransport.ts';
 import type {
   CloudAuth,
+  CloudAuthResult,
+  AuthAttemptOptions,
   CloudRemote,
   CloudSyncStatus,
   CloudUser,
   PendingConfirmationReason,
 } from './types.ts';
 
+export type SyncAudit = {
+  passes: number; reads: number; pushes: number; applies: number;
+  pending: { category: number | null; reason: 'local_mutation' | 'remote_differs' | 'local_differs' }[];
+};
 export type CloudEngineState = {
+  syncAudit?: SyncAudit;
+  quotaPaused?: boolean;
+  /** Changes after a durable repertoire update, including a partially failed sync. */
+  libraryRevision?: number;
   status: CloudSyncStatus;
   user: CloudUser | null;
   lastError: string | null;
@@ -69,15 +99,32 @@ async function writeDocs(
 export class CloudSyncEngine {
   private state = emptyState();
   private readonly listeners = new Set<() => void>();
-  private silentWrites = 0;
+  private readonly failedLocalKeys = new Set<string>();
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private syncing = false;
+  private authFlight: Promise<CloudAuthResult> | null = null;
+  private authFlightEpoch = 0;
+  private authFlightKey = '';
+  private authAbandoned?: () => boolean;
+  private syncFlight: Promise<CloudEngineState> | null = null;
+  private retryAttempt = 0;
+  private quotaBlocked = false;
+  private disposed = false;
+  private flightEpoch = 0;
   private deletionLocked = false;
   /** Bumped on sign-out and account switch so a late sync cannot write the previous account. */
   private sessionEpoch = 0;
   /** Bumped on each local change so an in-flight sync can re-read before it writes. */
   private mutationEpoch = 0;
   private followUpSync = false;
+  private syncAudit: SyncAudit = { passes: 0, reads: 0, pushes: 0, applies: 0, pending: [] };
+  private requireFollowUp(reason: SyncAudit['pending'][number]['reason'], key?: string): void {
+    this.followUpSync = true;
+    const index = key ? (SYNCABLE_STORAGE_KEYS as readonly string[]).indexOf(key) : -1;
+    const category = index < 0 ? null : index;
+    if (!this.syncAudit.pending.some(row => row.category === category && row.reason === reason))
+      this.syncAudit.pending.push({ category, reason });
+  }
   private readonly storage: KeyValueStorage;
   private readonly auth: CloudAuth;
   private readonly remote: CloudRemote;
@@ -92,19 +139,31 @@ export class CloudSyncEngine {
     }
   }
 
+  /** End an engine lifetime without signing out or changing persistent documents. */
+  dispose():void {
+    this.disposed=true;
+    this.bumpSession();
+    this.listeners.clear();
+  }
+
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
   getState(): CloudEngineState {
-    return { ...this.state };
+    return { ...this.state, quotaPaused: this.quotaBlocked, syncAudit: { ...this.syncAudit, pending: this.syncAudit.pending.map(row => ({ ...row })) } };
   }
 
   /** User access token only — never the public anon key. */
   getAccessToken(): string | null {
     const token = this.auth.token?.();
     return token?.trim() || null;
+  }
+
+  sessionGuard(): () => boolean {
+    const epoch = this.sessionEpoch;
+    return () => this.sessionEpoch === epoch;
   }
 
   storageHandle(): KeyValueStorage {
@@ -118,6 +177,17 @@ export class CloudSyncEngine {
   beginAccountDeletion(): void {
     this.deletionLocked = true;
     this.bumpSession();
+    if (this.state.user) this.setState({ status: 'pending' });
+  }
+
+  async quiesceForAccountDeletion(): Promise<void> {
+    const inFlight = this.syncFlight;
+    this.beginAccountDeletion();
+    if (inFlight) await authRequest(() => inFlight);
+  }
+
+  noteDeletionUncertain(): void {
+    if (this.state.user) this.setState({ status: 'error', lastError: 'deletion_pending' });
   }
 
   releaseAccountDeletion(): void {
@@ -125,7 +195,14 @@ export class CloudSyncEngine {
   }
 
   private bumpSession(): number {
+    this.quotaBlocked=false;
     this.sessionEpoch += 1;
+    this.syncAudit = { passes: 0, reads: 0, pushes: 0, applies: 0, pending: [] };
+    this.failedLocalKeys.clear();
+    this.retryAttempt = 0;
+    this.followUpSync = false;
+    this.syncFlight = null;
+    this.syncing = false;
     if (this.syncTimer) {
       clearTimeout(this.syncTimer);
       this.syncTimer = null;
@@ -134,7 +211,7 @@ export class CloudSyncEngine {
   }
 
   private sessionIsCurrent(epoch: number): boolean {
-    return this.sessionEpoch === epoch && !this.deletionLocked;
+    return this.sessionEpoch === epoch && !this.deletionLocked && !this.disposed;
   }
 
   /**
@@ -142,6 +219,7 @@ export class CloudSyncEngine {
    * A stuck logout request must not keep the account on screen.
    */
   private endAuthSession(): Promise<void> {
+    if (this.auth.localSignOutOnly) return this.auth.signOut();
     return new Promise((resolve) => {
       let settled = false;
       const finish = () => {
@@ -153,6 +231,10 @@ export class CloudSyncEngine {
       const timer = setTimeout(finish, 800);
       void this.auth.signOut().then(finish, finish);
     });
+  }
+
+  async probeAuthAccount(): Promise<'exists' | 'gone' | 'unknown'> {
+    return this.auth.probeAccount?.() ?? 'unknown';
   }
 
   async readRefreshToken(): Promise<string | null> {
@@ -170,7 +252,7 @@ export class CloudSyncEngine {
   async wipeDeletedAccount(userId: string): Promise<void> {
     const active =
       this.state.user?.id ?? (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY));
-    await purgeAccountOwnedKeys(this.storage, userId);
+    await purgeAccountOwnedKeys(this.storage, userId, this.state.user?.id === userId ? this.state.user.email : undefined);
     await clearDeletionPending(this.storage);
     if (active !== userId) {
       this.deletionLocked = false;
@@ -180,13 +262,14 @@ export class CloudSyncEngine {
     await this.storage.removeItem(CLOUD_SESSION_KEY);
     await this.restoreWorkspace(GUEST_OWNER_ID);
     await this.withSilentWrites(async () => {
-      await this.mirrorPreferences();
-      await this.mirrorProfile();
+      await cloudStep('workspace.mirror_preferences', 'local', () => this.mirrorPreferences());
+      await cloudStep('workspace.mirror_profile', 'local', () => this.mirrorProfile());
     });
     await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
     this.deletionLocked = false;
     this.setState({
       user: null,
+      lastSyncedAt: null,
       status: this.auth.configured ? 'signed_out' : 'unconfigured',
       pendingConfirmationEmail: null,
       pendingConfirmationReason: null,
@@ -200,64 +283,80 @@ export class CloudSyncEngine {
   }
 
   private setState(patch: Partial<CloudEngineState>): void {
+    if(patch.lastError==='local_quota') this.quotaBlocked=true;
     this.state = { ...this.state, ...patch };
     this.emit();
   }
 
   private async withSilentWrites<T>(fn: () => Promise<T>): Promise<T> {
-    this.silentWrites += 1;
-    try {
-      return await fn();
-    } finally {
-      this.silentWrites -= 1;
-    }
+    return fn();
   }
 
-  async backupLocal(): Promise<string> {
+  async backupLocal(recordLast = true): Promise<string> {
     return this.withSilentWrites(async () => {
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const key = cloudBackupKey(stamp);
-      const docs = await readDocs(this.storage);
-      const ownerId =
-        this.state.user?.id ??
-        (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY)) ??
-        GUEST_OWNER_ID;
-      await this.storage.setItem(
-        key,
-        JSON.stringify({ version: 2, ownerId, createdAt: new Date().toISOString(), docs }),
-      );
-      await rememberBackup(this.storage, key, ownerId);
-      await this.storage.setItem(CLOUD_LAST_BACKUP_KEY, key);
-      this.setState({ lastBackupKey: key });
+      const epoch = this.sessionEpoch;
+      const ownerId = this.state.user?.id ?? (await this.storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID;
+      const docs = await cloudStep('snapshot.read_documents', 'local', () => readDocs(this.storage));
+      if (epoch !== this.sessionEpoch) throw new Error('backup_owner_changed');
+      const key = await cloudStep('backup.verify_or_create','local',()=>verifiedBackup(this.storage,ownerId,docs));
+      if (epoch !== this.sessionEpoch) throw new Error('backup_owner_changed');
+      if (recordLast) {
+        await this.storage.setItem(CLOUD_LAST_BACKUP_KEY, key);
+        this.setState({ lastBackupKey: key });
+      }
       return key;
     });
   }
 
   async parkWorkspace(ownerId: string): Promise<void> {
+    const mutation = this.mutationEpoch;
     await this.withSilentWrites(async () => {
-      const docs = await readDocs(this.storage);
-      await this.storage.setItem(
-        cloudWorkspaceKey(ownerId),
-        JSON.stringify(workspaceEnvelope(ownerId, docs)),
-      );
+      const docs = await cloudStep('snapshot.read_documents', 'local', () => readDocs(this.storage));
+      if (ownerId === GUEST_OWNER_ID) {
+        const matchesAccount = await activeDocsMatchAccount(this.storage);
+        const preserved = await preserveGuestRepertoire(
+          this.storage,
+          matchesAccount ? null : (docs[StorageKeys.repertoires.key] ?? null),
+        );
+        if (preserved) docs[StorageKeys.repertoires.key] = preserved;
+        else if (matchesAccount) {
+          docs[StorageKeys.repertoires.key] = await this.storage.getItem(GUEST_PGN_VAULT_KEY);
+        }
+      }
+      const key = cloudWorkspaceKey(ownerId);
+      const existing = await cloudStep('workspace.read_previous','local',async()=>{
+        try { return await this.storage.getItem(key); } catch(error) {
+          if(reportCloudError('workspace.read_previous','local',error).kind==='local_size_limit')return null;
+          throw error;
+        }
+      });
+      const previous = parseWorkspace(existing,ownerId);
+      const payload = previous && docsEqual(previous.docs,docs) ? existing! : JSON.stringify({ownerId,origin:ownerId===GUEST_OWNER_ID?'guest':'account',docs});
+      if(payload!==existing) await cloudStep('workspace.write', 'local', () => this.storage.setItem(key, payload));
+      await cloudStep('workspace.verify', 'local', async () => {
+        if (await this.storage.getItem(key) !== payload) throw new Error('workspace_verify_failed');
+        if (mutation !== this.mutationEpoch) throw new Error('workspace_changed_during_park');
+      });
     });
   }
 
   async restoreWorkspace(ownerId: string): Promise<boolean> {
     return this.withSilentWrites(async () => {
-      const raw = await this.storage.getItem(cloudWorkspaceKey(ownerId));
+      const raw = await cloudStep('workspace.restore.read', 'local', () => this.storage.getItem(cloudWorkspaceKey(ownerId)));
       const parsed = parseWorkspace(raw, ownerId);
+      if (raw && (!parsed || parsed.ownerId !== ownerId)) throw new Error('workspace_invalid');
       if (!parsed) {
         await writeDocs(this.storage, emptySyncableDocs());
         return false;
       }
-      await writeDocs(this.storage, parsed.docs);
+      await cloudStep('workspace.restore.write_documents', 'local', () => writeDocs(this.storage, parsed.docs));
       return true;
     });
   }
 
   /** Guest files exist only when they were saved as guest, never as a copy of an account. */
   async guestDataAvailable(): Promise<boolean> {
+    if (await guestVaultHasStudies(this.storage)) return true;
     const parsed = parseWorkspace(
       await this.storage.getItem(cloudWorkspaceKey(GUEST_OWNER_ID)),
       GUEST_OWNER_ID,
@@ -269,28 +368,134 @@ export class CloudSyncEngine {
    * Copy the guest space into the signed-in account. Does not run on sign-in.
    * The guest copy stays on the device.
    */
-  async importGuestData(): Promise<{ ok: true } | { ok: false; error: 'signed_out' | 'no_guest' }> {
+  async importGuestData(): Promise<
+    | { ok: true; remoteVerified: true }
+    | { ok: false; error: 'signed_out' | 'no_guest' | 'remote_unverified' }
+  > {
+    const epoch = this.sessionEpoch;
     const user = this.state.user;
     if (!user) return { ok: false, error: 'signed_out' };
+    const stale = () => !this.sessionIsCurrent(epoch) || this.state.user?.id !== user.id;
+    if (this.syncFlight) await this.syncFlight;
+    if (stale()) return { ok: false, error: 'signed_out' };
     if (!(await this.guestDataAvailable())) return { ok: false, error: 'no_guest' };
     const guest = parseWorkspace(
       await this.storage.getItem(cloudWorkspaceKey(GUEST_OWNER_ID)),
       GUEST_OWNER_ID,
     );
-    if (!guest) return { ok: false, error: 'no_guest' };
+    const vault = await this.storage.getItem(GUEST_PGN_VAULT_KEY);
+    const guestDocs: Record<string, string | null> = { ...(guest?.docs ?? {}) };
+    if (vault) {
+      guestDocs[StorageKeys.repertoires.key] = mergeDocumentPayload(
+        StorageKeys.repertoires.key,
+        guestDocs[StorageKeys.repertoires.key] ?? null,
+        vault,
+      );
+    }
+    if (!guest && !vault) return { ok: false, error: 'no_guest' };
+    const vaultIds = repertoireFileIds(guestDocs[StorageKeys.repertoires.key]);
+    const auditBase = {
+      at: new Date().toISOString(),
+      userId: user.id,
+      vaultFileIds: vaultIds,
+    };
+    let remoteDocs;
+    try {
+      remoteDocs = await this.remote.listDocuments(user.id);
+    } catch {
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        remoteReachable: false,
+        remoteVerified: false,
+        remoteFileIds: [],
+        note: 'Supabase unreachable. Guest studies were left untouched.',
+      });
+      return { ok: false, error: 'remote_unverified' };
+    }
+    if (stale()) return { ok: false, error: 'signed_out' };
+    const remoteMap = new Map(remoteDocs.map((doc) => [doc.docKey, doc]));
+    await cloudStep('sync.backup', 'local', () => this.backupLocal(false));
+    await writePgnPresenceAudit(this.storage, {
+      ...auditBase,
+      remoteReachable: true,
+      remoteVerified: false,
+      remoteFileIds: repertoireFileIds(remoteMap.get(StorageKeys.repertoires.key)?.payload),
+      note: 'Remote repertoire listed before any guest copy.',
+    });
     const local = await readDocs(this.storage);
     const merged: Record<string, string | null> = {};
     for (const key of SYNCABLE_STORAGE_KEYS) {
-      merged[key] = mergeDocumentPayload(key, local[key] ?? null, guest.docs[key] ?? null);
+      merged[key] = mergeDocumentPayload(key, mergeDocumentPayload(key, local[key] ?? null, guestDocs[key] ?? null), remoteMap.get(key)?.payload ?? null);
     }
+    if (
+      !repertoirePayloadCovers(merged[StorageKeys.repertoires.key], vaultIds)
+    ) {
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        at: new Date().toISOString(),
+        remoteReachable: true,
+        remoteVerified: false,
+        remoteFileIds: repertoireFileIds(remoteMap.get(StorageKeys.repertoires.key)?.payload),
+        note: 'Staged merge would drop a guest study. Nothing was written.',
+      });
+      return { ok: false, error: 'remote_unverified' };
+    }
+    try {
+      for (const key of SYNCABLE_STORAGE_KEYS) {
+        if (stale()) return { ok: false, error: 'signed_out' };
+        const next = merged[key];
+        if (next == null) continue;
+        await cloudStep('guest_import.upsert', 'remote', () => this.remote.upsertDocument(user.id, {
+          docKey: key,
+          payload: next,
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          revision: (remoteMap.get(key)?.revision ?? 0) + 1,
+        }));
+      }
+      const after = await this.remote.listDocuments(user.id);
+      if (stale()) return { ok: false, error: 'signed_out' };
+      const remotePayload =
+        after.find((doc) => doc.docKey === StorageKeys.repertoires.key)?.payload ?? null;
+      const verified = repertoirePayloadCovers(remotePayload, vaultIds);
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        at: new Date().toISOString(),
+        remoteReachable: true,
+        remoteVerified: verified,
+        remoteFileIds: repertoireFileIds(remotePayload),
+        note: verified
+          ? 'Guest studies are present in Supabase. The device vault was kept.'
+          : 'Supabase did not return every guest study. Local account cache was not replaced.',
+      });
+      if (!verified) return { ok: false, error: 'remote_unverified' };
+    } catch {
+      await writePgnPresenceAudit(this.storage, {
+        ...auditBase,
+        at: new Date().toISOString(),
+        remoteReachable: false,
+        remoteVerified: false,
+        remoteFileIds: [],
+        note: 'Upload failed. Guest studies were left on the device.',
+      });
+      return { ok: false, error: 'remote_unverified' };
+    }
+    if (stale()) return { ok: false, error: 'signed_out' };
     await this.withSilentWrites(async () => {
-      await writeDocs(this.storage, merged);
-      await this.mirrorPreferences();
-      await this.mirrorProfile();
+      for (const key of SYNCABLE_STORAGE_KEYS) {
+        if (stale()) return;
+        if (this.storage.updateItem) await this.storage.updateItem(key, live => stale() ? live : mergeDocumentPayload(key, live, merged[key] ?? null), 'cloud');
+        else if (merged[key] != null) await this.storage.setItem(key, merged[key]!);
+      }
+      await cloudStep('workspace.mirror_preferences', 'local', () => this.mirrorPreferences());
+      await cloudStep('workspace.mirror_profile', 'local', () => this.mirrorProfile());
     });
+    if (stale()) return { ok: false, error: 'signed_out' };
+    this.markPending();
+    this.scheduleSync(50);
+    await this.discardRepertoireCache();
     await this.parkWorkspace(user.id);
-    await this.sync();
-    return { ok: true };
+    return { ok: true, remoteVerified: true };
   }
 
   private async activeOwnerId(): Promise<string> {
@@ -311,14 +516,33 @@ export class CloudSyncEngine {
     await this.parkWorkspace(owner);
   }
 
-  private async showOwner(ownerId: string): Promise<boolean> {
+  private async showOwner(ownerId: string, parked?: { ownerId: string; mutation: number }): Promise<boolean> {
+      if (ownerId === GUEST_OWNER_ID) {
+        const current = this.state.user?.id ?? (await this.activeOwnerId());
+        if (current && current !== GUEST_OWNER_ID) {
+          // signOut has already verified this exact owner snapshot. Re-parking
+          // wastes quota and may overwrite it with a partially restored guest
+          // if showOwner is retried after a storage failure.
+          if (parked?.ownerId !== current || parked.mutation !== this.mutationEpoch) {
+            await this.parkWorkspace(current);
+            if (parked) { parked.ownerId = current; parked.mutation = this.mutationEpoch; }
+          }
+        }
+        else if (!(await activeDocsMatchAccount(this.storage))) {
+          const live = await this.storage.getItem(StorageKeys.repertoires.key);
+          await preserveGuestRepertoire(this.storage, live);
+        }
+      }
     const had = await this.restoreWorkspace(ownerId);
     await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, ownerId);
-    if (ownerId === GUEST_OWNER_ID) await quarantineLegacyGuest(this.storage);
+    if (ownerId === GUEST_OWNER_ID) {
+      await quarantineLegacyGuest(this.storage);
+      await presentEmptyGuestLibrary(this.storage);
+    }
     await applyDevicePreferences(this.storage);
     await this.withSilentWrites(async () => {
-      await this.mirrorPreferences();
-      await this.mirrorProfile();
+      await cloudStep('workspace.mirror_preferences', 'local', () => this.mirrorPreferences());
+      await cloudStep('workspace.mirror_profile', 'local', () => this.mirrorProfile());
     });
     await this.invalidateDeferredWork();
     return had;
@@ -327,9 +551,24 @@ export class CloudSyncEngine {
   private async invalidateDeferredWork(): Promise<void> {
     try {
       const { pgnTranslationQueue } = await import('../pgnComments/PgnTranslationQueue.ts');
-      if (pgnTranslationQueue.matchesStorage(this.storage)) pgnTranslationQueue.invalidateSession();
+      if (pgnTranslationQueue.matchesStorage(this.storage)) {
+        pgnTranslationQueue.discardHeldWork();
+        const { pgnCommentTranslationStore } = await import('../pgnComments/PgnCommentTranslationStore.ts');
+        pgnCommentTranslationStore.discardCachedSnapshot();
+      }
     } catch {
       // Translation work is also stored in the account workspace.
+    }
+    await this.discardRepertoireCache();
+  }
+
+  private async discardRepertoireCache(): Promise<void> {
+    if (this.storage !== defaultKeyValueStorage) return;
+    try {
+      const { repertoireService } = await import('../repertoire/index.ts');
+      repertoireService.discardCachedSnapshot();
+    } catch {
+      // The next screen load reads storage again.
     }
   }
 
@@ -365,35 +604,52 @@ export class CloudSyncEngine {
   }
 
   async hydrate(): Promise<CloudEngineState> {
+    const epoch = this.sessionEpoch;
+    const current = () => this.sessionEpoch === epoch;
     try {
       if (!this.auth.configured) {
         this.setState({ status: 'unconfigured', user: null });
       } else {
         if (this.auth.hydrate) await this.auth.hydrate();
+        if (!current()) return this.getState();
         const user = await this.auth.getUser();
         const backup = await this.storage.getItem(CLOUD_LAST_BACKUP_KEY);
+        if (!current()) return this.getState();
         if (!user) {
           this.setState({ status: 'signed_out', user: null, lastBackupKey: backup });
           await quarantineLegacyGuest(this.storage);
+          const owner = await this.activeOwnerId();
+          if (owner !== GUEST_OWNER_ID) {
+            await this.parkWorkspace(owner);
+            await this.showOwner(GUEST_OWNER_ID);
+          } else {
+            await presentEmptyGuestLibrary(this.storage);
+            await this.discardRepertoireCache();
+          }
         } else {
           const active = await this.activeOwnerId();
+          if (!current()) return this.getState();
           if (active !== user.id && active !== GUEST_OWNER_ID) {
             await this.parkWorkspace(active);
+            if (!current()) return this.getState();
             await this.showOwner(user.id);
           } else {
             await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, user.id);
           }
+          if (!current()) return this.getState();
           this.setState({ user, lastBackupKey: backup, status: 'pending' });
           await this.sync();
           await this.settleAccountLifecycle();
         }
       }
     } catch (error) {
+      if (!current()) return this.getState();
       if (this.state.user) {
-        const offline = error instanceof Error && /network|fetch|offline/i.test(error.message);
+        const diagnostic = reportCloudError('hydrate.restore', 'local', error);
+        const offline = diagnostic.kind === 'offline';
         this.setState({
           status: offline ? 'offline' : 'error',
-          lastError: error instanceof Error ? error.message : 'sync_failed',
+          lastError: this.state.lastError === 'local_save_failed' ? 'local_save_failed' : ['unexpected', 'offline'].includes(diagnostic.kind) ? 'sync_failed' : diagnostic.kind,
         });
       }
     } finally {
@@ -402,8 +658,8 @@ export class CloudSyncEngine {
     return this.getState();
   }
 
-  async signUp(email: string, password: string) {
-    return this.authenticate(email, () => this.auth.signUp(email, password), 'signup');
+  async signUp(email: string, password: string, options?: AuthAttemptOptions) {
+    return this.authenticate(email, () => this.auth.signUp(email, password, options), 'signup', options);
   }
 
   async signIn(
@@ -411,10 +667,11 @@ export class CloudSyncEngine {
     password: string,
     options?: { abandoned?: () => boolean },
   ) {
-    return this.authenticate(email, () => this.auth.signIn(email, password), 'signin', options);
+    return this.authenticate(email, () => this.auth.signIn(email, password, options), 'signin', options);
   }
 
   async resendSignupConfirmation(email: string) {
+    if (!validAuthEmail(email)) return { ok: false, error: 'email_invalid' as const };
     if (!this.auth.configured) return { ok: false as const, error: 'unconfigured' as const };
     if (confirmationResendWaitSeconds() > 0) {
       return { ok: false as const, error: 'rate_limited' as const };
@@ -429,34 +686,57 @@ export class CloudSyncEngine {
   }
 
   async recoverPassword(email: string) {
+    if (!validAuthEmail(email)) return { ok: false, error: 'email_invalid' as const };
     return this.auth.recoverPassword(email);
   }
 
-  async signOut(): Promise<{ ok: true } | { ok: false; error: 'unexpected' }> {
+  async signOut(): Promise<{ ok: true } | { ok: false; error: 'unexpected'; reason?: CloudErrorKind }> {
+    this.releaseAccountDeletion();
     const epoch = this.bumpSession();
+    const accountId = this.state.user?.id ?? null;
+    let parkedOwner = accountId;
     try {
-      await this.parkCurrentOwner();
-    } catch {
+      if (accountId) await this.parkWorkspace(accountId);
+      else { await this.parkCurrentOwner(); parkedOwner = await this.activeOwnerId(); }
+    } catch (error) {
+      const diagnostic = reportCloudError('signout.park_workspace', 'local', error);
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
-      this.setState({ lastError: 'sign_out_failed', sessionReady: true });
-      return { ok: false, error: 'unexpected' };
+      // Parking failed: keep the account session. Clearing the user first would
+      // show guest mode while the account studies are still in the live store.
+      this.setState({ lastError: diagnostic.kind, sessionReady: true });
+      return { ok: false, error: 'unexpected', reason: diagnostic.kind };
     }
+    const parked = { ownerId: parkedOwner ?? GUEST_OWNER_ID, mutation: this.mutationEpoch };
+    setAuthDraftEmail('');
     const signedOut = {
       user: null,
+      lastSyncedAt: null,
       status: this.auth.configured ? ('signed_out' as const) : ('unconfigured' as const),
       pendingConfirmationEmail: null,
       pendingConfirmationReason: null,
       sessionReady: true,
     };
+    // The account copy is parked. Hide it before the auth round-trip finishes.
+    this.setState({ ...signedOut, lastError: null });
+    await this.discardRepertoireCache();
     try {
-      await this.endAuthSession();
+      await cloudStep('signout.end_auth_session', 'local', () => this.endAuthSession());
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
-      await this.storage.removeItem(CLOUD_SESSION_KEY);
-      await this.showOwner(GUEST_OWNER_ID);
-    } catch {
+      await cloudStep('signout.remove_session', 'local', () => this.storage.removeItem(CLOUD_SESSION_KEY));
+      await cloudStep('signout.restore_guest', 'local', () => this.showOwner(GUEST_OWNER_ID, parked));
+    } catch (error) {
+      const diagnostic = reportCloudError('signout.finish', 'local', error);
       if (!this.sessionIsCurrent(epoch)) return { ok: true };
-      await this.storage.removeItem(CLOUD_SESSION_KEY).catch(() => undefined);
-      await this.showOwner(GUEST_OWNER_ID).catch(async () => {
+      if (parked.mutation !== this.mutationEpoch) {
+        // Auth cleanup may have completed, but a newer local edit has not been
+        // parked. Never clear it merely to display the guest workspace.
+        this.setState({ status: 'error', lastError: diagnostic.kind, sessionReady: false });
+        return { ok: false, error: 'unexpected', reason: diagnostic.kind };
+      }
+      await this.storage.removeItem(CLOUD_SESSION_KEY).catch(error => { reportCloudError('signout.retry_remove_session', 'local', error); });
+      await this.showOwner(GUEST_OWNER_ID, parked).catch(async error => {
+        reportCloudError('signout.retry_restore_guest', 'local', error);
+        if (parked.mutation !== this.mutationEpoch) throw reportCloudError('signout.unparked_edit', 'local', new Error('workspace_changed_during_signout'));
         await this.withSilentWrites(() => writeDocs(this.storage, emptySyncableDocs()));
         await this.storage.setItem(CLOUD_ACTIVE_USER_KEY, GUEST_OWNER_ID);
       });
@@ -474,7 +754,28 @@ export class CloudSyncEngine {
     return Boolean(this.auth.token()?.trim());
   }
 
-  private async authenticate(
+  private authenticate(
+    email: string,
+    action: () => ReturnType<CloudAuth['signIn']>,
+    source: 'signup' | 'signin',
+    options?: AuthAttemptOptions,
+  ): Promise<CloudAuthResult> {
+    if (this.deletionLocked) return Promise.resolve({ ok: false, error: 'unexpected' });
+    if (!validAuthEmail(email)) return Promise.resolve({ ok: false, error: 'email_invalid' });
+    const requestKey = `${source}:${email.trim().toLowerCase()}`;
+    if (this.authFlight && this.authFlightEpoch === this.sessionEpoch && !this.authAbandoned?.()) {
+      return this.authFlightKey === requestKey ? this.authFlight : Promise.resolve({ ok: false, error: 'unexpected' });
+    }
+    const flight = this.authenticateOnce(email, action, source, options).catch((error): CloudAuthResult => { this.noteBackgroundFailure('auth.prepare_workspace',error); return { ok: false, error: 'local_save_failed' }; });
+    this.authFlightEpoch = this.sessionEpoch;
+    this.authFlightKey = requestKey;
+    this.authAbandoned = options?.abandoned;
+    const wrapped = flight.finally(() => { if (this.authFlight === wrapped) this.authFlight = null; });
+    this.authFlight = wrapped;
+    return wrapped;
+  }
+
+  private async authenticateOnce(
     email: string,
     action: () => ReturnType<CloudAuth['signIn']>,
     source: 'signup' | 'signin',
@@ -490,7 +791,9 @@ export class CloudSyncEngine {
       return { ok: false as const, error: 'unexpected' as const };
     }
     await this.parkCurrentOwner();
+    if (!this.sessionIsCurrent(epoch) || options?.abandoned?.()) return { ok: false as const, error: 'unexpected' as const };
     const result = await action();
+    if (!this.sessionIsCurrent(epoch)) return { ok: false as const, error: 'unexpected' as const };
     if (options?.abandoned?.()) {
       await this.endAuthSession();
       await this.storage.removeItem(CLOUD_SESSION_KEY);
@@ -538,27 +841,79 @@ export class CloudSyncEngine {
     if (!this.sessionIsCurrent(epoch)) {
       return { ok: false as const, error: 'unexpected' as const };
     }
+    setAuthDraftEmail('');
     this.setState({
       user: result.user,
+      lastSyncedAt: null,
       status: 'pending',
       lastError: null,
       pendingConfirmationEmail: null,
       pendingConfirmationReason: null,
       sessionReady: true,
     });
-    await this.sync();
-    await this.settleAccountLifecycle();
+    await applySignupProfile(this.storage, result.user, () => this.sessionIsCurrent(epoch));
+    await this.mirrorProfile();
+    if (!this.sessionIsCurrent(epoch)) return { ok: false as const, error: 'unexpected' as const };
+    await authRequest(() => this.sync(), 2000).catch(() => undefined);
+    if (this.state.user?.id !== result.user.id) return { ok: false as const, error: 'session_expired' as const };
     return result;
   }
 
-  markWaitingForWifi(): void {
-    if (this.deletionLocked || !this.state.user) return;
-    this.setState({ status: 'waiting_wifi', lastError: null });
+  noteBackgroundFailure(stage: string,error:unknown):void {
+    const diagnostic=reportCloudError(stage,'local',error);
+    if(this.state.user)this.setState({status:'error',lastError:diagnostic.kind});
   }
 
-  async sync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
-    if (this.deletionLocked) return this.getState();
+  markOffline(): void {
+    if (this.deletionLocked || !this.state.user || this.quotaBlocked) return;
+    this.setState({ status: 'offline', lastError: null });
+  }
+
+  sync(options?: { allowCellular?: boolean; automatic?: boolean }): Promise<CloudEngineState> {
+    if(this.disposed)return Promise.resolve(this.getState());
+    if (options?.automatic && this.quotaBlocked) return Promise.resolve(this.getState());
+    // A manual/network request replaces a scheduled retry, rather than leaving
+    // another transfer to fire after this one has completed.
+    if (this.syncTimer) { clearTimeout(this.syncTimer); this.syncTimer = null; }
+    if (this.syncFlight) {
+      return this.flightEpoch === this.sessionEpoch ? this.syncFlight : this.syncFlight.then(() => this.sync(options));
+    }
+    if(!options?.automatic)this.quotaBlocked=false;
+    // Acquire before the first await, including transport/authentication probes.
+    this.syncing = true;
+    this.flightEpoch = this.sessionEpoch;
+    this.followUpSync = false;
+    this.syncAudit = { passes: this.syncAudit.passes + 1, reads: 0, pushes: 0, applies: 0, pending: [] };
     const epoch = this.sessionEpoch;
+    const flight = Promise.resolve().then(() => this.sessionIsCurrent(epoch) ? this.performSync(options) : this.getState()).catch(error => {
+      const diagnostic = reportCloudError('sync.prepare', 'local', error);
+      if (this.sessionIsCurrent(epoch)) this.setState({ status: 'error', lastError: diagnostic.kind });
+      return this.getState();
+    });
+    const wrapped = flight.finally(() => {
+      if (this.syncFlight === wrapped) {
+        this.syncFlight = null;
+        this.syncing = false;
+      }
+    });
+    this.syncFlight = wrapped;
+    return wrapped;
+  }
+
+  private async performSync(options?: { allowCellular?: boolean }): Promise<CloudEngineState> {
+    if (this.deletionLocked) return this.getState();
+    const deletion = await readDeletionPending(this.storage);
+    if (deletion && deletion.userId === this.state.user?.id) {
+      const { resumePendingAccountDeletion } = await import('./accountLifecycle.ts');
+      await resumePendingAccountDeletion(this);
+      if (await readDeletionPending(this.storage)) { this.noteDeletionUncertain(); return this.getState(); }
+      if (!this.state.user) return this.getState();
+    }
+    const epoch = this.sessionEpoch;
+    if (this.failedLocalKeys.size || this.state.lastError === 'local_save_failed') {
+      this.setState({ status: 'error', lastError: 'local_save_failed' });
+      return this.getState();
+    }
     if (typeof this.auth.token === 'function' && !this.auth.token()?.trim()) {
       this.setState({
         status: this.auth.configured ? 'signed_out' : 'unconfigured',
@@ -581,33 +936,36 @@ export class CloudSyncEngine {
       !this.sessionIsCurrent(epoch) || (this.state.user != null && this.state.user.id !== ownerId);
     const decision = await decideCloudTransfer(options?.allowCellular === true);
     if (stale()) return this.getState();
-    if (decision.defer) {
-      this.setState({ user, status: 'waiting_wifi', lastError: null });
-      return this.getState();
-    }
     if (decision.offline) {
       this.setState({ user, status: 'offline', lastError: null });
       return this.getState();
     }
     this.setState({ user, status: 'syncing', lastError: null });
-    this.syncing = true;
-    this.followUpSync = false;
     try {
-      const remoteDocs = await this.remote.listDocuments(user.id);
+      this.syncAudit.reads++;
+      const remoteDocs = await cloudStep('sync.list_documents', 'remote', () => this.remote.listDocuments(user.id));
       if (stale()) return this.getState();
       const remoteMap = new Map(remoteDocs.map((doc) => [doc.docKey, doc]));
-      const localDocs = await readDocs(this.storage);
+      const localDocs = await cloudStep('sync.read_documents', 'local', () => readDocs(this.storage));
+      if (stale()) return this.getState();
+      if (SYNCABLE_STORAGE_KEYS.some(key => remoteMap.get(key)?.payload != null && !documentPayloadsEqual(remoteMap.get(key)?.payload, localDocs[key]))) {
+        await cloudStep('sync.backup', 'local', () => this.backupLocal(false));
+      }
       const merged: Record<string, string | null> = { ...localDocs };
       const push = async (key: (typeof SYNCABLE_STORAGE_KEYS)[number], payload: string) => {
         const sessionUser = await this.auth.getUser();
         if (stale() || !sessionUser || sessionUser.id !== ownerId) return false;
-        await this.remote.upsertDocument(ownerId, {
+        await cloudStep('sync.upsert_document', 'remote', () => this.remote.upsertDocument(ownerId, {
           docKey: key,
           payload,
           updatedAt: new Date().toISOString(),
           deletedAt: null,
           revision: (remoteMap.get(key)?.revision ?? 0) + 1,
-        });
+        }));
+        if (stale()) return false;
+        this.syncAudit.pushes++;
+        const previous = remoteMap.get(key);
+        remoteMap.set(key, { docKey: key, payload, updatedAt: new Date().toISOString(), deletedAt: null, revision: (previous?.revision ?? 0) + 1 });
         return true;
       };
       for (const key of SYNCABLE_STORAGE_KEYS) {
@@ -616,35 +974,59 @@ export class CloudSyncEngine {
         const remote = remoteMap.get(key)?.payload ?? null;
         const next = mergeDocumentPayload(key, local, remote);
         merged[key] = next;
-        if (next == null) continue;
+        if (next == null || documentPayloadsEqual(next, remoteMap.get(key)?.payload)) continue;
         if (!(await push(key, next))) return this.getState();
       }
       if (stale()) return this.getState();
       const seen = this.mutationEpoch;
-      const fresh = await readDocs(this.storage);
+      const fresh = await cloudStep('sync.reread_documents', 'local', () => readDocs(this.storage));
       for (const key of SYNCABLE_STORAGE_KEYS) {
         if (stale()) return this.getState();
-        if ((fresh[key] ?? null) === (localDocs[key] ?? null)) continue;
+        if (documentPayloadsEqual(fresh[key], localDocs[key])) continue;
         const next = mergeDocumentPayload(key, fresh[key] ?? null, merged[key] ?? null);
         merged[key] = next;
-        if (next == null) continue;
+        if (next == null || documentPayloadsEqual(next, remoteMap.get(key)?.payload)) continue;
         if (!(await push(key, next))) return this.getState();
       }
-      if (this.mutationEpoch !== seen) this.followUpSync = true;
+      if (this.mutationEpoch !== seen) this.requireFollowUp('local_mutation');
       if (stale()) return this.getState();
-      await this.withSilentWrites(async () => {
-        const again = await readDocs(this.storage);
-        for (const key of SYNCABLE_STORAGE_KEYS) {
-          const onDisk = again[key] ?? null;
+      this.syncAudit.reads++;
+      const confirmed = new Map((await cloudStep('sync.verify_remote', 'remote', () => this.remote.listDocuments(ownerId))).map(doc => [doc.docKey, doc.payload]));
+      if (stale()) return this.getState();
+      for (const key of SYNCABLE_STORAGE_KEYS) {
+        const combined = mergeDocumentPayload(key, merged[key] ?? null, confirmed.get(key) ?? null);
+        if (!documentPayloadsEqual(combined, confirmed.get(key))) this.requireFollowUp('remote_differs', key);
+        merged[key] = combined;
+      }
+      for (const key of SYNCABLE_STORAGE_KEYS) {
+        if (stale()) return this.getState();
+        let repertoireChanged=false;
+        const apply = (onDisk: string | null) => {
+          if (stale()) return onDisk;
           const safe = mergeDocumentPayload(key, onDisk, merged[key] ?? null);
-          merged[key] = safe;
+          if(key===StorageKeys.repertoires.key && !documentPayloadsEqual(safe,onDisk))repertoireChanged=true;
+          if (!documentPayloadsEqual(safe, merged[key])) this.requireFollowUp('local_differs', key);
+          if (!documentPayloadsEqual(safe, onDisk)) this.syncAudit.applies++;
+          return documentPayloadsEqual(safe, onDisk) ? onDisk : safe;
+        };
+        if (this.storage.updateItem) await cloudStep('sync.apply_local', 'local', () => this.storage.updateItem!(key, apply, 'cloud'));
+        else {
+          const value = apply(await cloudStep('sync.apply_read', 'local', () => this.storage.getItem(key)));
+          if (stale()) return this.getState();
+          if (value != null) await cloudStep('sync.apply_write', 'local', () => this.storage.setItem(key, value));
         }
-        if (this.mutationEpoch !== seen) this.followUpSync = true;
-        await writeDocs(this.storage, merged);
-        await this.mirrorPreferences();
-        await this.mirrorProfile();
-      });
+        if(repertoireChanged && !stale()) {
+          await this.discardRepertoireCache();
+          if(!stale())this.setState({libraryRevision:(this.state.libraryRevision??0)+1});
+        }
+      }
+      await cloudStep('workspace.mirror_preferences', 'local', () => this.mirrorPreferences());
+      await cloudStep('workspace.mirror_profile', 'local', () => this.mirrorProfile());
       if (stale()) return this.getState();
+      await this.settleAccountLifecycle();
+      if (stale()) return this.getState();
+      if (this.failedLocalKeys.size) this.noteLocalSaveFailure([...this.failedLocalKeys][0]);
+      if (this.state.status === 'error' || this.state.status === 'offline') return this.getState();
       if (this.followUpSync) {
         this.setState({ status: 'pending', lastError: null });
       } else {
@@ -653,20 +1035,26 @@ export class CloudSyncEngine {
           lastSyncedAt: new Date().toISOString(),
           lastError: null,
         });
+        this.retryAttempt = 0;
       }
-      await this.settleAccountLifecycle();
     } catch (error) {
       if (stale()) return this.getState();
-      const offline = error instanceof Error && /network|fetch|offline/i.test(error.message);
+      const diagnostic = reportCloudError('sync.transfer', 'remote', error);
+      const offline = diagnostic.kind === 'offline';
       this.setState({
         status: offline ? 'offline' : 'error',
-        lastError: error instanceof Error ? error.message : 'sync_failed',
+        lastError: this.state.lastError === 'local_save_failed' ? 'local_save_failed' : ['unexpected', 'offline'].includes(diagnostic.kind) ? 'sync_failed' : diagnostic.kind,
       });
     } finally {
-      this.syncing = false;
-      if (this.followUpSync && !this.deletionLocked && this.state.user) {
+      if (!stale() && this.quotaBlocked) {
         this.followUpSync = false;
-        this.scheduleSync(50);
+        if(this.syncTimer){clearTimeout(this.syncTimer);this.syncTimer=null;}
+      } else if (!stale() && this.followUpSync && !this.deletionLocked && this.state.user) {
+        this.followUpSync = false;
+        if (this.retryAttempt < 3) this.scheduleSync([50, 1000, 5000][this.retryAttempt++]);
+        else this.setState({ status: 'error', lastError: 'sync_failed' });
+      } else if (!stale() && (this.state.status === 'error' || this.state.status === 'offline') && this.retryAttempt < 3) {
+        this.scheduleSync([2000, 8000, 30000][this.retryAttempt++]);
       }
     }
     return this.getState();
@@ -679,32 +1067,39 @@ export class CloudSyncEngine {
     }
   }
 
-  noteLocalSaveFailure(): void {
+  noteLocalSaveFailure(key = '*'): void {
+    this.failedLocalKeys.add(key);
     if (!this.state.user || this.deletionLocked) return;
     this.setState({ status: 'error', lastError: 'local_save_failed' });
   }
 
-  notifyLocalMutation(): void {
-    if (this.silentWrites > 0) return;
+  noteAvatarTransferFailure(): void {
+    if (!this.state.user || this.deletionLocked) return;
+    this.setState({ status: 'error', lastError: 'avatar_transfer_failed' });
+  }
+
+  notifyLocalMutation(key = '*'): void {
+    if(this.disposed)return;
     this.mutationEpoch += 1;
+    this.failedLocalKeys.delete(key);
+    if (!this.failedLocalKeys.size && this.state.lastError === 'local_save_failed') this.setState({ lastError: null });
     if (this.deletionLocked || !this.state.user) return;
+    if(this.quotaBlocked)return;
     if (this.syncing) {
-      this.followUpSync = true;
+      this.requireFollowUp('local_mutation', key);
       if (this.state.status !== 'offline' && this.state.status !== 'waiting_wifi') {
         this.setState({ status: 'pending', lastError: null });
       }
       return;
     }
-    void this.queueLocalMutation();
+    if(this.quotaBlocked)return;
+    void this.queueLocalMutation().catch(error=>this.noteBackgroundFailure('sync.queue_mutation',error));
   }
 
   private async queueLocalMutation(): Promise<void> {
+    const epoch = this.sessionEpoch;
     const decision = await decideCloudTransfer(false);
-    if (!this.state.user || this.deletionLocked || this.syncing) return;
-    if (decision.defer) {
-      this.setState({ status: 'waiting_wifi', lastError: null });
-      return;
-    }
+    if (!this.sessionIsCurrent(epoch) || !this.state.user || this.deletionLocked || this.syncing || this.quotaBlocked) return;
     if (decision.offline) {
       this.setState({ status: 'offline', lastError: null });
       return;
@@ -714,12 +1109,13 @@ export class CloudSyncEngine {
   }
 
   scheduleSync(delayMs = 800): void {
-    if (this.deletionLocked) return;
+    if (this.deletionLocked || this.quotaBlocked || this.disposed) return;
     if (this.syncTimer) clearTimeout(this.syncTimer);
     this.syncTimer = setTimeout(() => {
       this.syncTimer = null;
-      void this.sync();
+      void this.sync({automatic:true}).catch(error=>this.noteBackgroundFailure('sync.timer',error));
     }, delayMs);
+    (this.syncTimer as unknown as { unref?: () => void }).unref?.();
   }
 }
 
@@ -727,10 +1123,25 @@ export async function restoreBackup(
   storage: KeyValueStorage,
   backupKey: string,
 ): Promise<boolean> {
-  const raw = await storage.getItem(backupKey);
-  if (!raw) return false;
-  const parsed = JSON.parse(raw) as { docs?: Record<string, string | null> };
-  if (!parsed.docs) return false;
-  await writeDocs(storage, parsed.docs);
-  return true;
+  try {
+    const raw = await storage.getItem(backupKey);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { ownerId?: string; docs?: Record<string, string | null> };
+    const owner = (await storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID;
+    if ((parsed.ownerId ?? GUEST_OWNER_ID) !== owner || !parsed.docs || typeof parsed.docs !== 'object' || Array.isArray(parsed.docs)) return false;
+    if (SYNCABLE_STORAGE_KEYS.some(key => parsed.docs![key] != null && typeof parsed.docs![key] !== 'string')) return false;
+    const before = await readDocs(storage);
+    await verifiedBackup(storage, owner, before);
+    for (const key of SYNCABLE_STORAGE_KEYS) {
+      if (((await storage.getItem(CLOUD_ACTIVE_USER_KEY)) ?? GUEST_OWNER_ID) !== owner) return false;
+      const backup = parsed.docs[key] ?? null;
+      if (!backup) continue;
+      const merge = (live: string | null) => mergeDocumentPayload(key, live, backup);
+      if (storage.updateItem) await storage.updateItem(key, merge);
+      else await storage.setItem(key, merge(await storage.getItem(key))!);
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }

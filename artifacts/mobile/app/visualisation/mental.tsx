@@ -1,3 +1,4 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Suivi mental de position — setup + question flow.
  */
@@ -11,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useLocalSearchParams, type Href } from 'expo-router';
 import { Chess } from 'chess.js';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -63,7 +64,7 @@ export default function MentalPositionScreen() {
   const colors = useColors();
   const { t, language } = useTranslation();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
-  const router = useRouter();
+  const goBack = useSmartBack();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const resumeSessionId =
     typeof params.sessionId === 'string' ? params.sessionId : undefined;
@@ -129,8 +130,8 @@ export default function MentalPositionScreen() {
     sessionActive: questioning || showing,
     kind: 'exercice',
     activityId: sessionId,
-    onLeave: () => router.replace('/visualisation' as Href),
-    onNavigateBack: () => router.navigate('/'),
+    onLeave: () => goBack(),
+    onNavigateBack: () => goBack(),
     captureHardwareBack: true,
   });
 
@@ -548,7 +549,7 @@ export default function MentalPositionScreen() {
             </View>
           ))}
           <AppButton label={t('vision.newSequence')} onPress={start} />
-          <AppButton label={t('common.return')} variant="secondary" onPress={() => router.back()} />
+          <AppButton label={t('common.return')} variant="secondary" onPress={() => goBack()} />
         </View>
       )}
     </ScrollView>

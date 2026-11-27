@@ -127,6 +127,16 @@ export {
 } from './recordOpeningRevision';
 export { learningFilesInFolder } from './learningScope';
 export {
+  canMoveOpeningFolder,
+  collectDescendantFolderIds,
+  filesInFolderSubtree,
+  flattenOpeningFoldersDepthFirst,
+  flattenOpeningTree,
+  isOpeningFolderRoot,
+  listChildFolders,
+  openingTreeIndent,
+} from './folderTree';
+export {
   OpeningReviewAttempt,
   countUserMovesToFind,
   emptyReviewAttemptSnapshot,

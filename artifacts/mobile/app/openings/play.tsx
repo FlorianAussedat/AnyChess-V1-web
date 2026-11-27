@@ -1,6 +1,7 @@
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
@@ -51,7 +52,7 @@ export default function OpeningPlayRoute() {
   const colors = useColors();
   const { t } = useTranslation();
   const { contentTop } = useAppSafeInsets();
-  const router = useRouter();
+  const goBack = useSmartBack();
 
   const { folderId, color, band, fileId, gameIndex, from } = useLocalSearchParams<{
     folderId: string;
@@ -267,7 +268,7 @@ export default function OpeningPlayRoute() {
         <ScreenHeader
           onBack={() => {
             leaveEphemeralOpeningExercise();
-            router.back();
+            goBack();
           }}
           title={t('openings.opening')}
         />

@@ -2,18 +2,11 @@
  * Shared 2×2 difficulty picker — Débutant / Confirmé / Expert / Grand-Maître.
  */
 import React from 'react';
-import {
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ImageSourcePropType,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { DesignTokens } from '@/constants/designTokens';
-import { BrandAssets } from '@/constants/BrandAssets';
+import { Ionicons } from '@expo/vector-icons';
 import {
   ANYCHESS_DIFFICULTIES,
   type AnyChessDifficultyId,
@@ -27,12 +20,12 @@ const LABEL_KEY: Record<AnyChessDifficultyId, MessageKey> = {
   grandMaitre: 'difficulty.grandMaitre',
 };
 
-const IMAGE: Record<AnyChessDifficultyId, ImageSourcePropType> = {
-  debutant: BrandAssets.difficulty.debutant,
-  confirme: BrandAssets.difficulty.confirme,
-  expert: BrandAssets.difficulty.expert,
-  grandMaitre: BrandAssets.difficulty.grandMaitre,
-};
+const ICON = {
+  debutant: 'school-outline',
+  confirme: 'book-outline',
+  expert: 'ribbon-outline',
+  grandMaitre: 'trophy-outline',
+} as const;
 
 export type DifficultySelectorProps = {
   value: AnyChessDifficultyId;
@@ -72,14 +65,13 @@ export function DifficultySelector({
               },
             ]}
           >
-            <Image source={IMAGE[id]} style={styles.mascot} resizeMode="contain" />
-            <Text
-              style={[
-                styles.label,
-                { color: selected ? colors.primary : colors.foreground },
-              ]}
-              numberOfLines={2}
-            >
+            <Ionicons
+              name={ICON[id]}
+              size={48}
+              color={selected ? colors.primary : colors.foreground}
+              accessible={false}
+            />
+            <Text style={[styles.label, { color: selected ? colors.primary : colors.foreground }]}>
               {t(LABEL_KEY[id])}
             </Text>
           </Pressable>
@@ -106,6 +98,9 @@ export function DifficultyCard({
   return (
     <Pressable
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={t(LABEL_KEY[id])}
+      accessibilityState={{ selected }}
       onPress={onPress}
       style={[
         styles.card,
@@ -115,13 +110,13 @@ export function DifficultyCard({
         },
       ]}
     >
-      <Image source={IMAGE[id]} style={styles.mascot} resizeMode="contain" />
-      <Text
-        style={[
-          styles.label,
-          { color: selected ? colors.primary : colors.foreground },
-        ]}
-      >
+      <Ionicons
+        name={ICON[id]}
+        size={48}
+        color={selected ? colors.primary : colors.foreground}
+        accessible={false}
+      />
+      <Text style={[styles.label, { color: selected ? colors.primary : colors.foreground }]}>
         {t(LABEL_KEY[id])}
       </Text>
     </Pressable>
@@ -145,10 +140,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: DesignTokens.spacing.sm,
     alignItems: 'center',
     gap: 8,
-  },
-  mascot: {
-    width: 112,
-    height: 112,
   },
   label: {
     fontSize: 15,

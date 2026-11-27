@@ -219,9 +219,9 @@ describe('activity leave paths keep mid-session state', () => {
     assert.match(nommer, /useActiveSessionBack/);
     assert.match(jouer, /useActiveSessionBack/);
     assert.match(mental, /useActiveSessionBack/);
-    assert.match(nommer, /router\.navigate\('\/'\)/);
-    assert.match(jouer, /router\.navigate\('\/'\)/);
-    assert.match(mental, /router\.navigate\('\/'\)/);
+    assert.match(nommer, /goBack\(\)/);
+    assert.match(jouer, /goBack\(\)/);
+    assert.match(mental, /goBack\(\)/);
   });
 
   it('ModeCard descriptions stay untruncated', () => {
@@ -277,6 +277,6 @@ describe('activity leave paths keep mid-session state', () => {
     assert.match(blind, /useActiveSessionBack/);
     assert.match(finales, /useActiveSessionBack/);
     assert.match(nulle, /useActiveSessionBack/);
-    assert.doesNotMatch(puzzle, /router\.navigate\('\/'\)/);
+    assert.doesNotMatch(puzzle, /goBack\(\)/);
   });
 });

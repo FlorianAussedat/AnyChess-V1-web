@@ -44,7 +44,8 @@ function validateProfile(raw: unknown): UserProfile | null {
   if (o.username != null && typeof o.username !== 'string') return null;
   if (o.rapidRangeId != null && typeof o.rapidRangeId !== 'string') return null;
   if (o.blitzRangeId != null && typeof o.blitzRangeId !== 'string') return null;
-  if (o.bulletRangeId != null && typeof o.bulletRangeId !== 'string') return null;
+  if (o.bulletRangeId != null && typeof o.bulletRangeId !== 'string')
+    return null;
   if (o.chessYears != null && typeof o.chessYears !== 'number') return null;
   if (o.hasAvatar != null && typeof o.hasAvatar !== 'boolean') return null;
   if (o.mascotId != null && typeof o.mascotId !== 'string') return null;
@@ -73,6 +74,7 @@ export class ProfileStore {
   private profile: UserProfile | null = null;
   private loaded = false;
   private loadPromise: Promise<UserProfile> | null = null;
+  private writes: Promise<unknown> = Promise.resolve();
   private listeners = new Set<ProfileListener>();
   private readonly storage: KeyValueStorage;
 
@@ -106,12 +108,26 @@ export class ProfileStore {
   }
 
   private async persist(next: UserProfile): Promise<void> {
+    // Publish only a durable update: failed writes keep the visible and synced profile intact.
+    await this.storage.setItem(
+      StorageKeys.userProfile.key,
+      JSON.stringify(next),
+    );
     this.profile = next;
     this.listeners.forEach((l) => l(next));
-    await this.storage.setItem(StorageKeys.userProfile.key, JSON.stringify(next));
   }
 
-  async update(patch: UserProfilePatch): Promise<UserProfile> {
+  private serialize<T>(work: () => Promise<T>): Promise<T> {
+    const next = this.writes.catch(() => {}).then(work);
+    this.writes = next;
+    return next;
+  }
+
+  update(patch: UserProfilePatch): Promise<UserProfile> {
+    return this.serialize(() => this.updateNow(patch));
+  }
+
+  private async updateNow(patch: UserProfilePatch): Promise<UserProfile> {
     await this.ensureLoaded();
     const current = this.getProfile();
     const next: UserProfile = {
@@ -143,20 +159,26 @@ export class ProfileStore {
           ? clampYears(patch.chessYears)
           : current.chessYears,
       hasAvatar:
-        patch.hasAvatar !== undefined ? patch.hasAvatar === true : current.hasAvatar === true,
+        patch.hasAvatar !== undefined
+          ? patch.hasAvatar === true
+          : current.hasAvatar === true,
       mascotId:
         patch.mascotId !== undefined
           ? isMascotId(patch.mascotId)
             ? patch.mascotId
             : null
-          : current.mascotId ?? null,
+          : (current.mascotId ?? null),
       updatedAt: nowIso(),
     };
     await this.persist(next);
     return next;
   }
 
-  async resetProfileFields(): Promise<UserProfile> {
+  resetProfileFields(): Promise<UserProfile> {
+    return this.serialize(() => this.resetProfileFieldsNow());
+  }
+
+  private async resetProfileFieldsNow(): Promise<UserProfile> {
     await this.ensureLoaded();
     const current = this.getProfile();
     const next: UserProfile = {

@@ -3,7 +3,7 @@
  * The anon key is a fixture, not a project secret.
  */
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { beforeEach, afterEach, describe, it } from 'node:test';
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -18,6 +18,26 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { create, act } = await import('react-test-renderer');
+const { CloudSyncEngine } = await import('../../../lib/cloud/CloudSyncEngine.ts');
+const { MemoryKeyValueStorage } = await import('../../../lib/storage/KeyValueStorage.ts');
+const { MemoryCloudAuth, MemoryCloudRemote } = await import('../../../lib/cloud/MemoryCloud.ts');
+const { getActiveCloudEngine, setCloudEngineForTests } =
+  await import('../../../lib/cloud/cloudStore.ts');
+beforeEach(async () => {
+  const engine = new CloudSyncEngine(
+    new MemoryKeyValueStorage(),
+    new MemoryCloudAuth(),
+    new MemoryCloudRemote(),
+  );
+  await engine.hydrate();
+  setCloudEngineForTests(engine);
+});
+afterEach(() => setCloudEngineForTests(null));
+const { navigationCalls } =
+  await import('../../../lib/theoreticalEndgame/__tests__/uiShims/expoRouter.ts');
+const { setAuthReturn } = await import('../../../lib/cloud/authReturn.ts');
+const { getAppDialogRequest, dismissAppDialog, __resetAppDialogStoreForTests } =
+  await import('../../../lib/ui/appDialogStore.ts');
 const { CloudAccountSection } = await import('../CloudAccountSection.tsx');
 
 function ids(node: { children?: unknown; props?: { testID?: string } }): string[] {
@@ -108,4 +128,196 @@ describe('sign-in form', () => {
     assert.equal(email.props.value, 'ada@example.com');
     renderer.unmount();
   });
+  it('shows only the connected account and sync controls, with no stale login form', async () => {
+    await getActiveCloudEngine().signUp('demo@example.com', 'secret1');
+    let renderer!: ReturnType<typeof create>;
+    await act(async () => {
+      renderer = create(React.createElement(CloudAccountSection));
+    });
+    assert.match(
+      String(renderer.root.findByProps({ testID: 'cloud-account-status' }).props.children),
+      /demo@example.com/,
+    );
+    assert.equal(renderer.root.findAllByProps({ testID: 'cloud-email' }).length, 0);
+    assert.ok(renderer.root.findByProps({ testID: 'cloud-sync' }));
+    await act(async () => {
+      renderer.unmount();
+    });
+  });
+  it('waits for session hydration before displaying guest credentials', async () => {
+    setCloudEngineForTests(
+      new CloudSyncEngine(
+        new MemoryKeyValueStorage(),
+        new MemoryCloudAuth(),
+        new MemoryCloudRemote(),
+      ),
+    );
+    let renderer!: ReturnType<typeof create>;
+    await act(async () => {
+      renderer = create(React.createElement(CloudAccountSection));
+    });
+    assert.equal(renderer.root.findAllByProps({ testID: 'cloud-email' }).length, 0);
+    await act(async () => {
+      renderer.unmount();
+    });
+  });
+  it('returns once to the internal origin after sign-in and keeps the password out of storage', async () => {
+    const engine = getActiveCloudEngine();
+    await engine.signUp('demo@example.com', 'secret1');
+    await engine.signOut();
+    navigationCalls.length = 0;
+    setAuthReturn('/parametres');
+    let renderer!: ReturnType<typeof create>;
+    await act(async () => {
+      renderer = create(React.createElement(CloudAccountSection));
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'cloud-email' }).props.onChangeText('demo@example.com');
+      renderer.root
+        .findAllByProps({ testID: 'cloud-password' })
+        .find((node) => node.props.onChangeText)!
+        .props.onChangeText('secret1');
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'cloud-signin' }).props.onPress();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    assert.deepEqual(
+      navigationCalls.filter((call) => call.method === 'replace'),
+      [{ method: 'replace', href: '/parametres' }],
+    );
+    for (const key of await engine.storageHandle().getAllKeys!())
+      assert.doesNotMatch((await engine.storageHandle().getItem(key)) ?? '', /secret1/);
+    await act(async () => {
+      renderer.unmount();
+    });
+  });
+  it('allows cancelling deletion and Android back clears the reauthentication password', async () => {
+    await getActiveCloudEngine().signUp('demo@example.com', 'secret1');
+    __resetAppDialogStoreForTests();
+    let renderer!: ReturnType<typeof create>;
+    await act(async () => {
+      renderer = create(React.createElement(CloudAccountSection));
+    });
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'account-delete-open' }).props.onPress();
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+    const first = getAppDialogRequest()!;
+    first.actions!.find((action) => action.testID === 'account-delete-cancel')!.onPress();
+    dismissAppDialog();
+    assert.ok(getActiveCloudEngine().getState().user);
+    await act(async () => {
+      renderer.root.findByProps({ testID: 'account-delete-open' }).props.onPress();
+      await new Promise((resolve) => setImmediate(resolve));
+    });
+    await act(async () => {
+      getAppDialogRequest()!
+        .actions!.find((action) => action.testID === 'account-delete-confirm')!
+        .onPress();
+      dismissAppDialog();
+    });
+    await act(async () => {
+      renderer.root
+        .findAllByProps({ testID: 'account-delete-password' })
+        .find((node) => node.props.onChangeText)!
+        .props.onChangeText('never-store');
+    });
+    await act(async () => {
+      renderer.root
+        .findAll(
+          (node) => node.props.visible === true && typeof node.props.onRequestClose === 'function',
+        )[0]
+        .props.onRequestClose();
+    });
+    assert.equal(
+      renderer.root
+        .findAllByProps({ testID: 'account-delete-password' })
+        .find((node) => node.props.value !== undefined)!.props.value,
+      '',
+    );
+    assert.ok(getActiveCloudEngine().getState().user);
+    await act(async () => {
+      renderer.unmount();
+    });
+  });
+});
+
+it('shows a local storage warning after a refused sign-out and keeps the connected account', async () => {
+  const engine = getActiveCloudEngine();
+  await engine.signUp('demo@example.com', 'secret1');
+  const storage = engine.storageHandle(),
+    originalSet = storage.setItem.bind(storage);
+  storage.setItem = async (key, value) => {
+    if (key.includes('.workspace.')) throw new Error('SQLITE_FULL PRIVATE');
+    await originalSet(key, value);
+  };
+  let renderer!: ReturnType<typeof create>;
+  await act(async () => {
+    renderer = create(React.createElement(CloudAccountSection));
+  });
+  await act(async () => {
+    renderer.root.findByProps({ testID: 'cloud-signout' }).props.onPress();
+  });
+  await act(async () => {
+    getAppDialogRequest()!.onConfirm!();
+    dismissAppDialog();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  assert.equal(engine.getState().lastError, 'local_quota');
+  assert.ok(engine.getState().user);
+  const warning = renderer.root.findByProps({ testID: 'cloud-operation-error' });
+  assert.match(JSON.stringify(warning.props.children), /stockage local/i);
+  assert.doesNotMatch(JSON.stringify(warning.props.children), /PRIVATE|SQLITE_FULL/);
+  assert.equal(renderer.root.findAllByProps({ testID: 'cloud-form-error' }).length, 0);
+  storage.setItem = originalSet;
+  await act(async () => renderer.unmount());
+});
+
+it('distinguishes the missing server revision column from local storage failure in the account UI', async () => {
+  const { CloudOperationError } = await import('../../../lib/cloud/diagnostics.ts');
+  const auth = new MemoryCloudAuth();
+  auth.seed('demo@example.com', 'secret1', 'owner');
+  const engine = new CloudSyncEngine(new MemoryKeyValueStorage(), auth, {
+    async listDocuments() {
+      throw new CloudOperationError(
+        'schema_revision_missing',
+        'remote.list',
+        'remote',
+        400,
+        '42703',
+      );
+    },
+    async upsertDocument() {
+      assert.fail('must not upload to incompatible schema');
+    },
+  });
+  await engine.signIn('demo@example.com', 'secret1');
+  setCloudEngineForTests(engine);
+  let renderer!: ReturnType<typeof create>;
+  await act(async () => {
+    renderer = create(React.createElement(CloudAccountSection));
+  });
+  const warning = renderer.root.findByProps({ testID: 'cloud-operation-error' });
+  assert.match(JSON.stringify(warning.props.children), /colonne de révision/);
+  assert.equal(renderer.root.findAllByProps({ testID: 'cloud-local-save-error' }).length, 0);
+  await act(async () => {
+    renderer.unmount();
+    await engine.signOut();
+  });
+});
+
+it('catches a rejected guest import before its backup instead of emitting an unhandled rejection',async()=>{
+  const {CloudOperationError}=await import('../../../lib/cloud/diagnostics.ts');
+  const engine=getActiveCloudEngine();await engine.signUp('demo@example.com','secret1');
+  engine.guestDataAvailable=async()=>true;
+  engine.importGuestData=async()=>{throw new CloudOperationError('local_quota','sync.backup','local');};
+  const errors:unknown[]=[];const listener=(error:unknown)=>errors.push(error);process.on('unhandledRejection',listener);
+  let renderer!:ReturnType<typeof create>;
+  try{
+    await act(async()=>{renderer=create(React.createElement(CloudAccountSection));await new Promise(resolve=>setImmediate(resolve));});
+    await act(async()=>renderer.root.findByProps({testID:'cloud-import-guest'}).props.onPress());
+    await act(async()=>{getAppDialogRequest()!.onConfirm!();dismissAppDialog();await new Promise(resolve=>setImmediate(resolve));});
+    assert.equal(engine.getState().lastError,'local_quota');assert.ok(engine.getState().user);assert.equal(errors.length,0);assert.ok(renderer.root.findByProps({testID:'cloud-quota-paused'}));
+  }finally{process.off('unhandledRejection',listener);if(renderer)await act(async()=>renderer.unmount());}
 });

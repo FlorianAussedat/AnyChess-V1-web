@@ -33,7 +33,7 @@ export class MemoryCloudAuth implements CloudAuth {
     if (this.users.has(key)) return { ok: false, error: 'email_taken' };
     const user = this.seed(key, password);
     if (this.confirmEmails) {
-      return { ok: false, error: 'confirm_email', email: user.email };
+      return { ok: false, error: 'confirm_email', email: user.email, pendingUserId: user.id };
     }
     this.current = user;
     return { ok: true, user };

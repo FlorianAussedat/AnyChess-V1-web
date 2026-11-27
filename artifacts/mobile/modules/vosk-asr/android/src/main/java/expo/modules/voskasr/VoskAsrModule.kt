@@ -28,6 +28,7 @@ class VoskAsrModule : Module() {
   }
   private val cancelDownload = AtomicBoolean(false)
   private val pauseDownload = AtomicBoolean(false)
+  private val activeTransferId = AtomicInteger(0)
   private val activeSession = AtomicInteger(-1)
   /** Latest start requested by JS. A stop or a newer start supersedes an older one. */
   private val requestedSession = AtomicInteger(-1)
@@ -46,20 +47,58 @@ class VoskAsrModule : Module() {
 
     Events("onResult", "onError", "onProgress", "onDownloadDone")
 
-    AsyncFunction("download") { url: String, destPath: String, sha256: String ->
-      cancelDownload.set(false)
+    // transferId is optional for older JS clients; new ones always pass it.
+    AsyncFunction("download") { url: String, destPath: String, sha256: String, transferId: Int? ->
+      val id = transferId ?: activeTransferId.incrementAndGet()
+      // Signal any in-flight transfer to stop, then queue this id on the single worker.
+      cancelDownload.set(true)
       pauseDownload.set(false)
+      activeTransferId.set(id)
       io.submit<Unit> {
+        cancelDownload.set(false)
+        pauseDownload.set(false)
+        if (activeTransferId.get() != id) {
+          sendEvent(
+            "onDownloadDone",
+            mapOf("ok" to false, "reason" to "cancelled", "transferId" to id),
+          )
+          return@submit
+        }
         try {
-          downloadFile(url, File(destPath), sha256)
-          sendEvent("onDownloadDone", mapOf("ok" to true, "path" to destPath))
+          downloadFile(url, File(destPath), sha256, id)
+          if (activeTransferId.get() != id) {
+            sendEvent(
+              "onDownloadDone",
+              mapOf("ok" to false, "reason" to "cancelled", "transferId" to id),
+            )
+            return@submit
+          }
+          sendEvent(
+            "onDownloadDone",
+            mapOf("ok" to true, "path" to destPath, "transferId" to id),
+          )
         } catch (err: Exception) {
+          if (activeTransferId.get() != id) {
+            sendEvent(
+              "onDownloadDone",
+              mapOf("ok" to false, "reason" to "cancelled", "transferId" to id),
+            )
+            return@submit
+          }
           if (cancelDownload.get()) {
-            sendEvent("onDownloadDone", mapOf("ok" to false, "reason" to "cancelled"))
+            sendEvent(
+              "onDownloadDone",
+              mapOf("ok" to false, "reason" to "cancelled", "transferId" to id),
+            )
           } else {
             sendEvent(
               "onDownloadDone",
-              mapOf("ok" to false, "reason" to reasonOf(err), "message" to (err.message ?: "")),
+              mapOf(
+                "ok" to false,
+                "reason" to reasonOf(err),
+                "message" to (err.message ?: ""),
+                "transferId" to id,
+              ),
             )
           }
         }
@@ -76,6 +115,12 @@ class VoskAsrModule : Module() {
 
     Function("freeBytes") {
       StatFs(context.filesDir.absolutePath).availableBytes.toDouble()
+    }
+
+    Function("zipBytes") { language: String ->
+      val safe = if (language == "en") "en" else "fr"
+      val zip = File(context.filesDir, "vosk/$safe.download.zip")
+      if (zip.isFile) zip.length().toDouble() else 0.0
     }
 
     Function("paths") { language: String ->
@@ -98,6 +143,8 @@ class VoskAsrModule : Module() {
       val marked = ready.isFile && ready.readText().trim() == directory
       when {
         marked && filesOk -> "installed"
+        // Unpacked files without READY can be loaded without downloading again.
+        filesOk -> "unpacked"
         else -> "missing"
       }
     }
@@ -111,32 +158,49 @@ class VoskAsrModule : Module() {
         if (zipCanon == root.canonicalPath || zipCanon.startsWith(rootPrefix)) {
           throw IllegalStateException("integrity")
         }
+        if (!zip.isFile) {
+          throw IllegalStateException("integrity")
+        }
         if (!sha256.equals(hashFile(zip), ignoreCase = true)) {
           zip.delete()
           throw IllegalStateException("integrity")
         }
+        // Drop a previous incomplete unpack, but keep READY until the new tree is verified.
+        val previousReady = File(root, "READY")
+        if (previousReady.exists()) previousReady.delete()
         if (root.exists()) root.deleteRecursively()
         root.mkdirs()
         unzip(zip, root)
-        zip.delete()
         val modelDir = File(root, directory)
         if (!File(modelDir, "conf/model.conf").isFile || !File(modelDir, "am/final.mdl").isFile) {
           root.deleteRecursively()
           throw IllegalStateException("incompatible")
         }
+        // Keep the zip until load succeeds so a failed load can retry without re-download.
         modelDir.absolutePath
       }.get()
     }
 
     AsyncFunction("load") { path: String ->
       io.submit<Unit> {
-        if (modelPath == path && model != null) return@submit
+        if (modelPath == path && model != null) {
+          // Ensure READY exists even if a previous run loaded without writing it.
+          val modelDir = File(path)
+          File(modelDir.parentFile, "READY").writeText(modelDir.name)
+          return@submit
+        }
         stopListening()
         recognizer?.close()
         recognizer = null
         model?.close()
         tuneDecoder(File(path))
-        model = Model(path)
+        try {
+          model = Model(path)
+        } catch (err: Exception) {
+          model = null
+          modelPath = null
+          throw IllegalStateException("load", err)
+        }
         modelPath = path
         recognizer = Recognizer(model, SAMPLE_RATE, grammarJson).also {
           it.setMaxAlternatives(MAX_ALTERNATIVES)
@@ -144,6 +208,9 @@ class VoskAsrModule : Module() {
         }
         val modelDir = File(path)
         File(modelDir.parentFile, "READY").writeText(modelDir.name)
+        // Zip is disposable only after a successful load.
+        val safe = modelDir.parentFile?.name ?: return@submit
+        File(context.filesDir, "vosk/$safe.download.zip").delete()
       }.get()
     }
 
@@ -253,11 +320,17 @@ class VoskAsrModule : Module() {
     )
   }
 
-  private fun downloadFile(url: String, dest: File, expectedSha: String) {
-    downloadFile(url, dest, expectedSha, resume = true)
+  private fun downloadFile(url: String, dest: File, expectedSha: String, transferId: Int) {
+    downloadFile(url, dest, expectedSha, transferId, resume = true)
   }
 
-  private fun downloadFile(url: String, dest: File, expectedSha: String, resume: Boolean) {
+  private fun downloadFile(
+    url: String,
+    dest: File,
+    expectedSha: String,
+    transferId: Int,
+    resume: Boolean,
+  ) {
     dest.parentFile?.mkdirs()
     var existing = if (resume && dest.exists()) dest.length() else 0L
     if (!resume && dest.exists()) dest.delete()
@@ -268,7 +341,7 @@ class VoskAsrModule : Module() {
         connection.disconnect()
         if (expectedSha.equals(hashFile(dest), ignoreCase = true)) return
         dest.delete()
-        downloadFile(url, dest, expectedSha, resume = false)
+        downloadFile(url, dest, expectedSha, transferId, resume = false)
         return
       }
       if (code != HttpURLConnection.HTTP_PARTIAL && code != HttpURLConnection.HTTP_OK) {
@@ -291,6 +364,7 @@ class VoskAsrModule : Module() {
           val buffer = ByteArray(64 * 1024)
           var received = existing
           while (true) {
+            if (activeTransferId.get() != transferId) throw IllegalStateException("cancelled")
             if (cancelDownload.get()) throw IllegalStateException("cancelled")
             if (pauseDownload.get()) throw IllegalStateException("paused")
             val read = input.read(buffer)
@@ -299,7 +373,11 @@ class VoskAsrModule : Module() {
             received += read
             sendEvent(
               "onProgress",
-              mapOf("received" to received.toDouble(), "total" to total.toDouble()),
+              mapOf(
+                "received" to received.toDouble(),
+                "total" to total.toDouble(),
+                "transferId" to transferId,
+              ),
             )
           }
         }
@@ -393,6 +471,7 @@ class VoskAsrModule : Module() {
       message.contains("enospc") || message.contains("no space") -> "space"
       message.contains("paused") -> "paused"
       message.contains("cancelled") -> "cancelled"
+      message.contains("load") -> "load"
       else -> "network"
     }
   }

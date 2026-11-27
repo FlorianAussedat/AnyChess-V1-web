@@ -1,3 +1,5 @@
+import { useWebNavigationGuard } from '@/hooks/useWebNavigationGuard';
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,15 +21,17 @@ import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useBoardCoordinates } from '@/hooks/useBoardCoordinates';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePersonalPgnAccess } from '@/hooks/usePersonalPgnAccess';
 import { useBoardTouchSelection } from '@/hooks/useGameScreenInteraction';
 import { ChessBoard } from '@/components/ChessBoard';
 import { ChessBoardSection } from '@/components/game/ChessBoardSection';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { GuestLibraryLock } from '@/components/openings/GuestLibraryLock';
 import { GameReaderNavControls } from '@/components/gameReader/GameReaderNavControls';
 import { OpeningStudyNotation } from '@/components/openings/OpeningStudyNotation';
 import { OpeningChoiceModal } from '@/components/openings/OpeningChoiceModal';
 import { repertoireService, pgnFileDisplayName, type RepertoireFolder, type RepertoireSide } from '@/lib/repertoire';
-import { downloadPgnFile } from '@/lib/pgn/PgnExporter';
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import { formatSanForDisplay } from '@/lib/chess/notation';
 import { computeBoardSize, fitBoardSizeToViewport } from '@/lib/game/boardSize';
 import {
@@ -86,9 +90,11 @@ function oneParam(value?: string | string[]): string | undefined {
 export default function OpeningAnnotateScreen() {
   const colors = useColors();
   const { t } = useTranslation();
+  const access = usePersonalPgnAccess();
   const { contentTop, contentBottom } = useAppSafeInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const router = useRouter();
+  const goBack = useSmartBack();
   const { showCoordinates } = useBoardCoordinates();
   const { chessNotation } = usePreferences();
   const params = useLocalSearchParams<{
@@ -293,16 +299,25 @@ export default function OpeningAnnotateScreen() {
     });
   }, [chessNotation, node, session, t]);
 
+  const allowEditorRemoval = useWebNavigationGuard(
+    Boolean(session && (session.dirty || commentDraft !== editorNodeComment(session))),
+    () => requestLeave(),
+  );
+  const leaveEditor = useCallback(() => {
+    allowEditorRemoval();
+    goBack();
+  }, [allowEditorRemoval, goBack]);
+
   const finishSaveIntent = useCallback(
     (ok: boolean) => {
       const intent = saveIntent;
       setSaveIntent(null);
       if (ok && intent === 'save-and-leave') {
         setLeaveOpen(false);
-        router.back();
+        leaveEditor();
       }
     },
-    [router, saveIntent],
+    [leaveEditor, saveIntent],
   );
 
   const saveToLibrary = useCallback(
@@ -399,7 +414,7 @@ export default function OpeningAnnotateScreen() {
     const flushed = flushComment(session);
     applySession(flushed);
     const name = flushed.snapshot.displayName.trim() || 'opening';
-    downloadPgnFile(name.endsWith('.pgn') ? name : `${name}.pgn`, editorExportPgn(flushed));
+    void requestPgnExport(name.endsWith('.pgn') ? name : `${name}.pgn`, editorExportPgn(flushed));
   }, [applySession, flushComment, session]);
 
   const analyzePosition = useCallback(async () => {
@@ -424,7 +439,7 @@ export default function OpeningAnnotateScreen() {
 
   const requestLeave = useCallback(() => {
     if (!session) {
-      router.back();
+      leaveEditor();
       return;
     }
     const flushed = flushComment(session);
@@ -433,8 +448,17 @@ export default function OpeningAnnotateScreen() {
       setLeaveOpen(true);
       return;
     }
-    router.back();
-  }, [applySession, flushComment, router, session]);
+    leaveEditor();
+  }, [applySession, flushComment, leaveEditor, session]);
+
+  if (access.ready && access.locked) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
+        <ScreenHeader title={t('openings.annotatePgn')} />
+        <GuestLibraryLock />
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -447,7 +471,7 @@ export default function OpeningAnnotateScreen() {
   if (error || !session) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, paddingTop: contentTop }]}>
-        <ScreenHeader onBack={() => router.back()} title={t('openings.annotatePgn')} />
+        <ScreenHeader title={t('openings.annotatePgn')} />
         <Text style={{ color: colors.destructive, paddingHorizontal: 16 }}>{error}</Text>
       </View>
     );
@@ -748,7 +772,7 @@ export default function OpeningAnnotateScreen() {
                 const ok = await saveToLibrary();
                 if (ok) {
                   setLeaveOpen(false);
-                  router.back();
+                  leaveEditor();
                 }
               })();
             },
@@ -759,7 +783,7 @@ export default function OpeningAnnotateScreen() {
             destructive: true,
             onPress: () => {
               setLeaveOpen(false);
-              router.back();
+              leaveEditor();
             },
           },
           {

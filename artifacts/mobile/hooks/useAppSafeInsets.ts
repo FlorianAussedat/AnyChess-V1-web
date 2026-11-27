@@ -5,8 +5,8 @@
  * Web prefers real insets when present; otherwise a small fallback
  * (historical 67px desktop pad caused excess empty space on mobile web/Android).
  *
- * Bottom navigation height is reserved by the root layout
- * (`DesignTokens.bottomNavContentHeight`) — do not add that value again here.
+ * NavigationShell lays out the bottom bar in normal flow on main routes only.
+ * Do not reserve its height here or in individual screens.
  */
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

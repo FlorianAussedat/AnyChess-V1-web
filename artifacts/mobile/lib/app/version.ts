@@ -7,13 +7,13 @@
 export const APP_NAME = 'AnyChess';
 export const APP_STAGE = 'Beta';
 /** Display version (Major Update scheme). */
-export const APP_VERSION = '0.0.5';
+export const APP_VERSION = '0.0.7';
 
-/** e.g. "AnyChess Beta 0.0.5" */
+/** e.g. "AnyChess V0.0.7". The stage stays available for diagnostics. */
 export function formatAppVersionLabel(
   name: string = APP_NAME,
-  stage: string = APP_STAGE,
+  _stage: string = APP_STAGE,
   version: string = APP_VERSION,
 ): string {
-  return `${name} ${stage} ${version}`.trim();
+  return `${name} V${version}`.trim();
 }

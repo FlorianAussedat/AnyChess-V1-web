@@ -111,7 +111,7 @@ describe('header and Android back share one guard', () => {
     const hook = read('hooks/useActiveSessionBack.ts');
     assert.match(hook, /BackHandler\.addEventListener\('hardwareBackPress'/);
     assert.match(hook, /if \(!current\.sessionActive && !current\.captureHardwareBack\) return false/);
-    assert.match(hook, /confirmActiveSessionBack\(current\.kind, current\.activityId, current\.onLeave\)/);
+    assert.match(hook, /confirmActiveSessionBack\(current\.kind, current\.activityId/);
     const confirm = read('lib/activitySessions/confirmDiscard.ts');
     assert.match(confirm, /function confirmActiveSessionBack/);
     assert.match(confirm, /handleActiveSessionBackConfirm\(activityId, onLeave\)/);
@@ -183,7 +183,8 @@ describe('header and Android back share one guard', () => {
     assert.doesNotMatch(settings, /useActiveSessionBack/);
     assert.doesNotMatch(analyzer, /useActiveSessionBack/);
     assert.doesNotMatch(openingsIndex, /useActiveSessionBack/);
-    assert.match(records, /onBack=\{\(\) => router\.back\(\)\}/);
-    assert.match(settings, /onBack=\{\(\) => router\.back\(\)\}/);
+    assert.doesNotMatch(records, /onBack=\{\(\) => router\.back\(\)\}/);
+    assert.doesNotMatch(settings, /onBack=\{\(\) => router\.back\(\)\}/);
+    assert.match(read('components/ScreenHeader.tsx'), /onBack \?\? defaultBack/);
   });
 });

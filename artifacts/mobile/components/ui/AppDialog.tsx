@@ -53,7 +53,7 @@ export function AppDialog({
   dismissOnBackdrop = false,
 }: Props) {
   const colors = useColors();
-  const { width } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.97)).current;
   const body = message?.trim() ? message.trim() : undefined;
@@ -61,6 +61,7 @@ export function AppDialog({
     () =>
       buildDialogActions({
         actions,
+        variant,
         cancelLabel,
         confirmLabel,
         onCancel,
@@ -96,7 +97,7 @@ export function AppDialog({
   };
 
   const cardWidth = Math.min(width * 0.88, 420);
-  const row = shouldUseActionRow(items.length, width);
+  const row = shouldUseActionRow(items.length, width / Math.max(1, fontScale));
   const visibleActions = layoutDialogActions(items, row);
 
   return (
@@ -132,50 +133,53 @@ export function AppDialog({
               backgroundColor: colors.card,
               borderColor: colors.border,
               width: cardWidth,
+              maxHeight: height * 0.85,
               transform: [{ scale }],
             },
           ]}
         >
-          <Text
-            accessibilityRole="header"
-            style={[styles.title, { color: colors.foreground }]}
-            testID="app-dialog-title"
+          <ScrollView
+            style={styles.contentScroll}
+            contentContainerStyle={styles.cardContent}
+            keyboardShouldPersistTaps="handled"
           >
-            {title}
-          </Text>
-          {body ? (
-            <ScrollView
-              style={styles.messageScroll}
-              nestedScrollEnabled
-              keyboardShouldPersistTaps="handled"
+            <Text
+              accessibilityRole="header"
+              style={[styles.title, { color: colors.foreground }]}
+              testID="app-dialog-title"
             >
-              <Text
-                style={[styles.message, { color: colors.mutedForeground }]}
-                testID="app-dialog-message"
-              >
-                {body}
-              </Text>
-            </ScrollView>
-          ) : null}
-          <View style={[styles.actions, row ? styles.actionsRow : styles.actionsStack]}>
-            {visibleActions.map((action) => {
-              const kind = action.variant ?? 'secondary';
-              return (
-                <AppButton
-                  key={action.testID ?? action.label}
-                  label={action.label}
-                  onPress={action.onPress}
-                  variant={kind}
-                  disabled={loading}
-                  testID={action.testID}
-                  style={[
-                    row ? styles.actionFlex : undefined,
-                    kind === 'secondary' ? { backgroundColor: colors.secondary } : undefined,
-                  ]}
-                />
-              );
-            })}
-          </View>
+              {title}
+            </Text>
+            {body ? (
+              <View>
+                <Text
+                  style={[styles.message, { color: colors.mutedForeground }]}
+                  testID="app-dialog-message"
+                >
+                  {body}
+                </Text>
+              </View>
+            ) : null}
+            <View style={[styles.actions, row ? styles.actionsRow : styles.actionsStack]}>
+              {visibleActions.map((action) => {
+                const kind = action.variant ?? 'secondary';
+                return (
+                  <AppButton
+                    key={action.testID ?? action.label}
+                    label={action.label}
+                    onPress={action.onPress}
+                    variant={kind}
+                    disabled={loading}
+                    testID={action.testID}
+                    style={[
+                      row ? styles.actionFlex : undefined,
+                      kind === 'secondary' ? { backgroundColor: colors.secondary } : undefined,
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          </ScrollView>
         </Animated.View>
       </Animated.View>
     </Modal>
@@ -193,6 +197,11 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderRadius: DesignTokens.radius.card,
+  },
+  contentScroll: {
+    flexGrow: 0,
+  },
+  cardContent: {
     padding: DesignTokens.spacing.xl,
     gap: DesignTokens.spacing.md,
   },
@@ -200,9 +209,6 @@ const styles = StyleSheet.create({
     fontSize: DesignTokens.typography.modeTitle,
     lineHeight: 22,
     fontFamily: DesignTokens.typography.weightBold,
-  },
-  messageScroll: {
-    maxHeight: 280,
   },
   message: {
     fontSize: DesignTokens.typography.body,

@@ -1,3 +1,4 @@
+import { cloudStep } from './diagnostics.ts';
 import type { KeyValueStorage } from '../storage/KeyValueStorage.ts';
 import {
   CLOUD_LEGACY_GUEST_KEY,
@@ -20,7 +21,7 @@ export async function readSyncableDocs(
 ): Promise<Record<string, string | null>> {
   const docs: Record<string, string | null> = {};
   for (const key of SYNCABLE_STORAGE_KEYS) {
-    docs[key] = await storage.getItem(key);
+    docs[key] = await cloudStep(`workspace.read_document.${SYNCABLE_STORAGE_KEYS.indexOf(key)}`, 'local', () => storage.getItem(key));
   }
   return docs;
 }
@@ -31,7 +32,8 @@ export async function writeSyncableDocs(
 ): Promise<void> {
   for (const key of SYNCABLE_STORAGE_KEYS) {
     const value = docs[key];
-    if (value == null) await storage.removeItem(key);
+    if (storage.updateItem) await storage.updateItem(key, () => value ?? null, 'cloud');
+    else if (value == null) await storage.removeItem(key);
     else await storage.setItem(key, value);
   }
 }
@@ -64,7 +66,10 @@ export function parseWorkspace(raw: string | null, fallbackOwner: string): Works
       docs?: Record<string, string | null>;
       parkedAt?: string;
     };
+    if (!parsed.docs || typeof parsed.docs !== 'object' || Array.isArray(parsed.docs)) return null;
+    if (Object.values(parsed.docs).some(value => value !== null && typeof value !== 'string')) return null;
     const ownerId = parsed.ownerId || fallbackOwner;
+    if (fallbackOwner && ownerId !== fallbackOwner) return null;
     const origin: WorkspaceOrigin =
       parsed.origin === 'guest' || parsed.origin === 'account' || parsed.origin === 'legacy'
         ? parsed.origin

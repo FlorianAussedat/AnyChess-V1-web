@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  formatMegabytesOnly,
   hasRoomForModel,
   initialModelFlow,
   modelIsReady,
@@ -8,13 +9,16 @@ import {
   partialFilePlan,
   reduceModelFlow,
 } from '../offlineModelFlow.ts';
-import { formatDownloadSize, tuneVoskModelConf } from '../voskModels.ts';
+import { tuneVoskModelConf } from '../voskModels.ts';
 
-function offer(network: 'wifi' | 'cellular' | 'offline' | 'unknown' = 'wifi') {
+function offer(
+  network: 'wifi' | 'cellular' | 'offline' | 'unknown' = 'wifi',
+  status: 'installed' | 'unpacked' | 'missing' = 'missing',
+) {
   return reduceModelFlow(initialModelFlow(network), {
     type: 'offer',
     network,
-    installed: false,
+    status,
   }).state;
 }
 
@@ -23,11 +27,21 @@ describe('offline model download flow', () => {
     const asked = reduceModelFlow(initialModelFlow('wifi'), {
       type: 'offer',
       network: 'wifi',
-      installed: false,
+      status: 'missing',
     });
     assert.equal(asked.state.phase, 'ask');
     assert.equal(asked.effect, 'none');
     assert.equal(asked.state.mobileAllowed, false);
+    assert.equal(asked.state.repairOnly, false);
+  });
+
+  it('offers a local repair when files exist without READY', () => {
+    const asked = offer('wifi', 'unpacked');
+    assert.equal(asked.phase, 'ask');
+    assert.equal(asked.repairOnly, true);
+    const prepared = reduceModelFlow(asked, { type: 'download', network: 'wifi' });
+    assert.equal(prepared.state.phase, 'preparing');
+    assert.equal(prepared.effect, 'prepare');
   });
 
   it('starts on Wi-Fi only after the download button', () => {
@@ -57,6 +71,13 @@ describe('offline model download flow', () => {
     assert.equal(networkKindFromState({ type: 'WIFI', isConnected: true }), 'wifi');
   });
 
+  it('does not pause an accepted Wi-Fi download when the network flickers to unknown', () => {
+    const started = reduceModelFlow(offer('wifi'), { type: 'download', network: 'wifi' }).state;
+    const flicker = reduceModelFlow(started, { type: 'network', network: 'unknown' });
+    assert.equal(flicker.state.phase, 'downloading');
+    assert.equal(flicker.effect, 'none');
+  });
+
   it('limits mobile consent to the download that was accepted', () => {
     const asked = reduceModelFlow(offer('cellular'), { type: 'download', network: 'cellular' }).state;
     const started = reduceModelFlow(asked, { type: 'download-mobile', network: 'cellular' });
@@ -65,7 +86,7 @@ describe('offline model download flow', () => {
     const later = reduceModelFlow(started.state, {
       type: 'offer',
       network: 'cellular',
-      installed: false,
+      status: 'missing',
     });
     assert.equal(later.state.mobileAllowed, false);
     assert.equal(later.state.phase, 'ask');
@@ -114,7 +135,7 @@ describe('offline model download flow', () => {
     const ready = reduceModelFlow(initialModelFlow('wifi'), {
       type: 'offer',
       network: 'wifi',
-      installed: true,
+      status: 'installed',
     });
     assert.equal(ready.state.phase, 'hidden');
     assert.equal(ready.effect, 'none');
@@ -127,6 +148,27 @@ describe('offline model download flow', () => {
     assert.equal(retry.state.mobileAllowed, false);
   });
 
+  it('walks verifying → installing → preparing → ready after a successful transfer', () => {
+    let state = reduceModelFlow(offer('wifi'), { type: 'download', network: 'wifi' }).state;
+    state = reduceModelFlow(state, { type: 'received', ok: true }).state;
+    assert.equal(state.phase, 'verifying');
+    state = reduceModelFlow(state, { type: 'installing' }).state;
+    assert.equal(state.phase, 'installing');
+    state = reduceModelFlow(state, { type: 'preparing' }).state;
+    assert.equal(state.phase, 'preparing');
+    state = reduceModelFlow(state, { type: 'installed' }).state;
+    assert.equal(state.phase, 'ready');
+  });
+
+  it('keeps repairOnly after a load failure so retry does not force a re-download', () => {
+    let state = offer('wifi', 'unpacked');
+    state = reduceModelFlow(state, { type: 'download', network: 'wifi' }).state;
+    const failed = reduceModelFlow(state, { type: 'install-failed', reason: 'load' });
+    assert.equal(failed.state.phase, 'error');
+    assert.equal(failed.state.reason, 'load');
+    assert.equal(failed.state.repairOnly, true);
+  });
+
   it('is ready only after verification and a successful load', () => {
     assert.equal(modelIsReady({ verified: true, loaded: false }), false);
     assert.equal(modelIsReady({ verified: false, loaded: true }), false);
@@ -135,6 +177,7 @@ describe('offline model download flow', () => {
 
   it('resumes a partial file and discards a corrupt or oversized one', () => {
     assert.equal(partialFilePlan({ installed: true, bytes: 10, expectedBytes: 40 }), 'ready');
+    assert.equal(partialFilePlan({ installed: false, unpacked: true, bytes: 0, expectedBytes: 40 }), 'prepare');
     assert.equal(partialFilePlan({ installed: false, bytes: 0, expectedBytes: 40 }), 'fresh');
     assert.equal(partialFilePlan({ installed: false, bytes: 12, expectedBytes: 40 }), 'resume');
     assert.equal(
@@ -159,9 +202,9 @@ describe('offline model download flow', () => {
     );
   });
 
-  it('shows the real archive size, not a rounded guess', () => {
-    assert.equal(formatDownloadSize(42_233_323, 'fr'), `42${'\u202f'}233${'\u202f'}323 octets (42,2 Mo)`);
-    assert.equal(formatDownloadSize(41_205_931, 'en'), `41${'\u202f'}205${'\u202f'}931 bytes (41.2 MB)`);
+  it('shows megabyte-only sizes for the download UI', () => {
+    assert.equal(formatMegabytesOnly(42_233_323, 'fr'), '42,2 Mo');
+    assert.equal(formatMegabytesOnly(41_205_931, 'en'), '41.2 MB');
   });
 });
 

@@ -17,6 +17,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 export type AnyLyseurExportMenuProps = {
   visible: boolean;
   onClose: () => void;
+  busy?: boolean;
+  status?: string | null;
+  onSharePgn?: () => void;
+  onShareFen?: () => void;
   includeEvals: boolean;
   onIncludeEvalsChange: (value: boolean) => void;
   onCopyPgn: () => void;
@@ -27,6 +31,10 @@ export type AnyLyseurExportMenuProps = {
 
 export function AnyLyseurExportMenu({
   visible,
+  busy = false,
+  status,
+  onSharePgn,
+  onShareFen,
   onClose,
   includeEvals,
   onIncludeEvalsChange,
@@ -44,6 +52,7 @@ export function AnyLyseurExportMenu({
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
+      disabled={busy}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
@@ -62,11 +71,11 @@ export function AnyLyseurExportMenu({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={() => { if (!busy) onClose(); }}
     >
       <Pressable
         style={styles.backdrop}
-        onPress={onClose}
+        onPress={() => { if (!busy) onClose(); }}
         testID="anyliseur-export-backdrop"
       >
         <Pressable
@@ -77,6 +86,7 @@ export function AnyLyseurExportMenu({
             {t('parties.anyliseurExport')}
           </Text>
 
+          {status ? <Text testID="anyliseur-export-status" accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.foreground }}>{status}</Text> : null}
           <View style={styles.switchRow}>
             <Text style={{ color: colors.foreground, flex: 1 }}>
               {t('parties.anyliseurExportIncludeEvals')}
@@ -91,20 +101,22 @@ export function AnyLyseurExportMenu({
 
           {row(t('parties.anyliseurExportCopyPgn'), onCopyPgn, 'anyliseur-export-copy-pgn')}
           {row(
-            t('parties.anyliseurExportDownloadPgn'),
+            t('files.savePgn'),
             onDownloadPgn,
             'anyliseur-export-download-pgn',
           )}
+          {onSharePgn ? row(t('files.sharePgn'), onSharePgn, 'anyliseur-export-share-pgn') : null}
+          {onShareFen ? row(t('files.shareFen'), onShareFen, 'anyliseur-export-share-fen') : null}
           {row(t('parties.anyliseurExportCopyFen'), onCopyFen, 'anyliseur-export-copy-fen')}
           {row(
-            t('parties.anyliseurExportDownloadFen'),
+            t('files.saveFen'),
             onDownloadFen,
             'anyliseur-export-download-fen',
           )}
 
           <Pressable
             testID="anyliseur-export-close"
-            onPress={onClose}
+            onPress={() => { if (!busy) onClose(); }}
             style={[styles.close, { borderColor: colors.border }]}
           >
             <Text style={{ color: colors.mutedForeground }}>

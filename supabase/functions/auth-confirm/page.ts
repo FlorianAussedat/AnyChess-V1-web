@@ -103,7 +103,7 @@ export function renderConfirmationPage(config: {
       <img class="logo" src="${logo}" alt="AnyChess" width="280" height="97" />
       <h1 id="title">AnyChess</h1>
       <p id="message">${CONFIRM_COPY.fr.checking}</p>
-      <a id="open" class="open" href="${open}">${CONFIRM_COPY.fr.open}</a>
+      <a id="open" class="open" href="${open}" hidden>${CONFIRM_COPY.fr.open}</a>
       <p id="alt" class="alt">${CONFIRM_COPY.fr.alt}</p>
       <form id="recover" hidden="hidden">
         <label id="label-password" for="password">${CONFIRM_COPY.fr.recoverLabel}</label>
@@ -139,7 +139,10 @@ ${INTERPRET_SOURCE}
   var client = pageClient(location.search);
   var text = copy[lang] || copy.fr;
   document.documentElement.lang = lang;
-  if (open) open.href = appOpenHref(client, navigator.userAgent || '');
+  if (open) {
+    open.href = appOpenHref(client, navigator.userAgent || '');
+    open.hidden = false;
+  }
   if (open) open.textContent = text.open;
   if (alt) alt.textContent = text.alt;
   function show(key, headingKey) {
@@ -170,21 +173,31 @@ ${INTERPRET_SOURCE}
       return { ok: false, status: response.status, body: null, confirmed: false };
     });
   }
+  function requestWithTimeout(url, options) {
+    var controller = new AbortController();
+    options = options || {};
+    options.signal = controller.signal;
+    var timer;
+    return Promise.race([
+      fetch(url, options).then(readAuth),
+      new Promise(function (_, reject) { timer = setTimeout(function () { controller.abort(); reject(new Error('timeout')); }, 15000); })
+    ]).finally(function () { clearTimeout(timer); });
+  }
   function requestVerify() {
     if (cfg.anon && cfg.url) {
-      return fetch(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
+      return requestWithTimeout(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
         headers: { Authorization: 'Bearer ' + accessToken, apikey: cfg.anon }
-      }).then(readAuth);
+      });
     }
-    return fetch(cfg.verify, {
+    return requestWithTimeout(cfg.verify, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'verify', access_token: accessToken })
-    }).then(readAuth);
+    });
   }
   function requestRecover(password) {
     if (cfg.anon && cfg.url) {
-      return fetch(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
+      return requestWithTimeout(cfg.url.replace(/\\/$/, '') + '/auth/v1/user', {
         method: 'PUT',
         headers: {
           Authorization: 'Bearer ' + accessToken,
@@ -192,17 +205,17 @@ ${INTERPRET_SOURCE}
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ password: password })
-      }).then(readAuth);
+      });
     }
-    return fetch(cfg.verify, {
+    return requestWithTimeout(cfg.verify, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'recover', access_token: accessToken, password: password })
-    }).then(readAuth);
+    });
   }
   function stripTokens() {
     var keep = new URLSearchParams();
-    if (client === 'dev') keep.set('client', 'dev');
+    if (client === 'dev' || client === 'app' || client === 'preview' || client === 'standalone') keep.set('client', client);
     var params = new URLSearchParams(location.search.charAt(0) === '?' ? location.search.slice(1) : location.search);
     var requested = (params.get('lang') || '').toLowerCase();
     if (requested === 'fr' || requested === 'en') keep.set('lang', requested);
@@ -213,6 +226,7 @@ ${INTERPRET_SOURCE}
   show('checking', 'checkingTitle');
   var outcome = interpretConfirmationLocation(location.search, location.hash);
   var accessToken = tokenFromLocation();
+  stripTokens();
   if (outcome === 'expired' || outcome === 'invalid') {
     show('expired', 'expiredTitle');
     stripTokens();
@@ -260,7 +274,7 @@ ${INTERPRET_SOURCE}
     }
     bindSecret(password, document.getElementById('password-toggle'));
     bindSecret(password2, document.getElementById('password2-toggle'));
-    window.addEventListener('pagehide', maskSecrets);
+    window.addEventListener('pagehide', function () { maskSecrets(); password.value = ''; password2.value = ''; accessToken = ''; });
     if (!accessToken || !form || !password || !password2 || !submit || !((cfg.url && cfg.anon) || cfg.verify)) {
       show('recoverFailed', 'recoverFailedTitle');
       stripTokens();
@@ -270,6 +284,7 @@ ${INTERPRET_SOURCE}
     form.hidden = false;
     form.addEventListener('submit', function (event) {
       event.preventDefault();
+      if (submit.disabled) return;
       var next = password.value;
       var again = password2.value;
       if (next.length < 6) {
@@ -285,6 +300,7 @@ ${INTERPRET_SOURCE}
       requestRecover(next).then(function (result) {
         if (result.ok) {
           maskSecrets();
+          password.value = ''; password2.value = ''; accessToken = '';
           form.hidden = true;
           show('recoverSaved', 'recoverSavedTitle');
           stripTokens();
@@ -292,12 +308,11 @@ ${INTERPRET_SOURCE}
         }
         submit.disabled = false;
         if (result.status === 422) {
-          recoverError.textContent = text.recoverShort;
+          recoverError.textContent = text.recoverRejected;
           return;
         }
         if (result.status >= 500 || result.status === 0) {
-          show('unavailable', 'unavailableTitle');
-          form.hidden = true;
+          recoverError.textContent = text.recoverNetwork;
           return;
         }
         show('recoverFailed', 'recoverFailedTitle');
@@ -324,7 +339,7 @@ ${INTERPRET_SOURCE}
     return;
   }
   requestVerify().then(function (result) {
-    if (result.confirmed === true || (result.ok && userEmailIsConfirmed(result.body))) {
+    if (result.ok && (result.confirmed === true || userEmailIsConfirmed(result.body))) {
       show('confirmed', 'confirmedTitle');
       stripTokens();
       return;

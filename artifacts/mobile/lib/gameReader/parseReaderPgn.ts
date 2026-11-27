@@ -70,7 +70,7 @@ function reconstructRawPgn(
   headers: Record<string, string>,
   movetext: string,
 ): string {
-  const lines = Object.entries(headers).map(([k, v]) => `[${k} "${v}"]`);
+  const lines = Object.entries(headers).map(([k, v]) => `[${k} "${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`);
   return `${lines.join('\n')}\n\n${movetext.trim()}`.trim();
 }
 

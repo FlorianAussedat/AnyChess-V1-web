@@ -58,3 +58,5 @@ export const BackHandler = {
 export function useWindowDimensions() {
   return { width: 390, height: 844, scale: 2, fontScale: 1 };
 }
+
+export const KeyboardAvoidingView = host('KeyboardAvoidingView');

@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
     },
     body: JSON.stringify({ prefix: userId, limit: 100 }),
   });
+  if (!list.ok) return json({ ok: false, error: "failed" }, 502);
   const listed = (await list.json().catch(() => [])) as { name?: string }[];
   const names = new Set<string>([`${userId}/avatar.png`]);
   if (Array.isArray(listed)) {
@@ -140,7 +141,7 @@ Deno.serve(async (req) => {
     }
   }
   if (names.size) {
-    await fetch(`${supabaseUrl}/storage/v1/object/avatars`, {
+    const removedAvatars = await fetch(`${supabaseUrl}/storage/v1/object/avatars`, {
       method: "DELETE",
       headers: {
         apikey: service,
@@ -149,6 +150,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify(Array.from(names)),
     });
+    if (!removedAvatars.ok) return json({ ok: false, error: "failed" }, 502);
   }
 
   const removed = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {

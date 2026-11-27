@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type ImageSourcePropType,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -48,6 +49,8 @@ export function ModeCard({
   testID,
 }: ModeCardProps) {
   const colors = useColors();
+  const { width, fontScale } = useWindowDimensions();
+  const stacked = width < 360 || fontScale > 1.3;
   const art = MASCOT_ART[modeId] ?? MASCOT_ART.classic;
   const { imgWidth, imgHeight, imageRight, imageBottom } = containArtInSlot(
     art,
@@ -73,7 +76,7 @@ export function ModeCard({
         },
       ]}
     >
-      <View style={styles.columns}>
+      <View style={[styles.columns, stacked && styles.stackedColumns]}>
         <View style={styles.textCol}>
           <View style={styles.titleRow}>
             <Ionicons
@@ -85,12 +88,15 @@ export function ModeCard({
             />
             <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
           </View>
-          <Text style={[styles.description, { color: colors.mutedForeground }]}>
-            {description}
-          </Text>
+          <Text style={[styles.description, { color: colors.mutedForeground }]}>{description}</Text>
         </View>
 
-        <View style={styles.illustrationSlot} pointerEvents="none">
+        <View
+          style={styles.illustrationSlot}
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           <Image
             source={illustration}
             style={{
@@ -124,6 +130,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  stackedColumns: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   textCol: {
     flex: 1,

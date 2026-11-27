@@ -261,7 +261,7 @@ describe('assigned repertoire side', () => {
       'utf8',
     );
     const parties = readFileSync(join(mobileRoot, 'app/parties/index.tsx'), 'utf8');
-    const manage = readFileSync(join(mobileRoot, 'app/openings/manage.tsx'), 'utf8');
+    const manage = `${readFileSync(join(mobileRoot, 'app/openings/manage.tsx'), 'utf8')}\n${readFileSync(join(mobileRoot, 'components/openings/ManageOpeningTree.tsx'), 'utf8')}`;
 
     assert.match(service, /async createFolder\(\s*name: string,\s*side: RepertoireSide,/);
     assert.match(service, /requireRepertoireSide\(side\)/);

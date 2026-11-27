@@ -8,7 +8,7 @@ const RESUME_STATUSES: CloudSyncStatus[] = ['pending', 'offline', 'error', 'wait
 function resumeCloudSync(): void {
   const { status, user } = cloudSyncEngine.getState();
   if (user && RESUME_STATUSES.includes(status)) {
-    void cloudSyncEngine.sync();
+    void cloudSyncEngine.sync({automatic:true}).catch(error=>cloudSyncEngine.noteBackgroundFailure('sync.lifecycle',error));
   }
 }
 
@@ -17,13 +17,17 @@ export function onCloudAppState(state: string): void {
   resumeCloudSync();
 }
 
+export function onCloudNetworkOffline(): void {
+  cloudSyncEngine.markOffline();
+}
+
 export function onCloudNetworkOnline(): void {
   resumeCloudSync();
 }
 
-/** Resume only when the link is known to be Wi-Fi. Offline stays offline. */
+/** Any available link can resume pending work, including mobile data. */
 export function onSyncTransportChange(transport: SyncTransport): void {
-  if (transport !== 'wifi') return;
+  if (transport === 'offline') { cloudSyncEngine.markOffline(); return; }
   resumeCloudSync();
 }
 
@@ -59,8 +63,10 @@ export function bindCloudLifecycle(): () => void {
     .removeEventListener;
   if (typeof onlineTarget === 'function') {
     onlineTarget.call(globalThis, 'online', onCloudNetworkOnline);
+    onlineTarget.call(globalThis, 'offline', onCloudNetworkOffline);
     cleanups.push(() => {
       offlineRemove?.call(globalThis, 'online', onCloudNetworkOnline);
+      offlineRemove?.call(globalThis, 'offline', onCloudNetworkOffline);
     });
   }
   cleanups.push(subscribeSyncTransport(onSyncTransportChange));

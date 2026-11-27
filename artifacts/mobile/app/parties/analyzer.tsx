@@ -1,9 +1,15 @@
+import { PgnGameSelectModal } from '@/components/parties/PgnGameSelectModal';
+import { preparePgnSource, selectedPgnSlices, type PreparedPgnSource } from '@/lib/pgnImport/preparePgnLoad';
+import { MAX_PGN_FILE_BYTES } from '@/lib/files/readPgnFile';
+import { transferChessText } from '@/lib/files/chessFileTransfer';
+import { exportResultKey } from '@/lib/files/presentChessExport';
+import { useSmartBack } from '@/lib/navigation/useSmartBack';
 /**
  * Unified game workspace — Partie + Analyse tabs on one ReaderGame state.
  * Old Lecteur route `/parties/[gameId]` redirects here.
  * Stockfish observes the same FEN; tab switches never reload PGN.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -45,10 +51,10 @@ import {
   type PositionAnalysis,
 } from '@/lib/analysis';
 import { formatSanForDisplay } from '@/lib/chess/notation';
-import { copyToClipboard } from '@/lib/clipboard';
 import {
   anyChessPgnFilename,
   downloadPgnFile,
+  downloadFenFile,
 } from '@/lib/pgn/PgnExporter';
 import {
   computeBoardSize,
@@ -85,6 +91,7 @@ type TabId = 'game' | 'analysis';
 
 export default function GameWorkspaceScreen() {
   const router = useRouter();
+  const goBack = useSmartBack();
   const params = useLocalSearchParams<{
     gameId?: string;
     nodeId?: string;
@@ -120,6 +127,10 @@ export default function GameWorkspaceScreen() {
   const [game, setGame] = useState<ReaderGame | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabId>(initialTab);
+  const [inlinePgn, setInlinePgn] = useState<PreparedPgnSource | null>(null);
+  const [inlineSelected, setInlineSelected] = useState<Set<string>>(new Set());
+  const exportLock = useRef(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [includeEvals, setIncludeEvals] = useState(true);
@@ -463,8 +474,8 @@ export default function GameWorkspaceScreen() {
 
   const returnToOpeningEditor = useCallback(() => {
     persistPosition();
-    router.back();
-  }, [persistPosition, router]);
+    goBack();
+  }, [persistPosition, goBack]);
 
   const addAnalyzedLineToPgn = useCallback(() => {
     if (!reader) return;
@@ -474,40 +485,28 @@ export default function GameWorkspaceScreen() {
       reader.currentNodeId,
     );
     persistPosition();
-    router.back();
-  }, [persistPosition, reader, router]);
+    goBack();
+  }, [persistPosition, reader, goBack]);
 
+  const loadInlinePgn = (text: string) => {
+    const result = parseReaderPgn(text, { allowEmptyMoves: true });
+    if (!result.ok) { setError(t('files.invalidPgn')); return; }
+    setError(null); setGame(result.game); setShowPaste(false);
+  };
   const onLoad = () => {
     const draft = pgnDraft.trim();
-    if (!draft) {
-      setError(t('parties.analyzerEmpty'));
-      return;
-    }
-    const fenLike = draft.split(/\s+/).length >= 4 && !draft.includes('[');
-    if (fenLike) {
+    if (!draft) { setError(t('parties.analyzerEmpty')); return; }
+    if (draft.length > MAX_PGN_FILE_BYTES) { setError(t('files.tooLarge')); return; }
+    if (/^[prnbqkPRNBQK1-8/]+\s/.test(draft) && draft.includes('/')) {
       try {
-        new Chess(draft);
-        const empty = emptyReaderGame(draft);
-        setError(null);
-        setGame(empty);
-        setShowPaste(false);
-        setExportStatus(t('parties.anyliseurFenLoaded'));
-        return;
-      } catch {
-        /* fall through to PGN */
-      }
+        const position = new Chess(draft);
+        setError(null); setGame(emptyReaderGame(position.fen())); setShowPaste(false);
+        setExportStatus(t('parties.anyliseurFenLoaded')); return;
+      } catch { setError(t('parties.fenInvalid')); return; }
     }
-    const result = parseReaderPgn(draft, { allowEmptyMoves: true });
-    if (!result.ok) {
-      setError(
-        t('parties.anyliseurImportInvalid') +
-          (result.detail ? ` ${result.detail}` : ''),
-      );
-      return;
-    }
-    setError(null);
-    setGame(result.game);
-    setShowPaste(false);
+    const source = preparePgnSource(draft);
+    if (source.entries.length > 1) { setInlinePgn(source); setInlineSelected(new Set()); return; }
+    loadInlinePgn(draft);
   };
 
   const buildExportPgn = useCallback(() => {
@@ -521,41 +520,25 @@ export default function GameWorkspaceScreen() {
     });
   }, [reader?.game, game, analysis?.gameNodes, includeEvals]);
 
-  const onCopyPgn = async () => {
-    const pgn = buildExportPgn();
-    if (!pgn) return;
-    const ok = await copyToClipboard(pgn);
-    setExportStatus(
-      ok ? t('parties.anyliseurExportDone') : t('parties.anyliseurExportFail'),
-    );
-    setExportMenuOpen(false);
+  const runExport = async (action: 'file' | 'copy' | 'share', format: 'pgn' | 'fen') => {
+    if (exportLock.current) return;
+    const text = format === 'pgn' ? buildExportPgn() : boardPresentation.fen;
+    if (!text) return;
+    exportLock.current = true;
+    setExportBusy(true);
+    try {
+      const result = action === 'file'
+        ? await (format === 'pgn' ? downloadPgnFile(anyChessPgnFilename(), text) : downloadFenFile('position.fen', text))
+        : await transferChessText(action, format === 'pgn' ? anyChessPgnFilename() : 'position.fen', text, format);
+      const key = exportResultKey(result);
+      if (key) setExportStatus(t(key));
+      if (!['failed', 'unavailable', 'busy'].includes(result.kind)) setExportMenuOpen(false);
+    } finally { exportLock.current = false; setExportBusy(false); }
   };
-
-  const onDownloadPgn = () => {
-    const pgn = buildExportPgn();
-    if (!pgn) return;
-    downloadPgnFile(anyChessPgnFilename(), pgn);
-    setExportStatus(t('parties.anyliseurExportDone'));
-    setExportMenuOpen(false);
-  };
-
-  const onCopyFen = async () => {
-    const fen = reader?.currentFen;
-    if (!fen) return;
-    const ok = await copyToClipboard(fen);
-    setExportStatus(
-      ok ? t('parties.anyliseurExportDone') : t('parties.anyliseurExportFail'),
-    );
-    setExportMenuOpen(false);
-  };
-
-  const onDownloadFen = () => {
-    const fen = reader?.currentFen;
-    if (!fen) return;
-    downloadPgnFile('position.fen', fen);
-    setExportStatus(t('parties.anyliseurExportDone'));
-    setExportMenuOpen(false);
-  };
+  const onCopyPgn = () => runExport('copy', 'pgn');
+  const onDownloadPgn = () => { void runExport('file', 'pgn'); };
+  const onCopyFen = () => runExport('copy', 'fen');
+  const onDownloadFen = () => { void runExport('file', 'fen'); };
 
   const onImport = useCallback(async () => {
     persistPosition();
@@ -649,7 +632,7 @@ export default function GameWorkspaceScreen() {
       profileId={analysis?.profileId ?? 'fast'}
       onProfileChange={onProfileChange}
       onImport={onImport}
-      onExport={() => setExportMenuOpen(true)}
+      onExport={() => { setExportStatus(null); setExportMenuOpen(true); }}
       showEngineControls={showEngineUi}
       canReturnToOrigin={canReturnToOrigin}
       onReturnToOrigin={() => reader.returnToExplorationOrigin()}
@@ -784,8 +767,7 @@ export default function GameWorkspaceScreen() {
       subtitle={t('parties.workspaceSubtitle')}
       onBack={() => {
         persistPosition();
-        if (fromOpeningEditor) router.back();
-        else router.navigate('/parties');
+        goBack();
       }}
       trailing={
         game && !fromOpeningEditor ? (
@@ -1064,8 +1046,27 @@ export default function GameWorkspaceScreen() {
         </View>
       ) : null}
 
+      <PgnGameSelectModal
+        visible={inlinePgn != null}
+        candidates={inlinePgn?.entries.map(entry => ({ ...entry, id: `g-${entry.index}` })) ?? []}
+        selected={inlineSelected}
+        onChangeSelected={setInlineSelected}
+        onCancel={() => setInlinePgn(null)}
+        maxSelection={1}
+        onConfirm={() => {
+          if (!inlinePgn || inlineSelected.size !== 1) return;
+          const selected = [...inlineSelected].map(id => Number(id.replace(/^g-/, '')));
+          const item = selectedPgnSlices(inlinePgn, selected)[0];
+          if (item) loadInlinePgn(item.pgnText);
+          setInlinePgn(null);
+        }}
+      />
       <AnyLyseurExportMenu
         visible={exportMenuOpen}
+        busy={exportBusy}
+        status={exportStatus}
+        onSharePgn={() => { void runExport('share', 'pgn'); }}
+        onShareFen={() => { void runExport('share', 'fen'); }}
         onClose={() => setExportMenuOpen(false)}
         includeEvals={includeEvals}
         onIncludeEvalsChange={setIncludeEvals}

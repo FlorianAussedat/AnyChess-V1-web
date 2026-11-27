@@ -29,9 +29,20 @@ export const StorageKeys = {
   repertoires: {
     key: 'anychess.repertoire.v2',
     feature: 'openings/repertoire',
-    shape: 'RepertoireStoreSnapshot { version: 2, folders, files }',
+    shape:
+      'RepertoireStoreSnapshot { version: 2, folders (parentId tree), files }',
     documentVersion: 2,
     hasDocumentMigration: true,
+  },
+  /**
+   * Which opening folders are expanded in the library tree.
+   * Device-local UI state — not part of cloud sync.
+   */
+  openingsTreeExpanded: {
+    key: 'anychess.openings.treeExpanded.v1',
+    feature: 'openings/repertoire',
+    shape: 'string[] folder ids',
+    documentVersion: 1,
   },
   /** Legacy repertoire blob — read once, migrated to v2, then deleted. */
   repertoiresLegacyV1: {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { useRouter, type Href } from 'expo-router';
+import { type Href } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { ModeScreenShell } from '@/components/ModeScreenShell';
@@ -34,7 +34,6 @@ export function PuzzleResultsPhase() {
     revealSolution,
     backToHub,
   } = usePuzzle();
-  const router = useRouter();
 
   const state = stats ? puzzleResultState(stats) : 'unsolved';
   const title =
@@ -48,7 +47,7 @@ export function PuzzleResultsPhase() {
     : 0;
 
   return (
-    <ModeScreenShell title={t('puzzle.result')} onBack={() => router.push('/' as Href)}>
+    <ModeScreenShell title={t('puzzle.result')} onBack={backToHub}>
       <ScrollView contentContainerStyle={puzzleStyles.body}>
         <Text
           style={[

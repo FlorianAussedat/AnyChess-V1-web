@@ -5,13 +5,113 @@
 import type { AppLanguage } from '../preferences/types.ts';
 
 export type MessageKey =
+  | "sync.allCategories"
+  | "sync.audit"
+  | "sync.auditReason"
+  | "sync.reason.local_mutation"
+  | "sync.reason.remote_differs"
+  | "sync.reason.local_differs"
+  | "storage.incomplete"
+  | "storage.openings"
+  | "storage.games"
+  | "storage.translations"
+  | "storage.queue"
+  | "storage.mastery"
+  | "storage.preferences"
+  | "storage.profile"
+  | "storage.openingQuiz"
+  | "storage.moveNaming"
+  | "storage.playMove"
+  | "storage.blind"
+  | "storage.puzzleHistory"
+  | "storage.puzzleStreaks"
+  | "storage.cultureHistory"
+  | "storage.cultureFeedback"
+  | "storage.endgames"
+  | "storage.theoretical"
+  | "storage.continueLine"
+  | "storage.size"
+  | "storage.total"
+  | "storage.shared"
+  | "storage.backups"
+  | "storage.workspaces"
+  | "storage.blocks"
+  | "storage.integrity"
+  | "storage.categories"
+  | "storage.unreadable"
+  | "storage.avatars"
+  | "storage.guest"
+  | "storage.failure"
+  | "storage.noFailure"
+  | "storage.recovery"
+  | "storage.limits"
+  | "storage.title"
+
+  | "cloud.quotaPaused"
+  | "cloud.storageDiagnostics"
+  | "cloud.storageDiagnosticsUnavailable"
+
+  | "cloud.errorLocalSize"
+  | "cloud.errorLocalQuota"
+  | "cloud.errorLocalStorage"
+  | "cloud.errorRevisionSchema"
+  | "cloud.errorRevisionConflict"
+  | "cloud.errorRemotePermission"
+  | "cloud.errorRemoteService"
+
   // Nav / common
+  | 'nav.generalMenu'
+  | 'nav.userSignIn'
+  | 'nav.userAccount'
+  | 'account.avatarChoose'
+  | 'account.avatarDragHint'
+  | 'account.avatarResetCrop'
+  | 'account.avatarSaveFailed'
+  | 'profil.chessInformation'
+  | 'profil.editIdentity'
+  | 'profil.accountShortcut'
+  | 'profil.accountHint'
+  | 'profil.notProvided'
+  | 'profil.yearsTwentyPlus'
+  | 'profil.saveFailed'
+  | 'profil.avatarFor'
+  | 'account.avatarMoveLeft'
+  | 'account.avatarMoveRight'
+  | 'account.avatarMoveUp'
+  | 'account.avatarMoveDown'
+  | 'account.avatarZoomOut'
+  | 'account.avatarZoomIn'
   | 'nav.home'
   | 'nav.records'
   | 'nav.profil'
   | 'nav.utilisateur'
   | 'nav.parametres'
   | 'common.back'
+  | 'files.export'
+  | 'files.chooseAction'
+  | 'files.save'
+  | 'files.copy'
+  | 'files.share'
+  | 'files.saved'
+  | 'files.downloadStarted'
+  | 'files.copied'
+  | 'files.sharedText'
+  | 'files.unavailable'
+  | 'files.failed'
+  | 'files.retry'
+  | 'files.savePgn'
+  | 'files.saveFen'
+  | 'files.sharePgn'
+  | 'files.shareFen'
+  | 'files.tooLarge'
+  | 'files.empty'
+  | 'files.unreadable'
+  | 'files.invalidPgn'
+  | 'files.fileLimit'
+  | 'files.importSummary'
+  | 'files.imported'
+  | 'files.duplicates'
+  | 'files.changeSelection'
   | 'common.close'
   | 'common.cancel'
   | 'common.confirm'
@@ -217,9 +317,11 @@ export type MessageKey =
   | 'cloud.signOutFailed'
   | 'cloud.importGuest'
   | 'cloud.importGuestTitle'
+  | 'cloud.importGuestUnverified'
   | 'cloud.importGuestBody'
   | 'cloud.recover'
   | 'cloud.recoverSent'
+  | 'cloud.lastSyncedAt'
   | 'cloud.statusSynced'
   | 'cloud.statusPending'
   | 'cloud.statusSyncing'
@@ -247,6 +349,10 @@ export type MessageKey =
   | 'cloud.errorUnexpected'
   | 'cloud.signupAmbiguous'
   | 'cloud.signInBusy'
+  | 'cloud.errorService'
+  | 'cloud.errorSession'
+  | 'account.deleteUncertain'
+  | 'cloud.signOutPending'
   | 'cloud.signInTimeout'
   | 'cloud.rememberEmail'
   | 'cloud.rateLimitWait'
@@ -291,6 +397,15 @@ export type MessageKey =
   | 'account.deleteUnavailable'
   | 'account.deleteSession'
   | 'account.deleteDone'
+  | 'settings.languageNotation'
+  | 'settings.languageUnifiedHint'
+  | 'settings.boardDisplay'
+  | 'settings.voiceDictation'
+  | 'settings.defaultDifficulties'
+  | 'settings.sessionDifficultyHint'
+  | 'settings.resetSection'
+  | 'settings.levelDecrease'
+  | 'settings.levelIncrease'
   | 'settings.title'
   | 'settings.dictationPace'
   | 'settings.dictationPaceHint'
@@ -553,15 +668,36 @@ export type MessageKey =
   | 'errors.pgnNotFound'
   | 'errors.filePgnNotFound'
   | 'errors.systemFolderProtected'
+  | 'errors.folderNotEmpty'
+  | 'errors.folderCycle'
   // Openings
   | 'openings.title'
   | 'openings.repertoires'
   | 'openings.new'
   | 'openings.deleteFolderTitle'
   | 'openings.deleteFolderBody'
+  | 'openings.deleteEmptyFolderBody'
+  | 'openings.deleteFolderKeepBody'
+  | 'openings.deleteFolderKeepRootBody'
+  | 'openings.keepContents'
+  | 'openings.createSubfolder'
+  | 'openings.moveFolder'
+  | 'openings.moveToTitle'
+  | 'openings.moveToRootWhite'
+  | 'openings.moveToRootBlack'
+  | 'openings.selectStudies'
+  | 'openings.cancelSelection'
+  | 'openings.moveSelection'
+  | 'openings.treeContents'
+  | 'openings.learnSubtreeHint'
+  | 'openings.accountRequiredTitle'
+  | 'openings.accountRequiredBody'
+  | 'openings.expandFolder'
+  | 'openings.collapseFolder'
   | 'openings.deleteFileTitle'
   | 'openings.deleteFileBody'
   | 'openings.import'
+  | 'openings.importDestination'
   | 'openings.replace'
   | 'openings.exercises'
   | 'openings.playVsRepertoire'
@@ -1290,18 +1426,25 @@ export type MessageKey =
   | 'speech.dictationActive'
   | 'speech.offlineDownloadTitle'
   | 'speech.offlineDownloadBody'
+  | 'speech.offlineRepairBody'
   | 'speech.offlineCellularTitle'
   | 'speech.offlineCellularBody'
   | 'speech.offlineWaitWifi'
   | 'speech.offlineWaiting'
   | 'speech.offlineDownload'
+  | 'speech.offlineRepair'
   | 'speech.offlineCancel'
   | 'speech.offlineRetry'
   | 'speech.offlineProgress'
+  | 'speech.offlineProgressIndeterminate'
+  | 'speech.offlineVerifying'
   | 'speech.offlineInstalling'
+  | 'speech.offlinePreparing'
+  | 'speech.offlineReady'
   | 'speech.offlineFailedNetwork'
   | 'speech.offlineFailedSpace'
   | 'speech.offlineFailedIntegrity'
+  | 'speech.offlineFailedLoad'
   | 'speech.offlineFailedOffline'
   | 'vision.answerUnrecognized'
   | 'errors.folderParentMissing'
@@ -1316,12 +1459,110 @@ export type MessageKey =
 type Dict = Record<MessageKey, string>;
 
 const fr: Dict = {
+  "sync.allCategories": "Plusieurs catégories",
+  "sync.audit": "Synchronisation : {{passes}} passes ; dernière passe : {{reads}} lectures distantes, {{pushes}} écritures distantes réussies, {{applies}} applications locales tentées.",
+  "sync.auditReason": "Nouvelle passe — {{category}} : {{reason}}.",
+  "sync.reason.local_mutation": "modification locale signalée pendant le transfert",
+  "sync.reason.remote_differs": "contenu distant confirmé encore différent",
+  "sync.reason.local_differs": "contenu local modifié avant application",
+  "storage.incomplete": "Mesure partielle ou modifiée pendant la lecture ; attendre la fin des écritures puis relancer le diagnostic.",
+  "storage.openings": "Répertoires PGN",
+  "storage.games": "Analyses et parties",
+  "storage.translations": "Traductions PGN",
+  "storage.queue": "File de traduction",
+  "storage.mastery": "Apprentissage des ouvertures",
+  "storage.preferences": "Préférences",
+  "storage.profile": "Profil",
+  "storage.openingQuiz": "Quiz d’ouvertures",
+  "storage.moveNaming": "Nommage des coups",
+  "storage.playMove": "Jeu des coups",
+  "storage.blind": "Mémoire à l’aveugle",
+  "storage.puzzleHistory": "Historique tactique",
+  "storage.puzzleStreaks": "Séries tactiques",
+  "storage.cultureHistory": "Historique culture",
+  "storage.cultureFeedback": "Retours culture",
+  "storage.endgames": "Entraînement finales",
+  "storage.theoretical": "Finales théoriques",
+  "storage.continueLine": "Continuer la ligne",
+  "storage.size": "{{value}} Kio",
+  "storage.total": "Volume physique mesuré (approximatif) : {{size}}",
+  "storage.shared": "Blocs compressés partagés : {{size}}",
+  "storage.backups": "Sauvegardes : {{count}} ; métadonnées et anciens blocs dédiés : {{size}}",
+  "storage.workspaces": "Espaces : {{count}} ; métadonnées et anciens blocs dédiés : {{size}}",
+  "storage.blocks": "Blocs : {{count}} ; référencés : {{referenced}} ; candidats non référencés : {{candidates}}",
+  "storage.integrity": "Lignes illisibles : {{unreadable}} ; racines invalides : {{invalid}}",
+  "storage.categories": "Volumes logiques par catégorie (avant compression)",
+  "storage.unreadable": "lecture impossible",
+  "storage.avatars": "Caches et intentions avatar : {{size}}",
+  "storage.guest": "Copie de récupération invitée : {{size}}",
+  "storage.failure": "Dernière écriture refusée : {{stage}} ; {{kind}} ; {{category}} ; volume logique demandé : {{size}}",
+  "storage.noFailure": "Aucune écriture refusée enregistrée depuis ce démarrage.",
+  "storage.recovery": "sauvegarde ou espace",
+  "storage.limits": "Lecture seule. Les volumes excluent les pages SQLite, index et journaux natifs ; la capacité libre réelle est inconnue. Les blocs sont partagés : ne pas les additionner plusieurs fois. Les candidats peuvent servir à une récupération interrompue : rien ne sera supprimé. L’étape d’échec est conservée en mémoire jusqu’au redémarrage.",
+  "storage.title": "Diagnostic du stockage local",
+
+  "cloud.quotaPaused": "Stockage local saturé : les reprises automatiques sont suspendues. Les données sont conservées. Ne les efface pas ; après une récupération vérifiée, utilise Synchroniser pour réessayer.",
+  "cloud.storageDiagnostics": "Diagnostic du stockage (lecture seule)",
+  "cloud.storageDiagnosticsUnavailable": "Le diagnostic du stockage est incomplet ou indisponible. Aucune donnée n’a été effacée.",
+  "cloud.errorLocalSize": "Le stockage Android ne peut pas lire un document local trop volumineux. Vos données sont conservées. La déconnexion reste bloquée tant que la copie locale ne peut pas être vérifiée.",
+  "cloud.errorLocalQuota": "Le stockage local est plein ou sa limite est atteinte. Vos données sont conservées. Libère de l’espace sans effacer les données AnyChess, puis réessaie.",
+  "cloud.errorLocalStorage": "Impossible de vérifier la sauvegarde locale. Vos données sont conservées. Réessaie ; ne réinitialise pas les données de l’application.",
+  "cloud.errorRevisionSchema": "Le serveur de synchronisation ne possède pas encore la colonne de révision requise. Vos modifications restent locales. Une vérification du schéma serveur est nécessaire.",
+  "cloud.errorRevisionConflict": "Les données ont changé sur le serveur pendant le transfert. Vos modifications locales sont conservées. Réessaie la synchronisation.",
+  "cloud.errorRemotePermission": "Le serveur refuse l’accès aux documents de ce compte. Les données locales sont conservées. Vérifie la session et la configuration des droits.",
+  "cloud.errorRemoteService": "Le service de synchronisation a échoué ou a renvoyé une réponse inattendue. Les données locales sont conservées. Réessaie plus tard.",
+  'account.avatarChoose': 'Choisir un avatar',
+  'account.avatarDragHint': 'Faites glisser la photo pour ajuster le cadrage, puis réglez le zoom.',
+  'account.avatarResetCrop': 'Recentrer et réinitialiser le zoom',
+  'account.avatarSaveFailed': 'L’avatar n’a pas pu être enregistré. Votre avatar précédent est conservé. Réessayez.',
+  'profil.chessInformation': 'MON PROFIL ÉCHIQUÉEN',
+  'profil.editIdentity': 'Modifier le pseudo',
+  'profil.accountShortcut': 'Voir mon compte et ma synchronisation',
+  'profil.accountHint': 'Retrouvez ici votre adresse e-mail, votre connexion, la synchronisation et les actions de votre compte.',
+  'profil.notProvided': 'Non renseigné',
+  'profil.yearsTwentyPlus': '20+',
+  'profil.saveFailed': 'La modification n’a pas pu être enregistrée. Vos informations précédentes sont conservées.',
+  'profil.avatarFor': 'Avatar de {{name}}',
+  'account.avatarMoveLeft': 'Déplacer la photo vers la gauche',
+  'account.avatarMoveRight': 'Déplacer la photo vers la droite',
+  'account.avatarMoveUp': 'Déplacer la photo vers le haut',
+  'account.avatarMoveDown': 'Déplacer la photo vers le bas',
+  'account.avatarZoomOut': 'Dézoomer',
+  'account.avatarZoomIn': 'Zoomer',
+  'nav.generalMenu': 'Menu général',
+  'nav.userSignIn': 'Utilisateur · Connexion',
+  'nav.userAccount': 'Utilisateur · Mon compte',
   'nav.home': 'Accueil',
   'nav.records': 'Records',
   'nav.profil': 'Profil',
   'nav.utilisateur': 'Utilisateur',
   'nav.parametres': 'Paramètres',
   'common.back': 'Retour',
+  'files.export': 'Export PGN / FEN',
+  'files.chooseAction': 'Enregistrer un fichier, partager le texte ou copier le contenu. Le partage du texte ne garantit pas l’enregistrement d’un fichier.',
+  'files.save': 'Enregistrer un fichier',
+  'files.copy': 'Copier le contenu',
+  'files.share': 'Partager le texte',
+  'files.saved': 'Le fichier a été écrit dans le dossier choisi.',
+  'files.downloadStarted': 'Téléchargement lancé. Vérifiez les téléchargements de votre navigateur.',
+  'files.copied': 'Contenu copié.',
+  'files.sharedText': 'Texte transmis au partage Android. Vérifiez sa réception dans l’application choisie ; aucun fichier enregistré n’est confirmé.',
+  'files.unavailable': 'Cette action est indisponible dans ce client. Pour enregistrer un fichier Android, le module ExponentFileSystem et ses API SAF sont nécessaires. Vous pouvez réessayer, copier le contenu ou partager le texte.',
+  'files.failed': 'L’opération a échoué. Vos données sont conservées. Réessayez ou choisissez une autre action.',
+  'files.retry': 'Réessayer / autre action',
+  'files.savePgn': 'Enregistrer le fichier PGN',
+  'files.saveFen': 'Enregistrer le fichier FEN',
+  'files.sharePgn': 'Partager le texte PGN',
+  'files.shareFen': 'Partager le texte FEN',
+  'files.tooLarge': 'Fichier trop volumineux (8 Mo par fichier, lot de 16 millions de caractères maximum).',
+  'files.empty': 'Fichier vide.',
+  'files.unreadable': 'Fichier illisible ou API de lecture absente. Réessayez depuis Téléchargements ou rendez le fichier disponible hors ligne.',
+  'files.invalidPgn': 'Partie PGN invalide.',
+  'files.fileLimit': 'Choisissez jusqu’à {{count}} fichiers ; aucun fichier n’est importé sans votre sélection.',
+  'files.importSummary': 'Bilan de l’import',
+  'files.imported': '{{count}} partie(s) chargée(s) ou importée(s), {{failed}} échec(s).',
+  'files.duplicates': 'Dans les ouvertures, un nom existant reçoit un suffixe : aucun fichier précédent n’est remplacé.',
+  'files.changeSelection': 'Modifier la sélection des parties',
   'common.close': 'Fermer',
   'common.cancel': 'Annuler',
   'common.continue': 'Continuer',
@@ -1541,14 +1782,17 @@ const fr: Dict = {
   'cloud.signOut': 'Déconnexion',
   'cloud.signOutTitle': 'Se déconnecter ?',
   'cloud.signOutBody':
-    'Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
+    'La bibliothèque d’ouvertures de ce compte est masquée tout de suite et n’est pas visible en invité. Tes parties, tes scores et tes autres données restent sur cet appareil. Elles ne seront pas envoyées au prochain compte.',
   'cloud.signOutFailed': 'La déconnexion n’a pas abouti. Réessaie.',
   'cloud.importGuest': 'Importer les données invitées',
   'cloud.importGuestTitle': 'Importer les données de l’invité ?',
   'cloud.importGuestBody':
-    'Les parties et les scores enregistrés sans compte seront copiés dans ce compte. Les données d’un autre compte ne sont pas importées.',
+    'Les études PGN enregistrées sans compte seront copiées dans ce compte après vérification dans Supabase. La copie sur cet appareil est conservée. Les données d’un autre compte ne sont pas importées.',
+  'cloud.importGuestUnverified':
+    'Supabase n’a pas confirmé ces études. Rien n’a été effacé sur cet appareil. Réessaie une fois en ligne.',
   'cloud.recover': 'Mot de passe oublié',
-  'cloud.recoverSent': 'E-mail de récupération envoyé.',
+  'cloud.recoverSent': 'Si cette adresse correspond à un compte, tu recevras un lien pour choisir un nouveau mot de passe.',
+  'cloud.lastSyncedAt': 'Dernière synchronisation réussie : {{date}}',
   'cloud.statusSynced': 'Synchronisé',
   'cloud.statusPending': 'En attente',
   'cloud.statusSyncing': 'Synchronisation en cours',
@@ -1580,6 +1824,10 @@ const fr: Dict = {
   'cloud.signupAmbiguous':
     'Si une confirmation est nécessaire, tu recevras un e-mail. Si tu as déjà un compte, connecte-toi ou utilise « Mot de passe oublié ».',
   'cloud.signInBusy': 'Connexion en cours…',
+  'cloud.errorService': 'Le service est temporairement indisponible. Réessaie plus tard.',
+  'cloud.errorSession': 'La session doit être renouvelée. Tes données locales sont conservées ; reconnecte-toi si nécessaire.',
+  'account.deleteUncertain': 'Le serveur n’a pas confirmé le résultat de la suppression. Les données locales sont conservées pendant la vérification. Réessaie une fois en ligne.',
+  'cloud.signOutPending': 'Des modifications ne sont pas encore synchronisées. Elles resteront enregistrées pour ce compte sur cet appareil. Reconnecte-toi à ce compte pour reprendre leur transfert.',
   'cloud.signInTimeout': 'La connexion prend trop de temps. Vérifie le réseau, puis réessaie.',
   'cloud.rememberEmail': 'Mémoriser mon adresse e-mail',
   'cloud.rateLimitWait': 'Trop de tentatives. Réessaie dans {{seconds}} s.',
@@ -1587,7 +1835,7 @@ const fr: Dict = {
     'Un e-mail de confirmation t’a été envoyé. Ouvre-le pour activer ton compte, puis reviens te connecter.',
   'cloud.resendEmail': 'Renvoyer l’e-mail',
   'cloud.resendWait': 'Renvoyer l’e-mail ({{seconds}} s)',
-  'cloud.resendSent': 'E-mail renvoyé.',
+  'cloud.resendSent': 'Si une confirmation est en attente pour cette adresse, un nouveau message sera envoyé.',
   'cloud.backToSignIn': 'Revenir à la connexion',
   'cloud.backupLabel': 'SAUVEGARDE',
   'account.createTitle': 'Créer mon compte',
@@ -1605,7 +1853,7 @@ const fr: Dict = {
   'account.avatarRemove': 'Supprimer la photo',
   'account.avatarCrop': 'Recadrer',
   'account.avatarUseFull': 'Cadrage large',
-  'account.avatarZoom': 'Recadrage',
+  'account.avatarZoom': 'Zoom',
   'account.avatarUnsupported':
     'Ce format ne peut pas être recadré sur cette version. L’ancienne photo est conservée.',
   'account.avatarCropFailed':
@@ -1634,6 +1882,15 @@ const fr: Dict = {
   'account.deleteDone': 'Ton compte a été supprimé.',
   'cloud.errorSchema':
     'Exécutez supabase/user_documents.sql dans l’éditeur SQL du projet (table absente).',
+  'settings.languageNotation': 'Langue et notation',
+  'settings.languageUnifiedHint': 'Ce choix s’applique à l’interface, aux pièces affichées, à la dictée et à la voix. Les fichiers PGN conservent la notation standard anglaise.',
+  'settings.boardDisplay': 'Échiquier et affichage',
+  'settings.voiceDictation': 'Voix, dictée et rythme',
+  'settings.defaultDifficulties': 'Difficultés par défaut',
+  'settings.sessionDifficultyHint': 'Ces niveaux sont proposés pour les nouvelles activités. Un choix ponctuel ne change pas vos préférences ni une session en cours.',
+  'settings.resetSection': 'Réinitialisation des préférences',
+  'settings.levelDecrease': 'Diminuer le niveau',
+  'settings.levelIncrease': 'Augmenter le niveau',
   'settings.title': 'Paramètres',
   'settings.dictationPace': "Rythme d'énonciation des coups",
   'settings.dictationPaceHint':
@@ -1709,7 +1966,7 @@ const fr: Dict = {
   'parties.gameSelectTitle': 'Sélectionne jusqu’à {{count}} parties à importer.',
   'parties.gameSelectFound': '{{count}} parties trouvées',
   'parties.gameSelectSearch': 'Rechercher (joueur, événement, date…)',
-  'parties.gameSelectMax': 'Maximum 10 parties par import.',
+  'parties.gameSelectMax': 'Maximum {{count}} parties par import.',
   'parties.gameSelectEmpty': 'Aucune partie ne correspond.',
   'parties.gameSelectIndexed': 'Indexé {{count}} parties en {{ms}} ms',
   'parties.importSelectedCount': 'Importer {{count}} parties',
@@ -1903,7 +2160,11 @@ const fr: Dict = {
   'errors.voiceUnavailable': 'Reconnaissance vocale indisponible',
   'errors.folderNotFound': 'Dossier introuvable.',
   'errors.folderEmptyName': 'Le nom du dossier ne peut pas être vide.',
-  'errors.folderExists': 'Un dossier nommé « {{name}} » existe déjà.',
+  'errors.folderExists': 'Un dossier nommé « {{name}} » existe déjà à cet emplacement.',
+  'errors.folderNotEmpty':
+    'Ce dossier contient encore des éléments. Confirmez leur conservation avant de le supprimer.',
+  'errors.folderCycle':
+    'Impossible de déplacer un dossier dans lui-même ou dans un de ses sous-dossiers.',
   'errors.pgnEmpty': 'Le contenu PGN est vide.',
   'errors.pgnNotFound': 'Fichier PGN introuvable.',
   'errors.filePgnNotFound': 'Fichier PGN introuvable.',
@@ -1914,9 +2175,31 @@ const fr: Dict = {
   'openings.deleteFolderTitle': 'Supprimer le dossier',
   'openings.deleteFolderBody':
     'Supprimer « {{name}} » et tous les PGN qu’il contient ?',
+  'openings.deleteEmptyFolderBody': 'Supprimer le dossier vide « {{name}} » ?',
+  'openings.deleteFolderKeepBody':
+    '« {{name}} » contient des dossiers ou des études. Ils seront déplacés dans « {{parent}} ». Aucune étude ne sera supprimée.',
+  'openings.deleteFolderKeepRootBody':
+    '« {{name}} » est à la racine. Ses sous-dossiers resteront dans la même couleur, et ses études iront dans À classer. Aucune étude ne sera supprimée.',
+  'openings.keepContents': 'Conserver le contenu',
+  'openings.createSubfolder': 'Nouveau sous-dossier',
+  'openings.moveFolder': 'Déplacer le dossier',
+  'openings.moveToTitle': 'Déplacer vers…',
+  'openings.moveToRootWhite': 'Racine — Blancs',
+  'openings.moveToRootBlack': 'Racine — Noirs',
+  'openings.selectStudies': 'Sélectionner',
+  'openings.cancelSelection': 'Annuler la sélection',
+  'openings.moveSelection': 'Déplacer ({{count}})',
+  'openings.treeContents': '{{folders}} dossier(s) · {{files}} étude(s)',
+  'openings.learnSubtreeHint': 'Les études des sous-dossiers sont incluses.',
+  'openings.accountRequiredTitle': 'Tes études sont liées à ton compte',
+  'openings.accountRequiredBody':
+    'Une installation neuve ne contient aucune étude personnelle. Connecte-toi ou crée un compte pour importer, modifier et retrouver tes PGN. Le mode invité reste vide.',
+  'openings.expandFolder': 'Déplier {{name}}',
+  'openings.collapseFolder': 'Replier {{name}}',
   'openings.deleteFileTitle': 'Supprimer le fichier',
   'openings.deleteFileBody': 'Supprimer « {{name}} » ?',
   'openings.import': 'Importer',
+  'openings.importDestination': 'Dossier de destination',
   'openings.replace': 'Remplacer',
   'openings.exercises': 'Exercices',
   'openings.playVsRepertoire': 'Jouer contre le répertoire',
@@ -2743,21 +3026,30 @@ const fr: Dict = {
   'speech.dictationActive': 'Dictée en {{lang}}',
   'speech.offlineDownloadTitle': 'Dictée hors connexion',
   'speech.offlineDownloadBody':
-    'Le modèle {{lang}} permet de dicter les coups sans réseau. Taille : {{size}}. Environ {{installed}} une fois installé. Rien ne démarre sans ton accord.',
+    'Le modèle {{lang}} permet de dicter les coups sans réseau. Téléchargement : {{size}}. Environ {{installed}} une fois installé. Rien ne démarre sans ton accord.',
+  'speech.offlineRepairBody':
+    'Le modèle {{lang}} est déjà sur l’appareil mais pas encore prêt. Une préparation locale suffit — aucun nouveau téléchargement.',
   'speech.offlineCellularTitle': 'Télécharger avec les données mobiles ?',
   'speech.offlineCellularBody':
     'Modèle {{lang}}, {{size}}. Cet accord ne vaut que pour ce téléchargement.',
   'speech.offlineWaitWifi': 'Attendre le Wi-Fi',
   'speech.offlineWaiting': 'En attente du Wi-Fi. Le modèle {{lang}} ({{size}}) reprendra tout seul.',
   'speech.offlineDownload': 'Télécharger',
+  'speech.offlineRepair': 'Préparer',
   'speech.offlineCancel': 'Annuler',
   'speech.offlineRetry': 'Réessayer',
-  'speech.offlineProgress': 'Téléchargement {{progress}}',
-  'speech.offlineInstalling': 'Vérification du modèle…',
+  'speech.offlineProgress': 'Téléchargement {{progress}} ({{percent}} %)',
+  'speech.offlineProgressIndeterminate': 'En cours…',
+  'speech.offlineVerifying': 'Vérification de l’intégrité…',
+  'speech.offlineInstalling': 'Installation du modèle…',
+  'speech.offlinePreparing': 'Préparation du moteur de dictée…',
+  'speech.offlineReady': 'Modèle {{lang}} prêt. La dictée hors connexion est disponible.',
   'speech.offlineFailedNetwork': 'Le téléchargement a échoué. Le clavier reste disponible.',
   'speech.offlineFailedSpace': 'Espace insuffisant pour le modèle. Le clavier reste disponible.',
   'speech.offlineFailedIntegrity':
     'Le modèle téléchargé n’est pas utilisable. Le clavier reste disponible.',
+  'speech.offlineFailedLoad':
+    'Le modèle est présent mais le moteur n’a pas pu le charger. Réessaie la préparation. Le clavier reste disponible.',
   'speech.offlineFailedOffline':
     'Internet est nécessaire pour télécharger le modèle. Le clavier reste disponible.',
   'vision.answerUnrecognized': 'Non reconnu — réessaie (non compté).',
@@ -2772,12 +3064,110 @@ const fr: Dict = {
 };
 
 const en: Dict = {
+  "sync.allCategories": "Multiple categories",
+  "sync.audit": "Sync: {{passes}} passes; last pass: {{reads}} remote reads, {{pushes}} successful remote writes, {{applies}} attempted local applications.",
+  "sync.auditReason": "Follow-up pass — {{category}}: {{reason}}.",
+  "sync.reason.local_mutation": "local change reported during transfer",
+  "sync.reason.remote_differs": "confirmed remote content still differs",
+  "sync.reason.local_differs": "local content changed before application",
+  "storage.incomplete": "Partial measurement or values changed during the scan; wait for writes to finish and run the diagnostic again.",
+  "storage.openings": "Opening PGNs",
+  "storage.games": "Analyses and games",
+  "storage.translations": "PGN translations",
+  "storage.queue": "Translation queue",
+  "storage.mastery": "Opening learning",
+  "storage.preferences": "Preferences",
+  "storage.profile": "Profile",
+  "storage.openingQuiz": "Opening quizzes",
+  "storage.moveNaming": "Move naming",
+  "storage.playMove": "Play moves",
+  "storage.blind": "Blind memory",
+  "storage.puzzleHistory": "Puzzle history",
+  "storage.puzzleStreaks": "Puzzle streaks",
+  "storage.cultureHistory": "Culture history",
+  "storage.cultureFeedback": "Culture feedback",
+  "storage.endgames": "Endgame training",
+  "storage.theoretical": "Theoretical endgames",
+  "storage.continueLine": "Continue the line",
+  "storage.size": "{{value}} KiB",
+  "storage.total": "Measured physical values (approximate): {{size}}",
+  "storage.shared": "Shared compressed blocks: {{size}}",
+  "storage.backups": "Backups: {{count}}; metadata and legacy dedicated blocks: {{size}}",
+  "storage.workspaces": "Workspaces: {{count}}; metadata and legacy dedicated blocks: {{size}}",
+  "storage.blocks": "Blocks: {{count}}; referenced: {{referenced}}; unreferenced candidates: {{candidates}}",
+  "storage.integrity": "Unreadable rows: {{unreadable}}; invalid roots: {{invalid}}",
+  "storage.categories": "Logical category sizes (before compression)",
+  "storage.unreadable": "cannot read",
+  "storage.avatars": "Avatar caches and pending changes: {{size}}",
+  "storage.guest": "Guest recovery copy: {{size}}",
+  "storage.failure": "Last refused write: {{stage}}; {{kind}}; {{category}}; requested logical size: {{size}}",
+  "storage.noFailure": "No refused write recorded since this startup.",
+  "storage.recovery": "backup or workspace",
+  "storage.limits": "Read only. Values exclude native SQLite pages, indexes and journals; actual free capacity is unknown. Blocks are shared: do not count them multiple times. Candidates may belong to interrupted recovery attempts: nothing will be deleted. The failure stage remains in memory until restart.",
+  "storage.title": "Local storage diagnostic",
+
+  "cloud.quotaPaused": "Local storage is full: automatic retries are paused. Data is retained. Do not clear it; after verified recovery, use Sync now to retry.",
+  "cloud.storageDiagnostics": "Storage diagnostics (read only)",
+  "cloud.storageDiagnosticsUnavailable": "Storage diagnostics are incomplete or unavailable. No data was deleted.",
+  "cloud.errorLocalSize": "Android storage cannot read an oversized local document. Your data is retained. Sign-out stays blocked until the local copy can be verified.",
+  "cloud.errorLocalQuota": "Local storage is full or its limit has been reached. Your data is retained. Free space without clearing AnyChess data, then retry.",
+  "cloud.errorLocalStorage": "The local save could not be verified. Your data is retained. Retry; do not reset app data.",
+  "cloud.errorRevisionSchema": "The sync server is missing the required revision column. Your changes stay local. The server schema needs checking.",
+  "cloud.errorRevisionConflict": "Server data changed during transfer. Your local changes are retained. Retry sync.",
+  "cloud.errorRemotePermission": "The server denied access to this account’s documents. Local data is retained. Check the session and access configuration.",
+  "cloud.errorRemoteService": "The sync service failed or returned an unexpected response. Local data is retained. Retry later.",
+  'account.avatarChoose': 'Choose an avatar',
+  'account.avatarDragHint': 'Drag the photo to frame it, then adjust the zoom.',
+  'account.avatarResetCrop': 'Center and reset zoom',
+  'account.avatarSaveFailed': 'The avatar could not be saved. Your previous avatar is kept. Try again.',
+  'profil.chessInformation': 'MY CHESS PROFILE',
+  'profil.editIdentity': 'Edit username',
+  'profil.accountShortcut': 'View my account and sync status',
+  'profil.accountHint': 'Find your email address, connection, sync status and account actions here.',
+  'profil.notProvided': 'Not provided',
+  'profil.yearsTwentyPlus': '20+',
+  'profil.saveFailed': 'The change could not be saved. Your previous information is kept.',
+  'profil.avatarFor': 'Avatar for {{name}}',
+  'account.avatarMoveLeft': 'Move photo left',
+  'account.avatarMoveRight': 'Move photo right',
+  'account.avatarMoveUp': 'Move photo up',
+  'account.avatarMoveDown': 'Move photo down',
+  'account.avatarZoomOut': 'Zoom out',
+  'account.avatarZoomIn': 'Zoom in',
+  'nav.generalMenu': 'Main menu',
+  'nav.userSignIn': 'User · Sign in',
+  'nav.userAccount': 'User · My account',
   'nav.home': 'Home',
   'nav.records': 'Records',
   'nav.profil': 'Profile',
   'nav.utilisateur': 'User',
   'nav.parametres': 'Settings',
   'common.back': 'Back',
+  'files.export': 'PGN / FEN export',
+  'files.chooseAction': 'Save a file, share its text, or copy the content. Sharing text does not guarantee that a file is saved.',
+  'files.save': 'Save a file',
+  'files.copy': 'Copy content',
+  'files.share': 'Share text',
+  'files.saved': 'The file was written to the selected folder.',
+  'files.downloadStarted': 'Download started. Check your browser downloads.',
+  'files.copied': 'Content copied.',
+  'files.sharedText': 'Text handed to Android sharing. Check receipt in the chosen app; no saved file is confirmed.',
+  'files.unavailable': 'This action is unavailable in this client. Saving an Android file requires ExponentFileSystem and its SAF APIs. You can retry, copy the content or share its text.',
+  'files.failed': 'The operation failed. Your data is preserved. Retry or choose another action.',
+  'files.retry': 'Retry / another action',
+  'files.savePgn': 'Save PGN file',
+  'files.saveFen': 'Save FEN file',
+  'files.sharePgn': 'Share PGN text',
+  'files.shareFen': 'Share FEN text',
+  'files.tooLarge': 'File too large (8 MB per file, batch limited to 16 million characters).',
+  'files.empty': 'Empty file.',
+  'files.unreadable': 'Unreadable file or missing file-reading API. Retry from Downloads or make the file available offline.',
+  'files.invalidPgn': 'Invalid PGN game.',
+  'files.fileLimit': 'Choose up to {{count}} files; no file is imported without your selection.',
+  'files.importSummary': 'Import summary',
+  'files.imported': '{{count}} game(s) loaded or imported, {{failed}} failure(s).',
+  'files.duplicates': 'In openings, an existing filename receives a suffix: no previous file is replaced.',
+  'files.changeSelection': 'Change game selection',
   'common.close': 'Close',
   'common.cancel': 'Cancel',
   'common.confirm': 'Confirm',
@@ -2997,14 +3387,17 @@ const en: Dict = {
   'cloud.signOut': 'Sign out',
   'cloud.signOutTitle': 'Sign out?',
   'cloud.signOutBody':
-    'Your games, scores, and other data stay on this device. They will not be sent to the next account.',
+    'This account’s openings library is hidden immediately and is not visible as a guest. Your games, scores, and other data stay on this device. They will not be sent to the next account.',
   'cloud.signOutFailed': 'Sign-out did not finish. Try again.',
   'cloud.importGuest': 'Import guest data',
   'cloud.importGuestTitle': 'Import guest data?',
   'cloud.importGuestBody':
-    'Games and scores saved without an account will be copied into this account. Another account’s data is not imported.',
+    'Opening PGNs saved without an account are copied into this account after Supabase confirms them. The copy on this device is kept. Another account’s data is not imported.',
+  'cloud.importGuestUnverified':
+    'Supabase did not confirm these studies. Nothing was deleted on this device. Try again once you are online.',
   'cloud.recover': 'Forgot password',
-  'cloud.recoverSent': 'Recovery email sent.',
+  'cloud.recoverSent': 'If this address matches an account, you will receive a link to choose a new password.',
+  'cloud.lastSyncedAt': 'Last successful sync: {{date}}',
   'cloud.statusSynced': 'Synced',
   'cloud.statusPending': 'Pending',
   'cloud.statusSyncing': 'Syncing',
@@ -3036,6 +3429,10 @@ const en: Dict = {
   'cloud.signupAmbiguous':
     'If a confirmation is required, you will receive an email. If you already have an account, sign in or use “Forgot password”.',
   'cloud.signInBusy': 'Signing in…',
+  'cloud.errorService': 'The service is temporarily unavailable. Try again later.',
+  'cloud.errorSession': 'The session needs renewing. Your local data is kept; sign in again if needed.',
+  'account.deleteUncertain': 'The server has not confirmed the deletion outcome. Local data is kept while it is checked. Try again once online.',
+  'cloud.signOutPending': 'Some changes have not synced yet. They will remain saved for this account on this device. Sign in to this account again to resume their transfer.',
   'cloud.signInTimeout': 'Sign-in is taking too long. Check the network, then try again.',
   'cloud.rememberEmail': 'Remember my email address',
   'cloud.rateLimitWait': 'Too many attempts. Try again in {{seconds}} s.',
@@ -3043,7 +3440,7 @@ const en: Dict = {
     'A confirmation email was sent. Open it to activate your account, then come back and sign in.',
   'cloud.resendEmail': 'Resend email',
   'cloud.resendWait': 'Resend email ({{seconds}} s)',
-  'cloud.resendSent': 'Email sent again.',
+  'cloud.resendSent': 'If confirmation is pending for this address, another email will be sent.',
   'cloud.backToSignIn': 'Back to sign in',
   'cloud.backupLabel': 'BACKUP',
   'account.createTitle': 'Create my account',
@@ -3061,7 +3458,7 @@ const en: Dict = {
   'account.avatarRemove': 'Remove photo',
   'account.avatarCrop': 'Crop',
   'account.avatarUseFull': 'Widest crop',
-  'account.avatarZoom': 'Crop',
+  'account.avatarZoom': 'Zoom',
   'account.avatarUnsupported':
     'This format cannot be cropped in this version. The previous photo is kept.',
   'account.avatarCropFailed':
@@ -3090,6 +3487,15 @@ const en: Dict = {
   'account.deleteDone': 'Your account was deleted.',
   'cloud.errorSchema':
     'Run supabase/user_documents.sql in the project SQL editor (table missing).',
+  'settings.languageNotation': 'Language and notation',
+  'settings.languageUnifiedHint': 'This choice applies to the interface, displayed pieces, dictation and speech. PGN files keep standard English notation.',
+  'settings.boardDisplay': 'Board and display',
+  'settings.voiceDictation': 'Speech, dictation and pace',
+  'settings.defaultDifficulties': 'Default difficulties',
+  'settings.sessionDifficultyHint': 'These levels are suggested for new activities. A session choice does not change your defaults or an existing session.',
+  'settings.resetSection': 'Reset preferences',
+  'settings.levelDecrease': 'Decrease level',
+  'settings.levelIncrease': 'Increase level',
   'settings.title': 'Settings',
   'settings.dictationPace': 'Move dictation pace',
   'settings.dictationPaceHint':
@@ -3164,7 +3570,7 @@ const en: Dict = {
   'parties.gameSelectTitle': 'Select up to {{count}} games to import.',
   'parties.gameSelectFound': '{{count}} games found',
   'parties.gameSelectSearch': 'Search (player, event, date…)',
-  'parties.gameSelectMax': 'Maximum 10 games per import.',
+  'parties.gameSelectMax': 'Maximum {{count}} games per import.',
   'parties.gameSelectEmpty': 'No matching games.',
   'parties.gameSelectIndexed': 'Indexed {{count}} games in {{ms}} ms',
   'parties.importSelectedCount': 'Import {{count}} games',
@@ -3358,7 +3764,11 @@ const en: Dict = {
   'errors.voiceUnavailable': 'Voice recognition unavailable',
   'errors.folderNotFound': 'Folder not found.',
   'errors.folderEmptyName': 'Folder name cannot be empty.',
-  'errors.folderExists': 'A folder named “{{name}}” already exists.',
+  'errors.folderExists': 'A folder named “{{name}}” already exists in this location.',
+  'errors.folderNotEmpty':
+    'This folder still has items. Confirm that they should be kept before deleting it.',
+  'errors.folderCycle':
+    'A folder cannot be moved into itself or one of its subfolders.',
   'errors.pgnEmpty': 'PGN content is empty.',
   'errors.pgnNotFound': 'PGN file not found.',
   'errors.filePgnNotFound': 'PGN file not found.',
@@ -3369,9 +3779,31 @@ const en: Dict = {
   'openings.deleteFolderTitle': 'Delete folder',
   'openings.deleteFolderBody':
     'Delete “{{name}}” and all PGN files it contains?',
+  'openings.deleteEmptyFolderBody': 'Delete the empty folder “{{name}}”?',
+  'openings.deleteFolderKeepBody':
+    '“{{name}}” contains folders or studies. They will be moved into “{{parent}}”. No study will be deleted.',
+  'openings.deleteFolderKeepRootBody':
+    '“{{name}}” is at the root. Its subfolders stay in the same color, and its studies move to Unfiled. No study will be deleted.',
+  'openings.keepContents': 'Keep contents',
+  'openings.createSubfolder': 'New subfolder',
+  'openings.moveFolder': 'Move folder',
+  'openings.moveToTitle': 'Move to…',
+  'openings.moveToRootWhite': 'White root',
+  'openings.moveToRootBlack': 'Black root',
+  'openings.selectStudies': 'Select',
+  'openings.cancelSelection': 'Cancel selection',
+  'openings.moveSelection': 'Move ({{count}})',
+  'openings.treeContents': '{{folders}} folder(s) · {{files}} studies',
+  'openings.learnSubtreeHint': 'Studies in subfolders are included.',
+  'openings.accountRequiredTitle': 'Your studies belong to your account',
+  'openings.accountRequiredBody':
+    'A fresh install contains no personal studies. Sign in or create an account to import, edit, and recover your PGNs. Guest mode stays empty.',
+  'openings.expandFolder': 'Expand {{name}}',
+  'openings.collapseFolder': 'Collapse {{name}}',
   'openings.deleteFileTitle': 'Delete file',
   'openings.deleteFileBody': 'Delete “{{name}}”?',
   'openings.import': 'Import',
+  'openings.importDestination': 'Destination folder',
   'openings.replace': 'Replace',
   'openings.exercises': 'Exercises',
   'openings.playVsRepertoire': 'Play against the repertoire',
@@ -4192,21 +4624,30 @@ const en: Dict = {
   'speech.dictationActive': 'Dictation in {{lang}}',
   'speech.offlineDownloadTitle': 'Offline dictation',
   'speech.offlineDownloadBody':
-    'The {{lang}} model lets you dictate moves without a network. Size: {{size}}. About {{installed}} once installed. Nothing starts without your agreement.',
+    'The {{lang}} model lets you dictate moves without a network. Download: {{size}}. About {{installed}} once installed. Nothing starts without your agreement.',
+  'speech.offlineRepairBody':
+    'The {{lang}} model is already on this device but not ready yet. A local preparation is enough — no new download.',
   'speech.offlineCellularTitle': 'Download using mobile data?',
   'speech.offlineCellularBody':
     '{{lang}} model, {{size}}. This agreement applies only to this download.',
   'speech.offlineWaitWifi': 'Wait for Wi-Fi',
   'speech.offlineWaiting': 'Waiting for Wi-Fi. The {{lang}} model ({{size}}) will resume on its own.',
   'speech.offlineDownload': 'Download',
+  'speech.offlineRepair': 'Prepare',
   'speech.offlineCancel': 'Cancel',
   'speech.offlineRetry': 'Try again',
-  'speech.offlineProgress': 'Downloading {{progress}}',
-  'speech.offlineInstalling': 'Checking the model…',
+  'speech.offlineProgress': 'Downloading {{progress}} ({{percent}}%)',
+  'speech.offlineProgressIndeterminate': 'In progress…',
+  'speech.offlineVerifying': 'Checking integrity…',
+  'speech.offlineInstalling': 'Installing the model…',
+  'speech.offlinePreparing': 'Preparing the dictation engine…',
+  'speech.offlineReady': '{{lang}} model ready. Offline dictation is available.',
   'speech.offlineFailedNetwork': 'The download failed. The keyboard stays available.',
   'speech.offlineFailedSpace': 'Not enough space for the model. The keyboard stays available.',
   'speech.offlineFailedIntegrity':
     'The downloaded model cannot be used. The keyboard stays available.',
+  'speech.offlineFailedLoad':
+    'The model is present but the engine could not load it. Try preparing again. The keyboard stays available.',
   'speech.offlineFailedOffline':
     'Internet is required to download the model. The keyboard stays available.',
   'vision.answerUnrecognized': 'Not recognized — try again (not counted).',

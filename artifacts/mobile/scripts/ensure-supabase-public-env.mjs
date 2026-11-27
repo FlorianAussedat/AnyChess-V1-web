@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { RECOVERED_PUBLIC_ANON_JWT } from './public-supabase-anon.mjs';
 
 export const PROJECT_REF = 'zqfxnzwtptepulmgpxhb';
 export const PUBLIC_URL = `https://${PROJECT_REF}.supabase.co`;
@@ -142,6 +143,30 @@ async function fetchApiKeys(token) {
   }
 }
 
+/** Public anon key already shipped in the V0.0.6 standalone APK. */
+export function recoveredPublicPair(token = RECOVERED_PUBLIC_ANON_JWT, nowMs = Date.now()) {
+  if (!token || isForbiddenPublicKey(ANON_KEY, token)) return null;
+  const payload = jwtPayload(token);
+  if (!payload || payload.role !== 'anon' || payload.ref !== PROJECT_REF) return null;
+  if (typeof payload.exp === 'number' && payload.exp * 1000 <= nowMs) return null;
+  return { url: PUBLIC_URL, anon: token };
+}
+
+/**
+ * File and shell win so a local override stays in force.
+ * The management API wins over the recovered APK key when it returns a public key.
+ * The recovered key is the reproducible fallback when that API is unavailable.
+ */
+export function selectPublicSupabaseSource({ fromFile, fromShell, fromApi, recovered }) {
+  if (fromFile?.url && fromFile?.anon) return { source: 'file', url: fromFile.url, anon: fromFile.anon };
+  if (fromShell?.url && fromShell?.anon) return { source: 'shell', url: fromShell.url, anon: fromShell.anon };
+  if (fromApi?.url && fromApi?.anon) return { source: 'api', url: fromApi.url, anon: fromApi.anon };
+  if (recovered?.url && recovered?.anon) {
+    return { source: 'v0.0.6-apk', url: recovered.url, anon: recovered.anon };
+  }
+  return null;
+}
+
 function shellPair() {
   const url = (process.env[URL_KEY] ?? process.env.ANYCHESS_SUPABASE_URL ?? '').trim();
   const anon = (process.env[ANON_KEY] ?? process.env.ANYCHESS_SUPABASE_ANON_KEY ?? '').trim();
@@ -161,31 +186,47 @@ function writeEnv(next) {
 export async function ensureSupabasePublicEnv() {
   const existing = fs.existsSync(ENV_PATH) ? fs.readFileSync(ENV_PATH, 'utf8') : '';
   const fromFile = publicPairFromEnvText(existing);
-  if (fromFile) {
-    return { ok: true, source: 'file', ...fromFile };
+  const fromShell = fromFile ? null : shellPair();
+  let fromApi = null;
+  let apiError = '';
+  if (!fromFile && !fromShell) {
+    const token = (process.env.SUPABASE_ACCESS_TOKEN ?? '').trim();
+    if (token) {
+      try {
+        const picked = pickPublicKey(await fetchApiKeys(token));
+        if (picked) fromApi = { url: PUBLIC_URL, anon: picked.value, name: picked.name };
+        else apiError = 'No anon or publishable key returned for the existing project';
+      } catch (error) {
+        apiError = error instanceof Error ? error.message : String(error);
+      }
+    }
   }
 
-  const fromShell = shellPair();
-  if (fromShell) {
-    writeEnv(upsertPublicEnv(existing, fromShell.url, fromShell.anon));
-    return { ok: true, source: 'shell', ...fromShell };
-  }
-
-  const token = (process.env.SUPABASE_ACCESS_TOKEN ?? '').trim();
-  if (!token) {
+  const selected = selectPublicSupabaseSource({
+    fromFile,
+    fromShell,
+    fromApi,
+    recovered: recoveredPublicPair(),
+  });
+  if (!selected) {
     return {
       ok: false,
       error:
-        'Missing EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_ACCESS_TOKEN',
+        apiError ||
+        'Missing EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY and the recovered public anon key was rejected',
     };
   }
-
-  const picked = pickPublicKey(await fetchApiKeys(token));
-  if (!picked) {
-    return { ok: false, error: 'No anon or publishable key returned for the existing project' };
+  if (selected.source !== 'file') {
+    writeEnv(upsertPublicEnv(existing, selected.url, selected.anon));
   }
-  writeEnv(upsertPublicEnv(existing, PUBLIC_URL, picked.value));
-  return { ok: true, source: 'api', url: PUBLIC_URL, anon: picked.value, name: picked.name };
+  return {
+    ok: true,
+    source: selected.source,
+    url: selected.url,
+    anon: selected.anon,
+    name: fromApi?.name,
+    apiError: selected.source === 'v0.0.6-apk' ? apiError || undefined : undefined,
+  };
 }
 
 async function main() {
@@ -196,8 +237,12 @@ async function main() {
       process.exitCode = 1;
       return;
     }
+    const apiNote =
+      result.source === 'v0.0.6-apk' && result.apiError
+        ? `; management API unused (${redact(result.apiError).slice(0, 160)})`
+        : '';
     console.log(
-      `[anychess] supabase public env ready (host ${PROJECT_REF}.supabase.co, ${describeKey(result.anon)}, source=${result.source})`,
+      `[anychess] supabase public env ready (host ${PROJECT_REF}.supabase.co, ${describeKey(result.anon)}, source=${result.source}${apiNote})`,
     );
   } catch (error) {
     console.error(`[anychess] ${redact(error instanceof Error ? error.message : String(error))}`);

@@ -1,3 +1,4 @@
+import { requestPgnExport } from '@/lib/files/presentChessExport';
 import React, {
   createContext,
   useCallback,
@@ -23,7 +24,6 @@ import {
 import { speechService } from '@/services/SpeechService';
 import {
   anyChessPgnFilename,
-  downloadPgnFile,
   exportGamePgn,
   resultFromGame,
 } from '@/lib/pgn/PgnExporter';
@@ -80,7 +80,7 @@ interface GameContextValue {
   /** Reset the board without starting a replacement game. */
   returnToCampSetup: () => void;
   exportPgn: () => string;
-  downloadPgn: () => void;
+  downloadPgn: () => Promise<unknown>;
   exportPlaySnapshot: () => ClassicPlaySnapshot;
   hydratePlaySnapshot: (snap: ClassicPlaySnapshot) => void;
 }
@@ -164,7 +164,7 @@ export function GameProvider({
       setStrengthBandIdState(normalized);
       const engine = engineRef.current;
       void engine?.applyStrength?.(engineOptionsForBand(normalized));
-      void preferencesStore.update({ stockfishStrengthBandId: normalized });
+      // Session choice only. Global defaults are edited in Settings.
     },
     [engineOptionsForBand],
   );
@@ -483,7 +483,7 @@ export function GameProvider({
 
   const exportPgn = useCallback(() => buildPgn(), [buildPgn]);
   const downloadPgn = useCallback(() => {
-    downloadPgnFile(anyChessPgnFilename(), buildPgn());
+    return requestPgnExport(anyChessPgnFilename(), buildPgn());
   }, [buildPgn]);
 
   const retryOpponentMove = useCallback(() => {
@@ -530,6 +530,7 @@ export function GameProvider({
       const band = getStrengthBand(snap.strengthBandId || strengthBandIdRef.current).id;
       strengthBandIdRef.current = band;
       setStrengthBandIdState(band);
+      void engineRef.current?.applyStrength?.(engineOptionsForBand(band));
       setLastMove(lastMoveFromGame(restored));
       setHeardText('');
       setIsOpponentThinking(false);
@@ -550,6 +551,7 @@ export function GameProvider({
       }
     },
     [
+      engineOptionsForBand,
       cancelPending,
       gameRef,
       playerColorRef,

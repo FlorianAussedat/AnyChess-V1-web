@@ -115,7 +115,14 @@ function isPackagerUrl(value: string): URL | null {
 const METRO_ASSET =
   /(?:^|\/)[^/]*\.bundle(?:\?|$)|\/_expo\/|\/\.expo\/|\/node_modules\/|^\/assets\//;
 
-const ACCOUNT_SCHEMES = new Set(['exp+mobile', 'mobile', 'anychess', 'intent']);
+const ACCOUNT_SCHEMES = new Set([
+  'exp+anychessdev',
+  'exp+mobile',
+  'anychessdev',
+  'mobile',
+  'anychess',
+  'intent',
+]);
 
 /**
  * The confirmation button uses host `open` on the published page, and
@@ -148,7 +155,7 @@ function accountReturnTarget(value: string): string | null {
     host === '' &&
     path === '' &&
     !url.search &&
-    (scheme === 'exp+mobile' || scheme === 'anychess')
+    (scheme === 'exp+anychessdev' || scheme === 'exp+mobile' || scheme === 'anychess' || scheme === 'anychessdev')
   ) {
     return ACCOUNT_RETURN_PATH;
   }

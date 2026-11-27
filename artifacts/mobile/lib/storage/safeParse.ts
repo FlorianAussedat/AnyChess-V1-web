@@ -91,8 +91,10 @@ export async function loadStoredJson<T>(
   let raw: string | null = null;
   try {
     raw = await storage.getItem(key);
-  } catch {
-    return { value: fallback, status: 'missing', raw: null };
+  } catch (error) {
+    // A failed read is not evidence that the document is absent. Callers must
+    // retry instead of persisting defaults over unreadable user data.
+    throw error;
   }
   const result = parseStoredJson(raw, fallback, validate);
   if (result.status === 'corrupt' && result.raw != null && result.reason) {

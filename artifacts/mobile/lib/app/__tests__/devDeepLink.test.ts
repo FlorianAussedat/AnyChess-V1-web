@@ -100,6 +100,8 @@ describe('rewriteDevSystemPath', () => {
 
   it('opens Utilisateur from the confirmation button, cold and already running', () => {
     const links = [
+      'exp+anychessdev://open',
+      'exp+anychessdev://utilisateur',
       'exp+mobile://open',
       'exp+mobile://utilisateur',
       'anychess://open',

@@ -8,6 +8,7 @@ type AuthBody = {
   error?: unknown;
   error_description?: unknown;
   msg?: unknown;
+  message?: unknown;
   access_token?: unknown;
   refresh_token?: unknown;
   id?: unknown;
@@ -37,7 +38,7 @@ export function readAuthErrorCode(body: unknown): string {
 
 export function readAuthErrorMessage(body: unknown): string {
   const row = asBody(body);
-  return text(row.msg) || text(row.error_description) || text(row.error);
+  return text(row.msg) || text(row.message) || text(row.error_description) || text(row.error);
 }
 
 export function readAuthSession(body: unknown): {
@@ -151,7 +152,9 @@ export function mapSupabaseAuthError(status: number, body: unknown): Extract<Clo
   ) {
     return { ok: false, error: 'rate_limited', message };
   }
-  if (status === 0 || status === 502 || status === 503 || status === 504) {
+  if (status >= 500) return { ok: false, error: 'service_unavailable', message };
+  if (status === 401 && /jwt|session|token/.test(blob)) return { ok: false, error: 'session_expired', message };
+  if (status === 0) {
     return { ok: false, error: 'offline', message };
   }
   const error: CloudAuthError = 'unexpected';

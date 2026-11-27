@@ -6,10 +6,9 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AnyChessSplashScreen } from '@/components/AnyChessSplashScreen';
-import { BottomNavigation } from '@/components/navigation/BottomNavigation';
+import { NavigationShell } from '@/components/navigation/NavigationShell';
 import { AppDialogHost } from '@/components/ui/AppDialogHost';
 import { OfflineModelBanner } from '@/components/speech/OfflineModelBanner';
-import { DesignTokens } from '@/constants/designTokens';
 import { ANYCHESS_NAVY } from '@/lib/brand/splashTiming';
 import {
   Inter_400Regular,
@@ -24,7 +23,13 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { holdNativeSplash } from '@/lib/brand/holdNativeSplash';
 import { preferencesStore } from '@/lib/preferences';
-import { bindCloudLifecycle, hydrateCloudSession } from '@/lib/cloud';
+import { bindCloudLifecycle, getActiveCloudEngine, hydrateCloudSession } from '@/lib/cloud';
+import {
+  installPersonalPgnGuard,
+  personalPgnWritesBlocked,
+  PersonalPgnAccessError,
+} from '@/lib/repertoire/personalPgnAccess';
+import { tMsg } from '@/lib/i18n';
 import { runStorageMigrations } from '@/lib/storage';
 import { loadActivitySessions } from '@/lib/activitySessions';
 import {
@@ -42,9 +47,8 @@ const queryClient = new QueryClient();
  * logic/state (GameProvider is scoped per-mode, not global), so modes never
  * accidentally share state.
  *
- * Persistent bottom navigation is rendered by the app shell (not a second
- * router). Content is inset by `bottomNavContentHeight` so boards/controls
- * are never hidden under the bar; per-screen safe-area padding is unchanged.
+ * Main navigation is rendered in normal flow by NavigationShell, only on
+ * the four main routes after the launch intro. Activity providers stay isolated.
  *
  * Launch intro (`AnyChessSplashScreen`) is mounted once here — never on the
  * Home route — so Accueil / Back / bottom-nav Home do not replay it.
@@ -93,6 +97,15 @@ export default function RootLayout() {
   const [introDone, setIntroDone] = useState(false);
 
   useEffect(() => {
+    installPersonalPgnGuard(() => {
+      const state = getActiveCloudEngine().getState();
+      if (!personalPgnWritesBlocked(state)) return;
+      throw new PersonalPgnAccessError(tMsg('openings.accountRequiredTitle'));
+    });
+    return () => installPersonalPgnGuard(null);
+  }, []);
+
+  useEffect(() => {
     runStorageMigrations().catch(() => {});
     void loadActivitySessions().catch(() => {});
     preferencesStore
@@ -100,10 +113,10 @@ export default function RootLayout() {
       .then(() => {
         setPrefsHydrated(true);
         bindCloudLifecycle();
-        void hydrateCloudSession().finally(() => {
+        void hydrateCloudSession().catch(error=>getActiveCloudEngine().noteBackgroundFailure('boot.cloud_hydrate',error)).finally(() => {
           bindPgnTranslationLifecycle();
-          void reconcilePgnTranslationAfterBoot();
-        });
+          void reconcilePgnTranslationAfterBoot().catch(error=>getActiveCloudEngine().noteBackgroundFailure('boot.translation_reconcile',error));
+        }).catch(error=>getActiveCloudEngine().noteBackgroundFailure('boot.cloud_finally',error));
       })
       .catch(() => setPrefsHydrated(true));
   }, []);
@@ -125,21 +138,15 @@ export default function RootLayout() {
               <View style={styles.root}>
                 <StatusBar style="light" backgroundColor={ANYCHESS_NAVY} />
                 {appReady ? (
-                  <View
-                    style={[
-                      styles.content,
-                      { paddingBottom: DesignTokens.bottomNavContentHeight },
-                    ]}
-                  >
+                  <NavigationShell introDone={introDone}>
                     <RootLayoutNav />
-                  </View>
+                  </NavigationShell>
                 ) : (
                   <View style={styles.bootBridge} testID="anychess-boot-bridge" />
                 )}
 
-                {/* Prepare home + nav under the fading overlay so they do not pop in. */}
+                {/* The shell shows navigation only after the intro finishes. */}
                 {appReady ? <OfflineModelBanner /> : null}
-                {appReady ? <BottomNavigation /> : null}
                 {appReady ? <AppDialogHost /> : null}
 
                 {!introDone ? (

@@ -156,7 +156,7 @@ describe('shared hub structure', () => {
     assert.match(openings, /openings-manage-pgn-btn/);
     assert.match(
       openings,
-      /<ScreenHeader onBack=\{\(\) => router\.back\(\)\} backTestID="openings-back" \/>/,
+      /<ScreenHeader backTestID="openings-back" \/>/,
     );
   });
 

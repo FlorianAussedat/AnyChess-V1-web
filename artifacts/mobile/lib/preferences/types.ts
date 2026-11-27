@@ -20,10 +20,7 @@ export type { DictationPace };
 export type UserPreferences = {
   version: typeof USER_PREFERENCES_DOCUMENT_VERSION;
   language: AppLanguage;
-  /**
-   * Spoken move language. Absent means it follows `language`.
-   * French and English are selected one at a time.
-   */
+  /** Compatibility alias, always follows `language`. */
   dictationLanguage?: AppLanguage;
   chessNotation: ChessNotation;
   voiceEnabled: boolean;
@@ -62,10 +59,7 @@ export type UserPreferences = {
    * Off by default unless a legacy auto-import flag was already stored.
    */
   translateImportedPgnComments: boolean;
-  /**
-   * Defer cloud document and avatar transfers while the link is mobile data.
-   * Absent on older documents: treated as on. Does not disable sign-in or translation.
-   */
+  /** Legacy key retained for old documents; normalized to false and never restricts transfers. */
   syncOnWifiOnly: boolean;
   /**
    * `device` — created from the phone locale, not yet a confirmed account preference.
@@ -83,7 +77,9 @@ export type UserPreferences = {
 
 export type UserPreferencesPatch = Partial<{
   language: AppLanguage;
+  /** @deprecated Compatibility inputs only; update `language` instead. */
   dictationLanguage: AppLanguage;
+  /** @deprecated Display notation follows `language`. */
   chessNotation: ChessNotation;
   voiceEnabled: boolean;
   coordinatesEnabled: boolean;
@@ -95,6 +91,7 @@ export type UserPreferencesPatch = Partial<{
   stockfishStrengthBandId: string;
   translateExistingPgnComments: boolean;
   translateImportedPgnComments: boolean;
+  /** @deprecated Accepted for compatibility and always normalized to false. */
   syncOnWifiOnly: boolean;
 }>;
 

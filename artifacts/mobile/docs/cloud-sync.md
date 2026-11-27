@@ -24,6 +24,7 @@ Restent **locaux** (éphémères) : session lecteur/analyseur (`gameSession`) et
 - Avant chaque connexion : sauvegarde locale `anychess.cloud.backup.<horodatage>.v1`.
 - Chaque compte a son espace `anychess.cloud.workspace.<user.id>.v1`. La déconnexion le met à jour, puis retire ces documents de l’espace actif.
 - L’invité a son espace à part. Le connecter à un compte ne copie rien tout seul. L’import se fait seulement avec « Importer les données invitées ».
+- Les études d’ouvertures n’existent que pour un compte. Sans session, la bibliothèque affichée est vide. Les études déjà sur l’appareil sont conservées dans `anychess.cloud.guestPgnVault.v1` (hors synchronisation) et ne sont copiées qu’après un constat Supabase enregistré dans `anychess.cloud.pgnPresence.v1`. Détail : `docs/pgn-ownership.md`.
 - Une copie d’un compte trouvée dans l’ancien espace invité est conservée dans `anychess.cloud.legacyGuest.v1` et n’est ni affichée ni envoyée. Elle n’est pas effacée.
 - `syncOnWifiOnly` reste le réglage du téléphone. La langue et les parties suivent le compte.
 - Préférences : un compte déjà existant ne se fait pas remplacer par les valeurs par défaut du téléphone.
@@ -62,6 +63,8 @@ Voir aussi `docs/pgn-comment-translation.md`.
 
 Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non configuré** ; les données locales restent intactes.
 
+Si ni `.env` ni le jeton de gestion ne fournissent la clé, le build reprend la clé publique `anon` déjà présente dans l’APK autonome V0.0.6, pour le projet `zqfxnzwtptepulmgpxhb`. Une clé `service_role` est refusée. Voir `docs/android-signing.md`.
+
 ## Tests automatisés (sans projet Supabase)
 
 `lib/cloud/__tests__/cloudSync.test.ts` (backend mémoire) :
@@ -76,7 +79,7 @@ Sans ces deux variables publiques, l’écran Utilisateur affiche **Cloud non co
 
 `lib/cloud/__tests__/authFlow.test.ts` couvre la confirmation d’e-mail sans session, les codes d’erreur Supabase, le délai de renvoi, la page qui n’annonce « Adresse confirmée » qu’après vérification du jeton, le formulaire de nouveau mot de passe sur un lien `type=recovery`, et `GET /auth/confirm` en `text/html` sur le serveur web existant.
 
-À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Le bouton de la page HTTPS ouvre `exp+mobile` / `com.anychess.app` lorsque le lien porte `client=dev`, et `anychess` / `com.anychess.standalone` sinon, sans y copier le jeton. Il n’y a pas d’App Link https. L’autoremplissage du gestionnaire de mots de passe Android n’a pas été exercé sur un téléphone dans cet environnement : les champs portent `autoComplete`, `textContentType` et `importantForAutofill`, et le bouton œil ne remplace pas ces attributs.
+À vérifier **sur Android** : inscription réelle dans l’app installée, ouverture de l’e-mail sur l’appareil, second téléphone / désinstallation, bascule de compte, et synchro après coupure réseau. Dans le code, le bouton de la page HTTPS ouvre `exp+anychessdev` / `com.anychess.dev` lorsque le lien porte `client=dev`, `mobile` / `com.anychess.app` lorsqu’il porte `client=app`, et `anychess` / `com.anychess.standalone` sinon, sans y copier le jeton. La page déjà publiée sur Netlify conserve l’ancien routage tant qu’elle n’est pas redéployée. Il n’y a pas d’App Link https. L’autoremplissage du gestionnaire de mots de passe Android n’a pas été exercé sur un téléphone dans cet environnement : les champs portent `autoComplete`, `textContentType` et `importantForAutofill`, et le bouton œil ne remplace pas ces attributs.
 
 ## Moment de la sauvegarde
 
@@ -93,6 +96,7 @@ La sauvegarde locale est immédiate dès que la modification est validée. L’e
 ## Règle de conflit entre deux appareils
 
 - Collections (PGN, parties, traductions, révisions, culture) : union par identifiant. Un tombstone `syncDeletedIds` gagne sur la copie distante. Pour une même fiche, le `updatedAt` le plus récent gagne.
+- Dossiers d’ouvertures (0.0.7) : le document reste `anychess.repertoire.v2`. Chaque dossier peut porter `parentId` (identifiant du parent, ou `null` à la racine). La fusion conserve l’objet le plus récent, puis répare un parent manquant ou un cycle sans supprimer de PGN. L’état déplié de l’arborescence (`anychess.openings.treeExpanded.v1`) reste sur l’appareil.
 - Historiques : union des listes.
 - Records (tactique, nommer le coup, jouer le coup, mémorisation, quiz d’ouverture) : le meilleur score de la génération de réinitialisation la plus récente. Un `resetAt` plus tard annule les scores plus anciens, y compris un nombre sans horodatage. La série en cours (`currentByBand`) suit l’horodatage le plus récent, pas le maximum.
 - Finales théoriques : la génération `scoreResetAt` déjà en place est conservée.

@@ -33,10 +33,9 @@ import { getVoskModule } from '@/lib/speech/androidDictation';
 import { chessPhraseGrammar, OPEN_VOSK_GRAMMAR } from '@/lib/speech/voskGrammar';
 import { decideDictation } from '@/lib/speech/voskDecision';
 import { offerOfflineModel } from '@/lib/speech/offlineModelSession';
-import { networkKindFromState } from '@/lib/speech/offlineModelFlow';
+import { formatMegabytesOnly, networkKindFromState } from '@/lib/speech/offlineModelFlow';
 import {
   activeDictationLanguage,
-  formatDownloadSize,
   VOSK_MODELS,
 } from '@/lib/speech/voskModels';
 
@@ -144,7 +143,7 @@ export async function prepareSpeechRecognition(): Promise<MicStatus> {
 }
 
 export function startSpeechRecognition(): void {
-  // Locale follows app language preference (independent of chess notation).
+  // The single app language also controls display notation and dictation.
   const lang = speechLocaleForLanguage(
     preferencesStore.getPreferences().language,
   );
@@ -432,7 +431,7 @@ export function useSpeechInput(options: {
         code: 'unavailable',
         message: tMsg('speech.offlineModelNeeded', {
           lang: dictationLang === 'en' ? 'English' : 'français',
-          size: formatDownloadSize(spec.downloadBytes, dictationLang),
+          size: formatMegabytesOnly(spec.downloadBytes, dictationLang),
         }),
       });
       return;
@@ -684,7 +683,7 @@ async function startAndroidDictation(refs: {
       code: 'unavailable',
       message: tMsg('speech.offlineModelNeeded', {
         lang: language === 'en' ? 'English' : 'français',
-        size: formatDownloadSize(spec.downloadBytes, language),
+        size: formatMegabytesOnly(spec.downloadBytes, language),
       }),
     });
     return;

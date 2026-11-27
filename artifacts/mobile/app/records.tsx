@@ -1,3 +1,4 @@
+import { GeneralMenu } from '@/components/navigation/GeneralMenu';
 /**
  * Centralized Records hub — selector over real persisted record stores only.
  */
@@ -9,7 +10,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -63,7 +63,6 @@ function pieceLabel(id: string): string {
 
 export default function RecordsHubScreen() {
   const colors = useColors();
-  const router = useRouter();
   const { t } = useTranslation();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
 
@@ -116,7 +115,7 @@ export default function RecordsHubScreen() {
       testID="records-screen"
     >
       <ScreenHeader
-        onBack={() => router.back()}
+        trailing={<GeneralMenu />}
         title={t('records.title')}
         subtitle={t('records.subtitle')}
         backTestID="records-back"

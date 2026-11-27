@@ -1,7 +1,16 @@
+import { consumeAccountFocus, subscribeAccountFocus } from '@/lib/cloud/accountFocus';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { GeneralMenu } from '@/components/navigation/GeneralMenu';
 /**
  * Utilisateur — profile identity + local data links (no preferences).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -13,7 +22,8 @@ import {
   View,
   type ImageSourcePropType,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { navigateMainTab } from '@/lib/navigation/routes';
+import { usePathname, useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useAppSafeInsets } from '@/hooks/useAppSafeInsets';
 import { useUserProfile } from '@/hooks/useUserProfile';
@@ -32,9 +42,16 @@ import {
   CHESS_YEARS_MIN,
 } from '@/lib/profile';
 import { cloudSyncEngine } from '@/lib/cloud';
-import { cacheRemoteAvatar, commitAvatarChange } from '@/lib/profile/avatarRemote';
+import {
+  cacheRemoteAvatar,
+  commitAvatarChange,
+} from '@/lib/profile/avatarRemote';
 import { isMascotId } from '@/lib/profile/mascotCatalog';
-import { normalizeAvatarEmail, readAvatarCache, readPendingAvatar } from '@/lib/profile/avatarLocal';
+import {
+  normalizeAvatarEmail,
+  readAvatarCache,
+  readPendingAvatar,
+} from '@/lib/profile/avatarLocal';
 import { defaultKeyValueStorage } from '@/lib/storage';
 import { repertoireService } from '@/lib/repertoire';
 import {
@@ -53,6 +70,7 @@ const YEAR_OPTIONS = Array.from(
 export default function UtilisateurScreen() {
   const colors = useColors();
   const router = useRouter();
+  const pathname = usePathname();
   const { top: topPad, bottom: bottomPad } = useAppSafeInsets();
   const { profile, updateProfile } = useUserProfile();
   const cloud = useCloudAccount();
@@ -60,8 +78,25 @@ export default function UtilisateurScreen() {
 
   const [editor, setEditor] = useState<EditorKind>(null);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
-  const [mascotSource, setMascotSource] = useState<ImageSourcePropType | null>(null);
-  const [avatarSyncError, setAvatarSyncError] = useState(false);
+  const [mascotSourceId, setMascotSourceId] = useState<string | null>(null);
+  const [mascotSource, setMascotSource] = useState<ImageSourcePropType | null>(
+    null,
+  );
+  const avatarAccountRef = useRef<string | null>(null);
+  const [avatarOwner, setAvatarOwner] = useState<string | null>(null);
+  const ownerRef = useRef(cloud.user?.id);
+  ownerRef.current = cloud.user?.id;
+  const scrollRef = useRef<ScrollView>(null);
+  const accountOffset = useRef(0);
+  const accountLaidOut = useRef(false);
+  const focusAccount = useCallback(() => {
+    if (accountLaidOut.current && consumeAccountFocus()) scrollRef.current?.scrollTo({ y: accountOffset.current, animated: true });
+  }, []);
+  useEffect(() => { focusAccount(); return subscribeAccountFocus(focusAccount); }, [focusAccount]);
+  useEffect(() => { if (cloud.sessionReady && !cloud.user) consumeAccountFocus(); }, [cloud.sessionReady, cloud.user]);
+  const [editError, setEditError] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const editBusyRef = useRef(false);
   const [draftUsername, setDraftUsername] = useState('');
   const [repertoireCount, setRepertoireCount] = useState(0);
   const [activeRecords, setActiveRecords] = useState(0);
@@ -81,11 +116,17 @@ export default function UtilisateurScreen() {
     const user = cloud.user;
     if (!user) {
       setAvatarUri(null);
+      avatarAccountRef.current = null;
       return;
     }
     let cancelled = false;
+    if (avatarAccountRef.current !== user.id) {
+      setAvatarUri(null);
+      setAvatarOwner(user.id);
+      avatarAccountRef.current = user.id;
+    }
     void (async () => {
-      const pending = await readPendingAvatar(defaultKeyValueStorage);
+      const pending = await readPendingAvatar(defaultKeyValueStorage, cloud.user?.email);
       if (cancelled) return;
       if (
         pending?.intent === 'remove' &&
@@ -110,7 +151,9 @@ export default function UtilisateurScreen() {
         accessToken: cloudSyncEngine.getAccessToken(),
       });
       if (!cancelled) setAvatarUri(downloaded);
-    })();
+    })().catch(() => {
+      /* Keep the existing avatar; the next visit can retry reading it. */
+    });
     return () => {
       cancelled = true;
     };
@@ -122,9 +165,13 @@ export default function UtilisateurScreen() {
       return;
     }
     const id = profile.mascotId;
+    setMascotSourceId(null);
     let cancelled = false;
     void import('@/components/profile/mascotImages').then((mod) => {
-      if (!cancelled) setMascotSource(mod.mascotImage(id));
+      if (!cancelled) {
+        setMascotSource(mod.mascotImage(id));
+        setMascotSourceId(id);
+      }
     });
     return () => {
       cancelled = true;
@@ -137,43 +184,24 @@ export default function UtilisateurScreen() {
   ) => {
     const user = cloud.user;
     if (!user) return 'failed' as const;
-    if (context?.mascotId && isMascotId(context.mascotId)) {
-      await updateProfile({ mascotId: context.mascotId });
-      return;
-    }
-    if (dataUrl == null && profile.mascotId) {
-      await updateProfile({ mascotId: null });
-      return;
-    }
-    const previous = avatarUri;
-    const previousMascot = profile.mascotId;
-    if (dataUrl && previousMascot) await updateProfile({ mascotId: null });
+    const cancelled = () =>
+      context?.cancelled() === true || ownerRef.current !== user.id;
+    if (cancelled()) return 'cancelled' as const;
     const result = await commitAvatarChange({
       storage: defaultKeyValueStorage,
       userId: user.id,
       email: user.email,
       accessToken: cloudSyncEngine.getAccessToken(),
       dataUrl,
-      cancelled: context?.cancelled,
+      mascotId: context?.mascotId,
+      cancelled,
     });
-    if (result === 'cancelled') {
-      setAvatarUri(previous);
-      if (previousMascot) await updateProfile({ mascotId: previousMascot });
-      return;
-    }
-    if (result === 'failed') {
-      setAvatarUri(previous);
-      if (previousMascot) await updateProfile({ mascotId: previousMascot });
-      setAvatarSyncError(false);
-      return 'failed' as const;
-    }
-    setAvatarUri(dataUrl);
-    if (result === 'sync_failed') {
-      setAvatarSyncError(true);
-      return 'sync_failed' as const;
-    }
-    setAvatarSyncError(false);
-    if (result === 'waiting_wifi') cloudSyncEngine.markWaitingForWifi();
+    if (cancelled() || result === 'cancelled') return 'cancelled' as const;
+    if (result === 'failed') return 'failed' as const;
+    setAvatarOwner(user.id);
+    setAvatarUri(context?.mascotId ? null : dataUrl);
+    if (result === 'offline') cloudSyncEngine.markOffline();
+    if (result === 'sync_failed') return 'sync_failed' as const;
   };
 
   const summaryLine = useMemo(() => {
@@ -183,13 +211,26 @@ export default function UtilisateurScreen() {
 
   const openUsername = () => {
     setDraftUsername(profile.username ?? '');
+    setEditError(false);
     setEditor('username');
   };
 
-  const saveUsername = async () => {
-    await updateProfile({ username: draftUsername });
-    setEditor(null);
+  const saveEdit = async (patch: Parameters<typeof updateProfile>[0]) => {
+    if (editBusyRef.current) return;
+    editBusyRef.current = true;
+    setEditBusy(true);
+    setEditError(false);
+    try {
+      await updateProfile(patch);
+      setEditor(null);
+    } catch {
+      setEditError(true);
+    } finally {
+      editBusyRef.current = false;
+      setEditBusy(false);
+    }
   };
+  const saveUsername = () => saveEdit({ username: draftUsername });
 
   const resetRecords = () => {
     confirmAction(
@@ -208,7 +249,10 @@ export default function UtilisateurScreen() {
   if (!cloud.sessionReady) {
     return (
       <View
-        style={[styles.loading, { backgroundColor: colors.background, paddingTop: topPad }]}
+        style={[
+          styles.loading,
+          { backgroundColor: colors.background, paddingTop: topPad },
+        ]}
         testID="utilisateur-session-loading"
         accessibilityLabel={t('guest.restoring')}
       >
@@ -231,11 +275,15 @@ export default function UtilisateurScreen() {
         testID="utilisateur-screen"
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          {t('utilisateur.title')}
-        </Text>
+        <ScreenHeader
+          title={t('utilisateur.title')}
+          trailing={<GeneralMenu />}
+        />
         <View
-          style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
+          style={[
+            styles.summaryCard,
+            { backgroundColor: colors.card, borderColor: colors.primary },
+          ]}
           testID="utilisateur-guest-card"
         >
           <Text style={[styles.guestText, { color: colors.foreground }]}>
@@ -249,6 +297,7 @@ export default function UtilisateurScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.page,
@@ -260,62 +309,118 @@ export default function UtilisateurScreen() {
       testID="utilisateur-screen"
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[styles.title, { color: colors.foreground }]}>
-        {t('utilisateur.title')}
-      </Text>
+      <ScreenHeader title={t('utilisateur.title')} trailing={<GeneralMenu />} />
 
       <View
-        style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        style={[
+          styles.summaryCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
         testID="profil-summary"
       >
         <AvatarField
+          key={cloud.user.id}
           username={profile.username}
-          imageUri={profile.mascotId ? null : avatarUri}
-          imageSource={profile.mascotId ? mascotSource : null}
+          imageUri={
+            profile.mascotId || avatarOwner !== cloud.user.id ? null : avatarUri
+          }
+          imageSource={
+            profile.mascotId === mascotSourceId ? mascotSource : null
+          }
           onChange={(next, context) => onAvatarChange(next, context)}
           testID="profil-avatar"
         >
-          <Text style={[styles.summaryName, { color: colors.foreground }]}>{summaryLine}</Text>
+          <Pressable
+            onPress={openUsername}
+            testID="profil-row-username"
+            accessibilityRole="button"
+            accessibilityLabel={t('profil.editIdentity')}
+            style={styles.identityEdit}
+          >
+            <Text style={[styles.summaryName, { color: colors.foreground }]}>
+              {summaryLine}
+            </Text>
+            <Text style={{ color: colors.primary }}>
+              {t('profil.editIdentity')}
+            </Text>
+          </Pressable>
         </AvatarField>
-        {avatarSyncError ? (
-          <Text testID="profil-avatar-sync-error" style={{ color: colors.destructive }}>
-            {t('account.avatarSyncFailed')}
+        <Pressable
+          testID="profil-account-shortcut"
+          accessibilityRole="button"
+          onPress={() =>
+            scrollRef.current?.scrollTo({
+              y: accountOffset.current,
+              animated: true,
+            })
+          }
+          style={styles.accountShortcut}
+        >
+          <Text
+            style={{
+              color: colors.primary,
+              fontFamily: DesignTokens.typography.weightSemiBold,
+            }}
+          >
+            {t('profil.accountShortcut')}
           </Text>
-        ) : null}
+        </Pressable>
       </View>
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-        {t('profil.sectionProfile')}
+        {t('profil.chessInformation')}
       </Text>
       <View style={styles.section}>
         <ProfilNavRow
-          label={t('profil.username')}
-          value={profile.username ?? '—'}
-          onPress={openUsername}
-          testID="profil-row-username"
-        />
-        <ProfilNavRow
           label={t('profil.rapid')}
-          value={getPlayerEloRange(profile.rapidRangeId).label}
-          onPress={() => setEditor('rapid')}
+          value={
+            profile.rapidRangeId && profile.rapidRangeId !== 'unrated'
+              ? getPlayerEloRange(profile.rapidRangeId).label
+              : t('profil.eloUnrated')
+          }
+          onPress={() => {
+            setEditError(false);
+            setEditor('rapid');
+          }}
           testID="profil-row-rapid"
         />
         <ProfilNavRow
           label={t('profil.blitz')}
-          value={getPlayerEloRange(profile.blitzRangeId).label}
-          onPress={() => setEditor('blitz')}
+          value={
+            profile.blitzRangeId && profile.blitzRangeId !== 'unrated'
+              ? getPlayerEloRange(profile.blitzRangeId).label
+              : t('profil.eloUnrated')
+          }
+          onPress={() => {
+            setEditError(false);
+            setEditor('blitz');
+          }}
           testID="profil-row-blitz"
         />
         <ProfilNavRow
           label={t('profil.bullet')}
-          value={getPlayerEloRange(profile.bulletRangeId).label}
-          onPress={() => setEditor('bullet')}
+          value={
+            profile.bulletRangeId && profile.bulletRangeId !== 'unrated'
+              ? getPlayerEloRange(profile.bulletRangeId).label
+              : t('profil.eloUnrated')
+          }
+          onPress={() => {
+            setEditError(false);
+            setEditor('bullet');
+          }}
           testID="profil-row-bullet"
         />
         <ProfilNavRow
           label={t('profil.years')}
-          value={profile.chessYears == null ? '—' : String(profile.chessYears)}
-          onPress={() => setEditor('years')}
+          value={
+            profile.chessYears == null
+              ? t('profil.notProvided')
+              : String(profile.chessYears)
+          }
+          onPress={() => {
+            setEditError(false);
+            setEditor('years');
+          }}
           testID="profil-row-years"
         />
       </View>
@@ -341,18 +446,19 @@ export default function UtilisateurScreen() {
               ? t('profil.recordsSee')
               : `${activeRecords} / ${RECORDS_CATEGORIES.length}`
           }
-          onPress={() => router.push('/records')}
+          onPress={() => navigateMainTab(router, pathname, '/records')}
           testID="profil-row-records"
         />
       </View>
-
-      <CloudAccountSection />
 
       <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
         {t('profil.sectionSave')}
       </Text>
       <View
-        style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+        style={[
+          styles.infoCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+        ]}
         testID="profil-save-status"
       >
         <Text style={[styles.infoTitle, { color: colors.foreground }]}>
@@ -360,9 +466,6 @@ export default function UtilisateurScreen() {
         </Text>
         <Text style={[styles.infoBody, { color: colors.mutedForeground }]}>
           {t('profil.saveBody')}
-        </Text>
-        <Text style={[styles.infoSoon, { color: colors.mutedForeground }]}>
-          {t('profil.saveSoon')}
         </Text>
       </View>
 
@@ -375,11 +478,39 @@ export default function UtilisateurScreen() {
             { borderColor: colors.border, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <Text style={{ color: colors.destructive, fontFamily: DesignTokens.typography.weightSemiBold }}>
+          <Text
+            style={{
+              color: colors.destructive,
+              fontFamily: DesignTokens.typography.weightSemiBold,
+            }}
+          >
             {t('profil.resetRecords')}
           </Text>
         </Pressable>
       </View>
+
+      <View
+        testID="profil-account-section"
+        onLayout={(event) => {
+          accountOffset.current = event.nativeEvent.layout.y;
+          accountLaidOut.current = true;
+          focusAccount();
+        }}
+      >
+        <Text style={[styles.accountHint, { color: colors.mutedForeground }]}>
+          {t('profil.accountHint')}
+        </Text>
+        <CloudAccountSection />
+      </View>
+      {editError ? (
+        <Text
+          testID="profil-edit-error"
+          accessibilityRole="alert"
+          style={{ color: colors.destructive }}
+        >
+          {t('profil.saveFailed')}
+        </Text>
+      ) : null}
 
       <Modal
         visible={editor === 'username'}
@@ -388,7 +519,12 @@ export default function UtilisateurScreen() {
         onRequestClose={() => setEditor(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
               {t('profil.username')}
             </Text>
@@ -412,18 +548,37 @@ export default function UtilisateurScreen() {
                 void saveUsername();
               }}
             />
+            {editError ? (
+              <Text
+                accessibilityRole="alert"
+                style={{ color: colors.destructive }}
+              >
+                {t('profil.saveFailed')}
+              </Text>
+            ) : null}
             <View style={styles.modalActions}>
-              <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-                <Text style={{ color: colors.foreground }}>{t('profil.cancel')}</Text>
+              <Pressable
+                onPress={() => setEditor(null)}
+                style={styles.modalBtn}
+              >
+                <Text style={{ color: colors.foreground }}>
+                  {t('profil.cancel')}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={() => {
                   void saveUsername();
                 }}
                 style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+                disabled={editBusy}
                 testID="profil-username-save"
               >
-                <Text style={{ color: colors.primaryForeground, fontFamily: DesignTokens.typography.weightSemiBold }}>
+                <Text
+                  style={{
+                    color: colors.primaryForeground,
+                    fontFamily: DesignTokens.typography.weightSemiBold,
+                  }}
+                >
                   {t('profil.save')}
                 </Text>
               </Pressable>
@@ -433,13 +588,20 @@ export default function UtilisateurScreen() {
       </Modal>
 
       <Modal
-        visible={editor === 'rapid' || editor === 'blitz' || editor === 'bullet'}
+        visible={
+          editor === 'rapid' || editor === 'blitz' || editor === 'bullet'
+        }
         transparent
         animationType="fade"
         onRequestClose={() => setEditor(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
               {editor === 'rapid'
                 ? t('profil.rapid')
@@ -447,7 +609,18 @@ export default function UtilisateurScreen() {
                   ? t('profil.blitz')
                   : t('profil.bullet')}
             </Text>
-            <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={styles.chipWrap}>
+            {editError ? (
+              <Text
+                accessibilityRole="alert"
+                style={{ color: colors.destructive }}
+              >
+                {t('profil.saveFailed')}
+              </Text>
+            ) : null}
+            <ScrollView
+              style={{ maxHeight: 320 }}
+              contentContainerStyle={styles.chipWrap}
+            >
               {PLAYER_ELO_RANGES.map((range) => {
                 const selectedId =
                   editor === 'rapid'
@@ -459,8 +632,14 @@ export default function UtilisateurScreen() {
                 return (
                   <OptionChip
                     key={range.id}
-                    label={range.id === 'unrated' ? t('profil.eloUnrated') : range.label}
+                    label={
+                      range.id === 'unrated'
+                        ? t('profil.eloUnrated')
+                        : range.label
+                    }
                     active={active}
+                    disabled={editBusy}
+                    testID={`profil-level-${range.id}`}
                     onPress={() => {
                       const patch =
                         editor === 'rapid'
@@ -468,14 +647,16 @@ export default function UtilisateurScreen() {
                           : editor === 'blitz'
                             ? { blitzRangeId: range.id }
                             : { bulletRangeId: range.id };
-                      void updateProfile(patch).then(() => setEditor(null));
+                      void saveEdit(patch);
                     }}
                   />
                 );
               })}
             </ScrollView>
             <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
+              <Text style={{ color: colors.mutedForeground }}>
+                {t('profil.close')}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -488,31 +669,51 @@ export default function UtilisateurScreen() {
         onRequestClose={() => setEditor(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
             <Text style={[styles.modalTitle, { color: colors.foreground }]}>
               {t('profil.years')}
             </Text>
-            <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={styles.chipWrap}>
+            {editError ? (
+              <Text
+                accessibilityRole="alert"
+                style={{ color: colors.destructive }}
+              >
+                {t('profil.saveFailed')}
+              </Text>
+            ) : null}
+            <ScrollView
+              style={{ maxHeight: 280 }}
+              contentContainerStyle={styles.chipWrap}
+            >
               {YEAR_OPTIONS.map((y) => (
                 <OptionChip
                   key={y}
                   label={String(y)}
                   active={profile.chessYears === y}
+                  disabled={editBusy}
+                  testID={`profil-years-${y}`}
                   onPress={() => {
-                    void updateProfile({ chessYears: y }).then(() => setEditor(null));
+                    void saveEdit({ chessYears: y });
                   }}
                 />
               ))}
               <OptionChip
-                label="20+"
+                label={t('profil.yearsTwentyPlus')}
                 active={(profile.chessYears ?? 0) > 20}
                 onPress={() => {
-                  void updateProfile({ chessYears: 25 }).then(() => setEditor(null));
+                  void saveEdit({ chessYears: 25 });
                 }}
               />
             </ScrollView>
             <Pressable onPress={() => setEditor(null)} style={styles.modalBtn}>
-              <Text style={{ color: colors.mutedForeground }}>{t('profil.close')}</Text>
+              <Text style={{ color: colors.mutedForeground }}>
+                {t('profil.close')}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -545,7 +746,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: DesignTokens.radius.lg,
     padding: DesignTokens.spacing.lg,
+    gap: DesignTokens.spacing.md,
+  },
+  identityEdit: {
+    minHeight: DesignTokens.minTouchTarget,
+    justifyContent: 'center',
     gap: 4,
+  },
+  accountShortcut: {
+    minHeight: DesignTokens.minTouchTarget,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+  },
+  accountHint: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: DesignTokens.spacing.sm,
   },
   summaryName: {
     fontSize: 18,

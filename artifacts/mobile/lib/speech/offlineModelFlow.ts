@@ -2,11 +2,15 @@
  * When a dictation model may be downloaded or marked ready.
  * One language at a time. Mobile data needs its own yes for that download.
  * Closing the dialog or pressing back never grants mobile data.
- * An unknown network is not treated as Wi-Fi.
- * "Ready" is a separate step that happens only after install and load succeed.
+ * An unknown network is not treated as Wi-Fi for starting a transfer, but it
+ * must not pause an already accepted download (expo-network often flickers).
+ * "Ready" requires verified files and a successful native load.
  */
 
 export type NetworkKind = 'wifi' | 'cellular' | 'offline' | 'unknown';
+
+/** Local model presence reported by the native module. */
+export type ModelLocalStatus = 'installed' | 'unpacked' | 'missing';
 
 /** Wi-Fi and Ethernet are unmetered. Anything else, including unknown, is not Wi-Fi. */
 export function networkKindFromState(state: {
@@ -29,7 +33,10 @@ export type DownloadPhase =
   | 'cellular-ask'
   | 'waiting-wifi'
   | 'downloading'
+  | 'verifying'
   | 'installing'
+  | 'preparing'
+  | 'ready'
   | 'error';
 
 export type DownloadReason =
@@ -39,6 +46,7 @@ export type DownloadReason =
   | 'incompatible'
   | 'cancelled'
   | 'offline'
+  | 'load'
   | 'unknown';
 
 export type ModelFlowState = {
@@ -49,12 +57,14 @@ export type ModelFlowState = {
   /** Mobile data may be used for this download only. */
   mobileAllowed: boolean;
   reason: DownloadReason;
+  /** True when files are already on disk and only load/prepare is needed. */
+  repairOnly: boolean;
 };
 
-export type ModelFlowEffect = 'none' | 'start' | 'pause' | 'pause-resume';
+export type ModelFlowEffect = 'none' | 'start' | 'prepare' | 'pause' | 'pause-resume';
 
 export type ModelFlowEvent =
-  | { type: 'offer'; network: NetworkKind; installed: boolean }
+  | { type: 'offer'; network: NetworkKind; status: ModelLocalStatus }
   | { type: 'download'; network: NetworkKind }
   | { type: 'download-mobile'; network: NetworkKind }
   | { type: 'wait-wifi' }
@@ -64,6 +74,9 @@ export type ModelFlowEvent =
   | { type: 'network'; network: NetworkKind }
   | { type: 'received'; ok: true }
   | { type: 'received'; ok: false; reason: DownloadReason }
+  | { type: 'verifying' }
+  | { type: 'installing' }
+  | { type: 'preparing' }
   | { type: 'installed' }
   | { type: 'install-failed'; reason: DownloadReason }
   | { type: 'no-space' };
@@ -75,6 +88,7 @@ export function initialModelFlow(network: NetworkKind = 'unknown'): ModelFlowSta
     accepted: false,
     mobileAllowed: false,
     reason: 'unknown',
+    repairOnly: false,
   };
 }
 
@@ -85,6 +99,7 @@ function freshConsent(state: ModelFlowState, network: NetworkKind): ModelFlowSta
     accepted: false,
     mobileAllowed: false,
     reason: 'unknown',
+    repairOnly: false,
   };
 }
 
@@ -104,9 +119,19 @@ export function reduceModelFlow(
 ): { state: ModelFlowState; effect: ModelFlowEffect } {
   switch (event.type) {
     case 'offer': {
-      if (event.installed) {
+      if (event.status === 'installed') {
         return {
           state: { ...freshConsent(state, event.network), phase: 'hidden' },
+          effect: 'none',
+        };
+      }
+      if (event.status === 'unpacked') {
+        return {
+          state: {
+            ...freshConsent(state, event.network),
+            phase: 'ask',
+            repairOnly: true,
+          },
           effect: 'none',
         };
       }
@@ -120,6 +145,9 @@ export function reduceModelFlow(
         return { state: { ...state, network: event.network }, effect: 'none' };
       }
       const next = { ...state, network: event.network, accepted: true };
+      if (state.repairOnly) {
+        return { state: { ...next, phase: 'preparing', reason: 'unknown' }, effect: 'prepare' };
+      }
       if (event.network === 'offline') {
         return { state: { ...next, phase: 'error', reason: 'offline' }, effect: 'none' };
       }
@@ -134,6 +162,9 @@ export function reduceModelFlow(
     case 'download-mobile': {
       if (state.phase !== 'cellular-ask') return { state, effect: 'none' };
       const allowed = { ...state, network: event.network, accepted: true, mobileAllowed: true };
+      if (state.repairOnly) {
+        return { state: { ...allowed, phase: 'preparing', reason: 'unknown' }, effect: 'prepare' };
+      }
       if (event.network === 'offline') {
         return { state: { ...allowed, phase: 'waiting-wifi' }, effect: 'none' };
       }
@@ -165,12 +196,26 @@ export function reduceModelFlow(
           effect: 'pause',
         };
       }
+      if (
+        state.phase === 'verifying' ||
+        state.phase === 'installing' ||
+        state.phase === 'preparing'
+      ) {
+        return { state, effect: 'none' };
+      }
       return {
         state: { ...freshConsent(state, state.network), phase: 'hidden' },
         effect: state.phase === 'waiting-wifi' ? 'pause' : 'none',
       };
     }
     case 'cancel': {
+      if (
+        state.phase === 'verifying' ||
+        state.phase === 'installing' ||
+        state.phase === 'preparing'
+      ) {
+        return { state, effect: 'none' };
+      }
       return {
         state: { ...freshConsent(state, state.network), phase: 'error', reason: 'cancelled' },
         effect: state.phase === 'downloading' || state.phase === 'waiting-wifi' ? 'pause' : 'none',
@@ -178,7 +223,11 @@ export function reduceModelFlow(
     }
     case 'retry': {
       return {
-        state: { ...freshConsent(state, event.network), phase: 'ask' },
+        state: {
+          ...freshConsent(state, event.network),
+          phase: 'ask',
+          repairOnly: state.repairOnly,
+        },
         effect: 'none',
       };
     }
@@ -190,6 +239,9 @@ export function reduceModelFlow(
           return { state: { ...state, network, phase: 'waiting-wifi' }, effect: 'pause' };
         }
         if (isUnmetered(network)) return { state: { ...state, network }, effect: 'none' };
+        // Unknown must not pause an accepted transfer: Expo Network often
+        // flickers away from WIFI for a tick without a real link change.
+        if (network === 'unknown') return { state: { ...state, network }, effect: 'none' };
         if (state.mobileAllowed) {
           return { state: { ...state, network }, effect: 'pause-resume' };
         }
@@ -198,7 +250,10 @@ export function reduceModelFlow(
       if (state.phase === 'waiting-wifi') {
         if (!state.accepted) return { state: { ...state, network }, effect: 'none' };
         if (canTransfer({ ...state, network }, network)) {
-          return { state: { ...state, network, phase: 'downloading' }, effect: 'start' };
+          return {
+            state: { ...state, network, phase: state.repairOnly ? 'preparing' : 'downloading' },
+            effect: state.repairOnly ? 'prepare' : 'start',
+          };
         }
         return { state: { ...state, network }, effect: 'none' };
       }
@@ -206,20 +261,37 @@ export function reduceModelFlow(
     }
     case 'received': {
       if (state.phase !== 'downloading') return { state, effect: 'none' };
-      if (event.ok) return { state: { ...state, phase: 'installing' }, effect: 'none' };
+      if (event.ok) return { state: { ...state, phase: 'verifying' }, effect: 'none' };
       if (event.reason === 'cancelled') {
         return { state: { ...state, phase: 'error', reason: 'cancelled' }, effect: 'none' };
       }
       return { state: { ...state, phase: 'error', reason: event.reason }, effect: 'none' };
     }
+    case 'verifying': {
+      return { state: { ...state, phase: 'verifying' }, effect: 'none' };
+    }
+    case 'installing': {
+      return { state: { ...state, phase: 'installing' }, effect: 'none' };
+    }
+    case 'preparing': {
+      return { state: { ...state, phase: 'preparing' }, effect: 'none' };
+    }
     case 'installed': {
       return {
-        state: { ...freshConsent(state, state.network), phase: 'hidden' },
+        state: { ...freshConsent(state, state.network), phase: 'ready' },
         effect: 'none',
       };
     }
     case 'install-failed': {
-      return { state: { ...state, phase: 'error', reason: event.reason }, effect: 'none' };
+      return {
+        state: {
+          ...state,
+          phase: 'error',
+          reason: event.reason,
+          repairOnly: event.reason === 'load' || state.repairOnly,
+        },
+        effect: 'none',
+      };
     }
     case 'no-space': {
       return { state: { ...state, phase: 'error', reason: 'space' }, effect: 'none' };
@@ -241,12 +313,14 @@ export function modelIsReady(input: { verified: boolean; loaded: boolean }): boo
  */
 export function partialFilePlan(input: {
   installed: boolean;
+  unpacked?: boolean;
   bytes: number;
   expectedBytes: number;
   /** Unknown until the archive is hashed. A mismatch discards a full file. */
   hash?: 'match' | 'mismatch' | 'unknown';
-}): 'ready' | 'fresh' | 'resume' | 'install' | 'discard' {
+}): 'ready' | 'prepare' | 'fresh' | 'resume' | 'install' | 'discard' {
   if (input.installed) return 'ready';
+  if (input.unpacked) return 'prepare';
   if (input.bytes <= 0) return 'fresh';
   if (input.bytes > input.expectedBytes) return 'discard';
   if (input.bytes === input.expectedBytes) {
@@ -267,4 +341,11 @@ export function hasRoomForModel(input: {
   const remaining = Math.max(0, input.downloadBytes - (input.partialBytes ?? 0));
   const needed = remaining + input.installedBytes + 8_000_000;
   return input.freeBytes >= needed;
+}
+
+/** Compact megabyte label for UI (Mo / MB only, no raw byte count). */
+export function formatMegabytesOnly(bytes: number, language: 'fr' | 'en'): string {
+  const mb = (Math.max(0, bytes) / 1_000_000).toFixed(1);
+  if (language === 'fr') return `${mb.replace('.', ',')} Mo`;
+  return `${mb} MB`;
 }

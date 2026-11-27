@@ -1,0 +1,6 @@
+{
+  "package": "com.anychess.app",
+  "alias": "anychess-stable",
+  "certSha256": "29:70:CD:99:0A:63:43:4C:2E:41:E2:98:EB:BC:77:77:52:70:A4:3C:F7:A1:81:EB:44:CF:57:80:B3:74:D9:11",
+  "purpose": "AnyChess Stable release. Public certificate only."
+}
